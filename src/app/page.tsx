@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MapPin, Bus, Bell, ShieldCheck, Phone, Globe, User } from 'lucide-react';
 import GuestAuthModal from '@/components/GuestAuthModal';
 
@@ -9,6 +9,14 @@ const BURGUNDY = '#6B1D3C';
 export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingTarget, setPendingTarget] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hotel = params.get('hotel');
+    const room = params.get('room');
+    if (hotel) localStorage.setItem('attenda_hotel_slug', hotel);
+    if (room) localStorage.setItem('attenda_qr_room', room);
+  }, []);
 
   const handleClick = (target: string) => {
     const stored = localStorage.getItem('guestSession');

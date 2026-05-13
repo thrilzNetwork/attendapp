@@ -40,11 +40,14 @@ export interface RequestItem {
 }
 
 // Hotel Config helpers
-export async function getHotelConfig(): Promise<HotelConfig | null> {
+export async function getHotelConfig(slug?: string): Promise<HotelConfig | null> {
+  const hotelSlug = slug
+    || (typeof window !== 'undefined' ? localStorage.getItem('attenda_hotel_slug') : null)
+    || 'miami-airport';
   const { data, error } = await supabase
     .from('hotels')
     .select('*')
-    .eq('slug', 'miami-airport')
+    .eq('slug', hotelSlug)
     .single();
   if (error) { console.log('Hotel config not found:', error.message); return null; }
   return {
@@ -154,6 +157,111 @@ export function subscribeToRequests(callback: (payload: Record<string, unknown>)
     })
     .subscribe();
   return channel;
+}
+
+// ─── Partners ────────────────────────────────────────────────
+
+export interface Partner {
+  id: string;
+  hotel_id: string;
+  name: string;
+  category: string; // 'restaurant' | 'attraction' | 'service'
+  description: string;
+  image_url: string;
+  phone: string;
+  address: string;
+  hours: string;
+  distance: string;
+  rating: number;
+  has_ordering: boolean;
+  is_active: boolean;
+}
+
+export interface PartnerMenuItem {
+  id: string;
+  partner_id: string;
+  name: string;
+  description: string;
+  price: number;
+  is_active: boolean;
+}
+
+export async function getPartners(hotelId: string): Promise<Partner[]> {
+  const { data } = await supabase
+    .from('partners').select('*')
+    .eq('hotel_id', hotelId).eq('is_active', true)
+    .order('category').order('name');
+  return data || [];
+}
+
+export async function getPartnerById(id: string): Promise<Partner | null> {
+  const { data } = await supabase.from('partners').select('*').eq('id', id).single();
+  return data || null;
+}
+
+export async function createPartner(partner: Omit<Partner, 'id' | 'is_active'>): Promise<Partner | null> {
+  const { data } = await supabase.from('partners').insert({ ...partner, is_active: true }).select().single();
+  return data;
+}
+
+export async function updatePartner(id: string, updates: Partial<Partner>): Promise<void> {
+  await supabase.from('partners').update(updates).eq('id', id);
+}
+
+export async function deletePartner(id: string): Promise<void> {
+  await supabase.from('partners').delete().eq('id', id);
+}
+
+export async function getPartnerMenuItems(partnerId: string): Promise<PartnerMenuItem[]> {
+  const { data } = await supabase.from('partner_menu_items').select('*')
+    .eq('partner_id', partnerId).eq('is_active', true);
+  return data || [];
+}
+
+export async function createPartnerMenuItem(item: { partner_id: string; name: string; description: string; price: number }): Promise<void> {
+  await supabase.from('partner_menu_items').insert({ ...item, is_active: true });
+}
+
+export async function deletePartnerMenuItem(id: string): Promise<void> {
+  await supabase.from('partner_menu_items').delete().eq('id', id);
+}
+
+// ─── Hotels (multi-tenant) ────────────────────────────────────
+
+export async function getAllHotels() {
+  const { data } = await supabase.from('hotels').select('*').order('created_at');
+  return data || [];
+}
+
+export async function createHotel(slug: string, name: string) {
+  const { data, error } = await supabase.from('hotels').insert({ slug, name }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+// ─── QR Codes ─────────────────────────────────────────────────
+
+export interface QrCode {
+  id: string;
+  hotel_id: string;
+  label: string;
+  location_type: string;
+  url: string;
+  created_at: string;
+}
+
+export async function getQrCodes(hotelId: string): Promise<QrCode[]> {
+  const { data } = await supabase.from('qr_codes').select('*')
+    .eq('hotel_id', hotelId).order('created_at', { ascending: false });
+  return data || [];
+}
+
+export async function createQrCode(hotelId: string, label: string, locationType: string, url: string): Promise<void> {
+  await supabase.from('qr_codes').insert({ hotel_id: hotelId, label, location_type: locationType, url });
+}
+
+export async function deleteQrCode(id: string): Promise<void> {
+  await supabase.from('qr_codes').delete().eq('id', id);
 }
 
 export default supabase;

@@ -34,6 +34,14 @@ export default function GuestAuthModal({ open, onClose, onSuccess }: Props) {
 
   useEffect(() => {
     if (open) {
+      const qrRoom = localStorage.getItem('attenda_qr_room');
+      if (qrRoom && !room) setRoom(qrRoom);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
       document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
       document.body.style.width = '100%';
