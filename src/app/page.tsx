@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { MapPin, Bus, Bell, ShieldCheck, Phone, Globe, User } from 'lucide-react';
 import GuestAuthModal from '@/components/GuestAuthModal';
-import CookieNotice from '@/components/CookieNotice';
 
 const BURGUNDY = '#6B1D3C';
 
@@ -166,7 +165,6 @@ export default function Home() {
           else if (pendingTarget.startsWith('#')) alert('Coming soon');
         }}
       />
-      <CookieNotice />
     </div>
   );
 }

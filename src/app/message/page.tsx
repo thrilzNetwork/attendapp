@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function MessagePage() {
   const router = useRouter();
@@ -19,9 +20,19 @@ export default function MessagePage() {
     }
   }, [messages]);
 
-  const send = () => {
+  const send = async () => {
     if (!text.trim()) return;
     const userMsg = text.trim();
+
+    const stored = localStorage.getItem('guestSession');
+    const session = stored ? JSON.parse(stored) : null;
+    await supabase.from('messages').insert({
+      guest_name: session?.name || 'Guest',
+      room: session?.room || '?',
+      sender: 'guest',
+      body: userMsg,
+    });
+
     setMessages(prev => [...prev, { from: 'guest', text: userMsg }]);
     setText('');
 

@@ -18,6 +18,7 @@ export interface HotelConfig {
   managerName: string;
   teamPhotoUrl: string;
   frontDeskPhone: string;
+  googleSheetUrl: string;
 }
 
 export interface StaffAccount {
@@ -56,6 +57,7 @@ export async function getHotelConfig(): Promise<HotelConfig | null> {
     managerName: data.manager_name || '',
     teamPhotoUrl: data.team_photo_url || '',
     frontDeskPhone: data.front_desk_phone || '',
+    googleSheetUrl: data.google_sheet_url || '',
   };
 }
 
@@ -70,6 +72,8 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       welcome_letter: config.welcomeLetter,
       manager_name: config.managerName,
       team_photo_url: config.teamPhotoUrl,
+      front_desk_phone: config.frontDeskPhone,
+      google_sheet_url: config.googleSheetUrl,
     }, { onConflict: 'slug' });
   if (error) throw error;
   return data;

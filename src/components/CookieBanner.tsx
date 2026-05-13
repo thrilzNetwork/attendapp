@@ -1,20 +1,49 @@
 'use client';
 
-import { useState } from 'react';
-import { Cookie } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { Cookie, X } from 'lucide-react';
 
 export default function CookieBanner() {
-  const [minimized, setMinimized] = useState(false);
+  const [status, setStatus] = useState<'loading' | 'pending' | 'accepted'>('loading');
+  const [showPanel, setShowPanel] = useState(false);
+  const pathname = usePathname();
 
-  if (minimized) {
+  useEffect(() => {
+    setStatus(localStorage.getItem('attenda_cookie_ok') ? 'accepted' : 'pending');
+  }, []);
+
+  if (pathname.startsWith('/staff') || pathname.startsWith('/admin')) return null;
+  if (status === 'loading') return null;
+
+  const accept = () => {
+    localStorage.setItem('attenda_cookie_ok', '1');
+    setStatus('accepted');
+    setShowPanel(false);
+  };
+
+  if (status === 'accepted') {
     return (
-      <button
-        onClick={() => setMinimized(false)}
-        className="fixed bottom-20 left-4 z-40 w-10 h-10 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center active:scale-95"
-        aria-label="Cookie settings"
-      >
-        <Cookie size={18} className="text-[#6B1D3C]" />
-      </button>
+      <>
+        <button
+          onClick={() => setShowPanel(p => !p)}
+          className="fixed bottom-4 right-4 z-40 w-9 h-9 rounded-full bg-white/90 backdrop-blur shadow-md border border-gray-200 flex items-center justify-center active:scale-95"
+          aria-label="Cookie settings"
+        >
+          <Cookie size={15} className="text-[#6B1D3C]" />
+        </button>
+        {showPanel && (
+          <div className="fixed bottom-16 right-4 z-40 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-4">
+            <button onClick={() => setShowPanel(false)} className="absolute top-2 right-2 w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+              <X size={10} className="text-gray-400" />
+            </button>
+            <p className="text-[12px] text-gray-600 leading-snug pr-4">
+              You've accepted cookies. See our{' '}
+              <a href="/privacy" className="text-[#6B1D3C] font-bold underline">Privacy Policy</a>.
+            </p>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -26,31 +55,19 @@ export default function CookieBanner() {
         </div>
         <div className="flex-1">
           <p className="text-[13px] text-gray-700 leading-snug">
-            This site uses cookies to enhance your experience. By continuing, you agree to our use of cookies.
+            This site uses cookies to enhance your experience.
           </p>
           <div className="flex gap-2 mt-3">
-            <button
-              onClick={() => setMinimized(true)}
-              className="flex-1 py-2 rounded-xl bg-gray-100 text-[12px] font-bold text-gray-700 active:scale-95"
-            >
+            <button onClick={accept} className="flex-1 py-2 rounded-xl bg-gray-100 text-[12px] font-bold text-gray-700 active:scale-95">
               Got it
             </button>
-            <a
-              href="/privacy"
-              className="flex-1 py-2 rounded-xl text-white text-[12px] font-bold text-center active:scale-95"
-              style={{ backgroundColor: '#6B1D3C' }}
-            >
+            <a href="/privacy" className="flex-1 py-2 rounded-xl text-white text-[12px] font-bold text-center active:scale-95" style={{ backgroundColor: '#6B1D3C' }}>
               Learn More
             </a>
           </div>
         </div>
-        <button
-          onClick={() => setMinimized(true)}
-          className="shrink-0 w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center active:scale-95"
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M2 2L10 10M10 2L2 10" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
+        <button onClick={accept} className="shrink-0 w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center active:scale-95">
+          <X size={12} className="text-gray-400" />
         </button>
       </div>
     </div>
