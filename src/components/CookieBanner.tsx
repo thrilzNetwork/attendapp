@@ -38,7 +38,7 @@ export default function CookieBanner() {
               <X size={10} className="text-gray-400" />
             </button>
             <p className="text-[12px] text-gray-600 leading-snug pr-4">
-              You've accepted cookies. See our{' '}
+              You&apos;ve accepted cookies. See our{' '}
               <a href="/privacy" className="text-[#6B1D3C] font-bold underline">Privacy Policy</a>.
             </p>
           </div>
