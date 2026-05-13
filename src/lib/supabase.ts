@@ -97,8 +97,10 @@ export async function getAllRequests(): Promise<RequestItem[]> {
   }));
 }
 
-export async function insertRequest(req: { guestName: string; room: string; type: string; details: string }) {
+export async function insertRequest(req: { guestName: string; room: string; type: string; details: string; hotelId?: string }) {
+  const hotelId = req.hotelId || (await getHotelConfig())?.id;
   const { data, error } = await supabase.from('requests').insert({
+    hotel_id: hotelId,
     guest_name: req.guestName,
     room: req.room,
     type: req.type,

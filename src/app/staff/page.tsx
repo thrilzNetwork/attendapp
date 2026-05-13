@@ -107,26 +107,31 @@ export default function Dashboard() {
   };
 
   const reload = useCallback(async (role: Role) => {
+    // Always load config first so we can filter by hotel
+    const cfg = await getHotelConfig();
+    if (cfg) setConfig(cfg);
+    const hotelId = cfg?.id;
+
     const [req, msg] = await Promise.all([
-      supabase.from('requests').select('*').order('created_at', { ascending: false }),
-      supabase.from('messages').select('*').order('created_at', { ascending: false }),
+      hotelId
+        ? supabase.from('requests').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false })
+        : supabase.from('requests').select('*').order('created_at', { ascending: false }),
+      hotelId
+        ? supabase.from('messages').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false })
+        : supabase.from('messages').select('*').order('created_at', { ascending: false }),
     ]);
     if (req.data) setRequests(req.data);
     if (msg.data) setMessages(msg.data);
+
     if (role === 'admin' || role === 'superadmin') {
-      const [cfg, stf] = await Promise.all([getHotelConfig(), getStaffAccounts()]);
-      if (cfg) setConfig(cfg);
-      setStaff(stf);
+      setStaff(await getStaffAccounts());
     }
   }, []);
 
   useEffect(() => {
     if (!session) return;
     reload(session.role);
-    const ch = subscribeToRequests(() =>
-      supabase.from('requests').select('*').order('created_at', { ascending: false })
-        .then(({ data }) => { if (data) setRequests(data); })
-    );
+    const ch = subscribeToRequests(() => { reload(session.role); });
     return () => { supabase.removeChannel(ch); };
   }, [session, reload]);
 

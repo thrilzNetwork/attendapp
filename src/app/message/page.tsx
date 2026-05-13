@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase, getHotelConfig } from '@/lib/supabase';
 
 export default function MessagePage() {
   const router = useRouter();
@@ -26,9 +26,12 @@ export default function MessagePage() {
 
     const stored = localStorage.getItem('guestSession');
     const session = stored ? JSON.parse(stored) : null;
+    const qrRoom = localStorage.getItem('attenda_qr_room');
+    const hotel = await getHotelConfig();
     await supabase.from('messages').insert({
+      hotel_id: hotel?.id,
       guest_name: session?.name || 'Guest',
-      room: session?.room || '?',
+      room: qrRoom || session?.room || '?',
       sender: 'guest',
       body: userMsg,
     });

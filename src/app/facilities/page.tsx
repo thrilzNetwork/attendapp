@@ -1,15 +1,22 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Wifi, Check, Coffee, Dumbbell, Printer, WashingMachine, Car, Bus, IceCream } from 'lucide-react';
+import { getHotelConfig, HotelConfig } from '@/lib/supabase';
 
 export default function FacilitiesPage() {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
+  const [config, setConfig] = useState<HotelConfig | null>(null);
+
+  useEffect(() => { getHotelConfig().then(setConfig); }, []);
+
+  const wifiName = config?.wifiName || 'Hotel-WiFi';
+  const wifiPassword = config?.wifiPassword || '';
 
   const copyWiFi = () => {
-    navigator.clipboard.writeText('BWFREE');
+    navigator.clipboard.writeText(wifiPassword || wifiName);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -49,7 +56,13 @@ export default function FacilitiesPage() {
             <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
               <div className="flex-1">
                 <p className="text-[10px] text-gray-400 uppercase tracking-wider">Network</p>
-                <p className="text-[15px] font-mono font-bold text-gray-800">BWFREE</p>
+                <p className="text-[15px] font-mono font-bold text-gray-800">{wifiName}</p>
+                {wifiPassword && (
+                  <>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-1">Password</p>
+                    <p className="text-[14px] font-mono font-bold text-gray-800">{wifiPassword}</p>
+                  </>
+                )}
               </div>
               <button
                 onClick={copyWiFi}
@@ -59,7 +72,7 @@ export default function FacilitiesPage() {
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <p className="text-[11px] text-gray-400 mt-2">No password required. Connect and accept terms on splash page.</p>
+            <p className="text-[11px] text-gray-400 mt-2">{wifiPassword ? 'Tap Copy to copy the password.' : 'No password required. Connect and accept terms on splash page.'}</p>
           </div>
 
           {/* Amenities */}

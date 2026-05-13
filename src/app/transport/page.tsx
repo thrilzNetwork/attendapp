@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, Users, MapPin, Send, Plane, ArrowRight } from 'lucide-react';
+import { supabase, getHotelConfig } from '@/lib/supabase';
 
 export default function TransportPage() {
   const router = useRouter();
@@ -12,21 +13,27 @@ export default function TransportPage() {
   });
   const [sent, setSent] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const stored = localStorage.getItem('guestSession');
-    const guest = stored ? JSON.parse(stored) : { name: 'Guest' };
-    const request = {
-      id: Date.now(),
+    const guest = stored ? JSON.parse(stored) : { name: 'Guest', room: '?' };
+    const qrRoom = localStorage.getItem('attenda_qr_room');
+    const hotel = await getHotelConfig();
+    const details = [
+      direction === 'arrival' ? 'Arrival' : 'Departure',
+      form.date && form.time ? `${form.date} at ${form.time}` : '',
+      form.airline ? `${form.airline}${form.flight ? ` ${form.flight}` : ''}` : '',
+      form.destination,
+      `${form.passengers} passenger(s)`,
+      form.notes,
+    ].filter(Boolean).join(' · ');
+    await supabase.from('requests').insert({
+      hotel_id: hotel?.id,
+      guest_name: guest.name || 'Guest',
+      room: qrRoom || guest.room || '?',
       type: 'Transport',
-      direction,
-      guest: guest.name,
-      room: guest.room || 'N/A',
-      ...form,
+      details,
       status: 'pending',
-      timestamp: new Date().toISOString()
-    };
-    const existing = JSON.parse(localStorage.getItem('guestRequests') || '[]');
-    localStorage.setItem('guestRequests', JSON.stringify([request, ...existing]));
+    });
     setSent(true);
   };
 
