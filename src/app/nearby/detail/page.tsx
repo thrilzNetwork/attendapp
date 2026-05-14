@@ -3,7 +3,8 @@
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Minus, Plus, ShoppingBag, Star, Clock, MapPin, Phone, Navigation } from 'lucide-react';
-import { getPartnerById, getPartnerMenuItems, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
+import { getPartnerById, getPartnerMenuItems, getHotelConfig, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
+import { createCloverOrder, requestDelivery } from '@/lib/clover';
 
 function PartnerContent() {
   const router = useRouter();
@@ -47,15 +48,77 @@ function PartnerContent() {
       const stored = localStorage.getItem('guestSession');
       const session = stored ? JSON.parse(stored) : null;
       const qrRoom = localStorage.getItem('attenda_qr_room');
+      const guestName = session?.name || 'Guest';
+      const room = qrRoom || session?.room || '?';
+
+      const subtotal = cartItems.reduce((s, i) => s + Number(i.price) * i.qty, 0);
+      const feePercent = 5;
+      const feeAmount = subtotal * (feePercent / 100);
+
+      let cloverOrderId: string | undefined;
+
+      if (partner.clover_enabled && partner.clover_merchant_id && partner.clover_access_token) {
+        try {
+          const cloverOrder = await createCloverOrder(
+            partner.clover_merchant_id,
+            partner.clover_access_token,
+            cartItems.map(i => ({ itemId: i.id, name: i.name, qty: i.qty, price: Number(i.price) })),
+            { name: guestName, room },
+          );
+          cloverOrderId = cloverOrder.id;
+
+          // Fire-and-forget delivery — don't block order on delivery dispatch
+          requestDelivery(
+            partner.clover_merchant_id,
+            partner.clover_access_token,
+            cloverOrder.id,
+            `Hotel, Room ${room}`,
+          ).catch(e => console.error('Delivery dispatch failed:', e));
+
+          await supabase.from('attenda_fees').insert({
+            hotel_id: partner.hotel_id,
+            partner_id: partner.id,
+            order_id: cloverOrder.id,
+            order_total: subtotal,
+            fee_percent: feePercent,
+            fee_amount: feeAmount,
+          });
+        } catch (e) {
+          // Clover failure must not block the guest's order
+          console.error('Clover order failed, falling back to internal order:', e);
+        }
+      }
+
       const details = cartItems.map(i => `${i.qty}x ${i.name}`).join(', ');
       await supabase.from('requests').insert({
         hotel_id: partner.hotel_id,
-        guest_name: session?.name || 'Guest',
-        room: qrRoom || session?.room || '?',
+        guest_name: guestName,
+        room,
         type: 'Food Order',
-        details: `${partner.name}: ${details} — $${total.toFixed(2)}`,
+        details: `${partner.name}: ${details} — $${subtotal.toFixed(2)}${cloverOrderId ? ` (Clover #${cloverOrderId})` : ''}`,
         status: 'pending',
       });
+
+      const hotelConfig = await getHotelConfig();
+      fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'food_order',
+          data: {
+            notificationEmail: hotelConfig?.notificationEmail || '',
+            partnerEmail: partner.email || '',
+            hotelName: hotelConfig?.name || 'Hotel',
+            guestName,
+            room,
+            partnerName: partner.name,
+            items: cartItems.map(i => ({ name: i.name, qty: i.qty, price: Number(i.price) })),
+            total: subtotal.toFixed(2),
+            cloverOrderId,
+          },
+        }),
+      }).catch(() => {});
+
       router.push('/confirmation');
     } finally {
       setOrdering(false);

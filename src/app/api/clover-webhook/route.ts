@@ -1,0 +1,25 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { event, data } = body as { event?: string; data?: unknown };
+
+    if (event === 'order.updated') {
+      const { id, state } = (data || {}) as { id?: string; state?: string };
+      if (!id || !state) return NextResponse.json({ ok: true });
+      const newStatus = state === 'locked' || state === 'paid' ? 'completed' : 'in-progress';
+
+      await supabase
+        .from('requests')
+        .update({ status: newStatus })
+        .filter('details', 'ilike', `%Clover #${id}%`);
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error('Clover webhook error:', e);
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
+}

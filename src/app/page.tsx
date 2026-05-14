@@ -21,12 +21,16 @@ export default function Home() {
   const handleClick = (target: string) => {
     const stored = localStorage.getItem('guestSession');
     if (stored) {
-      const session = JSON.parse(stored);
-      const checkout = new Date(session.checkout);
-      if (checkout > new Date()) {
-        if (target.startsWith('/')) window.location.href = target;
-        else if (target.startsWith('#')) alert('Coming soon');
-        return;
+      try {
+        const session = JSON.parse(stored);
+        const checkout = new Date(session.checkout);
+        if (checkout > new Date()) {
+          if (target.startsWith('/')) window.location.href = target;
+          else if (target.startsWith('#')) alert('Coming soon');
+          return;
+        }
+      } catch {
+        localStorage.removeItem('guestSession');
       }
     }
     setPendingTarget(target);
@@ -88,7 +92,7 @@ export default function Home() {
 
       {/* Restaurants Carousel — 17% height, fixed */}
       <div className="h-[17%] min-h-[110px] shrink-0">
-        <button onClick={() => window.location.href = '/nearby'} className="w-full h-full block">
+        <button onClick={() => window.location.href = '/nearby?tab=restaurants'} className="w-full h-full block">
           <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-sm">
             <img
               src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&fit=crop&q=80"
@@ -131,10 +135,11 @@ export default function Home() {
         {/* Right — 2 tall buttons */}
         <div className="flex-1 h-full flex flex-col gap-2">
           <button
-            onClick={() => (window.location.href = '/nearby')}
-            className="flex-1 rounded-2xl bg-white border border-gray-200 flex items-center justify-center active:scale-[0.97] shadow-sm"
+            onClick={() => (window.location.href = '/nearby?tab=attractions')}
+            className="flex-1 rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-1.5 active:scale-[0.97] shadow-sm"
           >
-            <span className="text-[10px] font-bold tracking-[0.14em] uppercase" style={{ color: BURGUNDY }}>RESTAURANTS</span>
+            <MapPin size={18} className="text-[#6B1D3C]" strokeWidth={1.5} />
+            <span className="text-[10px] font-bold tracking-[0.14em] uppercase" style={{ color: BURGUNDY }}>NEARBY</span>
           </button>
 
           <button
@@ -151,7 +156,7 @@ export default function Home() {
       <div className="shrink-0 flex items-end justify-between pt-1">
         <div className="flex items-center gap-2">
           <Globe size={14} className="text-gray-400" />
-          <span className="text-[10px] text-gray-400 leading-none">Operationalized by Thrilz Network</span>
+          <span className="text-[10px] text-gray-400 leading-none">powered by Thrilz network</span>
         </div>
         <button
           onClick={() => handleClick('/message')}

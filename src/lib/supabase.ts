@@ -12,6 +12,7 @@ export interface HotelConfig {
   id?: string;
   slug: string;
   name: string;
+  address: string;
   wifiName: string;
   wifiPassword: string;
   welcomeLetter: string;
@@ -19,6 +20,7 @@ export interface HotelConfig {
   teamPhotoUrl: string;
   frontDeskPhone: string;
   googleSheetUrl: string;
+  notificationEmail: string;
 }
 
 export interface StaffAccount {
@@ -54,6 +56,7 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     id: data.id,
     slug: data.slug,
     name: data.name || '',
+    address: data.address || '',
     wifiName: data.wifi_name || '',
     wifiPassword: data.wifi_password || '',
     welcomeLetter: data.welcome_letter || '',
@@ -61,6 +64,7 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     teamPhotoUrl: data.team_photo_url || '',
     frontDeskPhone: data.front_desk_phone || '',
     googleSheetUrl: data.google_sheet_url || '',
+    notificationEmail: data.notification_email || '',
   };
 }
 
@@ -70,6 +74,7 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
     .upsert({
       slug: config.slug || 'miami-airport',
       name: config.name,
+      address: config.address,
       wifi_name: config.wifiName,
       wifi_password: config.wifiPassword,
       welcome_letter: config.welcomeLetter,
@@ -77,6 +82,7 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       team_photo_url: config.teamPhotoUrl,
       front_desk_phone: config.frontDeskPhone,
       google_sheet_url: config.googleSheetUrl,
+      notification_email: config.notificationEmail,
     }, { onConflict: 'slug' });
   if (error) throw error;
   return data;
@@ -177,6 +183,13 @@ export interface Partner {
   rating: number;
   has_ordering: boolean;
   is_active: boolean;
+  email: string;
+  clover_merchant_id?: string;
+  clover_access_token?: string;
+  clover_refresh_token?: string;
+  clover_token_expires_at?: string;
+  clover_enabled?: boolean;
+  google_place_id?: string;
 }
 
 export interface PartnerMenuItem {

@@ -15,7 +15,10 @@ export default function TransportPage() {
 
   const handleSubmit = async () => {
     const stored = localStorage.getItem('guestSession');
-    const guest = stored ? JSON.parse(stored) : { name: 'Guest', room: '?' };
+    let guest = { name: 'Guest', room: '?' };
+    if (stored) {
+      try { guest = JSON.parse(stored); } catch { localStorage.removeItem('guestSession'); }
+    }
     const qrRoom = localStorage.getItem('attenda_qr_room');
     const hotel = await getHotelConfig();
     const details = [
@@ -34,6 +37,23 @@ export default function TransportPage() {
       details,
       status: 'pending',
     });
+    if (hotel?.notificationEmail) {
+      fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'new_request',
+          data: {
+            notificationEmail: hotel.notificationEmail,
+            hotelName: hotel.name,
+            guestName: guest.name || 'Guest',
+            room: qrRoom || guest.room || '?',
+            requestType: 'Transport',
+            details,
+          },
+        }),
+      }).catch(() => {});
+    }
     setSent(true);
   };
 

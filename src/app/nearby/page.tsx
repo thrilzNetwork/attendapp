@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, MapPin, Phone, Clock, Star, ShoppingBag } from 'lucide-react';
 import { getHotelConfig, getPartners, Partner } from '@/lib/supabase';
 
-export default function NearbyPage() {
+function NearbyContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = searchParams.get('tab') || 'attractions';
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,7 +34,7 @@ export default function NearbyPage() {
         <button onClick={() => router.push('/')} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center active:scale-95">
           <ArrowLeft size={18} className="text-gray-600" />
         </button>
-        <h1 className="text-lg font-bold text-black">Restaurants & Attractions</h1>
+        <h1 className="text-lg font-bold text-black">{tab === 'restaurants' ? 'Partner Restaurants' : 'Nearby'}</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -44,8 +46,8 @@ export default function NearbyPage() {
             </div>
           ) : (
             <>
-              {/* Restaurants */}
-              {restaurants.length > 0 && (
+              {/* Restaurants — only when tab=restaurants */}
+              {tab === 'restaurants' && restaurants.length > 0 && (
                 <>
                   <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold pt-1">Partner Restaurants</p>
                   {restaurants.map(r => (
@@ -92,7 +94,8 @@ export default function NearbyPage() {
                 </>
               )}
 
-              {/* Transport */}
+              {/* Transport — only when tab=attractions */}
+              {tab === 'attractions' && (
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                 <div className="flex items-start gap-3">
                   <div className="w-12 h-12 rounded-xl bg-[#6B1D3C]/10 flex items-center justify-center shrink-0">
@@ -108,9 +111,10 @@ export default function NearbyPage() {
                   </div>
                 </div>
               </div>
+              )}
 
-              {/* Attractions */}
-              {attractions.length > 0 && (
+              {/* Attractions — only when tab=attractions */}
+              {tab === 'attractions' && attractions.length > 0 && (
                 <>
                   <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold pt-3">Things to Do</p>
                   {attractions.map(a => (
@@ -163,8 +167,8 @@ export default function NearbyPage() {
                 </>
               )}
 
-              {/* Services */}
-              {services.length > 0 && (
+              {/* Services — only when tab=attractions */}
+              {tab === 'attractions' && services.length > 0 && (
                 <>
                   <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold pt-3">Services</p>
                   {services.map(s => (
@@ -177,9 +181,15 @@ export default function NearbyPage() {
                 </>
               )}
 
-              {partners.length === 0 && !loading && (
+              {(tab === 'restaurants' && restaurants.length === 0) && !loading && (
                 <div className="text-center py-12">
-                  <p className="text-gray-400 text-[14px]">No partners added yet.</p>
+                  <p className="text-gray-400 text-[14px]">No restaurant partners added yet.</p>
+                </div>
+              )}
+
+              {(tab === 'attractions' && attractions.length === 0 && services.length === 0) && !loading && (
+                <div className="text-center py-12">
+                  <p className="text-gray-400 text-[14px]">No nearby places added yet.</p>
                 </div>
               )}
             </>
@@ -187,5 +197,17 @@ export default function NearbyPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NearbyPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-dvh w-full flex items-center justify-center">
+        <div className="w-7 h-7 border-2 border-gray-300 border-t-[#6B1D3C] rounded-full animate-spin" />
+      </div>
+    }>
+      <NearbyContent />
+    </Suspense>
   );
 }

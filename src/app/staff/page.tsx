@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Bell, MessageSquare, Bus, Settings, Users, UtensilsCrossed,
+  Bell, MessageSquare, Bus, Settings, Users,
   LogOut, RefreshCw, Plus, Trash2, Eye, EyeOff, Save,
   Wifi, Hotel as HotelIcon, ExternalLink, ImageIcon, type LucideIcon,
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
+  UtensilsCrossed, UserPlus,
 } from 'lucide-react';
 import {
   supabase, subscribeToRequests, updateRequestStatus, deleteRequest,
@@ -21,7 +22,7 @@ import {
 type Role = 'admin' | 'staff' | 'superadmin';
 type NavTab =
   | 'orders' | 'messages' | 'shuttle'
-  | 'hotel' | 'staff_mgmt' | 'restaurants'
+  | 'hotel' | 'staff_mgmt'
   | 'partners' | 'qrcodes' | 'properties';
 
 interface Request {
@@ -32,6 +33,7 @@ interface Request {
   details: string;
   status: 'pending' | 'in-progress' | 'completed';
   created_at: string;
+  assigned_to?: string;
 }
 
 interface Message {
@@ -59,7 +61,6 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[] }[] = [
   { tab: 'shuttle',     label: 'Shuttle Schedule',   icon: Bus,             roles: ['admin', 'staff', 'superadmin'] },
   { tab: 'hotel',       label: 'Hotel Settings',     icon: Settings,        roles: ['admin', 'superadmin'] },
   { tab: 'staff_mgmt',  label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'] },
-  { tab: 'restaurants', label: 'Restaurant Orders',  icon: UtensilsCrossed, roles: ['admin', 'superadmin'] },
   { tab: 'partners',    label: 'Partners & Menu',    icon: Store,           roles: ['admin', 'superadmin'] },
   { tab: 'qrcodes',     label: 'QR Codes',           icon: QrCodeIcon,      roles: ['admin', 'superadmin'] },
   { tab: 'properties',  label: 'All Properties',     icon: Building2,       roles: ['superadmin'] },
@@ -174,15 +175,54 @@ export default function Dashboard() {
   /* ── Dashboard ────────────────────────────────────── */
   const visibleNav = NAV.filter(n => n.roles.includes(session.role));
   const pendingCount = requests.filter(r => r.status === 'pending').length;
-  const foodOrders = requests.filter(r =>
-    ['food_order', 'order', 'restaurant', 'food'].some(kw => r.type?.toLowerCase().includes(kw))
-  );
   const isAdmin = session.role === 'admin' || session.role === 'superadmin';
 
   return (
-    <div className="min-h-screen bg-white flex">
-      {/* ── Sidebar ─────────────────────────────────── */}
-      <aside className="w-[230px] bg-[#F3F4F6] flex flex-col shrink-0 h-screen sticky top-0 overflow-y-auto">
+    <div className="min-h-screen bg-white flex flex-col md:flex-row">
+
+      {/* ── Mobile top bar ──────────────────────────── */}
+      <header className="md:hidden sticky top-0 z-20 bg-white border-b border-gray-200">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div>
+            <p className="text-[15px] font-bold text-gray-900 leading-tight">{config?.name || 'Attenda'}</p>
+            <p className="text-[11px] text-gray-500">{session.name} ·{' '}
+              <span className={`font-semibold ${session.role === 'superadmin' ? 'text-purple-600' : session.role === 'admin' ? 'text-teal-600' : 'text-blue-600'}`}>
+                {session.role === 'superadmin' ? 'Super Admin' : session.role === 'admin' ? 'Admin' : 'Staff'}
+              </span>
+            </p>
+          </div>
+          <button
+            onClick={() => { setSession(null); setPin(''); setTab('orders'); }}
+            className="flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-red-500 transition-colors"
+          >
+            <LogOut size={14} />
+          </button>
+        </div>
+        {/* Scrollable tab strip */}
+        <div className="flex overflow-x-auto no-scrollbar border-t border-gray-100 bg-gray-50">
+          {visibleNav.map(item => (
+            <button
+              key={item.tab}
+              onClick={() => setTab(item.tab)}
+              className={`relative shrink-0 flex items-center gap-1.5 px-4 py-2.5 text-[12px] font-semibold transition-colors whitespace-nowrap ${
+                tab === item.tab ? 'text-white' : 'text-gray-500'
+              }`}
+              style={tab === item.tab ? { backgroundColor: TEAL } : {}}
+            >
+              <item.icon size={13} />
+              {item.label}
+              {item.tab === 'orders' && pendingCount > 0 && (
+                <span className="bg-amber-400 text-white text-[9px] font-bold px-1 py-0.5 rounded-full leading-none">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      {/* ── Desktop sidebar ─────────────────────────── */}
+      <aside className="hidden md:flex w-[230px] bg-[#F3F4F6] flex-col shrink-0 h-screen sticky top-0 overflow-y-auto">
         <div className="px-5 pt-5 pb-4">
           <div className="inline-flex items-center justify-center w-10 h-6 rounded mb-2" style={{ backgroundColor: `${TEAL}20` }}>
             <span className="text-[10px] font-bold" style={{ color: TEAL }}>A</span>
@@ -247,7 +287,7 @@ export default function Dashboard() {
       </aside>
 
       {/* ── Main Content ────────────────────────────── */}
-      <main className="flex-1 overflow-auto bg-[#FAFAFA]">
+      <main className="flex-1 min-w-0 bg-[#FAFAFA]">
         {tab === 'orders' && (
           <OrdersView
             requests={requests}
@@ -272,13 +312,6 @@ export default function Dashboard() {
         )}
         {tab === 'staff_mgmt' && isAdmin && (
           <StaffView staff={staff} onRefresh={async () => setStaff(await getStaffAccounts())} />
-        )}
-        {tab === 'restaurants' && isAdmin && (
-          <RestaurantView
-            orders={foodOrders}
-            onStatusChange={async (id, s) => { await updateRequestStatus(id, s); reload(session.role); }}
-            onRefresh={() => reload(session.role)}
-          />
         )}
         {tab === 'partners' && isAdmin && config?.id && (
           <PartnersView hotelId={config.id} />
@@ -309,10 +342,62 @@ function OrdersView({
   onDelete: (id: string) => void;
   onRefresh: () => void;
 }) {
-  const [tab, setTab] = useState<'active' | 'completed'>('active');
-  const active = requests.filter(r => r.status !== 'completed');
-  const completed = requests.filter(r => r.status === 'completed');
-  const visible = tab === 'active' ? active : completed;
+  const [statusTab, setStatusTab] = useState<'active' | 'completed'>('active');
+  const [typeFilter, setTypeFilter] = useState<'All' | 'Food' | 'Transport' | 'Amenities' | 'Other'>('All');
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [assignForm, setAssignForm] = useState<Record<string, string>>({});
+
+  const handleAssign = async (reqId: string, name: string) => {
+    if (!name.trim()) return;
+    await onStatusChange(reqId, 'in-progress');
+    // Update assigned_to in Supabase
+    await supabase.from('requests').update({ assigned_to: name.trim() }).eq('id', reqId);
+    setAssignForm(prev => ({ ...prev, [reqId]: '' }));
+    // Send email notification
+    const cfg = await getHotelConfig();
+    if (cfg?.notificationEmail) {
+      fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'assignment',
+          data: {
+            notificationEmail: cfg.notificationEmail,
+            hotelName: cfg.name,
+            assignedTo: name.trim(),
+            requestId: reqId,
+          },
+        }),
+      }).catch(() => {});
+    }
+  };
+
+  const isFood = (r: Request) =>
+    ['food_order', 'order', 'restaurant', 'food'].some(kw => r.type?.toLowerCase().includes(kw));
+  const isTransport = (r: Request) =>
+    ['transport', 'shuttle', 'taxi', 'uber', 'ride'].some(kw => r.type?.toLowerCase().includes(kw));
+  const isAmenity = (r: Request) =>
+    ['amenity', 'towel', 'housekeep', 'clean', 'water', 'bottle', 'toilet'].some(kw => r.type?.toLowerCase().includes(kw));
+
+  const filtered = requests.filter(r => {
+    if (typeFilter === 'All') return true;
+    if (typeFilter === 'Food') return isFood(r);
+    if (typeFilter === 'Transport') return isTransport(r);
+    if (typeFilter === 'Amenities') return isAmenity(r);
+    return !isFood(r) && !isTransport(r) && !isAmenity(r);
+  });
+
+  const active = filtered.filter(r => r.status !== 'completed');
+  const completed = filtered.filter(r => r.status === 'completed');
+  const visible = statusTab === 'active' ? active : completed;
+
+  const FILTERS: Array<{ key: 'All' | 'Food' | 'Transport' | 'Amenities' | 'Other'; label: string }> = [
+    { key: 'All', label: 'All' },
+    { key: 'Food', label: '🍴 Food' },
+    { key: 'Transport', label: '🚗 Transport' },
+    { key: 'Amenities', label: '🛁 Amenities' },
+    { key: 'Other', label: '📋 Other' },
+  ];
 
   return (
     <div className="p-8">
@@ -323,11 +408,11 @@ function OrdersView({
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-4 mb-4">
         {[
-          { label: 'Pending', count: requests.filter(r => r.status === 'pending').length, color: 'text-amber-600' },
-          { label: 'In Progress', count: requests.filter(r => r.status === 'in-progress').length, color: 'text-blue-600' },
-          { label: 'Completed', count: requests.filter(r => r.status === 'completed').length, color: 'text-emerald-600' },
+          { label: 'Pending', count: filtered.filter(r => r.status === 'pending').length, color: 'text-amber-600' },
+          { label: 'In Progress', count: filtered.filter(r => r.status === 'in-progress').length, color: 'text-blue-600' },
+          { label: 'Completed', count: filtered.filter(r => r.status === 'completed').length, color: 'text-emerald-600' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
             <p className="text-[11px] text-gray-400 uppercase font-bold">{s.label}</p>
@@ -336,11 +421,30 @@ function OrdersView({
         ))}
       </div>
 
+      {/* Type filter bar */}
+      <div className="flex gap-1.5 mb-4 overflow-x-auto no-scrollbar">
+        {FILTERS.map(f => (
+          <button
+            key={f.key}
+            onClick={() => setTypeFilter(f.key)}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${
+              typeFilter === f.key
+                ? 'text-white shadow-sm'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+            style={typeFilter === f.key ? { backgroundColor: TEAL } : {}}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Active/Completed tabs */}
       <div className="flex gap-2 mb-4">
         {(['active', 'completed'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
+          <button key={t} onClick={() => setStatusTab(t)}
             className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${
-              tab === t ? 'bg-white border border-gray-200 text-gray-900 shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              statusTab === t ? 'bg-white border border-gray-200 text-gray-900 shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}>
             {t === 'active' ? `Active (${active.length})` : `Completed (${completed.length})`}
           </button>
@@ -350,45 +454,145 @@ function OrdersView({
       <div className="space-y-3">
         {visible.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
-            <p className="text-[13px] text-gray-500">{tab === 'active' ? 'No active orders.' : 'No completed orders.'}</p>
+            <p className="text-[13px] text-gray-500">
+              {statusTab === 'active' ? 'No active orders.' : 'No completed orders.'}
+            </p>
           </div>
-        ) : visible.map(req => (
-          <div key={req.id} className="bg-white rounded-xl border border-gray-200 p-5 flex items-start justify-between gap-4 shadow-sm">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`w-2 h-2 rounded-full ${req.status === 'pending' ? 'bg-amber-400' : req.status === 'in-progress' ? 'bg-blue-400' : 'bg-emerald-400'}`} />
-                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{req.type}</span>
-                <span className="text-[11px] text-gray-400">• {new Date(req.created_at).toLocaleString()}</span>
+        ) : visible.map(req => {
+          const foodOrder = isFood(req);
+          return (
+          <div key={req.id}>
+            <div
+              onClick={() => setExpanded(expanded === req.id ? null : req.id)}
+              className="bg-white rounded-xl border border-gray-200 p-5 flex items-start justify-between gap-4 shadow-sm cursor-pointer hover:border-teal-200 transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`w-2 h-2 rounded-full ${req.status === 'pending' ? 'bg-amber-400' : req.status === 'in-progress' ? 'bg-blue-400' : 'bg-emerald-400'}`} />
+                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{req.type}</span>
+                  {foodOrder && <UtensilsCrossed size={11} className="text-amber-500" />}
+                  {req.details?.includes('Clover #') && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                      Clover POS
+                    </span>
+                  )}
+                  {req.assigned_to && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700">
+                      👤 {req.assigned_to}
+                    </span>
+                  )}
+                  <span className="text-[11px] text-gray-400">• {new Date(req.created_at).toLocaleString()}</span>
+                </div>
+                <p className="text-[14px] font-bold text-gray-900 mb-0.5">{req.guest_name} — Room {req.room}</p>
+                <p className="text-[13px] text-gray-600 truncate">{req.details}</p>
               </div>
-              <p className="text-[14px] font-bold text-gray-900 mb-0.5">{req.guest_name} — Room {req.room}</p>
-              <p className="text-[13px] text-gray-600 truncate">{req.details}</p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {req.status === 'pending' && (
-                <>
-                  <button onClick={() => onStatusChange(req.id, 'in-progress')}
-                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold hover:opacity-80"
-                    style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                    Start
+              <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+                {req.status === 'pending' && (
+                  <>
+                    <button onClick={() => onStatusChange(req.id, 'in-progress')}
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold hover:opacity-80"
+                      style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+                      {foodOrder ? 'Notify Restaurant' : 'Start'}
+                    </button>
+                    <button onClick={() => onDelete(req.id)}
+                      className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-[11px] font-bold hover:bg-red-100">
+                      Delete
+                    </button>
+                  </>
+                )}
+                {req.status === 'in-progress' && (
+                  <button onClick={() => onStatusChange(req.id, 'completed')}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-bold hover:bg-emerald-100">
+                    Done
                   </button>
-                  <button onClick={() => onDelete(req.id)}
-                    className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-[11px] font-bold hover:bg-red-100">
-                    Delete
-                  </button>
-                </>
-              )}
-              {req.status === 'in-progress' && (
-                <button onClick={() => onStatusChange(req.id, 'completed')}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-bold hover:bg-emerald-100">
-                  Done
-                </button>
-              )}
-              {req.status === 'completed' && (
-                <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-[11px] font-bold">Completed</span>
-              )}
+                )}
+                {req.status === 'completed' && (
+                  <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-[11px] font-bold">Completed</span>
+                )}
+              </div>
             </div>
+
+            {/* Expanded panel */}
+            {expanded === req.id && (
+              <div className="bg-gray-50 border border-t-0 border-gray-200 rounded-b-xl p-5 space-y-3 shadow-sm">
+                {/* Full details */}
+                <div>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Full Details</p>
+                  <p className="text-[13px] text-gray-800 whitespace-pre-wrap leading-relaxed">{req.details}</p>
+                </div>
+
+                {/* Guest info */}
+                <div className="grid grid-cols-2 gap-2 text-[12px]">
+                  <div>
+                    <span className="text-gray-400">Guest:</span>{' '}
+                    <span className="font-semibold text-gray-800">{req.guest_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Room:</span>{' '}
+                    <span className="font-semibold text-gray-800">{req.room}</span>
+                  </div>
+                </div>
+
+                {/* Clover delivery panel */}
+                {req.details?.includes('Clover #') && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-purple-600 uppercase tracking-wider mb-1">Clover Delivery</p>
+                    <div className="grid grid-cols-2 gap-2 text-[12px]">
+                      <div>
+                        <span className="text-gray-400">Status:</span>{' '}
+                        <span className="font-semibold text-purple-700">
+                          {req.status === 'pending' ? 'Sent to Kitchen' : req.status === 'in-progress' ? 'Cooking' : 'Ready'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Delivery:</span>{' '}
+                        <span className="font-semibold text-gray-800">Uber Direct</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Fee (5%):</span>{' '}
+                        <span className="font-semibold text-emerald-600">
+                          ${((parseFloat(req.details?.match(/— \$([\d.]+)/)?.[1] || '0')) * 0.05).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Assign to */}
+                {req.status !== 'completed' && (
+                  <div>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Assign to</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Staff name..."
+                        value={assignForm[req.id] || ''}
+                        onChange={e => {
+                          setAssignForm(prev => ({ ...prev, [req.id]: e.target.value }));
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            handleAssign(req.id, assignForm[req.id] || '');
+                          }
+                        }}
+                        className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none focus:border-teal-400"
+                      />
+                      <button
+                        onClick={() => handleAssign(req.id, assignForm[req.id] || '')}
+                        disabled={!assignForm[req.id]?.trim()}
+                        className="px-3 py-2 rounded-lg text-[12px] font-bold flex items-center gap-1.5 disabled:opacity-30 transition-colors"
+                        style={{ backgroundColor: assignForm[req.id]?.trim() ? TEAL : '#e5e7eb', color: assignForm[req.id]?.trim() ? 'white' : '#9ca3af' }}
+                      >
+                        <UserPlus size={13} /> Assign & Notify
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        ))}
+        );
+        })}
       </div>
     </div>
   );
@@ -396,28 +600,48 @@ function OrdersView({
 
 /* ── Messages View ──────────────────────────────────────── */
 function MessagesView({ messages }: { messages: Message[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
+
   return (
-    <div className="p-8">
-      <h1 className="text-[26px] font-extrabold text-gray-900 mb-6">Guest Messages</h1>
-      {messages.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
-          <MessageSquare size={32} className="text-gray-300 mx-auto mb-2" />
-          <p className="text-[13px] text-gray-500">No messages yet.</p>
-          <p className="text-[11px] text-gray-400 mt-1">Messages sent by guests appear here in real time.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {messages.map(msg => (
-            <div key={msg.id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[14px] font-bold text-gray-900">{msg.guest_name} — Room {msg.room}</p>
-                <span className="text-[11px] text-gray-400">{new Date(msg.created_at).toLocaleString()}</span>
+    <div className="h-full flex flex-col">
+      <div className="shrink-0 p-8 pb-4">
+        <h1 className="text-[26px] font-extrabold text-gray-900">Guest Messages</h1>
+        <p className="text-[13px] text-gray-500 mt-0.5">All guest conversations appear here in real time.</p>
+      </div>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 pb-8 space-y-4">
+        {messages.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
+            <MessageSquare size={32} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-[13px] text-gray-500">No messages yet.</p>
+            <p className="text-[11px] text-gray-400 mt-1">Messages sent by guests appear here in real time.</p>
+          </div>
+        ) : (
+          messages.map(msg => (
+            <div key={msg.id} className={`flex flex-col ${msg.sender === 'guest' ? 'items-end' : 'items-start'}`}>
+              {/* Name + Room header */}
+              <div className={`flex items-center gap-2 mb-1 px-1 ${msg.sender === 'guest' ? 'flex-row-reverse' : ''}`}>
+                <span className="text-[11px] font-semibold text-gray-600">
+                  {msg.guest_name} — Room {msg.room}
+                </span>
+                <span className="text-[10px] text-gray-400">
+                  {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
-              <p className="text-[13px] text-gray-700 leading-snug">{msg.body}</p>
+              {/* Bubble */}
+              <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
+                msg.sender === 'guest'
+                  ? 'bg-[#6B1D3C] text-white rounded-br-md'
+                  : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
+              }`}>
+                {msg.body}
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -470,12 +694,36 @@ function ShuttleView({ sheetUrl, isAdmin, onGoToSettings }: {
 function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: () => void }) {
   const [form, setForm] = useState<HotelConfig>(config);
   const [saved, setSaved] = useState(false);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoverResult, setDiscoverResult] = useState<{ added: number; total: number } | null>(null);
 
   const handleSave = async () => {
     await updateHotelConfig(form);
     setSaved(true);
     onSaved();
     setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleDiscover = async () => {
+    if (!form.address || !config.id) return;
+    setDiscovering(true);
+    setDiscoverResult(null);
+    try {
+      await updateHotelConfig(form);
+      const res = await fetch('/api/places-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hotelId: config.id, address: form.address }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Discovery failed');
+      setDiscoverResult(data);
+      onSaved();
+    } catch (e) {
+      alert('Discovery failed: ' + (e as Error).message);
+    } finally {
+      setDiscovering(false);
+    }
   };
 
   return (
@@ -486,6 +734,32 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
           <Field label="Hotel Name" value={form.name} onChange={v => setForm({ ...form, name: v })} />
           <Field label="Manager Name" value={form.managerName} onChange={v => setForm({ ...form, managerName: v })} />
           <Field label="Front Desk Phone" value={form.frontDeskPhone} onChange={v => setForm({ ...form, frontDeskPhone: v })} />
+          <Field
+            label="Hotel Address"
+            value={form.address}
+            onChange={v => setForm({ ...form, address: v })}
+            placeholder="1601 NW 42nd Ave, Miami, FL 33126"
+          />
+          {form.address && (
+            <div>
+              <button
+                onClick={handleDiscover}
+                disabled={discovering}
+                className="w-full py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                style={{ backgroundColor: '#7C3AED', color: 'white' }}
+              >
+                {discovering ? 'Discovering...' : 'Auto-Discover Nearby Places'}
+              </button>
+              {discoverResult && (
+                <p className="text-[12px] text-emerald-600 font-medium text-center mt-2">
+                  Added {discoverResult.added} new places ({discoverResult.total} found nearby)
+                </p>
+              )}
+              <p className="text-[11px] text-gray-400 mt-1.5 text-center">
+                Scans real restaurants &amp; attractions from OpenStreetMap within 1.5 km
+              </p>
+            </div>
+          )}
         </Section>
 
         <Section title="WiFi Settings" Icon={Wifi}>
@@ -500,6 +774,18 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
             rows={5}
             className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none"
             placeholder="Dear Guest, welcome to our hotel..."
+          />
+        </Section>
+
+        <Section title="Email Notifications" Icon={Bell}>
+          <p className="text-[11px] text-gray-400 -mt-1">
+            Receive an email whenever a guest submits a request or sends a message.
+          </p>
+          <Field
+            label="Notification Email"
+            value={form.notificationEmail}
+            onChange={v => setForm({ ...form, notificationEmail: v })}
+            placeholder="frontdesk@yourhotel.com"
           />
         </Section>
 
@@ -603,66 +889,6 @@ function StaffView({ staff, onRefresh }: { staff: StaffAccount[]; onRefresh: () 
   );
 }
 
-/* ── Restaurant View ──────────────────────────────────────── */
-function RestaurantView({ orders, onStatusChange, onRefresh }: {
-  orders: Request[];
-  onStatusChange: (id: string, status: string) => void;
-  onRefresh: () => void;
-}) {
-  return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-[26px] font-extrabold text-gray-900">Restaurant Orders</h1>
-        <button onClick={onRefresh} className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-[13px] font-semibold text-gray-600 hover:bg-gray-50">
-          <RefreshCw size={14} /> Refresh
-        </button>
-      </div>
-
-      {orders.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
-          <UtensilsCrossed size={36} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-[13px] text-gray-500">No food orders yet.</p>
-          <p className="text-[11px] text-gray-400 mt-1">Guest orders from the Restaurants section appear here.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {orders.map(req => (
-            <div key={req.id} className="bg-white rounded-xl border border-gray-200 p-5 flex items-start justify-between gap-4 shadow-sm">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`w-2 h-2 rounded-full ${req.status === 'pending' ? 'bg-amber-400' : req.status === 'in-progress' ? 'bg-blue-400' : 'bg-emerald-400'}`} />
-                  <span className="text-[11px] font-semibold text-gray-500 uppercase">{req.type}</span>
-                  <span className="text-[11px] text-gray-400">• {new Date(req.created_at).toLocaleString()}</span>
-                </div>
-                <p className="text-[14px] font-bold text-gray-900">{req.guest_name} — Room {req.room}</p>
-                <p className="text-[13px] text-gray-600 whitespace-pre-wrap">{req.details}</p>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                {req.status === 'pending' && (
-                  <button onClick={() => onStatusChange(req.id, 'in-progress')}
-                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold"
-                    style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                    Notify Restaurant
-                  </button>
-                )}
-                {req.status === 'in-progress' && (
-                  <button onClick={() => onStatusChange(req.id, 'completed')}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-bold">
-                    Mark Done
-                  </button>
-                )}
-                {req.status === 'completed' && (
-                  <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-[11px] font-bold">Done</span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ── Partners View ──────────────────────────────────────── */
 function PartnersView({ hotelId }: { hotelId: string }) {
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -671,9 +897,13 @@ function PartnersView({ hotelId }: { hotelId: string }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: '', category: 'restaurant', description: '', image_url: '',
-    phone: '', address: '', hours: '', distance: '', rating: '0', has_ordering: false,
+    phone: '', address: '', hours: '', distance: '', rating: '0', has_ordering: false, email: '',
+  });
+  const [cloverForm, setCloverForm] = useState({
+    merchantId: '', accessToken: '', refreshToken: '', enabled: false,
   });
   const [menuForm, setMenuForm] = useState<Record<string, { name: string; description: string; price: string }>>({});
+  const [syncing, setSyncing] = useState<string | null>(null);
 
   const loadPartners = useCallback(async () => {
     const data = await getPartners(hotelId);
@@ -707,10 +937,41 @@ function PartnersView({ hotelId }: { hotelId: string }) {
       distance: form.distance,
       rating: parseFloat(form.rating) || 0,
       has_ordering: form.has_ordering,
+      email: form.email,
+      clover_merchant_id: cloverForm.merchantId || undefined,
+      clover_access_token: cloverForm.accessToken || undefined,
+      clover_refresh_token: cloverForm.refreshToken || undefined,
+      clover_enabled: cloverForm.enabled,
     });
-    setForm({ name: '', category: 'restaurant', description: '', image_url: '', phone: '', address: '', hours: '', distance: '', rating: '0', has_ordering: false });
+    setForm({ name: '', category: 'restaurant', description: '', image_url: '', phone: '', address: '', hours: '', distance: '', rating: '0', has_ordering: false, email: '' });
+    setCloverForm({ merchantId: '', accessToken: '', refreshToken: '', enabled: false });
     setShowForm(false);
     loadPartners();
+  };
+
+  const handleCloverSync = async (p: Partner) => {
+    if (!p.clover_merchant_id || !p.clover_access_token) return;
+    setSyncing(p.id);
+    try {
+      const { getCloverMenu } = await import('@/lib/clover');
+      const items = await getCloverMenu(p.clover_merchant_id, p.clover_access_token);
+      const existing = await getPartnerMenuItems(p.id);
+      for (const item of existing) await deletePartnerMenuItem(item.id);
+      for (const item of items) {
+        await createPartnerMenuItem({
+          partner_id: p.id,
+          name: item.name,
+          description: item.description || '',
+          price: item.price / 100,
+        });
+      }
+      alert(`Synced ${items.length} items from Clover`);
+      loadMenu(p.id);
+    } catch (e) {
+      alert('Sync failed: ' + (e as Error).message);
+    } finally {
+      setSyncing(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -778,6 +1039,7 @@ function PartnersView({ hotelId }: { hotelId: string }) {
               <Field label="Description" value={form.description} onChange={v => setForm({ ...form, description: v })} />
             </div>
             <Field label="Phone" value={form.phone} onChange={v => setForm({ ...form, phone: v })} />
+            <Field label="Email (order notifications)" value={form.email} onChange={v => setForm({ ...form, email: v })} placeholder="orders@restaurant.com" />
             <Field label="Hours" value={form.hours} onChange={v => setForm({ ...form, hours: v })} placeholder="Mon–Sun 8am–10pm" />
             <div className="col-span-2">
               <Field label="Address" value={form.address} onChange={v => setForm({ ...form, address: v })} />
@@ -791,6 +1053,26 @@ function PartnersView({ hotelId }: { hotelId: string }) {
                 onChange={e => setForm({ ...form, has_ordering: e.target.checked })}
                 className="w-4 h-4 rounded" />
               <label htmlFor="has_ordering" className="text-[13px] font-medium text-gray-700">In-Room Ordering</label>
+            </div>
+
+            {/* Clover Integration */}
+            <div className="col-span-2 border-t border-gray-100 pt-3 mt-1">
+              <p className="text-[12px] font-bold text-purple-600 mb-2">Clover POS Integration</p>
+            </div>
+            <div className="col-span-2">
+              <Field label="Clover Merchant ID" value={cloverForm.merchantId} onChange={v => setCloverForm({ ...cloverForm, merchantId: v })} placeholder="ABC123DEF456" />
+            </div>
+            <div className="col-span-2">
+              <Field label="Clover Access Token" value={cloverForm.accessToken} onChange={v => setCloverForm({ ...cloverForm, accessToken: v })} placeholder="sk_..." />
+            </div>
+            <div className="col-span-2">
+              <Field label="Clover Refresh Token" value={cloverForm.refreshToken} onChange={v => setCloverForm({ ...cloverForm, refreshToken: v })} placeholder="rt_..." />
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="clover_enabled" checked={cloverForm.enabled}
+                onChange={e => setCloverForm({ ...cloverForm, enabled: e.target.checked })}
+                className="w-4 h-4 rounded" />
+              <label htmlFor="clover_enabled" className="text-[13px] font-medium text-gray-700">Enable Clover POS</label>
             </div>
           </div>
           <div className="flex gap-2 mt-4">
@@ -826,6 +1108,11 @@ function PartnersView({ hotelId }: { hotelId: string }) {
                         In-Room Ordering
                       </span>
                     )}
+                    {p.clover_enabled && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                        Clover POS
+                      </span>
+                    )}
                   </div>
                   <p className="font-bold text-[15px] text-gray-900">{p.name}</p>
                   {p.description && <p className="text-[12px] text-gray-500 mt-0.5 truncate">{p.description}</p>}
@@ -836,6 +1123,15 @@ function PartnersView({ hotelId }: { hotelId: string }) {
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold"
                       style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
                       Menu {expanded === p.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    </button>
+                  )}
+                  {p.clover_enabled && p.clover_merchant_id && p.clover_access_token && (
+                    <button
+                      onClick={() => handleCloverSync(p)}
+                      disabled={syncing === p.id}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-100 text-purple-700 hover:bg-purple-200 disabled:opacity-50"
+                    >
+                      {syncing === p.id ? 'Syncing...' : 'Sync Clover'}
                     </button>
                   )}
                   <button onClick={() => handleDelete(p.id)}
@@ -1019,7 +1315,7 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
 /* ── Properties View ──────────────────────────────────────── */
 function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => void }) {
   const [hotels, setHotels] = useState<{ id: string; slug: string; name: string }[]>([]);
-  const [form, setForm] = useState({ slug: '', name: '' });
+  const [form, setForm] = useState({ slug: '', name: '', adminEmail: '' });
   const [copied, setCopied] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -1035,11 +1331,29 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
     if (!form.slug || !form.name) return;
     setCreating(true);
     try {
-      await createHotel(form.slug, form.name);
-      setForm({ slug: '', name: '' });
+      const hotel = await createHotel(form.slug, form.name);
+      if (form.adminEmail && hotel) {
+        const origin = window.location.origin;
+        await fetch('/api/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'tenant_onboarding',
+            data: {
+              hotelName: form.name,
+              slug: form.slug,
+              adminEmail: form.adminEmail,
+              guestUrl: `${origin}/?hotel=${form.slug}`,
+              adminUrl: `${origin}/staff?hotel=${form.slug}`,
+            },
+          }),
+        });
+      }
+      setForm({ slug: '', name: '', adminEmail: '' });
       getAllHotels().then(setHotels);
-    } catch {
-      alert('Error creating hotel. Slug may already exist.');
+    } catch (e: unknown) {
+      const msg = (e instanceof Error ? e.message : '') || (typeof e === 'object' && e !== null && 'message' in e ? String((e as { message: unknown }).message) : '');
+      alert(msg.includes('unique') || msg.includes('duplicate') ? 'Slug already in use. Try a different one.' : msg || 'Failed to create hotel. Please try again.');
     } finally {
       setCreating(false);
     }
@@ -1063,6 +1377,9 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
         <div className="grid grid-cols-2 gap-3 mb-3">
           <Field label="Hotel Name *" value={form.name} onChange={v => setForm({ ...form, name: v })} placeholder="Miami Airport Hotel" />
           <Field label="URL Slug *" value={form.slug} onChange={v => setForm({ ...form, slug: v.toLowerCase().replace(/\s+/g, '-') })} placeholder="miami-airport" />
+          <div className="col-span-2">
+            <Field label="Admin Email (optional — for onboarding email)" value={form.adminEmail} onChange={v => setForm({ ...form, adminEmail: v })} placeholder="manager@hotel.com" />
+          </div>
         </div>
         {form.slug && (
           <p className="text-[11px] text-gray-400 mb-3 font-mono">Guest URL preview: {getGuestUrl(form.slug)}</p>

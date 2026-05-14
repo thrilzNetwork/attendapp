@@ -27,13 +27,13 @@ export default function CookieBanner() {
       <>
         <button
           onClick={() => setShowPanel(p => !p)}
-          className="fixed bottom-4 right-4 z-40 w-9 h-9 rounded-full bg-white/90 backdrop-blur shadow-md border border-gray-200 flex items-center justify-center active:scale-95"
+          className="fixed bottom-12 left-4 z-40 w-9 h-9 rounded-full bg-white/90 backdrop-blur shadow-md border border-gray-200 flex items-center justify-center active:scale-95"
           aria-label="Cookie settings"
         >
           <Cookie size={15} className="text-[#6B1D3C]" />
         </button>
         {showPanel && (
-          <div className="fixed bottom-16 right-4 z-40 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-4">
+          <div className="fixed bottom-24 left-4 z-40 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-4">
             <button onClick={() => setShowPanel(false)} className="absolute top-2 right-2 w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
               <X size={10} className="text-gray-400" />
             </button>
@@ -48,7 +48,7 @@ export default function CookieBanner() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-40 bg-white rounded-2xl shadow-xl border border-gray-100 p-4">
+    <div className="fixed bottom-24 left-4 right-4 z-40 bg-white rounded-2xl shadow-xl border border-gray-100 p-4">
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 rounded-full bg-[#6B1D3C]/10 flex items-center justify-center shrink-0 mt-0.5">
           <Cookie size={18} className="text-[#6B1D3C]" />

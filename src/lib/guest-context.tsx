@@ -82,8 +82,8 @@ export function GuestProvider({ children }: { children: ReactNode }) {
         }
       } catch { /* ignore */ }
     }
-    loadConfig();
-  }, []);
+    loadConfig(); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadConfig = async () => {
     const remote = await getSupabaseHotelConfig();
@@ -106,6 +106,8 @@ export function GuestProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setGuest(null);
     localStorage.removeItem('guestSession');
+    localStorage.removeItem('guestRequests');
+    localStorage.removeItem('attenda_qr_room');
   };
 
   const addRequest = async (type: string, details: string) => {

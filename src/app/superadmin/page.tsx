@@ -1,81 +1,189 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase, getAllHotels, createHotel } from '@/lib/supabase';
-import { Building2, Copy, Check, LogOut, Globe } from 'lucide-react';
+import { Building2, Copy, Check, LogOut, Globe, Eye, EyeOff, Lock } from 'lucide-react';
 
-const SUPER_ADMIN_EMAIL = 'thrilznetwork@gmail.com';
 const TEAL = '#0D9488';
 
+type Mode = 'checking' | 'signup' | 'login' | 'confirm' | 'dashboard' | 'unauthorized';
+
 export default function SuperAdminPage() {
+  const [mode, setMode] = useState<Mode>('checking');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<{ email: string } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [hotels, setHotels] = useState<{ id: string; slug: string; name: string }[]>([]);
-  const [form, setForm] = useState({ slug: '', name: '' });
+  const [form, setForm] = useState({ slug: '', name: '', adminEmail: '' });
   const [copied, setCopied] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [unauthorized, setUnauthorized] = useState(false);
+  const [createError, setCreateError] = useState('');
 
-  const loadHotels = async () => {
+  const loadHotels = useCallback(async () => {
     const data = await getAllHotels();
     setHotels(data);
+  }, []);
+
+  const checkSlot = async () => {
+    const { data } = await supabase.from('superadmin_config').select('user_id, email').maybeSingle();
+    return data as { user_id: string; email: string } | null;
   };
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        if (user.email === SUPER_ADMIN_EMAIL) {
-          setUser({ email: user.email! });
-          loadHotels();
-        } else {
-          setUnauthorized(true);
-        }
-      }
-      setLoading(false);
-    });
+  const goToDashboard = useCallback((userEmail: string) => {
+    setUser({ email: userEmail });
+    setMode('dashboard');
+    loadHotels();
+  }, [loadHotels]);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        if (session.user.email === SUPER_ADMIN_EMAIL) {
-          setUser({ email: session.user.email! });
-          setUnauthorized(false);
-          loadHotels();
-        } else {
-          setUnauthorized(true);
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-        setUnauthorized(false);
+  const registerAndEnter = useCallback(async (userId: string, userEmail: string) => {
+    const { error: insertErr } = await supabase.from('superadmin_config').insert({
+      user_id: userId,
+      email: userEmail,
+    });
+    if (!insertErr) {
+      goToDashboard(userEmail);
+      return;
+    }
+    // Insert failed — might be a race; check if the slot is now ours
+    const slot = await checkSlot();
+    if (slot?.user_id === userId) {
+      goToDashboard(userEmail);
+    } else {
+      await supabase.auth.signOut();
+      setError('Setup error. Please try again.');
+      setMode('signup');
+    }
+  }, [goToDashboard]);
+
+  useEffect(() => {
+    const init = async () => {
+      // Use getSession() so the hash fragment (#access_token) is already parsed
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUser = session?.user;
+      const slot = await checkSlot();
+
+      if (!slot && !currentUser) { setMode('signup'); return; }
+
+      if (!slot && currentUser) {
+        // Confirmed email redirect — register and enter
+        await registerAndEnter(currentUser.id, currentUser.email!);
+        return;
       }
-      setLoading(false);
+
+      if (slot && !currentUser) { setMode('login'); return; }
+
+      if (slot && currentUser) {
+        if (currentUser.id === slot.user_id) {
+          goToDashboard(currentUser.email!);
+        } else {
+          await supabase.auth.signOut();
+          setMode('unauthorized');
+        }
+      }
+    };
+
+    init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        const slot = await checkSlot();
+        setMode(slot ? 'login' : 'signup');
+      }
     });
 
     return () => subscription.unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [goToDashboard, registerAndEnter]);
 
-  const handleGoogleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/superadmin` },
-    });
+  /* ── Signup ─────────────────────────────────────────────── */
+  const handleSignup = async () => {
+    if (!email || !password) { setError('Email and password are required.'); return; }
+    if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
+    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    setLoading(true);
+    setError('');
+    try {
+      const { data, error: authErr } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/superadmin` },
+      });
+      if (authErr) throw authErr;
+      if (data.session) {
+        // Auto-confirm is ON — register immediately
+        await registerAndEnter(data.user!.id, email);
+      } else {
+        setMode('confirm');
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Signup failed. Try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+  /* ── Login ──────────────────────────────────────────────── */
+  const handleLogin = async () => {
+    if (!email || !password) { setError('Enter your email and password.'); return; }
+    setLoading(true);
+    setError('');
+    try {
+      const { data, error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (authErr) throw authErr;
+      const slot = await checkSlot();
+      if (data.user?.id !== slot?.user_id) {
+        await supabase.auth.signOut();
+        setError('This account is not the platform superadmin.');
+        return;
+      }
+      goToDashboard(data.user!.email!);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Login failed. Check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleSignOut = async () => { await supabase.auth.signOut(); };
+
+  /* ── Create hotel ───────────────────────────────────────── */
   const handleCreate = async () => {
     if (!form.slug || !form.name) return;
     setCreating(true);
+    setCreateError('');
     try {
-      await createHotel(form.slug, form.name);
-      setForm({ slug: '', name: '' });
+      const hotel = await createHotel(form.slug, form.name);
+      if (form.adminEmail && hotel) {
+        fetch('/api/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'tenant_onboarding',
+            data: {
+              hotelName: form.name,
+              slug: form.slug,
+              adminEmail: form.adminEmail,
+              guestUrl: getGuestUrl(form.slug),
+              adminUrl: getAdminUrl(form.slug),
+            },
+          }),
+        }).catch(() => {});
+      }
+      setForm({ slug: '', name: '', adminEmail: '' });
       loadHotels();
-    } catch {
-      alert('Error creating hotel. Slug may already be in use.');
+    } catch (e: unknown) {
+      const msg = (e instanceof Error ? e.message : '') || (typeof e === 'object' && e !== null && 'message' in e ? String((e as { message: unknown }).message) : '') || 'Failed to create property. Please try again.';
+      if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already')) {
+        setCreateError('That URL slug is already taken. Try a different one (e.g. "miami-airport-2").');
+      } else if (msg.includes('violates') || msg.includes('row')) {
+        setCreateError('Database error. Check that the slug only uses letters, numbers, and dashes.');
+      } else {
+        setCreateError(msg);
+      }
     } finally {
       setCreating(false);
     }
@@ -87,55 +195,134 @@ export default function SuperAdminPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://attenda.vercel.app';
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://attenda-one.vercel.app';
   const getGuestUrl = (slug: string) => `${baseUrl}/?hotel=${slug}`;
   const getAdminUrl = (slug: string) => `${baseUrl}/staff?hotel=${slug}`;
 
-  if (loading) return (
+  /* ── Loading ────────────────────────────────────────────── */
+  if (mode === 'checking') return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
-  if (unauthorized) return (
+  /* ── Email confirm pending ──────────────────────────────── */
+  if (mode === 'confirm') return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
+      <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
+        <div className="w-16 h-16 rounded-full bg-teal-50 flex items-center justify-center mx-auto mb-5">
+          <span className="text-3xl">📧</span>
+        </div>
+        <h2 className="text-lg font-bold mb-2">Check your email</h2>
+        <p className="text-sm text-gray-500 mb-2">A confirmation link was sent to</p>
+        <p className="text-sm font-bold text-gray-800 mb-6">{email}</p>
+        <p className="text-xs text-gray-400 leading-relaxed">
+          Click the link in the email to confirm your account. You&apos;ll be automatically redirected to your dashboard.
+        </p>
+        <div className="mt-6 bg-amber-50 border border-amber-100 rounded-xl p-3 text-left">
+          <p className="text-[11px] text-amber-700 font-semibold mb-1">Tip for faster setup</p>
+          <p className="text-[11px] text-amber-600">In your Supabase dashboard → Authentication → Providers → Email → disable &quot;Confirm email&quot; to skip this step.</p>
+        </div>
+        <button onClick={() => { setMode('login'); setError(''); }} className="mt-5 text-sm font-semibold underline" style={{ color: TEAL }}>
+          Already confirmed? Sign in →
+        </button>
+      </div>
+    </div>
+  );
+
+  /* ── Unauthorized ───────────────────────────────────────── */
+  if (mode === 'unauthorized') return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
       <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
         <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
           <span className="text-2xl">⛔</span>
         </div>
         <h2 className="text-lg font-bold mb-2">Access Denied</h2>
-        <p className="text-sm text-gray-400 mb-6">This account is not authorized as super admin.</p>
-        <button onClick={handleSignOut}
-          className="w-full py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold text-[14px]">
-          Sign out and try another account
+        <p className="text-sm text-gray-400 mb-6">This account is not the registered superadmin.</p>
+        <button onClick={() => supabase.auth.signOut()} className="w-full py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold text-[14px]">
+          Sign out
         </button>
       </div>
     </div>
   );
 
-  if (!user) {
+  /* ── Signup / Login form ────────────────────────────────── */
+  if (mode === 'signup' || mode === 'login') {
+    const isSignup = mode === 'signup';
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
-        <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
+        <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
           <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 bg-teal-50">
             <Globe size={28} className="text-teal-600" />
           </div>
-          <h1 className="text-xl font-bold mb-1">Super Admin</h1>
-          <p className="text-sm text-gray-400 mb-8">Sign in with your authorized Google account to manage all properties.</p>
-          <button
-            onClick={handleGoogleLogin}
-            className="w-full py-3.5 rounded-xl bg-white border-2 border-gray-200 font-semibold text-[14px] text-gray-700 flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors"
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6A7.8 7.8 0 0 0 17.6 9.1c0-.57-.05-.73-.15-1.1z"/>
-              <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/>
-              <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/>
-              <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/>
-            </svg>
-            Sign in with Google
-          </button>
-          <p className="text-[11px] text-gray-400 mt-4">Only <span className="font-mono">{SUPER_ADMIN_EMAIL}</span> can access this.</p>
-          <a href="/staff" className="block mt-3 text-[12px] font-semibold underline" style={{ color: TEAL }}>
+          <h1 className="text-xl font-bold text-center mb-1">
+            {isSignup ? 'Create Super Admin Account' : 'Super Admin Login'}
+          </h1>
+          <p className="text-sm text-gray-400 text-center mb-8">
+            {isSignup ? 'Set up the platform master account. Only one allowed.' : 'Sign in to manage all properties.'}
+          </p>
+
+          <div className="space-y-3">
+            <input
+              type="email"
+              placeholder="Email address"
+              value={email}
+              autoComplete="email"
+              onChange={e => { setEmail(e.target.value); setError(''); }}
+              onKeyDown={e => e.key === 'Enter' && (isSignup ? handleSignup() : handleLogin())}
+              className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
+            />
+            <div className="relative">
+              <input
+                type={showPass ? 'text' : 'password'}
+                placeholder="Password"
+                value={password}
+                autoComplete={isSignup ? 'new-password' : 'current-password'}
+                onChange={e => { setPassword(e.target.value); setError(''); }}
+                onKeyDown={e => e.key === 'Enter' && (isSignup ? handleSignup() : handleLogin())}
+                className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400 pr-11"
+              />
+              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
+            {isSignup && (
+              <input
+                type={showPass ? 'text' : 'password'}
+                placeholder="Confirm password"
+                value={confirmPassword}
+                autoComplete="new-password"
+                onChange={e => { setConfirmPassword(e.target.value); setError(''); }}
+                onKeyDown={e => e.key === 'Enter' && handleSignup()}
+                className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
+              />
+            )}
+            {error && <p className="text-red-500 text-[12px] text-center bg-red-50 py-2 rounded-lg">{error}</p>}
+            <button
+              onClick={isSignup ? handleSignup : handleLogin}
+              disabled={loading}
+              className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-60 transition-opacity"
+              style={{ backgroundColor: TEAL }}
+            >
+              {loading
+                ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <Lock size={16} />}
+              {loading ? 'Please wait…' : isSignup ? 'CREATE ACCOUNT' : 'SIGN IN'}
+            </button>
+          </div>
+
+          <p className="text-center mt-5 text-[12px] text-gray-400">
+            {isSignup ? (
+              <>Already have an account?{' '}
+                <button onClick={() => { setMode('login'); setError(''); }} className="font-semibold underline" style={{ color: TEAL }}>Sign in</button>
+              </>
+            ) : (
+              <span className="flex items-center justify-center gap-1">
+                <Lock size={11} /> Superadmin slot is locked to one account.
+              </span>
+            )}
+          </p>
+          <a href="/staff" className="block text-center mt-3 text-[12px] font-semibold underline" style={{ color: TEAL }}>
             ← Back to Staff Dashboard
           </a>
         </div>
@@ -143,9 +330,9 @@ export default function SuperAdminPage() {
     );
   }
 
+  /* ── Dashboard ──────────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: TEAL }}>
@@ -153,7 +340,7 @@ export default function SuperAdminPage() {
           </div>
           <div>
             <h1 className="font-extrabold text-[16px] text-gray-900">Attenda Platform</h1>
-            <p className="text-[11px] text-gray-400">{user.email} · Super Admin</p>
+            <p className="text-[11px] text-gray-400">{user?.email} · Super Admin</p>
           </div>
         </div>
         <button onClick={handleSignOut} className="flex items-center gap-2 text-[13px] text-gray-500 hover:text-red-500 transition-colors">
@@ -162,7 +349,6 @@ export default function SuperAdminPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-8 py-8">
-
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[
@@ -186,36 +372,62 @@ export default function SuperAdminPage() {
               <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Hotel Name *</label>
               <input
                 value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })}
+                onChange={e => { setForm({ ...form, name: e.target.value }); setCreateError(''); }}
                 placeholder="Miami Airport Hotel"
-                className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none"
+                className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
               />
             </div>
             <div>
               <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">URL Slug *</label>
               <input
                 value={form.slug}
-                onChange={e => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+                onChange={e => { setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') }); setCreateError(''); }}
                 placeholder="miami-airport"
-                className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none font-mono"
+                className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400 font-mono"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">
+                Admin Email <span className="normal-case text-gray-300">(optional — sends onboarding email)</span>
+              </label>
+              <input
+                value={form.adminEmail}
+                onChange={e => setForm({ ...form, adminEmail: e.target.value })}
+                placeholder="manager@hotel.com"
+                type="email"
+                className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
               />
             </div>
           </div>
           {form.slug && (
-            <div className="bg-gray-50 rounded-xl px-4 py-2 mb-3">
-              <p className="text-[11px] text-gray-400 font-mono">Guest URL: {getGuestUrl(form.slug)}</p>
-              <p className="text-[11px] text-gray-400 font-mono mt-0.5">Admin URL: {getAdminUrl(form.slug)}</p>
+            <div className="bg-gray-50 rounded-xl px-4 py-2.5 mb-3 space-y-0.5">
+              <p className="text-[11px] text-gray-400 font-mono">Guest: {getGuestUrl(form.slug)}</p>
+              <p className="text-[11px] text-gray-400 font-mono">Admin: {getAdminUrl(form.slug)}</p>
             </div>
           )}
-          <button onClick={handleCreate} disabled={creating || !form.slug || !form.name}
-            className="px-6 py-3 rounded-xl text-white font-semibold text-[13px] disabled:opacity-50 transition-opacity"
-            style={{ backgroundColor: TEAL }}>
-            {creating ? 'Creating...' : 'CREATE PROPERTY'}
+          {createError && (
+            <div className="mb-3 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+              <p className="text-[12px] text-red-600">{createError}</p>
+            </div>
+          )}
+          <button
+            onClick={handleCreate}
+            disabled={creating || !form.slug || !form.name}
+            className="px-6 py-3 rounded-xl text-white font-semibold text-[13px] disabled:opacity-50 transition-all flex items-center gap-2"
+            style={{ backgroundColor: TEAL }}
+          >
+            {creating && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+            {creating ? 'Creating…' : 'CREATE PROPERTY'}
           </button>
         </div>
 
         {/* Hotels list */}
-        <h2 className="text-[18px] font-extrabold text-gray-900 mb-4">All Properties ({hotels.length})</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[18px] font-extrabold text-gray-900">All Properties ({hotels.length})</h2>
+          <button onClick={loadHotels} className="text-[12px] font-semibold text-gray-400 hover:text-teal-600 transition-colors">
+            ↻ Refresh
+          </button>
+        </div>
         <div className="space-y-4">
           {hotels.map(hotel => {
             const guestUrl = getGuestUrl(hotel.slug);
@@ -231,7 +443,6 @@ export default function SuperAdminPage() {
                     <p className="text-[12px] text-gray-400 font-mono">@{hotel.slug}</p>
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   {([
                     { label: 'Guest App URL', url: guestUrl, id: hotel.id + '-guest', note: 'Share with guests or use in QR codes' },
@@ -243,9 +454,11 @@ export default function SuperAdminPage() {
                         <p className="text-[12px] text-gray-700 font-mono truncate mt-0.5">{url}</p>
                         <p className="text-[10px] text-gray-400 mt-0.5">{note}</p>
                       </div>
-                      <button onClick={() => handleCopy(url, id)}
-                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap"
-                        style={{ backgroundColor: `${TEAL}18`, color: TEAL }}>
+                      <button
+                        onClick={() => handleCopy(url, id)}
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-colors"
+                        style={{ backgroundColor: `${TEAL}18`, color: TEAL }}
+                      >
                         {copied === id ? <><Check size={11} /> Copied!</> : <><Copy size={11} /> Copy</>}
                       </button>
                     </div>
@@ -254,7 +467,6 @@ export default function SuperAdminPage() {
               </div>
             );
           })}
-
           {hotels.length === 0 && (
             <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
               <Building2 size={36} className="text-gray-300 mx-auto mb-3" />

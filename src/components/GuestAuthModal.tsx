@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, User, DoorOpen } from 'lucide-react';
+import { X, User, DoorOpen, Lock } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -31,11 +31,15 @@ export default function GuestAuthModal({ open, onClose, onSuccess }: Props) {
   const [day, setDay] = useState(currentDay.toString());
   const [year, setYear] = useState(currentYear.toString());
   const [errors, setErrors] = useState({ name: false, room: false, date: false });
+  const [isQrLocked, setIsQrLocked] = useState(false);
 
   useEffect(() => {
     if (open) {
       const qrRoom = localStorage.getItem('attenda_qr_room');
-      if (qrRoom && !room) setRoom(qrRoom);
+      if (qrRoom && !room) {
+        setRoom(qrRoom);
+        setIsQrLocked(true);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -116,16 +120,17 @@ export default function GuestAuthModal({ open, onClose, onSuccess }: Props) {
             </div>
 
             <div>
-              <label className="text-[12px] font-semibold text-gray-600 mb-1.5 block">Room Number</label>
-              <div className={`flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-3 border ${errors.room ? 'border-red-400' : 'border-gray-200'}`}>
-                <DoorOpen size={16} className="text-gray-400 shrink-0" />
+              <label className="text-[12px] font-semibold text-gray-600 mb-1.5 block">Room Number {isQrLocked && '🔒'}</label>
+              <div className={`flex items-center gap-2 rounded-xl px-3 py-3 border ${errors.room ? 'border-red-400' : 'border-gray-200'} ${isQrLocked ? 'bg-gray-100' : 'bg-gray-50'}`}>
+                {isQrLocked ? <Lock size={16} className="text-gray-400 shrink-0" /> : <DoorOpen size={16} className="text-gray-400 shrink-0" />}
                 <input
                   type="text"
                   inputMode="numeric"
                   placeholder="e.g. 205"
                   value={room}
-                  onChange={(e) => { setRoom(e.target.value); setErrors({ ...errors, room: false }); }}
-                  className="bg-transparent text-[15px] text-gray-800 outline-none w-full placeholder:text-gray-400"
+                  onChange={(e) => { if (!isQrLocked) { setRoom(e.target.value); setErrors({ ...errors, room: false }); } }}
+                  readOnly={isQrLocked}
+                  className={`bg-transparent text-[15px] outline-none w-full placeholder:text-gray-400 ${isQrLocked ? 'text-gray-500 cursor-not-allowed' : 'text-gray-800'}`}
                 />
               </div>
             </div>
