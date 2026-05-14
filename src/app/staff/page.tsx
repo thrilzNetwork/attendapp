@@ -677,8 +677,8 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
   const [slots, setSlots] = useState<ShuttleSlot[]>([]);
   const [bookings, setBookings] = useState<Record<string, ShuttleBooking[]>>({});
   const [loading, setLoading] = useState(true);
-  const [newRoute, setNewRoute] = useState({ name: '', type: 'airport' });
-  const [newSlot, setNewSlot] = useState<{ route_id: string; show: boolean; time: string; days: number[]; capacity: number }>({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0 });
+  const [newRoute, setNewRoute] = useState({ name: '', type: 'airport', price: 0 });
+  const [newSlot, setNewSlot] = useState<{ route_id: string; show: boolean; time: string; days: number[]; capacity: number; event_label: string; override_price: number | null }>({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null });
   const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
   const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
 
@@ -700,15 +700,15 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
 
   const handleAddRoute = async () => {
     if (!newRoute.name) return;
-    await createShuttleRoute({ hotel_id: hotelId, name: newRoute.name, type: newRoute.type });
-    setNewRoute({ name: '', type: 'airport' });
+    await createShuttleRoute({ hotel_id: hotelId, name: newRoute.name, type: newRoute.type, price: newRoute.price });
+    setNewRoute({ name: '', type: 'airport', price: 0 });
     load();
   };
 
   const handleAddSlot = async () => {
     if (!newSlot.time || !newSlot.route_id) return;
-    await createShuttleSlot({ route_id: newSlot.route_id, departure_time: newSlot.time + ':00', days_of_week: newSlot.days, capacity: newSlot.capacity });
-    setNewSlot({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0 });
+    await createShuttleSlot({ route_id: newSlot.route_id, departure_time: newSlot.time + ':00', days_of_week: newSlot.days, capacity: newSlot.capacity, event_label: newSlot.event_label, override_price: newSlot.override_price ?? undefined });
+    setNewSlot({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null });
     load();
   };
 
@@ -720,13 +720,18 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
       {isAdmin && (
         <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
           <h3 className="font-extrabold text-[15px] mb-3">+ Add Route</h3>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-end flex-wrap">
             <input placeholder="Route name (e.g. MIA Airport)" value={newRoute.name} onChange={e => setNewRoute({ ...newRoute, name: e.target.value })}
-              className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+              className="flex-1 min-w-[160px] bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
             <select value={newRoute.type} onChange={e => setNewRoute({ ...newRoute, type: e.target.value })}
               className="bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
-              <option value="airport">Airport</option><option value="cruise">Cruise Port</option><option value="custom">Custom</option>
+              <option value="airport">Airport (free)</option><option value="cruise">Cruise Port</option><option value="custom">Custom</option>
             </select>
+            <div>
+              <label className="text-[10px] text-gray-400 block">$ per person</label>
+              <input type="number" min="0" step="0.01" value={newRoute.price || ''} placeholder="0" onChange={e => setNewRoute({ ...newRoute, price: parseFloat(e.target.value)||0 })}
+                className="bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none w-[72px]" />
+            </div>
             <button onClick={handleAddRoute} className="px-4 py-2.5 rounded-xl text-white font-semibold text-[13px]" style={{ backgroundColor: '#0D9488' }}>Add</button>
           </div>
         </div>
@@ -747,12 +752,13 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold px-2 py-1 rounded-full bg-teal-100 text-teal-700">{route.type}</span>
                 <h3 className="font-extrabold text-[16px] text-gray-900">{route.name}</h3>
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: (route.price||0) > 0 ? '#FEF3C7' : '#D1FAE5', color: (route.price||0) > 0 ? '#92400E' : '#065F46' }}>{(route.price||0) > 0 ? `$${route.price}/person` : 'Free'}</span>
                 <span className="text-[12px] text-gray-400">{routeSlots.length} slots</span>
               </div>
               <div className="flex items-center gap-2">
                 {isAdmin && (
                   <>
-                    <button onClick={e => { e.stopPropagation(); setNewSlot({ route_id: route.id, show: true, time: '', days: [1,2,3,4,5,6,7], capacity: 0 }); }}
+                    <button onClick={e => { e.stopPropagation(); setNewSlot({ route_id: route.id, show: true, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null }); }}
                       className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-600">+ Slot</button>
                     <button onClick={e => { e.stopPropagation(); if(confirm('Delete this route and all slots?')) { deleteShuttleRoute(route.id); load(); } }}
                       className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
@@ -767,19 +773,31 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                 {/* Add slot form */}
                 {newSlot.show && newSlot.route_id === route.id && (
                   <div className="bg-white rounded-xl p-4 border border-gray-200 mb-4 space-y-3">
-                    <div className="flex gap-2 items-end">
-                      <div>
-                        <label className="text-[10px] text-gray-400 block">Time</label>
-                        <input type="time" value={newSlot.time} onChange={e => setNewSlot({ ...newSlot, time: e.target.value })}
-                          className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none" />
+                    <div className="space-y-3">
+                      <div className="flex gap-2 items-end">
+                        <div>
+                          <label className="text-[10px] text-gray-400 block">Time</label>
+                          <input type="time" value={newSlot.time} onChange={e => setNewSlot({ ...newSlot, time: e.target.value })}
+                            className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-400 block">Capacity (0=unlimited)</label>
+                          <input type="number" min="0" max="99" value={newSlot.capacity} onChange={e => setNewSlot({ ...newSlot, capacity: parseInt(e.target.value)||0 })}
+                            className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none w-24" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-400 block">Override $ (optional)</label>
+                          <input type="number" min="0" step="0.01" value={newSlot.override_price ?? ''} placeholder="--" onChange={e => setNewSlot({ ...newSlot, override_price: e.target.value ? parseFloat(e.target.value) : null })}
+                            className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none w-[80px]" />
+                        </div>
+                        <button onClick={handleAddSlot} className="px-4 py-2 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#0D9488' }}>Save</button>
+                        <button onClick={() => setNewSlot({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null })} className="px-3 py-2 text-[12px] text-gray-400">Cancel</button>
                       </div>
                       <div>
-                        <label className="text-[10px] text-gray-400 block">Capacity (0=unlimited)</label>
-                        <input type="number" min="0" max="99" value={newSlot.capacity} onChange={e => setNewSlot({ ...newSlot, capacity: parseInt(e.target.value)||0 })}
-                          className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none w-24" />
+                        <label className="text-[10px] text-gray-400 block">Event / Cruise Line (optional)</label>
+                        <input value={newSlot.event_label} onChange={e => setNewSlot({ ...newSlot, event_label: e.target.value })} placeholder="e.g. Royal Caribbean · May 17" 
+                          className="w-full bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none" />
                       </div>
-                      <button onClick={handleAddSlot} className="px-4 py-2 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#0D9488' }}>Save</button>
-                      <button onClick={() => setNewSlot({ ...newSlot, show: false })} className="px-3 py-2 text-[12px] text-gray-400">Cancel</button>
                     </div>
                     <div className="flex gap-1.5 flex-wrap">
                       {DAYS.map((d, i) => {
@@ -805,7 +823,8 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                       <div className="px-4 py-3 flex items-center justify-between cursor-pointer" onClick={() => setExpandedSlot(expandedSlot === slot.id ? null : slot.id)}>
                         <div className="flex items-center gap-4">
                           <span className="text-[18px] font-extrabold text-gray-900">{slot.departure_time?.slice(0,5)}</span>
-                          <span className="text-[11px] text-gray-400">{dayNames}</span>
+                          <span className="text-[11px] text-gray-400">{slot.event_label ? slot.event_label : dayNames}</span>
+                          {(slot.override_price ?? slot.route_price ?? 0) > 0 && <span className="text-[11px] font-semibold text-amber-700">${slot.override_price ?? slot.route_price}/pp</span>}
                           {slot.capacity > 0 && <span className="text-[11px] font-semibold text-emerald-600">{slot.capacity - slotBookings.length} / {slot.capacity} spots</span>}
                           <span className="text-[11px] font-semibold text-purple-600">{slotBookings.length} booked</span>
                         </div>
@@ -822,7 +841,10 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                             <div className="space-y-2">
                               {slotBookings.map(b => (
                                 <div key={b.id} className="flex items-center justify-between text-[12px]">
-                                  <span className="font-semibold text-gray-800">{b.guest_name} · Room {b.room_number} · {b.pax} pax</span>
+                                  <div>
+                                    <span className="font-semibold text-gray-800">{b.guest_name} · Room {b.room_number} · {b.pax} pax</span>
+                                    {(b.price_charged || 0) > 0 && <span className="ml-2 text-[10px] text-amber-700 font-bold">${b.price_charged} charged {b.charge_accepted ? '✅' : '⚠️ not accepted'}</span>}
+                                  </div>
                                   <button onClick={() => { cancelShuttleBooking(b.id); load(); }} className="text-[10px] text-red-500 font-bold">Cancel</button>
                                 </div>
                               ))}

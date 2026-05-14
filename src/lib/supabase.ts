@@ -368,18 +368,24 @@ export interface ShuttleRoute {
   name: string;
   type: 'airport' | 'cruise' | 'custom';
   active: boolean;
+  price: number;       // 0 = free
+  currency: string;    // default "USD"
 }
 
 export interface ShuttleSlot {
   id: string;
   route_id: string;
-  departure_time: string; // "HH:MM:SS"
-  days_of_week: number[];  // [1..7], empty = one-off
-  date: string | null;     // ISO date for one-off
-  capacity: number;        // 0 = unlimited
+  departure_time: string;
+  days_of_week: number[];
+  date: string | null;
+  capacity: number;
   active: boolean;
+  event_label: string;     // e.g. "Royal Caribbean · May 17"
+  override_price: number | null;  // overrides route.price if set
   route_name?: string;
   route_type?: string;
+  route_price?: number;
+  route_currency?: string;
   bookings_count?: number;
 }
 
@@ -391,6 +397,8 @@ export interface ShuttleBooking {
   pax: number;
   notes: string;
   status: 'confirmed' | 'cancelled' | 'no_show';
+  price_charged: number;
+  charge_accepted: boolean;
   created_at: string;
   slot_time?: string;
   route_name?: string;
@@ -421,8 +429,8 @@ export async function getShuttleRoutes(hotelId: string): Promise<ShuttleRoute[]>
   return data || [];
 }
 
-export async function createShuttleRoute(route: { hotel_id: string; name: string; type: string }) {
-  const { data } = await supabase.from('shuttle_routes').insert(route).select().single();
+export async function createShuttleRoute(route: { hotel_id: string; name: string; type: string; price?: number }) {
+  const { data } = await supabase.from('shuttle_routes').insert({ ...route, price: route.price || 0 }).select().single();
   return data;
 }
 
@@ -438,10 +446,12 @@ export async function getShuttleSlots(routeId: string): Promise<ShuttleSlot[]> {
   const { data } = await supabase.from('shuttle_slots').select(`
     *, shuttle_routes!inner(name, type)
   `).eq('route_id', routeId).eq('active', true).order('departure_time');
-  return (data || []).map((s: Record<string, unknown>) => ({
+    return (data || []).map((s: Record<string, unknown>) => ({
     ...s,
     route_name: (s.shuttle_routes as Record<string, unknown>)?.name as string,
     route_type: (s.shuttle_routes as Record<string, unknown>)?.type as string,
+    route_price: ((s.shuttle_routes as Record<string, unknown>)?.price as number) || 0,
+    route_currency: ((s.shuttle_routes as Record<string, unknown>)?.currency as string) || 'USD',
   })) as ShuttleSlot[];
 }
 
@@ -461,6 +471,8 @@ export async function getAllShuttleSlotsForHotel(hotelId: string): Promise<Shutt
       ...s,
       route_name: (s.shuttle_routes as Record<string, unknown>)?.name as string,
       route_type: (s.shuttle_routes as Record<string, unknown>)?.type as string,
+      route_price: ((s.shuttle_routes as Record<string, unknown>)?.price as number) || 0,
+      route_currency: ((s.shuttle_routes as Record<string, unknown>)?.currency as string) || 'USD',
       bookings_count: countMap[s.id as string] || 0,
     })) as ShuttleSlot[];
   }
@@ -468,6 +480,8 @@ export async function getAllShuttleSlotsForHotel(hotelId: string): Promise<Shutt
     ...s,
     route_name: (s.shuttle_routes as Record<string, unknown>)?.name as string,
     route_type: (s.shuttle_routes as Record<string, unknown>)?.type as string,
+    route_price: ((s.shuttle_routes as Record<string, unknown>)?.price as number) || 0,
+    route_currency: ((s.shuttle_routes as Record<string, unknown>)?.currency as string) || 'USD',
     bookings_count: 0,
   })) as ShuttleSlot[];
 }
@@ -475,9 +489,11 @@ export async function getAllShuttleSlotsForHotel(hotelId: string): Promise<Shutt
 export async function createShuttleSlot(slot: {
   route_id: string; departure_time: string;
   days_of_week?: number[]; date?: string; capacity?: number;
+  event_label?: string; override_price?: number;
 }) {
   const { data } = await supabase.from('shuttle_slots').insert({
     ...slot, days_of_week: slot.days_of_week || [], capacity: slot.capacity || 0,
+    event_label: slot.event_label || '', override_price: slot.override_price ?? null,
   }).select().single();
   return data;
 }
@@ -512,9 +528,11 @@ export async function getAllShuttleBookingsForHotel(hotelId: string): Promise<Sh
 
 export async function bookShuttleSlot(booking: {
   slot_id: string; guest_name: string; room_number: string; pax?: number; notes?: string;
+  price_charged?: number; charge_accepted?: boolean;
 }) {
   const { data } = await supabase.from('shuttle_bookings').insert({
     ...booking, pax: booking.pax || 1, notes: booking.notes || '',
+    price_charged: booking.price_charged || 0, charge_accepted: booking.charge_accepted || false,
   }).select().single();
   return data;
 }

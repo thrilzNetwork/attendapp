@@ -11,6 +11,12 @@ export default function TransportPage() {
   const router = useRouter();
   const [view, setView] = useState<'request' | 'schedule'>('request');
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hotel = params.get('hotel');
+    if (hotel) localStorage.setItem('attenda_hotel_slug', hotel);
+  }, []);
+
   return (
     <div className="h-dvh w-full bg-[#F4F4F5] flex flex-col overflow-hidden">
       <div className="shrink-0 px-5 pt-6 pb-3 flex items-center gap-3 bg-white">
@@ -52,7 +58,7 @@ function ShuttleScheduleView() {
   const [hotel, setHotel] = useState<HotelConfig | null>(null);
   const [slots, setSlots] = useState<ShuttleSlot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bookingForm, setBookingForm] = useState<{ slot_id: string; show: boolean; name: string; room: string; pax: number; notes: string }>({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '' });
+  const [bookingForm, setBookingForm] = useState<{ slot_id: string; show: boolean; name: string; room: string; pax: number; notes: string; charge_accepted: boolean }>({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false });
   const [booked, setBooked] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,15 +75,19 @@ function ShuttleScheduleView() {
 
   const handleBook = async () => {
     if (!bookingForm.name || !bookingForm.room) return;
+    const slot = slots.find(s => s.id === bookingForm.slot_id);
+    const pricePer = slot?.override_price ?? slot?.route_price ?? 0;
     await bookShuttleSlot({
       slot_id: bookingForm.slot_id,
       guest_name: bookingForm.name,
       room_number: bookingForm.room,
       pax: bookingForm.pax,
       notes: bookingForm.notes,
+      price_charged: pricePer * bookingForm.pax,
+      charge_accepted: bookingForm.charge_accepted,
     });
     setBooked(bookingForm.slot_id);
-    setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '' });
+    setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false });
     // Refresh slots
     if (hotel?.id) {
       const s = await getAllShuttleSlotsForHotel(hotel.id);
@@ -129,9 +139,10 @@ function ShuttleScheduleView() {
                   <div className="flex items-center gap-3">
                     <div className="text-center min-w-[48px]">
                       <p className="text-[18px] font-extrabold text-gray-900">{slot.departure_time?.slice(0, 5)}</p>
-                      <p className="text-[9px] text-gray-400">{dayNames || (slot.date ? new Date(slot.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Daily')}</p>
+                      <p className="text-[9px] text-gray-400">{slot.event_label || dayNames || (slot.date ? new Date(slot.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Daily')}</p>
                     </div>
                     <div>
+                      {(() => { const p = slot.override_price ?? slot.route_price ?? 0; return p > 0 ? <p className="text-[10px] font-semibold text-amber-700">${p}/person</p> : null; })()}
                       {slot.capacity > 0 && (
                         <p className={`text-[10px] font-semibold ${full ? 'text-red-500' : 'text-emerald-600'}`}>
                           {full ? 'Full' : `${slot.capacity - (slot.bookings_count || 0)} spots left`}
@@ -147,12 +158,12 @@ function ShuttleScheduleView() {
                     <span className="text-[12px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full">Full</span>
                   ) : bookingForm.show && bookingForm.slot_id === slot.id ? (
                     <div className="flex items-center gap-2">
-                      <button onClick={() => setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '' })} className="text-gray-400"><X size={16} /></button>
-                      <button onClick={handleBook} className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: '#6B1D3C' }}>Confirm</button>
+                      <button onClick={() => setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false })} className="text-gray-400"><X size={16} /></button>
+                      <button onClick={handleBook} className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white disabled:opacity-40" style={{ backgroundColor: '#6B1D3C' }} disabled={(() => { const pricePer = slot.override_price ?? slot.route_price ?? 0; return pricePer > 0 && !bookingForm.charge_accepted; })()}>Confirm</button>
                     </div>
                   ) : (
                     <button
-                      onClick={() => setBookingForm({ slot_id: slot.id, show: true, name: '', room: '', pax: 1, notes: '' })}
+                      onClick={() => setBookingForm({ slot_id: slot.id, show: true, name: '', room: '', pax: 1, notes: '', charge_accepted: false })}
                       className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white active:scale-95"
                       style={{ backgroundColor: '#6B1D3C' }}
                     >
@@ -193,6 +204,25 @@ function ShuttleScheduleView() {
               />
             </div>
           </div>
+          {(() => {
+            const slot = slots.find(s => s.id === bookingForm.slot_id);
+            const pricePer = slot?.override_price ?? slot?.route_price ?? 0;
+            const total = pricePer * bookingForm.pax;
+            return total > 0 ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                <div className="flex justify-between text-[12px]">
+                  <span className="text-amber-800">${pricePer} × {bookingForm.pax} {bookingForm.pax === 1 ? 'person' : 'people'}</span>
+                  <span className="font-extrabold text-amber-900">${total.toFixed(2)}</span>
+                </div>
+                <p className="text-[11px] text-amber-700">This amount will be added to your final bill at checkout.</p>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={bookingForm.charge_accepted} onChange={e => setBookingForm({ ...bookingForm, charge_accepted: e.target.checked })}
+                    className="w-4 h-4 rounded accent-[#6B1D3C]" />
+                  <span className="text-[12px] font-semibold text-amber-900">I accept this charge to my final bill</span>
+                </label>
+              </div>
+            ) : null;
+          })()}
           <textarea
             placeholder="Notes (optional)"
             value={bookingForm.notes}
