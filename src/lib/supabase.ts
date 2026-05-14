@@ -304,6 +304,33 @@ export async function createHotel(data: {
   return hotel;
 }
 
+export async function deleteHotel(id: string) {
+  // Cascade delete all related data
+  const { data: partners } = await supabase.from('partners').select('id').eq('hotel_id', id);
+  if (partners?.length) {
+    await supabase.from('partner_menu_items').delete().in('partner_id', partners.map(p => p.id));
+    await supabase.from('partners').delete().eq('hotel_id', id);
+  }
+  await supabase.from('qr_codes').delete().eq('hotel_id', id);
+  await supabase.from('requests').delete().eq('hotel_id', id);
+  await supabase.from('messages').delete().eq('hotel_id', id);
+  await supabase.from('staff_accounts').delete().eq('hotel_id', id);
+  await supabase.from('attenda_fees').delete().eq('hotel_id', id);
+  await supabase.from('hotels').delete().eq('id', id);
+}
+
+export async function toggleHotelActive(hotelId: string, active: boolean) {
+  await supabase.from('hotels').update({ is_active: active }).eq('id', hotelId);
+}
+
+export async function toggleCloverForPartner(partnerId: string, enabled: boolean) {
+  await supabase.from('partners').update({ clover_enabled: enabled }).eq('id', partnerId);
+}
+
+export async function togglePartnerOrdering(partnerId: string, enabled: boolean) {
+  await supabase.from('partners').update({ has_ordering: enabled }).eq('id', partnerId);
+}
+
 // ─── QR Codes ─────────────────────────────────────────────────
 
 export interface QrCode {
