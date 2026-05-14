@@ -284,6 +284,9 @@ export async function createHotel(data: {
   address?: string;
   adminEmail?: string;
   notificationEmail?: string;
+  googleReviewUrl?: string;
+  tripadvisorUrl?: string;
+  yelpUrl?: string;
 }) {
   const { data: hotel, error } = await supabase.from('hotels').insert({
     slug: data.slug,
@@ -293,6 +296,9 @@ export async function createHotel(data: {
     room_count: data.roomCount || 0,
     address: data.address || null,
     notification_email: data.adminEmail || data.notificationEmail || null,
+    google_review_url: data.googleReviewUrl || null,
+    tripadvisor_url: data.tripadvisorUrl || null,
+    yelp_url: data.yelpUrl || null,
   }).select().single();
   if (error) throw error;
   return hotel;

@@ -18,12 +18,12 @@ export default function SuperAdminPage() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<{ email: string } | null>(null);
   const [hotels, setHotels] = useState<{ id: string; slug: string; name: string }[]>([]);
-  const [form, setForm] = useState({ slug: '', name: '', adminEmail: '', websiteUrl: '', adminPhone: '', roomCount: 0, address: '' });
+  const [form, setForm] = useState({ slug: '', name: '', adminEmail: '', lookupQuery: '', adminPhone: '', roomCount: 0, address: '', googleReviewUrl: '', tripadvisorUrl: '', yelpUrl: '' });
   const [copied, setCopied] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
-  const [scraping, setScraping] = useState(false);
-  const [scrapeStatus, setScrapeStatus] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupStatus, setLookupStatus] = useState('');
 
   const loadHotels = useCallback(async () => {
     const data = await getAllHotels();
@@ -161,11 +161,13 @@ export default function SuperAdminPage() {
       const hotel = await createHotel({
         slug: form.slug,
         name: form.name,
-        websiteUrl: form.websiteUrl || undefined,
+        address: form.address || undefined,
         adminPhone: form.adminPhone || undefined,
         roomCount: form.roomCount || undefined,
-        address: form.address || undefined,
         adminEmail: form.adminEmail || undefined,
+        googleReviewUrl: form.googleReviewUrl || undefined,
+        tripadvisorUrl: form.tripadvisorUrl || undefined,
+        yelpUrl: form.yelpUrl || undefined,
       });
       if (form.adminEmail && hotel) {
         fetch('/api/email', {
@@ -183,7 +185,7 @@ export default function SuperAdminPage() {
           }),
         }).catch(() => {});
       }
-      setForm({ slug: '', name: '', adminEmail: '', websiteUrl: '', adminPhone: '', roomCount: 0, address: '' });
+      setForm({ slug: '', name: '', adminEmail: '', lookupQuery: '', adminPhone: '', roomCount: 0, address: '', googleReviewUrl: '', tripadvisorUrl: '', yelpUrl: '' });
       loadHotels();
     } catch (e: unknown) {
       const msg = (e instanceof Error ? e.message : '') || (typeof e === 'object' && e !== null && 'message' in e ? String((e as { message: unknown }).message) : '') || 'Failed to create property. Please try again.';
@@ -398,47 +400,68 @@ export default function SuperAdminPage() {
             </div>
             <div className="col-span-2">
               <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">
-                Hotel Website URL <span className="normal-case text-gray-300">(auto-fills address, phone, reviews)</span>
+                Hotel Name + City <span className="normal-case text-gray-300">(auto-fills address & review links)</span>
               </label>
               <div className="flex gap-2">
                 <input
-                  value={form.websiteUrl}
-                  onChange={async (e) => {
-                    const v = e.target.value;
-                    setForm({ ...form, websiteUrl: v });
-                    if (v.startsWith('http')) {
-                      setScraping(true);
-                      setScrapeStatus('Scanning website...');
-                      try {
-                        const res = await fetch('/api/scrape-hotel', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ url: v }),
-                        });
-                        const data = await res.json();
-                        if (res.ok && (data.address || data.phone)) {
-                          setForm(prev => ({
-                            ...prev,
-                            address: data.address || prev.address || '',
-                            adminPhone: data.phone || prev.adminPhone || '',
-                          }));
-                          setScrapeStatus(`✅ Found: ${[data.address, data.phone].filter(Boolean).join(', ')}`);
-                        } else {
-                          setScrapeStatus('⚠️ Could not extract info. Enter manually.');
-                        }
-                      } catch {
-                        setScrapeStatus('⚠️ Scraping failed. Enter info manually.');
-                      } finally {
-                        setScraping(false);
-                      }
+                  value={form.lookupQuery}
+                  placeholder="Miami Airport Hotel, Miami FL"
+                  className="flex-1 bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
+                  onChange={e => setForm({ ...form, lookupQuery: e.target.value })}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      (e.target as HTMLInputElement).form?.querySelector('[data-action=lookup]')?.dispatchEvent(new Event('click', { bubbles: true }));
                     }
                   }}
-                  placeholder="https://www.hotel.com"
-                  className="flex-1 bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
                 />
-                {scraping && <span className="self-center w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />}
+                <button
+                  type="button"
+                  data-action="lookup"
+                  disabled={lookupLoading || !form.lookupQuery}
+                  onClick={async () => {
+                    if (!form.lookupQuery) return;
+                    setLookupLoading(true);
+                    setLookupStatus('Searching...');
+                    try {
+                      const res = await fetch('/api/lookup-hotel', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query: form.lookupQuery }),
+                      });
+                      const data = await res.json();
+                      if (res.ok && data.found) {
+                        setForm(prev => ({
+                          ...prev,
+                          address: data.address || prev.address || '',
+                          googleReviewUrl: data.googleReviewUrl || '',
+                          tripadvisorUrl: data.tripadvisorUrl || '',
+                          yelpUrl: data.yelpUrl || '',
+                        }));
+                        setLookupStatus(`✅ Found: ${data.address?.split(',')[0]}`);
+                      } else {
+                        // Even if address not found, generate review links
+                        setForm(prev => ({
+                          ...prev,
+                          googleReviewUrl: data.googleReviewUrl || `https://www.google.com/search?q=${encodeURIComponent(form.lookupQuery + ' reviews')}`,
+                          tripadvisorUrl: data.tripadvisorUrl || `https://www.tripadvisor.com/Search?q=${encodeURIComponent(form.lookupQuery)}`,
+                          yelpUrl: data.yelpUrl || `https://www.yelp.com/search?find_desc=${encodeURIComponent(form.lookupQuery)}`,
+                        }));
+                        setLookupStatus('⚠️ Address not found. Fill manually. Review links generated.');
+                      }
+                    } catch {
+                      setLookupStatus('⚠️ Lookup failed. Enter info manually.');
+                    } finally {
+                      setLookupLoading(false);
+                    }
+                  }}
+                  className="px-4 py-3 rounded-xl text-white font-semibold text-[13px] whitespace-nowrap disabled:opacity-50"
+                  style={{ backgroundColor: TEAL }}
+                >
+                  {lookupLoading ? '...' : 'Look Up'}
+                </button>
               </div>
-              {scrapeStatus && <p className="text-[11px] text-gray-500 mt-1">{scrapeStatus}</p>}
+              {lookupStatus && <p className="text-[11px] text-gray-500 mt-1">{lookupStatus}</p>}
             </div>
             <div>
               <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Contact Phone</label>
