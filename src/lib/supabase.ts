@@ -21,6 +21,8 @@ export interface HotelConfig {
   frontDeskPhone: string;
   googleSheetUrl: string;
   notificationEmail: string;
+  appsScriptUrl: string;
+  serviceAccountEmail: string;
 }
 
 export interface StaffAccount {
@@ -65,6 +67,8 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     frontDeskPhone: data.front_desk_phone || '',
     googleSheetUrl: data.google_sheet_url || '',
     notificationEmail: data.notification_email || '',
+    appsScriptUrl: data.apps_script_url || '',
+    serviceAccountEmail: data.service_account_email || '',
   };
 }
 
@@ -83,6 +87,8 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       front_desk_phone: config.frontDeskPhone,
       google_sheet_url: config.googleSheetUrl,
       notification_email: config.notificationEmail,
+      apps_script_url: config.appsScriptUrl,
+      service_account_email: config.serviceAccountEmail,
     }, { onConflict: 'slug' });
   if (error) throw error;
   return data;

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, Users, MapPin, Send, Plane, ArrowRight } from 'lucide-react';
-import { supabase, getHotelConfig } from '@/lib/supabase';
+import { ArrowLeft, Calendar, Users, MapPin, Send, Plane, ArrowRight, Bus } from 'lucide-react';
+import { supabase, getHotelConfig, HotelConfig } from '@/lib/supabase';
 
 export default function TransportPage() {
   const router = useRouter();
+  const [view, setView] = useState<'request' | 'schedule'>('request');
   const [direction, setDirection] = useState<'arrival' | 'departure'>('departure');
   const [form, setForm] = useState({
     date: '', time: '', pickup: '', destination: 'airport', passengers: '1', notes: '', airline: '', flight: ''
@@ -54,6 +55,27 @@ export default function TransportPage() {
         }),
       }).catch(() => {});
     }
+    // Sync to Google Sheet (if configured)
+    if (hotel?.googleSheetUrl) {
+      fetch('/api/transport-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sheetUrl: hotel.googleSheetUrl,
+          guestName: guest.name || 'Guest',
+          room: qrRoom || guest.room || '?',
+          date: form.date,
+          time: form.time,
+          direction,
+          pickup: direction === 'departure' ? 'Hotel Lobby' : form.destination,
+          destination: direction === 'arrival' ? 'Hotel' : form.destination,
+          airline: form.airline,
+          flight: form.flight,
+          passengers: form.passengers,
+          notes: form.notes,
+        }),
+      }).catch(() => {});
+    }
     setSent(true);
   };
 
@@ -68,6 +90,26 @@ export default function TransportPage() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-5 pt-4 pb-8">
+          {/* View Toggle */}
+          <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-gray-100 flex mb-3">
+            <button
+              onClick={() => setView('request')}
+              className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${view === 'request' ? 'text-white' : 'text-gray-500'}`}
+              style={view === 'request' ? { backgroundColor: '#6B1D3C' } : undefined}
+            >
+              Request Ride
+            </button>
+            <button
+              onClick={() => setView('schedule')}
+              className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${view === 'schedule' ? 'text-white' : 'text-gray-500'}`}
+              style={view === 'schedule' ? { backgroundColor: '#6B1D3C' } : undefined}
+            >
+              Shuttle Schedule
+            </button>
+          </div>
+
+          {view === 'schedule' ? <ScheduleView /> :
+          (<>
           {sent ? (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
               <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
@@ -197,8 +239,37 @@ export default function TransportPage() {
               </button>
             </div>
           )}
+          </>)}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Schedule View (Guest-Facing) ──────────────────── */
+function ScheduleView() {
+  const [hotel, setHotel] = useState<HotelConfig | null>(null);
+
+  useEffect(() => {
+    getHotelConfig().then(setHotel);
+  }, []);
+
+  if (!hotel?.googleSheetUrl) {
+    return (
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
+        <Bus size={40} className="text-gray-300 mx-auto mb-3" />
+        <p className="text-[13px] text-gray-500">Shuttle schedule coming soon.</p>
+        <p className="text-[12px] text-gray-400 mt-1">Check with the front desk for current times.</p>
+      </div>
+    );
+  }
+
+  const embedUrl = hotel.googleSheetUrl
+    .replace(/\/edit.*$/, '/pubhtml?gid=0&single=true&widget=true&headers=false');
+
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100" style={{ height: 500 }}>
+      <iframe src={embedUrl} className="w-full h-full border-0" title="Shuttle Schedule" />
     </div>
   );
 }

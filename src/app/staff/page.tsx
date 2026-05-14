@@ -789,9 +789,9 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
           />
         </Section>
 
-        <Section title="Operations Sheet" Icon={ExternalLink}>
+        <Section title="Shuttle Operations Sheet" Icon={ExternalLink}>
           <p className="text-[11px] text-gray-400 -mt-1">
-            Paste a Google Sheet URL. In Google Sheets: File → Share → Publish to web → Copy link.
+            Paste a Google Sheet URL. Attenda will auto-build SCHEDULE, REQUESTS, and DRIVERS tabs.
           </p>
           <Field
             label="Google Sheet URL"
@@ -799,6 +799,42 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
             onChange={v => setForm({ ...form, googleSheetUrl: v })}
             placeholder="https://docs.google.com/spreadsheets/d/..."
           />
+          {form.googleSheetUrl && (
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/sheets-init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sheetUrl: form.googleSheetUrl }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error);
+                  setForm({
+                    ...form,
+                    serviceAccountEmail: data.email,
+                  });
+                  alert(`✅ Shuttle sheet is ready!\\n\\n⚠️ IMPORTANT: Share this sheet with:\\n${data.email}\\n(as Editor)`);
+                } catch (e) {
+                  alert('Setup failed: ' + (e as Error).message);
+                }
+              }}
+              className="w-full py-2.5 rounded-xl font-semibold text-[13px] text-white"
+              style={{ backgroundColor: TEAL }}
+            >
+              🚐 Initialize Shuttle Sheet
+            </button>
+          )}
+          {form.serviceAccountEmail && (
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+              <p className="text-[11px] text-amber-700">
+                ⚠️ Share sheet with: <code className="bg-amber-100 px-1 rounded">{form.serviceAccountEmail}</code> (Editor access)
+              </p>
+            </div>
+          )}
+          <p className="text-[10px] text-gray-400 mt-1">
+            Staff sees full sheet in Shuttle tab. Guests see SCHEDULE tab only.
+          </p>
         </Section>
 
         {saved && (
@@ -1060,6 +1096,18 @@ function PartnersView({ hotelId }: { hotelId: string }) {
               <p className="text-[12px] font-bold text-purple-600 mb-2">Clover POS Integration</p>
             </div>
             <div className="col-span-2">
+              <a
+                href={`/api/clover-oauth?partner=new&hotel=${hotelId}`}
+                className="w-full py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-2 text-white bg-purple-600 hover:bg-purple-700"
+              >
+                🔗 Connect Clover (OAuth)
+              </a>
+              <p className="text-[10px] text-gray-400 mt-1 text-center">One-click authorized connection</p>
+            </div>
+            <div className="col-span-2 border-t border-gray-100 my-1">
+              <p className="text-[11px] font-medium text-gray-400 mt-2 mb-1">Or enter manually:</p>
+            </div>
+            <div className="col-span-2">
               <Field label="Clover Merchant ID" value={cloverForm.merchantId} onChange={v => setCloverForm({ ...cloverForm, merchantId: v })} placeholder="ABC123DEF456" />
             </div>
             <div className="col-span-2">
@@ -1124,6 +1172,14 @@ function PartnersView({ hotelId }: { hotelId: string }) {
                       style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
                       Menu {expanded === p.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                     </button>
+                  )}
+                  {!p.clover_enabled && p.has_ordering && (
+                    <a
+                      href={`/api/clover-oauth?partner=${p.id}&hotel=${hotelId}`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-50 text-purple-600 hover:bg-purple-100"
+                    >
+                      🔗 Connect Clover
+                    </a>
                   )}
                   {p.clover_enabled && p.clover_merchant_id && p.clover_access_token && (
                     <button
