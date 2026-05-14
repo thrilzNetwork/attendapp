@@ -18,10 +18,12 @@ export default function SuperAdminPage() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<{ email: string } | null>(null);
   const [hotels, setHotels] = useState<{ id: string; slug: string; name: string }[]>([]);
-  const [form, setForm] = useState({ slug: '', name: '', adminEmail: '' });
+  const [form, setForm] = useState({ slug: '', name: '', adminEmail: '', websiteUrl: '', adminPhone: '', roomCount: 0, address: '' });
   const [copied, setCopied] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [scraping, setScraping] = useState(false);
+  const [scrapeStatus, setScrapeStatus] = useState('');
 
   const loadHotels = useCallback(async () => {
     const data = await getAllHotels();
@@ -156,7 +158,15 @@ export default function SuperAdminPage() {
     setCreating(true);
     setCreateError('');
     try {
-      const hotel = await createHotel(form.slug, form.name);
+      const hotel = await createHotel({
+        slug: form.slug,
+        name: form.name,
+        websiteUrl: form.websiteUrl || undefined,
+        adminPhone: form.adminPhone || undefined,
+        roomCount: form.roomCount || undefined,
+        address: form.address || undefined,
+        adminEmail: form.adminEmail || undefined,
+      });
       if (form.adminEmail && hotel) {
         fetch('/api/email', {
           method: 'POST',
@@ -173,7 +183,7 @@ export default function SuperAdminPage() {
           }),
         }).catch(() => {});
       }
-      setForm({ slug: '', name: '', adminEmail: '' });
+      setForm({ slug: '', name: '', adminEmail: '', websiteUrl: '', adminPhone: '', roomCount: 0, address: '' });
       loadHotels();
     } catch (e: unknown) {
       const msg = (e instanceof Error ? e.message : '') || (typeof e === 'object' && e !== null && 'message' in e ? String((e as { message: unknown }).message) : '') || 'Failed to create property. Please try again.';
@@ -366,7 +376,7 @@ export default function SuperAdminPage() {
         {/* Create hotel form */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-8 shadow-sm">
           <h3 className="font-extrabold text-[16px] mb-1">+ Onboard New Property</h3>
-          <p className="text-[12px] text-gray-400 mb-4">Creates the hotel account and generates guest + admin links instantly.</p>
+          <p className="text-[12px] text-gray-400 mb-4">Paste the hotel website to auto-fill details, then create with one click.</p>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
               <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Hotel Name *</label>
@@ -384,6 +394,73 @@ export default function SuperAdminPage() {
                 onChange={e => { setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') }); setCreateError(''); }}
                 placeholder="miami-airport"
                 className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400 font-mono"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">
+                Hotel Website URL <span className="normal-case text-gray-300">(auto-fills address, phone, reviews)</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  value={form.websiteUrl}
+                  onChange={async (e) => {
+                    const v = e.target.value;
+                    setForm({ ...form, websiteUrl: v });
+                    if (v.startsWith('http')) {
+                      setScraping(true);
+                      setScrapeStatus('Scanning website...');
+                      try {
+                        const res = await fetch('/api/scrape-hotel', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ url: v }),
+                        });
+                        const data = await res.json();
+                        if (res.ok && (data.address || data.phone)) {
+                          setForm(prev => ({
+                            ...prev,
+                            address: data.address || prev.address || '',
+                            adminPhone: data.phone || prev.adminPhone || '',
+                          }));
+                          setScrapeStatus(`✅ Found: ${[data.address, data.phone].filter(Boolean).join(', ')}`);
+                        } else {
+                          setScrapeStatus('⚠️ Could not extract info. Enter manually.');
+                        }
+                      } catch {
+                        setScrapeStatus('⚠️ Scraping failed. Enter info manually.');
+                      } finally {
+                        setScraping(false);
+                      }
+                    }
+                  }}
+                  placeholder="https://www.hotel.com"
+                  className="flex-1 bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
+                />
+                {scraping && <span className="self-center w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />}
+              </div>
+              {scrapeStatus && <p className="text-[11px] text-gray-500 mt-1">{scrapeStatus}</p>}
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Contact Phone</label>
+              <input
+                value={form.adminPhone}
+                onChange={e => setForm({ ...form, adminPhone: e.target.value })}
+                placeholder="305-555-0100"
+                className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">
+                Number of Rooms <span className="normal-case text-gray-300">(auto-generates QR codes)</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="2000"
+                value={form.roomCount || ''}
+                onChange={e => setForm({ ...form, roomCount: parseInt(e.target.value) || 0 })}
+                placeholder="80"
+                className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
               />
             </div>
             <div className="col-span-2">

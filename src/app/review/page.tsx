@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Star, CheckCircle, ExternalLink } from 'lucide-react';
+import { getHotelConfig } from '@/lib/supabase';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -27,10 +28,20 @@ export default function ReviewPage() {
     setStep('done');
   };
 
-  const openReview = (url: string) => {
-    if (url === 'google') window.open('https://www.google.com/search?q=best+western+reviews', '_blank');
-    if (url === 'tripadvisor') window.open('https://www.tripadvisor.com', '_blank');
-    if (url === 'yelp') window.open('https://www.yelp.com', '_blank');
+  const openReview = async (url: string) => {
+    const hotel = await getHotelConfig();
+    if (url === 'google') {
+      if (hotel?.googleReviewUrl) window.open(hotel.googleReviewUrl, '_blank');
+      else window.open('https://www.google.com/search?q=' + encodeURIComponent(hotel?.name || 'hotel') + '+reviews', '_blank');
+    }
+    if (url === 'tripadvisor') {
+      if (hotel?.tripadvisorUrl) window.open(hotel.tripadvisorUrl, '_blank');
+      else window.open('https://www.tripadvisor.com/Search?q=' + encodeURIComponent(hotel?.name || ''), '_blank');
+    }
+    if (url === 'yelp') {
+      if (hotel?.yelpUrl) window.open(hotel.yelpUrl, '_blank');
+      else window.open('https://www.yelp.com/search?find_desc=' + encodeURIComponent(hotel?.name || 'hotel'), '_blank');
+    }
   };
 
   const labels = ['','Very Dissatisfied','Dissatisfied','Neutral','Satisfied','Very Satisfied'];

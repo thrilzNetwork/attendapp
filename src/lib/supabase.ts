@@ -23,6 +23,13 @@ export interface HotelConfig {
   notificationEmail: string;
   appsScriptUrl: string;
   serviceAccountEmail: string;
+  websiteUrl: string;
+  adminPhone: string;
+  roomCount: number;
+  googleReviewUrl: string;
+  tripadvisorUrl: string;
+  yelpUrl: string;
+  brandColor: string;
 }
 
 export interface StaffAccount {
@@ -69,6 +76,13 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     notificationEmail: data.notification_email || '',
     appsScriptUrl: data.apps_script_url || '',
     serviceAccountEmail: data.service_account_email || '',
+    websiteUrl: data.website_url || '',
+    adminPhone: data.admin_phone || '',
+    roomCount: data.room_count || 0,
+    googleReviewUrl: data.google_review_url || '',
+    tripadvisorUrl: data.tripadvisor_url || '',
+    yelpUrl: data.yelp_url || '',
+    brandColor: data.brand_color || '#6B1D3C',
   };
 }
 
@@ -89,6 +103,13 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       notification_email: config.notificationEmail,
       apps_script_url: config.appsScriptUrl,
       service_account_email: config.serviceAccountEmail,
+      website_url: config.websiteUrl,
+      admin_phone: config.adminPhone,
+      room_count: config.roomCount,
+      google_review_url: config.googleReviewUrl,
+      tripadvisor_url: config.tripadvisorUrl,
+      yelp_url: config.yelpUrl,
+      brand_color: config.brandColor,
     }, { onConflict: 'slug' });
   if (error) throw error;
   return data;
@@ -254,10 +275,27 @@ export async function getAllHotels() {
   return data || [];
 }
 
-export async function createHotel(slug: string, name: string) {
-  const { data, error } = await supabase.from('hotels').insert({ slug, name }).select().single();
+export async function createHotel(data: {
+  slug: string;
+  name: string;
+  websiteUrl?: string;
+  adminPhone?: string;
+  roomCount?: number;
+  address?: string;
+  adminEmail?: string;
+  notificationEmail?: string;
+}) {
+  const { data: hotel, error } = await supabase.from('hotels').insert({
+    slug: data.slug,
+    name: data.name,
+    website_url: data.websiteUrl || null,
+    admin_phone: data.adminPhone || null,
+    room_count: data.roomCount || 0,
+    address: data.address || null,
+    notification_email: data.adminEmail || data.notificationEmail || null,
+  }).select().single();
   if (error) throw error;
-  return data;
+  return hotel;
 }
 
 // ─── QR Codes ─────────────────────────────────────────────────

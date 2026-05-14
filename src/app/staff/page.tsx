@@ -1261,6 +1261,7 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
   const [codes, setCodes] = useState<QrCodeRow[]>([]);
   const [form, setForm] = useState({ label: '', location_type: 'room' });
   const [copied, setCopied] = useState<string | null>(null);
+  const [startRoom, setStartRoom] = useState(101);
 
   const loadCodes = useCallback(async () => {
     const data = await getQrCodes(hotelId);
@@ -1300,8 +1301,51 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6 shadow-sm">
-        <h3 className="font-bold text-[14px] mb-4">Generate New QR Code</h3>
-        <div className="flex gap-3">
+        <h3 className="font-bold text-[14px] mb-2">Batch Generate All Rooms</h3>
+        <p className="text-[12px] text-gray-400 mb-3">
+          If the hotel has room_count configured, generate all room QR codes at once.
+        </p>
+        <div className="flex gap-3 mb-4">
+          <div className="flex-1">
+            <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Starting room number</label>
+            <input
+              type="number"
+              value={startRoom}
+              onChange={e => setStartRoom(parseInt(e.target.value) || 101)}
+              className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={async () => {
+                const cfg = await getHotelConfig();
+                const roomCount = cfg?.roomCount || 0;
+                if (!roomCount) return alert('No room count configured. Set it in Hotel Settings first.');
+                let count = 0;
+                let skipped = 0;
+                for (let i = 0; i < roomCount; i++) {
+                  const room = (startRoom + i).toString();
+                  const exists = codes.some(c => c.label === room);
+                  if (!exists) {
+                    await createQrCode(hotelId, room, 'room', getUrl(room));
+                    count++;
+                  } else {
+                    skipped++;
+                  }
+                }
+                alert(`✅ Generated ${count} new QR codes (${skipped} already existed, skipped)`);
+                loadCodes();
+              }}
+              className="px-5 py-3 rounded-xl text-white font-semibold text-[13px] whitespace-nowrap"
+              style={{ backgroundColor: TEAL }}
+            >
+              Generate All Room QR Codes
+            </button>
+          </div>
+        </div>
+        <div className="border-t border-gray-100 pt-4">
+          <h3 className="font-bold text-[14px] mb-4">Generate Single QR Code</h3>
+          <div className="flex gap-3">
           <div className="flex-1">
             <Field label="Label (room # or location name)" value={form.label} onChange={v => setForm({ ...form, label: v })} placeholder="205 or Pool Deck" />
           </div>
@@ -1320,6 +1364,7 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
               Generate
             </button>
           </div>
+        </div>
         </div>
       </div>
 
@@ -1387,7 +1432,7 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
     if (!form.slug || !form.name) return;
     setCreating(true);
     try {
-      const hotel = await createHotel(form.slug, form.name);
+      const hotel = await createHotel({ slug: form.slug, name: form.name, adminEmail: form.adminEmail || undefined });
       if (form.adminEmail && hotel) {
         const origin = window.location.origin;
         await fetch('/api/email', {
