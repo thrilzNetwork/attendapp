@@ -3,75 +3,107 @@ import { supabase } from '@/lib/supabase';
 
 export async function GET() {
   try {
-    const { data: hotels } = await supabase.from('hotels').select('id, slug, name, room_count, is_active');
+    const { data: hotels } = await supabase.from('hotels').select('*').order('name');
 
-    if (!hotels) return NextResponse.json({ hotels: [], totals: {} });
+    if (!hotels?.length) {
+      return NextResponse.json({ hotels: [], totals: zeroTotals() });
+    }
+
+    // Fetch all metrics in parallel
+    const [
+      { data: requests },
+      { data: orders },
+      { data: fees },
+      { data: partners },
+    ] = await Promise.all([
+      supabase.from('requests').select('hotel_id, created_at, status'),
+      supabase.from('requests').select('hotel_id, created_at, type').eq('type', 'Food Order'),
+      supabase.from('attenda_fees').select('hotel_id, amount, created_at'),
+      supabase.from('partners').select('hotel_id, id, name, clover_merchant_id, clover_enabled'),
+    ]);
+
+    const partnerCountByHotel = countByHotel(partners || []);
+    const cloverPartnersByHotel: Record<string, { id: string; name: string; clover_enabled: boolean }[]> = {};
+    (partners || []).forEach(p => {
+      if (p.clover_merchant_id) {
+        if (!cloverPartnersByHotel[p.hotel_id]) cloverPartnersByHotel[p.hotel_id] = [];
+        cloverPartnersByHotel[p.hotel_id].push({ id: p.id, name: p.name, clover_enabled: p.clover_enabled });
+      }
+    });
 
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const weekStart = new Date(now.getTime() - 7 * 86400000).toISOString();
+    const today = now.toISOString().split('T')[0];
+    const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
+    const monthStart = now.toISOString().slice(0, 7) + '-01';
 
-    const results = await Promise.all(hotels.map(async (hotel) => {
-      const [
-        { count: requestsToday },
-        { count: requestsWeek },
-        { count: foodOrders },
-        { data: fees },
-        { count: staffCount },
-        { count: partnerCount },
-        { data: cloverPartners },
-        { data: lastReq },
-      ] = await Promise.all([
-        supabase.from('requests').select('*', { count: 'exact', head: true }).eq('hotel_id', hotel.id).gte('created_at', todayStart),
-        supabase.from('requests').select('*', { count: 'exact', head: true }).eq('hotel_id', hotel.id).gte('created_at', weekStart),
-        supabase.from('requests').select('*', { count: 'exact', head: true }).eq('hotel_id', hotel.id).gte('created_at', todayStart).ilike('type', '%food%'),
-        supabase.from('attenda_fees').select('order_total, fee_amount').eq('hotel_id', hotel.id),
-        supabase.from('staff_accounts').select('*', { count: 'exact', head: true }).eq('hotel_id', hotel.id),
-        supabase.from('partners').select('*', { count: 'exact', head: true }).eq('hotel_id', hotel.id).eq('is_active', true),
-        supabase.from('partners').select('id, name, clover_enabled').eq('hotel_id', hotel.id).eq('clover_enabled', true).eq('is_active', true),
-        supabase.from('requests').select('created_at').eq('hotel_id', hotel.id).order('created_at', { ascending: false }).limit(1),
-      ]);
+    const hotelHealth = hotels.map(h => {
+      const hotelReqs = (requests || []).filter(r => r.hotel_id === h.id);
+      const hotelOrders = (orders || []).filter(o => o.hotel_id === h.id);
+      const hotelFees = (fees || []).filter(f => f.hotel_id === h.id);
 
-      const revenueMonth = (fees || []).reduce((s: number, f: { fee_amount?: number }) => s + (Number(f.fee_amount) || 0), 0);
-      const revenueLifetime = revenueMonth; // TODO: add date filter when fees have created_at
+      const requestsToday = hotelReqs.filter(r => r.created_at >= today).length;
+      const requestsWeek = hotelReqs.filter(r => r.created_at >= weekAgo).length;
+      const foodOrdersToday = hotelOrders.filter(o => o.created_at >= today).length;
+      const revenueMonth = hotelFees.filter(f => f.created_at >= monthStart).reduce((s, f) => s + (f.amount || 0), 0);
+      const revenueLifetime = hotelFees.reduce((s, f) => s + (f.amount || 0), 0);
+      const lastActivity = hotelReqs.length > 0
+        ? hotelReqs.reduce((max, r) => r.created_at > max ? r.created_at : max, '')
+        : null;
 
       return {
-        id: hotel.id,
-        slug: hotel.slug,
-        name: hotel.name,
-        roomCount: hotel.room_count || 0,
-        isActive: hotel.is_active !== false,
+        id: h.id,
+        slug: h.slug,
+        name: h.name,
+        roomCount: h.room_count || 0,
+        isActive: h.is_active !== false,
         metrics: {
-          requestsToday: requestsToday || 0,
-          requestsWeek: requestsWeek || 0,
-          foodOrdersToday: foodOrders || 0,
+          requestsToday,
+          requestsWeek,
+          foodOrdersToday,
           revenueMonth,
           revenueLifetime,
-          staffCount: staffCount || 0,
-          partnerCount: partnerCount || 0,
-          cloverPartnerCount: cloverPartners?.length || 0,
-          cloverPartners: cloverPartners || [],
-          lastActivity: lastReq?.[0]?.created_at || null,
+          staffCount: 0,
+          partnerCount: partnerCountByHotel[h.id] || 0,
+          cloverPartnerCount: (cloverPartnersByHotel[h.id] || []).length,
+          cloverPartners: cloverPartnersByHotel[h.id] || [],
+          lastActivity,
         },
       };
-    }));
+    });
+
+    // Staff counts
+    const { data: staff } = await supabase.from('staff_accounts').select('hotel_id');
+    const staffByHotel = countByHotel(staff || []);
+    hotelHealth.forEach(h => {
+      h.metrics.staffCount = staffByHotel[h.id] || 0;
+    });
 
     const totals = {
-      hotels: hotels.length,
-      activeHotels: hotels.filter(h => h.is_active !== false).length,
-      requestsToday: results.reduce((s, r) => s + r.metrics.requestsToday, 0),
-      requestsWeek: results.reduce((s, r) => s + r.metrics.requestsWeek, 0),
-      foodOrders: results.reduce((s, r) => s + r.metrics.foodOrdersToday, 0),
-      revenue: results.reduce((s, r) => s + r.metrics.revenueMonth, 0),
-      partners: results.reduce((s, r) => s + r.metrics.partnerCount, 0),
-      cloverPartners: results.reduce((s, r) => s + r.metrics.cloverPartnerCount, 0),
-      staff: results.reduce((s, r) => s + r.metrics.staffCount, 0),
-      rooms: results.reduce((s, r) => s + r.roomCount, 0),
+      hotels: hotelHealth.length,
+      activeHotels: hotelHealth.filter(h => h.isActive).length,
+      requestsToday: hotelHealth.reduce((s, h) => s + h.metrics.requestsToday, 0),
+      requestsWeek: hotelHealth.reduce((s, h) => s + h.metrics.requestsWeek, 0),
+      foodOrders: hotelHealth.reduce((s, h) => s + h.metrics.foodOrdersToday, 0),
+      revenue: hotelHealth.reduce((s, h) => s + h.metrics.revenueMonth, 0),
+      partners: hotelHealth.reduce((s, h) => s + h.metrics.partnerCount, 0),
+      cloverPartners: hotelHealth.reduce((s, h) => s + h.metrics.cloverPartnerCount, 0),
+      staff: hotelHealth.reduce((s, h) => s + h.metrics.staffCount, 0),
+      rooms: hotelHealth.reduce((s, h) => s + h.roomCount, 0),
     };
 
-    return NextResponse.json({ hotels: results, totals });
-  } catch (e) {
-    console.error('Health API error:', e);
-    return NextResponse.json({ error: 'Failed to load health data' }, { status: 500 });
+    return NextResponse.json({ hotels: hotelHealth, totals });
+  } catch (err) {
+    console.error('hotel-health error:', err);
+    return NextResponse.json({ hotels: [], totals: zeroTotals(), error: String(err) }, { status: 500 });
   }
+}
+
+function zeroTotals() {
+  return { hotels: 0, activeHotels: 0, requestsToday: 0, requestsWeek: 0, foodOrders: 0, revenue: 0, partners: 0, cloverPartners: 0, staff: 0, rooms: 0 };
+}
+
+function countByHotel(rows: { hotel_id: string }[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  rows.forEach(r => { map[r.hotel_id] = (map[r.hotel_id] || 0) + 1; });
+  return map;
 }

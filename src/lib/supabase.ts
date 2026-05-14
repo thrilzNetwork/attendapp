@@ -34,10 +34,14 @@ export interface HotelConfig {
 
 export interface StaffAccount {
   id?: string;
+  hotel_id?: string;
   name: string;
   role: string;
+  email?: string;
+  phone?: string;
   pin_code: string;
   active: boolean;
+  permissions?: string[]; // ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes']
 }
 
 export interface RequestItem {
@@ -354,6 +358,244 @@ export async function createQrCode(hotelId: string, label: string, locationType:
 
 export async function deleteQrCode(id: string): Promise<void> {
   await supabase.from('qr_codes').delete().eq('id', id);
+}
+
+// ─── Shuttle Types ──────────────────────────────────────────
+
+export interface ShuttleRoute {
+  id: string;
+  hotel_id: string;
+  name: string;
+  type: 'airport' | 'cruise' | 'custom';
+  active: boolean;
+}
+
+export interface ShuttleSlot {
+  id: string;
+  route_id: string;
+  departure_time: string; // "HH:MM:SS"
+  days_of_week: number[];  // [1..7], empty = one-off
+  date: string | null;     // ISO date for one-off
+  capacity: number;        // 0 = unlimited
+  active: boolean;
+  route_name?: string;
+  route_type?: string;
+  bookings_count?: number;
+}
+
+export interface ShuttleBooking {
+  id: string;
+  slot_id: string;
+  guest_name: string;
+  room_number: string;
+  pax: number;
+  notes: string;
+  status: 'confirmed' | 'cancelled' | 'no_show';
+  created_at: string;
+  slot_time?: string;
+  route_name?: string;
+}
+
+export interface ShuttleRequest {
+  id: string;
+  hotel_id: string;
+  guest_name: string;
+  room_number: string;
+  pickup_location: string;
+  destination: string;
+  date: string | null;
+  time: string | null;
+  pax: number;
+  notes: string;
+  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
+  assigned_driver_id: string | null;
+  assigned_driver_name?: string;
+  created_at: string;
+}
+
+// ─── Shuttle CRUD ───────────────────────────────────────────
+
+export async function getShuttleRoutes(hotelId: string): Promise<ShuttleRoute[]> {
+  const { data } = await supabase.from('shuttle_routes').select('*')
+    .eq('hotel_id', hotelId).eq('active', true).order('name');
+  return data || [];
+}
+
+export async function createShuttleRoute(route: { hotel_id: string; name: string; type: string }) {
+  const { data } = await supabase.from('shuttle_routes').insert(route).select().single();
+  return data;
+}
+
+export async function deleteShuttleRoute(id: string) {
+  await supabase.from('shuttle_routes').delete().eq('id', id);
+}
+
+export async function toggleShuttleRoute(id: string, active: boolean) {
+  await supabase.from('shuttle_routes').update({ active }).eq('id', id);
+}
+
+export async function getShuttleSlots(routeId: string): Promise<ShuttleSlot[]> {
+  const { data } = await supabase.from('shuttle_slots').select(`
+    *, shuttle_routes!inner(name, type)
+  `).eq('route_id', routeId).eq('active', true).order('departure_time');
+  return (data || []).map((s: Record<string, unknown>) => ({
+    ...s,
+    route_name: (s.shuttle_routes as Record<string, unknown>)?.name as string,
+    route_type: (s.shuttle_routes as Record<string, unknown>)?.type as string,
+  })) as ShuttleSlot[];
+}
+
+export async function getAllShuttleSlotsForHotel(hotelId: string): Promise<ShuttleSlot[]> {
+  const { data } = await supabase.from('shuttle_slots').select(`
+    *, shuttle_routes!inner(name, type)
+  `).eq('shuttle_routes.hotel_id', hotelId).eq('shuttle_routes.active', true).eq('shuttle_slots.active', true).order('departure_time');
+  // Attach booking counts
+  const slotIds = (data || []).map((s: Record<string, unknown>) => s.id as string);
+  if (slotIds.length > 0) {
+    const { data: counts } = await supabase.from('shuttle_bookings')
+      .select('slot_id, count()', { count: 'exact' })
+      .in('slot_id', slotIds).eq('status', 'confirmed');
+    const countMap: Record<string, number> = {};
+    ((counts || []) as { slot_id: string; count: number }[]).forEach(c => { countMap[c.slot_id] = c.count; });
+    return (data || []).map((s: Record<string, unknown>) => ({
+      ...s,
+      route_name: (s.shuttle_routes as Record<string, unknown>)?.name as string,
+      route_type: (s.shuttle_routes as Record<string, unknown>)?.type as string,
+      bookings_count: countMap[s.id as string] || 0,
+    })) as ShuttleSlot[];
+  }
+  return (data || []).map((s: Record<string, unknown>) => ({
+    ...s,
+    route_name: (s.shuttle_routes as Record<string, unknown>)?.name as string,
+    route_type: (s.shuttle_routes as Record<string, unknown>)?.type as string,
+    bookings_count: 0,
+  })) as ShuttleSlot[];
+}
+
+export async function createShuttleSlot(slot: {
+  route_id: string; departure_time: string;
+  days_of_week?: number[]; date?: string; capacity?: number;
+}) {
+  const { data } = await supabase.from('shuttle_slots').insert({
+    ...slot, days_of_week: slot.days_of_week || [], capacity: slot.capacity || 0,
+  }).select().single();
+  return data;
+}
+
+export async function deleteShuttleSlot(id: string) {
+  await supabase.from('shuttle_slots').delete().eq('id', id);
+}
+
+export async function getShuttleBookings(slotId: string): Promise<ShuttleBooking[]> {
+  const { data } = await supabase.from('shuttle_bookings').select(`
+    *, shuttle_slots!inner(departure_time, shuttle_routes!inner(name))
+  `).eq('slot_id', slotId).eq('status', 'confirmed').order('created_at', { ascending: false });
+  return (data || []).map((b: Record<string, unknown>) => ({
+    ...b,
+    slot_time: (b.shuttle_slots as Record<string, unknown>)?.departure_time as string,
+    route_name: ((b.shuttle_slots as Record<string, unknown>)?.shuttle_routes as Record<string, unknown>)?.name as string,
+  })) as ShuttleBooking[];
+}
+
+export async function getAllShuttleBookingsForHotel(hotelId: string): Promise<ShuttleBooking[]> {
+  const { data } = await supabase.from('shuttle_bookings').select(`
+    *, shuttle_slots!inner(departure_time, shuttle_routes!inner(name, hotel_id))
+  `).eq('shuttle_slots.shuttle_routes.hotel_id', hotelId)
+    .eq('status', 'confirmed')
+    .order('created_at', { ascending: false });
+  return (data || []).map((b: Record<string, unknown>) => ({
+    ...b,
+    slot_time: (b.shuttle_slots as Record<string, unknown>)?.departure_time as string,
+    route_name: ((b.shuttle_slots as Record<string, unknown>)?.shuttle_routes as Record<string, unknown>)?.name as string,
+  })) as ShuttleBooking[];
+}
+
+export async function bookShuttleSlot(booking: {
+  slot_id: string; guest_name: string; room_number: string; pax?: number; notes?: string;
+}) {
+  const { data } = await supabase.from('shuttle_bookings').insert({
+    ...booking, pax: booking.pax || 1, notes: booking.notes || '',
+  }).select().single();
+  return data;
+}
+
+export async function cancelShuttleBooking(id: string) {
+  await supabase.from('shuttle_bookings').update({ status: 'cancelled' }).eq('id', id);
+}
+
+export async function createShuttleRequest(req: {
+  hotel_id: string; guest_name: string; room_number: string;
+  destination: string; pickup_location?: string; date?: string; time?: string;
+  pax?: number; notes?: string;
+}) {
+  const { data } = await supabase.from('shuttle_requests').insert({
+    ...req, pickup_location: req.pickup_location || 'Hotel Lobby',
+    pax: req.pax || 1, notes: req.notes || '',
+  }).select().single();
+  return data;
+}
+
+export async function getShuttleRequests(hotelId: string): Promise<ShuttleRequest[]> {
+  const { data } = await supabase.from('shuttle_requests').select(`
+    *, staff_accounts!left(name)
+  `).eq('hotel_id', hotelId).order('created_at', { ascending: false });
+  return (data || []).map((r: Record<string, unknown>) => ({
+    ...r,
+    assigned_driver_name: (r.staff_accounts as Record<string, unknown>)?.name as string || null,
+  })) as ShuttleRequest[];
+}
+
+export async function updateShuttleRequest(id: string, updates: {
+  status?: string; assigned_driver_id?: string | null;
+}) {
+  await supabase.from('shuttle_requests').update(updates).eq('id', id);
+}
+
+// ─── Enhanced Staff CRUD ────────────────────────────────────
+
+export async function getStaffAccountsForHotel(hotelId: string): Promise<StaffAccount[]> {
+  const { data, error } = await supabase.from('staff_accounts').select('*')
+    .eq('hotel_id', hotelId).order('name');
+  if (error) throw error;
+  return (data || []).map((s: Record<string, unknown>) => ({
+    id: s.id as string,
+    hotel_id: s.hotel_id as string,
+    name: s.name as string,
+    role: s.role as string,
+    email: s.email as string || '',
+    phone: s.phone as string || '',
+    pin_code: s.pin_code as string,
+    active: s.active as boolean,
+    permissions: (s.permissions as string[]) || ['orders', 'messages', 'shuttle'],
+  }));
+}
+
+export async function createStaffAccountWithDetails(staff: {
+  hotel_id: string; name: string; role: string; email?: string; phone?: string;
+  pin_code: string; permissions?: string[];
+}) {
+  const { data, error } = await supabase.from('staff_accounts').insert({
+    name: staff.name,
+    role: staff.role || 'staff',
+    hotel_id: staff.hotel_id,
+    email: staff.email || '',
+    phone: staff.phone || '',
+    pin_code: staff.pin_code,
+    permissions: staff.permissions || ['orders', 'messages', 'shuttle'],
+    active: true,
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateStaffPermissions(id: string, permissions: string[]) {
+  await supabase.from('staff_accounts').update({ permissions }).eq('id', id);
+}
+
+export async function updateStaffDetails(id: string, updates: {
+  name?: string; email?: string; phone?: string; permissions?: string[]; active?: boolean;
+}) {
+  await supabase.from('staff_accounts').update(updates).eq('id', id);
 }
 
 export default supabase;

@@ -11,11 +11,16 @@ import {
 import {
   supabase, subscribeToRequests, updateRequestStatus, deleteRequest,
   getHotelConfig, updateHotelConfig, HotelConfig,
-  getStaffAccounts, createStaffAccount, deleteStaffAccount, StaffAccount,
+  getStaffAccounts, getStaffAccountsForHotel, createStaffAccountWithDetails,
+  deleteStaffAccount, updateStaffDetails, updateStaffPermissions, StaffAccount,
   getPartners, createPartner, deletePartner, Partner,
   getPartnerMenuItems, createPartnerMenuItem, deletePartnerMenuItem, PartnerMenuItem,
   getQrCodes, createQrCode, deleteQrCode, QrCode as QrCodeRow,
   getAllHotels, createHotel,
+  getShuttleRoutes, createShuttleRoute, deleteShuttleRoute,
+  getAllShuttleSlotsForHotel, createShuttleSlot, deleteShuttleSlot,
+  getAllShuttleBookingsForHotel, cancelShuttleBooking,
+  getShuttleRequests, updateShuttleRequest, ShuttleRoute, ShuttleSlot, ShuttleBooking, ShuttleRequest,
 } from '@/lib/supabase';
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -297,12 +302,8 @@ export default function Dashboard() {
           />
         )}
         {tab === 'messages' && <MessagesView messages={messages} />}
-        {tab === 'shuttle' && (
-          <ShuttleView
-            sheetUrl={config?.googleSheetUrl}
-            isAdmin={isAdmin}
-            onGoToSettings={() => setTab('hotel')}
-          />
+        {tab === 'shuttle' && config?.id && (
+          <ShuttleView hotelId={config.id} isAdmin={isAdmin} />
         )}
         {tab === 'hotel' && isAdmin && config && (
           <HotelSettingsView
@@ -310,8 +311,8 @@ export default function Dashboard() {
             onSaved={async () => { const c = await getHotelConfig(); if (c) setConfig(c); }}
           />
         )}
-        {tab === 'staff_mgmt' && isAdmin && (
-          <StaffView staff={staff} onRefresh={async () => setStaff(await getStaffAccounts())} />
+        {tab === 'staff_mgmt' && isAdmin && config?.id && (
+          <StaffView hotelId={config.id} staff={staff} onRefresh={async () => setStaff(await getStaffAccountsForHotel(config.id!))} />
         )}
         {tab === 'partners' && isAdmin && config?.id && (
           <PartnersView hotelId={config.id} />
@@ -646,45 +647,427 @@ function MessagesView({ messages }: { messages: Message[] }) {
   );
 }
 
-/* ── Shuttle View ──────────────────────────────────────── */
-function ShuttleView({ sheetUrl, isAdmin, onGoToSettings }: {
-  sheetUrl?: string;
-  isAdmin: boolean;
-  onGoToSettings: () => void;
-}) {
-  if (!sheetUrl) {
-    return (
-      <div className="p-8">
-        <h1 className="text-[26px] font-extrabold text-gray-900 mb-6">Shuttle Schedule</h1>
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
-          <Bus size={40} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 text-[14px] mb-1">No operations sheet connected yet.</p>
-          <p className="text-gray-400 text-[12px]">The admin connects a Google Sheet to manage shuttle times and operations.</p>
-          {isAdmin && (
-            <button onClick={onGoToSettings} className="mt-4 text-[13px] font-bold underline" style={{ color: TEAL }}>
-              + Connect Google Sheet in Hotel Settings →
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  const embedUrl = sheetUrl.includes('/pubhtml')
-    ? sheetUrl
-    : sheetUrl.replace(/\/edit.*$/, '/pubhtml?widget=true&headers=false');
+/* ── Shuttle View (In-App) ──────────────────────────────── */
+function ShuttleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
+  const [tab, setTab] = useState<'routes' | 'requests'>('routes');
 
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-[26px] font-extrabold text-gray-900">Shuttle Schedule</h1>
-        <a href={sheetUrl} target="_blank" rel="noopener noreferrer"
-          className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-[13px] font-semibold text-gray-600 hover:bg-gray-50">
-          <ExternalLink size={14} /> Open in Sheets
-        </a>
+        <h1 className="text-[26px] font-extrabold text-gray-900">Shuttle Operations</h1>
+        <div className="flex gap-2">
+          <button onClick={() => setTab('routes')}
+            className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${tab === 'routes' ? 'bg-white border border-gray-200 text-gray-900 shadow-sm' : 'bg-gray-100 text-gray-500'}`}>
+            🚐 Routes & Bookings
+          </button>
+          <button onClick={() => setTab('requests')}
+            className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${tab === 'requests' ? 'bg-white border border-gray-200 text-gray-900 shadow-sm' : 'bg-gray-100 text-gray-500'}`}>
+            📋 Pickup Requests
+          </button>
+        </div>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm" style={{ height: 560 }}>
-        <iframe src={embedUrl} className="w-full h-full border-0" title="Shuttle Schedule" />
+      {tab === 'routes' ? <ShuttleRoutesPanel hotelId={hotelId} isAdmin={isAdmin} /> : <ShuttleRequestsPanel hotelId={hotelId} />}
+    </div>
+  );
+}
+
+/* ── Shuttle Routes Panel ───────────────────────────────── */
+function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
+  const [routes, setRoutes] = useState<ShuttleRoute[]>([]);
+  const [slots, setSlots] = useState<ShuttleSlot[]>([]);
+  const [bookings, setBookings] = useState<Record<string, ShuttleBooking[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [newRoute, setNewRoute] = useState({ name: '', type: 'airport' });
+  const [newSlot, setNewSlot] = useState<{ route_id: string; show: boolean; time: string; days: number[]; capacity: number }>({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0 });
+  const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
+  const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
+
+  const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  const load = useCallback(async () => {
+    const r = await getShuttleRoutes(hotelId);
+    setRoutes(r);
+    const s = await getAllShuttleSlotsForHotel(hotelId);
+    setSlots(s);
+    const b = await getAllShuttleBookingsForHotel(hotelId);
+    const bySlot: Record<string, ShuttleBooking[]> = {};
+    b.forEach(bk => { if (!bySlot[bk.slot_id]) bySlot[bk.slot_id] = []; bySlot[bk.slot_id].push(bk); });
+    setBookings(bySlot);
+    setLoading(false);
+  }, [hotelId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAddRoute = async () => {
+    if (!newRoute.name) return;
+    await createShuttleRoute({ hotel_id: hotelId, name: newRoute.name, type: newRoute.type });
+    setNewRoute({ name: '', type: 'airport' });
+    load();
+  };
+
+  const handleAddSlot = async () => {
+    if (!newSlot.time || !newSlot.route_id) return;
+    await createShuttleSlot({ route_id: newSlot.route_id, departure_time: newSlot.time + ':00', days_of_week: newSlot.days, capacity: newSlot.capacity });
+    setNewSlot({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0 });
+    load();
+  };
+
+  if (loading) return <div className="text-center py-12"><div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" /></div>;
+
+  return (
+    <div className="space-y-6">
+      {/* Add Route */}
+      {isAdmin && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <h3 className="font-extrabold text-[15px] mb-3">+ Add Route</h3>
+          <div className="flex gap-2">
+            <input placeholder="Route name (e.g. MIA Airport)" value={newRoute.name} onChange={e => setNewRoute({ ...newRoute, name: e.target.value })}
+              className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+            <select value={newRoute.type} onChange={e => setNewRoute({ ...newRoute, type: e.target.value })}
+              className="bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
+              <option value="airport">Airport</option><option value="cruise">Cruise Port</option><option value="custom">Custom</option>
+            </select>
+            <button onClick={handleAddRoute} className="px-4 py-2.5 rounded-xl text-white font-semibold text-[13px]" style={{ backgroundColor: '#0D9488' }}>Add</button>
+          </div>
+        </div>
+      )}
+
+      {/* Routes & Slots */}
+      {routes.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+          <Bus size={36} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-[13px] text-gray-500">No shuttle routes configured yet.</p>
+          {isAdmin && <p className="text-[12px] text-gray-400 mt-1">Add your first route above.</p>}
+        </div>
+      ) : routes.map(route => {
+        const routeSlots = slots.filter(s => s.route_id === route.id);
+        return (
+          <div key={route.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 flex items-center justify-between cursor-pointer" onClick={() => setExpandedRoute(expandedRoute === route.id ? null : route.id)}>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold px-2 py-1 rounded-full bg-teal-100 text-teal-700">{route.type}</span>
+                <h3 className="font-extrabold text-[16px] text-gray-900">{route.name}</h3>
+                <span className="text-[12px] text-gray-400">{routeSlots.length} slots</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <>
+                    <button onClick={e => { e.stopPropagation(); setNewSlot({ route_id: route.id, show: true, time: '', days: [1,2,3,4,5,6,7], capacity: 0 }); }}
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-600">+ Slot</button>
+                    <button onClick={e => { e.stopPropagation(); if(confirm('Delete this route and all slots?')) { deleteShuttleRoute(route.id); load(); } }}
+                      className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                  </>
+                )}
+                {expandedRoute === route.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </div>
+
+            {expandedRoute === route.id && (
+              <div className="border-t border-gray-100 bg-gray-50 px-5 py-4">
+                {/* Add slot form */}
+                {newSlot.show && newSlot.route_id === route.id && (
+                  <div className="bg-white rounded-xl p-4 border border-gray-200 mb-4 space-y-3">
+                    <div className="flex gap-2 items-end">
+                      <div>
+                        <label className="text-[10px] text-gray-400 block">Time</label>
+                        <input type="time" value={newSlot.time} onChange={e => setNewSlot({ ...newSlot, time: e.target.value })}
+                          className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-400 block">Capacity (0=unlimited)</label>
+                        <input type="number" min="0" max="99" value={newSlot.capacity} onChange={e => setNewSlot({ ...newSlot, capacity: parseInt(e.target.value)||0 })}
+                          className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none w-24" />
+                      </div>
+                      <button onClick={handleAddSlot} className="px-4 py-2 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#0D9488' }}>Save</button>
+                      <button onClick={() => setNewSlot({ ...newSlot, show: false })} className="px-3 py-2 text-[12px] text-gray-400">Cancel</button>
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {DAYS.map((d, i) => {
+                        const dayNum = i + 1;
+                        const active = newSlot.days.includes(dayNum);
+                        return (
+                          <button key={d} onClick={() => setNewSlot({ ...newSlot, days: active ? newSlot.days.filter(x => x !== dayNum) : [...newSlot.days, dayNum] })}
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${active ? 'bg-teal-600 text-white' : 'bg-gray-200 text-gray-500'}`}>{d}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Slots list */}
+                {routeSlots.length === 0 ? (
+                  <p className="text-[13px] text-gray-400 py-2">No time slots yet.</p>
+                ) : routeSlots.map(slot => {
+                  const slotBookings = bookings[slot.id] || [];
+                  const dayNames = (slot.days_of_week || []).map(d => DAYS[d-1]).join(', ') || 'One-off';
+                  return (
+                    <div key={slot.id} className="bg-white rounded-xl border border-gray-100 mb-2 overflow-hidden">
+                      <div className="px-4 py-3 flex items-center justify-between cursor-pointer" onClick={() => setExpandedSlot(expandedSlot === slot.id ? null : slot.id)}>
+                        <div className="flex items-center gap-4">
+                          <span className="text-[18px] font-extrabold text-gray-900">{slot.departure_time?.slice(0,5)}</span>
+                          <span className="text-[11px] text-gray-400">{dayNames}</span>
+                          {slot.capacity > 0 && <span className="text-[11px] font-semibold text-emerald-600">{slot.capacity - slotBookings.length} / {slot.capacity} spots</span>}
+                          <span className="text-[11px] font-semibold text-purple-600">{slotBookings.length} booked</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isAdmin && <button onClick={e => { e.stopPropagation(); if(confirm('Delete slot?')) { deleteShuttleSlot(slot.id); load(); } }} className="text-red-400"><Trash2 size={12} /></button>}
+                          {expandedSlot === slot.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </div>
+                      </div>
+                      {expandedSlot === slot.id && (
+                        <div className="border-t border-gray-100 px-4 py-3">
+                          {slotBookings.length === 0 ? (
+                            <p className="text-[12px] text-gray-400">No bookings yet.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {slotBookings.map(b => (
+                                <div key={b.id} className="flex items-center justify-between text-[12px]">
+                                  <span className="font-semibold text-gray-800">{b.guest_name} · Room {b.room_number} · {b.pax} pax</span>
+                                  <button onClick={() => { cancelShuttleBooking(b.id); load(); }} className="text-[10px] text-red-500 font-bold">Cancel</button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Shuttle Requests Panel ─────────────────────────────── */
+function ShuttleRequestsPanel({ hotelId }: { hotelId: string }) {
+  const [requests, setRequests] = useState<ShuttleRequest[]>([]);
+  const [staffList, setStaffList] = useState<StaffAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    const [reqs, staff] = await Promise.all([getShuttleRequests(hotelId), getStaffAccountsForHotel(hotelId)]);
+    setRequests(reqs);
+    setStaffList(staff.filter(s => s.active));
+    setLoading(false);
+  }, [hotelId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) return <div className="text-center py-12"><div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" /></div>;
+
+  const pending = requests.filter(r => r.status === 'pending');
+  const active = requests.filter(r => r.status === 'assigned' || r.status === 'in_progress');
+  const done = requests.filter(r => r.status === 'completed' || r.status === 'cancelled');
+
+  return (
+    <div className="space-y-6">
+      {pending.length + active.length === 0 && done.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+          <Bus size={36} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-[13px] text-gray-500">No pickup requests yet.</p>
+        </div>
+      ) : (
+        <>
+          {pending.length > 0 && (
+            <div>
+              <h3 className="text-[13px] font-bold text-amber-600 uppercase tracking-wider mb-2">Pending ({pending.length})</h3>
+              <div className="space-y-2">
+                {pending.map(r => (
+                  <div key={r.id} className="bg-white rounded-xl border border-amber-200 p-4 shadow-sm">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <p className="text-[14px] font-bold text-gray-900">{r.guest_name} · Room {r.room_number} · {r.pax} pax</p>
+                        <p className="text-[12px] text-gray-500">{r.destination} · {r.date || 'No date'} {r.time || ''}</p>
+                        {r.notes && <p className="text-[11px] text-gray-400 mt-0.5">{r.notes}</p>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <select onChange={async e => { if(e.target.value) { await updateShuttleRequest(r.id, { assigned_driver_id: e.target.value, status: 'assigned' }); load(); } }}
+                        className="flex-1 bg-gray-50 rounded-lg px-3 py-2 border text-[12px] outline-none">
+                        <option value="">Assign driver...</option>
+                        {staffList.map(s => <option key={s.id} value={s.id}>{s.name} {s.phone ? `· ${s.phone}` : ''}</option>)}
+                      </select>
+                      <button onClick={async () => { await updateShuttleRequest(r.id, { status: 'cancelled' }); load(); }}
+                        className="px-3 py-2 rounded-lg text-[11px] font-bold text-red-600 bg-red-50">Cancel</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {active.length > 0 && (
+            <div>
+              <h3 className="text-[13px] font-bold text-blue-600 uppercase tracking-wider mb-2">In Progress ({active.length})</h3>
+              <div className="space-y-2">
+                {active.map(r => (
+                  <div key={r.id} className="bg-white rounded-xl border border-blue-200 p-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[14px] font-bold text-gray-900">{r.guest_name} · Room {r.room_number}</p>
+                        <p className="text-[12px] text-gray-500">{r.destination} · Driver: {r.assigned_driver_name || 'Unassigned'}</p>
+                      </div>
+                      <button onClick={async () => { await updateShuttleRequest(r.id, { status: 'completed' }); load(); }}
+                        className="px-3 py-2 rounded-lg text-[11px] font-bold text-white" style={{ backgroundColor: '#0D9488' }}>Complete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {done.length > 0 && (
+            <details className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+              <summary className="text-[13px] font-bold text-gray-500 cursor-pointer">Completed ({done.length})</summary>
+              <div className="space-y-1 mt-2">
+                {done.map(r => (
+                  <div key={r.id} className="flex items-center gap-3 text-[12px] text-gray-500 py-1">
+                    <span>{r.guest_name} · {r.destination}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100">{r.status}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Enhanced Staff View ─────────────────────────────────── */
+function StaffView({ hotelId, staff, onRefresh }: { hotelId: string; staff: StaffAccount[]; onRefresh: () => void }) {
+  const [form, setForm] = useState({ name: '', email: '', phone: '', pin: '', role: 'staff' });
+  const [showPin, setShowPin] = useState(false);
+  const [editingPerms, setEditingPerms] = useState<string | null>(null);
+  const ALL_PERMS = ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes'];
+
+  const handleAdd = async () => {
+    if (!form.name || !form.pin) return;
+    await createStaffAccountWithDetails({
+      hotel_id: hotelId, name: form.name, role: form.role,
+      email: form.email, phone: form.phone, pin_code: form.pin,
+      permissions: ['orders', 'messages', 'shuttle'],
+    });
+    setForm({ name: '', email: '', phone: '', pin: '', role: 'staff' });
+    onRefresh();
+  };
+
+  const handlePermToggle = async (staffId: string, perm: string, current: string[]) => {
+    const updated = current.includes(perm) ? current.filter(p => p !== perm) : [...current, perm];
+    await updateStaffPermissions(staffId, updated);
+    onRefresh();
+  };
+
+  const handleToggleActive = async (s: StaffAccount) => {
+    await updateStaffDetails(s.id!, { active: !s.active });
+    onRefresh();
+  };
+
+  const permLabels: Record<string, string> = {
+    orders: 'Live Orders', messages: 'Guest Messages', shuttle: 'Shuttle Ops',
+    hotel: 'Hotel Settings', staff_mgmt: 'Staff Mgmt', partners: 'Partners', qrcodes: 'QR Codes',
+  };
+
+  return (
+    <div className="p-8 max-w-lg">
+      <h1 className="text-[26px] font-extrabold text-gray-900 mb-6">Staff Management</h1>
+      <div className="space-y-5">
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+          <h3 className="font-bold text-[15px] mb-3">Add Staff Member</h3>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Name *</label>
+                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Full name"
+                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Role</label>
+                <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
+                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
+                  <option value="staff">Staff</option><option value="manager">Manager</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Email</label>
+                <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="staff@hotel.com"
+                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Phone</label>
+                <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="305-555-0100"
+                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">PIN Code *</label>
+              <div className="relative">
+                <input type={showPin ? 'text' : 'password'} value={form.pin} onChange={e => setForm({ ...form, pin: e.target.value })} maxLength={6} placeholder="4-6 digits"
+                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none pr-10" />
+                <button onClick={() => setShowPin(!showPin)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">{showPin ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+              </div>
+            </div>
+            <button onClick={handleAdd} className="w-full py-3 rounded-xl text-white font-semibold text-[13px]" style={{ backgroundColor: '#0D9488' }}>ADD STAFF MEMBER</button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100"><h3 className="font-bold text-[15px]">Active Staff ({staff.filter(s => s.active).length})</h3></div>
+          <div className="divide-y divide-gray-50">
+            {staff.filter(s => s.active).length === 0 ? (
+              <div className="px-5 py-6 text-center"><p className="text-[13px] text-gray-400">No staff accounts yet.</p></div>
+            ) : staff.filter(s => s.active).map(s => (
+              <div key={s.id} className="px-5 py-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div>
+                    <p className="text-[14px] font-bold text-gray-900">{s.name} <span className="text-[10px] text-gray-400 capitalize font-normal">· {s.role}</span></p>
+                    <p className="text-[11px] text-gray-400">{s.email}{s.email && s.phone ? ' · ' : ''}{s.phone} · PIN: ••••</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => setEditingPerms(editingPerms === s.id ? null : s.id!)}
+                      className="text-[10px] font-bold px-2 py-1 rounded bg-gray-100 text-gray-600">Permissions</button>
+                    <button onClick={() => handleToggleActive(s)} className="text-[10px] font-bold px-2 py-1 rounded bg-amber-100 text-amber-700">Deactivate</button>
+                    <button onClick={() => { if(confirm('Delete?')) { deleteStaffAccount(s.id!); onRefresh(); } }}
+                      className="text-red-400"><Trash2 size={13} /></button>
+                  </div>
+                </div>
+                {editingPerms === s.id && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {ALL_PERMS.map(p => {
+                      const has = (s.permissions || []).includes(p);
+                      return (
+                        <button key={p} onClick={() => handlePermToggle(s.id!, p, s.permissions || [])}
+                          className={`px-2 py-1 rounded text-[10px] font-bold ${has ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-400'}`}>{permLabels[p]}</button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Inactive staff */}
+        {staff.filter(s => !s.active).length > 0 && (
+          <details className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+            <summary className="text-[13px] font-bold text-gray-500 cursor-pointer">Inactive ({staff.filter(s => !s.active).length})</summary>
+            <div className="space-y-2 mt-2">
+              {staff.filter(s => !s.active).map(s => (
+                <div key={s.id} className="flex items-center justify-between text-[12px] py-1">
+                  <span className="text-gray-500">{s.name} · {s.role}</span>
+                  <button onClick={() => handleToggleActive(s)} className="text-[10px] font-bold text-emerald-600">Reactivate</button>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
       </div>
     </div>
   );
@@ -789,51 +1172,12 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
           />
         </Section>
 
-        <Section title="Shuttle Operations Sheet" Icon={ExternalLink}>
+        <Section title="Shuttle Management" Icon={ExternalLink}>
           <p className="text-[11px] text-gray-400 -mt-1">
-            Paste a Google Sheet URL. Attenda will auto-build SCHEDULE, REQUESTS, and DRIVERS tabs.
+            Shuttle routes, time slots, and bookings are managed from the <strong>Shuttle Schedule</strong> tab.
           </p>
-          <Field
-            label="Google Sheet URL"
-            value={form.googleSheetUrl}
-            onChange={v => setForm({ ...form, googleSheetUrl: v })}
-            placeholder="https://docs.google.com/spreadsheets/d/..."
-          />
-          {form.googleSheetUrl && (
-            <button
-              onClick={async () => {
-                try {
-                  const res = await fetch('/api/sheets-init', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sheetUrl: form.googleSheetUrl }),
-                  });
-                  const data = await res.json();
-                  if (!res.ok) throw new Error(data.error);
-                  setForm({
-                    ...form,
-                    serviceAccountEmail: data.email,
-                  });
-                  alert(`✅ Shuttle sheet is ready!\\n\\n⚠️ IMPORTANT: Share this sheet with:\\n${data.email}\\n(as Editor)`);
-                } catch (e) {
-                  alert('Setup failed: ' + (e as Error).message);
-                }
-              }}
-              className="w-full py-2.5 rounded-xl font-semibold text-[13px] text-white"
-              style={{ backgroundColor: TEAL }}
-            >
-              🚐 Initialize Shuttle Sheet
-            </button>
-          )}
-          {form.serviceAccountEmail && (
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-              <p className="text-[11px] text-amber-700">
-                ⚠️ Share sheet with: <code className="bg-amber-100 px-1 rounded">{form.serviceAccountEmail}</code> (Editor access)
-              </p>
-            </div>
-          )}
           <p className="text-[10px] text-gray-400 mt-1">
-            Staff sees full sheet in Shuttle tab. Guests see SCHEDULE tab only.
+            Add airport, cruise port, or custom routes with departure times. Guests book slots from their app.
           </p>
         </Section>
 
@@ -851,79 +1195,7 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
   );
 }
 
-/* ── Staff View ─────────────────────────────────────────── */
-function StaffView({ staff, onRefresh }: { staff: StaffAccount[]; onRefresh: () => void }) {
-  const [form, setForm] = useState({ name: '', pin: '', role: 'staff' });
-  const [showPin, setShowPin] = useState(false);
 
-  const handleAdd = async () => {
-    if (!form.name || !form.pin) return;
-    await createStaffAccount({ name: form.name, pin_code: form.pin, role: form.role });
-    setForm({ name: '', pin: '', role: 'staff' });
-    onRefresh();
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this staff member?')) return;
-    await deleteStaffAccount(id);
-    onRefresh();
-  };
-
-  return (
-    <div className="p-8 max-w-lg">
-      <h1 className="text-[26px] font-extrabold text-gray-900 mb-6">Staff Management</h1>
-      <div className="space-y-5">
-        <Section title="Add Staff Member" Icon={Plus}>
-          <Field label="Name" value={form.name} onChange={v => setForm({ ...form, name: v })} placeholder="Staff name" />
-          <div>
-            <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">PIN Code</label>
-            <div className="relative">
-              <input
-                type={showPin ? 'text' : 'password'}
-                value={form.pin}
-                onChange={e => setForm({ ...form, pin: e.target.value })}
-                maxLength={6}
-                placeholder="4–6 digit PIN"
-                className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none pr-10"
-              />
-              <button onClick={() => setShowPin(!showPin)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Role</label>
-            <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
-              className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none">
-              <option value="staff">Staff (limited access)</option>
-              <option value="manager">Manager (admin access)</option>
-            </select>
-          </div>
-          <button onClick={handleAdd} className="w-full py-3 rounded-xl text-white font-semibold text-[13px]" style={{ backgroundColor: TEAL }}>
-            ADD STAFF MEMBER
-          </button>
-        </Section>
-
-        <Section title={`Active Staff (${staff.length})`} Icon={Users}>
-          {staff.length === 0 ? (
-            <p className="text-[13px] text-gray-400 py-2">No staff accounts yet.</p>
-          ) : staff.map(s => (
-            <div key={s.id} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
-              <div>
-                <p className="text-[14px] font-semibold text-gray-900">{s.name}</p>
-                <p className="text-[11px] text-gray-400 capitalize">{s.role} • PIN: ••••</p>
-              </div>
-              <button onClick={() => handleDelete(s.id!)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400">
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
-        </Section>
-      </div>
-    </div>
-  );
-}
 
 /* ── Partners View ──────────────────────────────────────── */
 function PartnersView({ hotelId }: { hotelId: string }) {
