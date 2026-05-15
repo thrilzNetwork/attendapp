@@ -42,6 +42,7 @@ export interface StaffAccount {
   pin_code: string;
   active: boolean;
   permissions?: string[]; // ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes']
+  vendor_type?: string;   // 'shuttle' | 'taxi' | etc — only relevant when role='vendor'
 }
 
 export interface RequestItem {
@@ -198,6 +199,13 @@ export function subscribeToRequests(callback: (payload: Record<string, unknown>)
   return channel;
 }
 
+export function subscribeToMessages(callback: () => void) {
+  return supabase
+    .channel('messages-live')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, callback)
+    .subscribe();
+}
+
 // ─── Partners ────────────────────────────────────────────────
 
 export interface Partner {
@@ -221,6 +229,9 @@ export interface Partner {
   clover_token_expires_at?: string;
   clover_enabled?: boolean;
   google_place_id?: string;
+  delivery_providers?: { name: string; url: string }[];
+  attenda_fee_percent?: number;
+  hotel_revenue_share_percent?: number;
 }
 
 export interface PartnerMenuItem {
@@ -569,6 +580,51 @@ export async function updateShuttleRequest(id: string, updates: {
   await supabase.from('shuttle_requests').update(updates).eq('id', id);
 }
 
+// ─── Cruise Schedules ────────────────────────────────────────
+
+export interface CruiseSchedule {
+  id: string;
+  hotel_id: string;
+  ship_name: string;
+  cruise_line: string;
+  terminal: string;
+  departure_date: string;
+  departure_time: string;
+  notes: string;
+  active: boolean;
+  created_at: string;
+}
+
+export async function getCruiseSchedules(hotelId: string): Promise<CruiseSchedule[]> {
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await supabase.from('cruise_schedules').select('*')
+    .eq('hotel_id', hotelId).eq('active', true)
+    .gte('departure_date', today)
+    .order('departure_date').order('departure_time');
+  return data || [];
+}
+
+export async function getCruiseSchedulesAll(hotelId: string): Promise<CruiseSchedule[]> {
+  const { data } = await supabase.from('cruise_schedules').select('*')
+    .eq('hotel_id', hotelId).eq('active', true)
+    .order('departure_date', { ascending: false }).order('departure_time');
+  return data || [];
+}
+
+export async function createCruiseSchedule(schedule: {
+  hotel_id: string; ship_name: string; cruise_line: string;
+  terminal: string; departure_date: string; departure_time: string; notes?: string;
+}) {
+  const { data } = await supabase.from('cruise_schedules').insert({
+    ...schedule, notes: schedule.notes || '', active: true,
+  }).select().single();
+  return data;
+}
+
+export async function deleteCruiseSchedule(id: string) {
+  await supabase.from('cruise_schedules').update({ active: false }).eq('id', id);
+}
+
 // ─── Enhanced Staff CRUD ────────────────────────────────────
 
 export async function getStaffAccountsForHotel(hotelId: string): Promise<StaffAccount[]> {
@@ -585,12 +641,13 @@ export async function getStaffAccountsForHotel(hotelId: string): Promise<StaffAc
     pin_code: s.pin_code as string,
     active: s.active as boolean,
     permissions: (s.permissions as string[]) || ['orders', 'messages', 'shuttle'],
+    vendor_type: s.vendor_type as string || undefined,
   }));
 }
 
 export async function createStaffAccountWithDetails(staff: {
   hotel_id: string; name: string; role: string; email?: string; phone?: string;
-  pin_code: string; permissions?: string[];
+  pin_code: string; permissions?: string[]; vendor_type?: string;
 }) {
   const { data, error } = await supabase.from('staff_accounts').insert({
     name: staff.name,
@@ -600,6 +657,7 @@ export async function createStaffAccountWithDetails(staff: {
     phone: staff.phone || '',
     pin_code: staff.pin_code,
     permissions: staff.permissions || ['orders', 'messages', 'shuttle'],
+    vendor_type: staff.vendor_type || null,
     active: true,
   }).select().single();
   if (error) throw error;
@@ -614,6 +672,65 @@ export async function updateStaffDetails(id: string, updates: {
   name?: string; email?: string; phone?: string; permissions?: string[]; active?: boolean;
 }) {
   await supabase.from('staff_accounts').update(updates).eq('id', id);
+}
+
+// ─── Knowledge Base ──────────────────────────────────────
+
+export interface KnowledgeEntry {
+  id: string;
+  hotel_id: string;
+  category: string;
+  question: string;
+  answer: string;
+  keywords: string[];
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getKnowledgeBase(hotelId: string): Promise<KnowledgeEntry[]> {
+  const { data } = await supabase
+    .from('hotel_knowledge_base')
+    .select('*')
+    .eq('hotel_id', hotelId)
+    .eq('active', true)
+    .order('category')
+    .order('question');
+  return data || [];
+}
+
+export async function getAllKnowledgeBase(hotelId: string): Promise<KnowledgeEntry[]> {
+  const { data } = await supabase
+    .from('hotel_knowledge_base')
+    .select('*')
+    .eq('hotel_id', hotelId)
+    .order('category')
+    .order('question');
+  return data || [];
+}
+
+export async function createKnowledgeEntry(entry: {
+  hotel_id: string; category: string; question: string; answer: string; keywords?: string[];
+}): Promise<KnowledgeEntry | null> {
+  const { data } = await supabase
+    .from('hotel_knowledge_base')
+    .insert({ ...entry, keywords: entry.keywords || [], active: true })
+    .select()
+    .single();
+  return data;
+}
+
+export async function updateKnowledgeEntry(id: string, updates: {
+  category?: string; question?: string; answer?: string; keywords?: string[]; active?: boolean;
+}): Promise<void> {
+  await supabase
+    .from('hotel_knowledge_base')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id);
+}
+
+export async function deleteKnowledgeEntry(id: string): Promise<void> {
+  await supabase.from('hotel_knowledge_base').delete().eq('id', id);
 }
 
 export default supabase;

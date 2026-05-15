@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, MapPin, Phone, Clock, Star, ShoppingBag } from 'lucide-react';
 import { getHotelConfig, getPartners, Partner } from '@/lib/supabase';
@@ -57,7 +58,7 @@ function NearbyContent() {
                       className="w-full bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 active:scale-[0.98] transition-transform text-left"
                     >
                       <div className="relative h-32">
-                        <img src={r.image_url || 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&fit=crop'} alt={r.name} className="w-full h-full object-cover" />
+                        <Image src={r.image_url || 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&fit=crop'} alt={r.name} fill className="object-cover" sizes="100vw" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                         <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
                           <div>
@@ -119,7 +120,11 @@ function NearbyContent() {
                   <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold pt-3">Things to Do</p>
                   {attractions.map(a => (
                     <div key={a.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-                      {a.image_url && <img src={a.image_url} alt={a.name} className="w-full h-32 object-cover" />}
+                      {a.image_url && (
+                        <div className="relative h-32 w-full">
+                          <Image src={a.image_url} alt={a.name} fill className="object-cover" sizes="100vw" />
+                        </div>
+                      )}
                       <div className="p-4">
                         <div className="flex items-start justify-between mb-1">
                           <div>

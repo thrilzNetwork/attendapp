@@ -1,8 +1,9 @@
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Minus, Plus, ShoppingBag, Star, Clock, MapPin, Phone, Navigation } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, ShoppingBag, Star, Clock, MapPin, Phone, Navigation, ExternalLink } from 'lucide-react';
 import { getPartnerById, getPartnerMenuItems, getHotelConfig, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
 import { createCloverOrder, requestDelivery } from '@/lib/clover';
 
@@ -52,8 +53,10 @@ function PartnerContent() {
       const room = qrRoom || session?.room || '?';
 
       const subtotal = cartItems.reduce((s, i) => s + Number(i.price) * i.qty, 0);
-      const feePercent = 5;
+      const feePercent = partner.attenda_fee_percent ?? 15;
+      const hotelSharePercent = partner.hotel_revenue_share_percent ?? 5;
       const feeAmount = subtotal * (feePercent / 100);
+      const hotelRevenueAmount = subtotal * (hotelSharePercent / 100);
 
       let cloverOrderId: string | undefined;
 
@@ -82,6 +85,8 @@ function PartnerContent() {
             order_total: subtotal,
             fee_percent: feePercent,
             fee_amount: feeAmount,
+            hotel_revenue_share_percent: hotelSharePercent,
+            hotel_revenue_amount: hotelRevenueAmount,
           });
         } catch (e) {
           // Clover failure must not block the guest's order
@@ -117,7 +122,7 @@ function PartnerContent() {
             cloverOrderId,
           },
         }),
-      }).catch(() => {});
+      }).catch((err) => console.warn('Order notification email failed:', err));
 
       router.push('/confirmation');
     } finally {
@@ -129,7 +134,7 @@ function PartnerContent() {
     <div className="h-screen w-full max-w-md mx-auto bg-[#F5F5F5] flex flex-col overflow-hidden">
       {/* Hero */}
       <div className="relative h-44 shrink-0">
-        <img src={partner.image_url || 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&fit=crop'} alt={partner.name} className="w-full h-full object-cover" />
+        <Image src={partner.image_url || 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&fit=crop'} alt={partner.name} fill className="object-cover" sizes="100vw" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <button onClick={() => router.back()} className="absolute top-4 left-4 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
           <ArrowLeft size={18} className="text-[#3A1A2D]" />
@@ -179,12 +184,28 @@ function PartnerContent() {
             )}
           </div>
 
-          {/* Ordering */}
+          {/* ── Tier A: Restaurant's own delivery apps ── */}
+          {partner.delivery_providers && partner.delivery_providers.length > 0 && (
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Order for Delivery</p>
+              <div className="space-y-2">
+                {partner.delivery_providers.map((dp, i) => (
+                  <a key={i} href={dp.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-between w-full py-3 px-4 rounded-xl bg-gray-50 border border-gray-100 active:scale-[0.98] transition-transform">
+                    <span className="text-[14px] font-bold text-gray-900">{dp.name}</span>
+                    <ExternalLink size={14} className="text-gray-400" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Tier B: Attenda-powered in-room ordering ── */}
           {partner.has_ordering ? (
             <>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">In-Room Ordering Available</span>
+                <div className="w-2 h-2 rounded-full bg-[#6B1D3C]" />
+                <span className="text-xs font-bold text-[#6B1D3C] uppercase tracking-wider">In-Room Ordering · Powered by Attenda</span>
               </div>
 
               {menuItems.length > 0 && (
@@ -227,7 +248,7 @@ function PartnerContent() {
                 </>
               )}
             </>
-          ) : (
+          ) : !partner.delivery_providers?.length ? (
             <>
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-1">
@@ -235,7 +256,7 @@ function PartnerContent() {
                   <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Visit or Call Ahead</span>
                 </div>
                 <p className="text-sm text-amber-800 leading-relaxed">
-                  This partner does not offer in-room ordering. Call ahead, visit in person, or ask the front desk.
+                  This restaurant does not offer delivery. Call ahead, visit in person, or ask the front desk.
                 </p>
               </div>
 
@@ -255,7 +276,7 @@ function PartnerContent() {
                 )}
               </div>
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

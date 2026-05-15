@@ -1,19 +1,20 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import {
   Bell, MessageSquare, Bus, Settings, Users,
   LogOut, RefreshCw, Plus, Trash2, Eye, EyeOff, Save,
   Wifi, Hotel as HotelIcon, ExternalLink, ImageIcon, type LucideIcon,
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
-  UtensilsCrossed, UserPlus,
+  UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon,
 } from 'lucide-react';
 import {
-  supabase, subscribeToRequests, updateRequestStatus, deleteRequest,
+  supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
   getHotelConfig, updateHotelConfig, HotelConfig,
   getStaffAccounts, getStaffAccountsForHotel, createStaffAccountWithDetails,
   deleteStaffAccount, updateStaffDetails, updateStaffPermissions, StaffAccount,
-  getPartners, createPartner, deletePartner, Partner,
+  getPartners, createPartner, updatePartner, deletePartner, Partner,
   getPartnerMenuItems, createPartnerMenuItem, deletePartnerMenuItem, PartnerMenuItem,
   getQrCodes, createQrCode, deleteQrCode, QrCode as QrCodeRow,
   getAllHotels, createHotel,
@@ -21,14 +22,17 @@ import {
   getAllShuttleSlotsForHotel, createShuttleSlot, deleteShuttleSlot,
   getAllShuttleBookingsForHotel, cancelShuttleBooking,
   getShuttleRequests, updateShuttleRequest, ShuttleRoute, ShuttleSlot, ShuttleBooking, ShuttleRequest,
+  getCruiseSchedulesAll, createCruiseSchedule, deleteCruiseSchedule, CruiseSchedule,
+  getAllKnowledgeBase, createKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry, KnowledgeEntry,
 } from '@/lib/supabase';
 
 /* ── Types ─────────────────────────────────────────────── */
-type Role = 'admin' | 'staff' | 'superadmin';
+type Role = 'admin' | 'staff' | 'superadmin' | 'vendor';
 type NavTab =
   | 'orders' | 'messages' | 'shuttle'
   | 'hotel' | 'staff_mgmt'
-  | 'partners' | 'qrcodes' | 'properties';
+  | 'partners' | 'qrcodes' | 'properties'
+  | 'vendor_manifest' | 'knowledge';
 
 interface Request {
   id: string;
@@ -53,6 +57,7 @@ interface Message {
 interface Session {
   name: string;
   role: Role;
+  vendorType?: string;
 }
 
 /* ── Constants ─────────────────────────────────────────── */
@@ -61,14 +66,16 @@ const SUPERADMIN_PIN = '9999';
 const TEAL = '#0D9488';
 
 const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[] }[] = [
-  { tab: 'orders',      label: 'Live Orders',       icon: Bell,            roles: ['admin', 'staff', 'superadmin'] },
-  { tab: 'messages',    label: 'Guest Messages',     icon: MessageSquare,   roles: ['admin', 'staff', 'superadmin'] },
-  { tab: 'shuttle',     label: 'Shuttle Schedule',   icon: Bus,             roles: ['admin', 'staff', 'superadmin'] },
-  { tab: 'hotel',       label: 'Hotel Settings',     icon: Settings,        roles: ['admin', 'superadmin'] },
-  { tab: 'staff_mgmt',  label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'] },
-  { tab: 'partners',    label: 'Partners & Menu',    icon: Store,           roles: ['admin', 'superadmin'] },
-  { tab: 'qrcodes',     label: 'QR Codes',           icon: QrCodeIcon,      roles: ['admin', 'superadmin'] },
-  { tab: 'properties',  label: 'All Properties',     icon: Building2,       roles: ['superadmin'] },
+  { tab: 'orders',          label: 'Live Orders',       icon: Bell,            roles: ['admin', 'staff', 'superadmin'] },
+  { tab: 'messages',        label: 'Guest Messages',     icon: MessageSquare,   roles: ['admin', 'staff', 'superadmin'] },
+  { tab: 'shuttle',         label: 'Shuttle Schedule',   icon: Bus,             roles: ['admin', 'staff', 'superadmin'] },
+  { tab: 'vendor_manifest', label: 'Vendor Dashboard',   icon: Users,           roles: ['vendor'] },
+  { tab: 'hotel',           label: 'Hotel Settings',     icon: Settings,        roles: ['admin', 'superadmin'] },
+  { tab: 'staff_mgmt',      label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'] },
+  { tab: 'partners',        label: 'Partners & Menu',    icon: Store,           roles: ['admin', 'superadmin'] },
+  { tab: 'qrcodes',         label: 'QR Codes',           icon: QrCodeIcon,      roles: ['admin', 'superadmin'] },
+  { tab: 'knowledge',       label: 'Knowledge Base',     icon: BookOpen,        roles: ['admin', 'superadmin'] },
+  { tab: 'properties',      label: 'All Properties',     icon: Building2,       roles: ['superadmin'] },
 ];
 
 /* ── Main Component ───────────────────────────────────── */
@@ -105,7 +112,10 @@ export default function Dashboard() {
       .eq('active', true)
       .single();
     if (data) {
-      setSession({ name: data.name, role: data.role === 'manager' ? 'admin' : 'staff' });
+      const role: Role =
+        data.role === 'manager' || data.role === 'admin' ? 'admin' :
+        data.role === 'vendor' ? 'vendor' : 'staff';
+      setSession({ name: data.name, role, vendorType: data.vendor_type || undefined });
     } else {
       setPinError('Incorrect PIN. Try again.');
       setPin('');
@@ -137,8 +147,9 @@ export default function Dashboard() {
   useEffect(() => {
     if (!session) return;
     reload(session.role);
-    const ch = subscribeToRequests(() => { reload(session.role); });
-    return () => { supabase.removeChannel(ch); };
+    const ch1 = subscribeToRequests(() => { reload(session.role); });
+    const ch2 = subscribeToMessages(() => { reload(session.role); });
+    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
   }, [session, reload]);
 
   /* ── Login screen ─────────────────────────────────── */
@@ -181,6 +192,8 @@ export default function Dashboard() {
   const visibleNav = NAV.filter(n => n.roles.includes(session.role));
   const pendingCount = requests.filter(r => r.status === 'pending').length;
   const isAdmin = session.role === 'admin' || session.role === 'superadmin';
+  // Vendors land on their manifest tab
+  const effectiveTab = (session.role === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab;
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row">
@@ -210,9 +223,9 @@ export default function Dashboard() {
               key={item.tab}
               onClick={() => setTab(item.tab)}
               className={`relative shrink-0 flex items-center gap-1.5 px-4 py-2.5 text-[12px] font-semibold transition-colors whitespace-nowrap ${
-                tab === item.tab ? 'text-white' : 'text-gray-500'
+                effectiveTab === item.tab ? 'text-white' : 'text-gray-500'
               }`}
-              style={tab === item.tab ? { backgroundColor: TEAL } : {}}
+              style={effectiveTab === item.tab ? { backgroundColor: TEAL } : {}}
             >
               <item.icon size={13} />
               {item.label}
@@ -245,9 +258,10 @@ export default function Dashboard() {
           <p className="text-[14px] font-semibold text-gray-900">{session.name}</p>
           <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 ${
             session.role === 'superadmin' ? 'bg-purple-100 text-purple-700' :
-            session.role === 'admin' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'
+            session.role === 'admin' ? 'bg-teal-100 text-teal-700' :
+            session.role === 'vendor' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
           }`}>
-            {session.role === 'superadmin' ? 'Super Admin' : session.role === 'admin' ? 'Admin' : 'Staff'}
+            {session.role === 'superadmin' ? 'Super Admin' : session.role === 'admin' ? 'Admin' : session.role === 'vendor' ? `Vendor · ${session.vendorType || ''}` : 'Staff'}
           </span>
         </div>
 
@@ -257,9 +271,9 @@ export default function Dashboard() {
               key={item.tab}
               onClick={() => setTab(item.tab)}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-semibold transition-colors text-left mb-0.5 ${
-                tab === item.tab ? 'text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200/50'
+                effectiveTab === item.tab ? 'text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200/50'
               }`}
-              style={tab === item.tab ? { backgroundColor: TEAL } : {}}
+              style={effectiveTab === item.tab ? { backgroundColor: TEAL } : {}}
             >
               <item.icon size={15} />
               {item.label}
@@ -293,34 +307,41 @@ export default function Dashboard() {
 
       {/* ── Main Content ────────────────────────────── */}
       <main className="flex-1 min-w-0 bg-[#FAFAFA]">
-        {tab === 'orders' && (
+        {effectiveTab === 'orders' && (
           <OrdersView
             requests={requests}
+            messages={messages}
             onStatusChange={async (id, s) => { await updateRequestStatus(id, s); reload(session.role); }}
             onDelete={async id => { await deleteRequest(id); reload(session.role); }}
             onRefresh={() => reload(session.role)}
           />
         )}
-        {tab === 'messages' && <MessagesView messages={messages} />}
-        {tab === 'shuttle' && config?.id && (
+        {effectiveTab === 'messages' && <MessagesView messages={messages} />}
+        {effectiveTab === 'shuttle' && config?.id && (
           <ShuttleView hotelId={config.id} isAdmin={isAdmin} />
         )}
-        {tab === 'hotel' && isAdmin && config && (
+        {effectiveTab === 'vendor_manifest' && config?.id && (
+          <VendorDashboard hotelId={config.id} vendorType={session.vendorType || 'shuttle'} vendorName={session.name} />
+        )}
+        {effectiveTab === 'hotel' && isAdmin && config && (
           <HotelSettingsView
             config={config}
             onSaved={async () => { const c = await getHotelConfig(); if (c) setConfig(c); }}
           />
         )}
-        {tab === 'staff_mgmt' && isAdmin && config?.id && (
-          <StaffView hotelId={config.id} staff={staff} onRefresh={async () => setStaff(await getStaffAccountsForHotel(config.id!))} />
+        {effectiveTab === 'staff_mgmt' && isAdmin && config?.id && (
+          <StaffView hotelId={config.id} hotelName={config.name} hotelSlug={config.slug} staff={staff} onRefresh={async () => setStaff(await getStaffAccountsForHotel(config.id!))} />
         )}
-        {tab === 'partners' && isAdmin && config?.id && (
+        {effectiveTab === 'partners' && isAdmin && config?.id && (
           <PartnersView hotelId={config.id} />
         )}
-        {tab === 'qrcodes' && isAdmin && config?.id && config?.slug && (
+        {effectiveTab === 'qrcodes' && isAdmin && config?.id && config?.slug && (
           <QrCodesView hotelId={config.id} hotelSlug={config.slug} />
         )}
-        {tab === 'properties' && session.role === 'superadmin' && (
+        {effectiveTab === 'knowledge' && isAdmin && config?.id && (
+          <KnowledgeBaseView hotelId={config.id} />
+        )}
+        {effectiveTab === 'properties' && session.role === 'superadmin' && (
           <PropertiesView
             onSwitchHotel={async (slug: string) => {
               localStorage.setItem('attenda_hotel_slug', slug);
@@ -336,17 +357,22 @@ export default function Dashboard() {
 
 /* ── Orders View ──────────────────────────────────────── */
 function OrdersView({
-  requests, onStatusChange, onDelete, onRefresh,
+  requests, messages, onStatusChange, onDelete, onRefresh,
 }: {
   requests: Request[];
+  messages: Message[];
   onStatusChange: (id: string, status: string) => void;
   onDelete: (id: string) => void;
   onRefresh: () => void;
 }) {
-  const [statusTab, setStatusTab] = useState<'active' | 'completed'>('active');
+  const [statusTab, setStatusTab] = useState<'active' | 'completed' | 'messages'>('active');
   const [typeFilter, setTypeFilter] = useState<'All' | 'Food' | 'Transport' | 'Amenities' | 'Other'>('All');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [assignForm, setAssignForm] = useState<Record<string, string>>({});
+
+  // Guest messages (sender=guest only, most recent first)
+  const guestMessages = messages.filter(m => m.sender === 'guest')
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const handleAssign = async (reqId: string, name: string) => {
     if (!name.trim()) return;
@@ -409,11 +435,12 @@ function OrdersView({
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-4 gap-4 mb-4">
         {[
           { label: 'Pending', count: filtered.filter(r => r.status === 'pending').length, color: 'text-amber-600' },
           { label: 'In Progress', count: filtered.filter(r => r.status === 'in-progress').length, color: 'text-blue-600' },
           { label: 'Completed', count: filtered.filter(r => r.status === 'completed').length, color: 'text-emerald-600' },
+          { label: 'Messages', count: guestMessages.length, color: 'text-purple-600' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
             <p className="text-[11px] text-gray-400 uppercase font-bold">{s.label}</p>
@@ -440,19 +467,48 @@ function OrdersView({
         ))}
       </div>
 
-      {/* Active/Completed tabs */}
+      {/* Active/Completed/Messages tabs */}
       <div className="flex gap-2 mb-4">
-        {(['active', 'completed'] as const).map(t => (
+        {(['active', 'completed', 'messages'] as const).map(t => (
           <button key={t} onClick={() => setStatusTab(t)}
             className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${
               statusTab === t ? 'bg-white border border-gray-200 text-gray-900 shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}>
-            {t === 'active' ? `Active (${active.length})` : `Completed (${completed.length})`}
+            {t === 'active' ? `Active (${active.length})` : t === 'completed' ? `Completed (${completed.length})` : `💬 Messages (${guestMessages.length})`}
           </button>
         ))}
       </div>
 
-      <div className="space-y-3">
+      {/* Messages feed */}
+      {statusTab === 'messages' && (
+        <div className="space-y-3">
+          {guestMessages.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
+              <MessageSquare size={28} className="text-gray-300 mx-auto mb-2" />
+              <p className="text-[13px] text-gray-500">No guest messages yet.</p>
+            </div>
+          ) : guestMessages.map(msg => (
+            <div key={msg.id} className="bg-white rounded-xl border border-purple-100 p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-2 h-2 rounded-full bg-purple-400" />
+                    <span className="text-[11px] font-semibold text-purple-600 uppercase tracking-wider">💬 Guest Message</span>
+                    <span className="text-[11px] text-gray-400">• {new Date(msg.created_at).toLocaleString()}</span>
+                  </div>
+                  <p className="text-[14px] font-bold text-gray-900 mb-0.5">{msg.guest_name} — Room {msg.room}</p>
+                  <p className="text-[13px] text-gray-700 leading-relaxed">{msg.body}</p>
+                </div>
+                <a href="/staff?tab=messages" className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-50 text-purple-600 hover:bg-purple-100 whitespace-nowrap">
+                  Reply →
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {statusTab !== 'messages' && <div className="space-y-3">
         {visible.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
             <p className="text-[13px] text-gray-500">
@@ -594,7 +650,7 @@ function OrdersView({
           </div>
         );
         })}
-      </div>
+      </div>}
     </div>
   );
 }
@@ -649,13 +705,13 @@ function MessagesView({ messages }: { messages: Message[] }) {
 
 /* ── Shuttle View (In-App) ──────────────────────────────── */
 function ShuttleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
-  const [tab, setTab] = useState<'routes' | 'requests'>('routes');
+  const [tab, setTab] = useState<'routes' | 'requests' | 'cruise'>('routes');
 
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[26px] font-extrabold text-gray-900">Shuttle Operations</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={() => setTab('routes')}
             className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${tab === 'routes' ? 'bg-white border border-gray-200 text-gray-900 shadow-sm' : 'bg-gray-100 text-gray-500'}`}>
             🚐 Routes & Bookings
@@ -664,9 +720,15 @@ function ShuttleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }
             className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${tab === 'requests' ? 'bg-white border border-gray-200 text-gray-900 shadow-sm' : 'bg-gray-100 text-gray-500'}`}>
             📋 Pickup Requests
           </button>
+          <button onClick={() => setTab('cruise')}
+            className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${tab === 'cruise' ? 'bg-white border border-gray-200 text-gray-900 shadow-sm' : 'bg-gray-100 text-gray-500'}`}>
+            🚢 Cruise Calendar
+          </button>
         </div>
       </div>
-      {tab === 'routes' ? <ShuttleRoutesPanel hotelId={hotelId} isAdmin={isAdmin} /> : <ShuttleRequestsPanel hotelId={hotelId} />}
+      {tab === 'routes' && <ShuttleRoutesPanel hotelId={hotelId} isAdmin={isAdmin} />}
+      {tab === 'requests' && <ShuttleRequestsPanel hotelId={hotelId} />}
+      {tab === 'cruise' && <CruiseCalendarPanel hotelId={hotelId} isAdmin={isAdmin} />}
     </div>
   );
 }
@@ -961,21 +1023,471 @@ function ShuttleRequestsPanel({ hotelId }: { hotelId: string }) {
   );
 }
 
+/* ── Cruise Calendar Panel ───────────────────────────────── */
+function CruiseCalendarPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
+  const [schedules, setSchedules] = useState<CruiseSchedule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ ship_name: '', cruise_line: '', terminal: '', departure_date: '', departure_time: '', notes: '' });
+  const [adding, setAdding] = useState(false);
+
+  const load = useCallback(async () => {
+    const data = await getCruiseSchedulesAll(hotelId);
+    setSchedules(data);
+    setLoading(false);
+  }, [hotelId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAdd = async () => {
+    if (!form.ship_name || !form.departure_date || !form.departure_time) return;
+    setAdding(true);
+    await createCruiseSchedule({ hotel_id: hotelId, ...form });
+    setForm({ ship_name: '', cruise_line: '', terminal: '', departure_date: '', departure_time: '', notes: '' });
+    await load();
+    setAdding(false);
+  };
+
+  if (loading) return <div className="text-center py-12"><div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" /></div>;
+
+  const today = new Date().toISOString().split('T')[0];
+  const upcoming = schedules.filter(s => s.departure_date >= today);
+  const past = schedules.filter(s => s.departure_date < today);
+
+  return (
+    <div className="space-y-6">
+      {isAdmin && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <h3 className="font-extrabold text-[15px] mb-3">+ Add Cruise Schedule</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Ship Name *</label>
+              <input value={form.ship_name} onChange={e => setForm({ ...form, ship_name: e.target.value })} placeholder="e.g. Harmony of the Seas"
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Cruise Line</label>
+              <input value={form.cruise_line} onChange={e => setForm({ ...form, cruise_line: e.target.value })} placeholder="e.g. Royal Caribbean"
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Terminal</label>
+              <input value={form.terminal} onChange={e => setForm({ ...form, terminal: e.target.value })} placeholder="e.g. Terminal D"
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Departure Date *</label>
+              <input type="date" value={form.departure_date} onChange={e => setForm({ ...form, departure_date: e.target.value })}
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Departure Time *</label>
+              <input type="time" value={form.departure_time} onChange={e => setForm({ ...form, departure_time: e.target.value })}
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Notes</label>
+              <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Pier, parking, check-in info..."
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+            </div>
+          </div>
+          <button onClick={handleAdd} disabled={adding || !form.ship_name || !form.departure_date || !form.departure_time}
+            className="mt-4 px-5 py-2.5 rounded-xl text-white font-semibold text-[13px] disabled:opacity-40"
+            style={{ backgroundColor: TEAL }}>
+            {adding ? 'Adding...' : 'Add to Calendar'}
+          </button>
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+          <span className="text-[18px]">🚢</span>
+          <h3 className="font-extrabold text-[15px]">Upcoming Departures ({upcoming.length})</h3>
+        </div>
+        {upcoming.length === 0 ? (
+          <div className="px-5 py-8 text-center"><p className="text-[13px] text-gray-400">No upcoming cruises scheduled.</p></div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {upcoming.map(s => (
+              <div key={s.id} className="px-5 py-4 flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{s.cruise_line || 'Cruise'}</span>
+                    {s.terminal && <span className="text-[11px] text-gray-400">{s.terminal}</span>}
+                  </div>
+                  <p className="text-[15px] font-bold text-gray-900">{s.ship_name}</p>
+                  <p className="text-[13px] text-gray-600">
+                    {new Date(s.departure_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {s.departure_time.slice(0, 5)}
+                  </p>
+                  {s.notes && <p className="text-[11px] text-gray-400 mt-0.5">{s.notes}</p>}
+                </div>
+                {isAdmin && (
+                  <button onClick={async () => { await deleteCruiseSchedule(s.id); load(); }}
+                    className="text-red-400 hover:text-red-600 shrink-0"><Trash2 size={14} /></button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {past.length > 0 && (
+        <details className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+          <summary className="text-[13px] font-bold text-gray-500 cursor-pointer">Past Departures ({past.length})</summary>
+          <div className="space-y-2 mt-3">
+            {past.map(s => (
+              <div key={s.id} className="flex items-center justify-between text-[12px] py-1">
+                <span className="text-gray-500">{s.ship_name} · {s.departure_date} {s.departure_time.slice(0,5)}</span>
+                {isAdmin && (
+                  <button onClick={async () => { await deleteCruiseSchedule(s.id); load(); }} className="text-red-400 text-[11px]">Remove</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/* ── Vendor Dashboard ────────────────────────────────────── */
+function VendorDashboard({ hotelId, vendorType, vendorName }: { hotelId: string; vendorType: string; vendorName: string }) {
+  const isShuttle = vendorType === 'shuttle' || vendorType === 'taxi';
+  const isCatering = vendorType === 'catering' || vendorType === 'restaurant';
+
+  return (
+    <div>
+      {isShuttle && <ShuttleVendorView hotelId={hotelId} vendorName={vendorName} vendorType={vendorType} />}
+      {isCatering && <RestaurantVendorView hotelId={hotelId} vendorName={vendorName} />}
+      {!isShuttle && !isCatering && <GeneralVendorView hotelId={hotelId} vendorName={vendorName} vendorType={vendorType} />}
+    </div>
+  );
+}
+
+function ShuttleVendorView({ hotelId, vendorName, vendorType }: { hotelId: string; vendorName: string; vendorType: string }) {
+  const [bookings, setBookings] = useState<ShuttleBooking[]>([]);
+  const [slots, setSlots] = useState<ShuttleSlot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dateFilter, setDateFilter] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [allBookings, allSlots] = await Promise.all([
+      getAllShuttleBookingsForHotel(hotelId),
+      getAllShuttleSlotsForHotel(hotelId),
+    ]);
+    setBookings(allBookings);
+    setSlots(allSlots);
+    setLoading(false);
+  }, [hotelId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) return <div className="text-center py-12"><div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" /></div>;
+
+  const today = new Date().toISOString().split('T')[0];
+  const slotMap = Object.fromEntries(slots.map(s => [s.id, s]));
+  const filteredBookings = bookings.filter(b => {
+    if (!dateFilter) return true;
+    const slot = slotMap[b.slot_id];
+    return (slot?.date || today) === dateFilter;
+  });
+  const totalPax = filteredBookings.reduce((sum, b) => sum + (b.pax || 1), 0);
+
+  return (
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-[26px] font-extrabold text-gray-900">Passenger Manifest</h1>
+          <p className="text-[13px] text-gray-500 mt-0.5">{vendorName} · {vendorType} operator</p>
+        </div>
+        <button onClick={load} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-[12px] font-semibold">
+          <RefreshCw size={13} /> Refresh
+        </button>
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <p className="text-[11px] text-gray-400 uppercase font-bold">Total Bookings</p>
+          <p className="text-[28px] font-extrabold text-teal-600">{filteredBookings.length}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <p className="text-[11px] text-gray-400 uppercase font-bold">Passengers</p>
+          <p className="text-[28px] font-extrabold text-blue-600">{totalPax}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <p className="text-[11px] text-gray-400 uppercase font-bold">Routes Active</p>
+          <p className="text-[28px] font-extrabold text-gray-700">{slots.length}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 mb-4">
+        <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)}
+          className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-[13px] outline-none" />
+        {dateFilter && <button onClick={() => setDateFilter('')} className="text-[12px] text-gray-400">Clear</button>}
+        <span className="text-[12px] text-gray-400">{dateFilter ? `Showing ${dateFilter}` : 'All bookings'}</span>
+      </div>
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-3 border-b border-gray-100">
+          <h3 className="font-bold text-[14px]">Booking List ({filteredBookings.length})</h3>
+        </div>
+        {filteredBookings.length === 0 ? (
+          <div className="px-5 py-8 text-center"><p className="text-[13px] text-gray-400">No bookings found.</p></div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {filteredBookings.map((b, i) => {
+              const slot = slotMap[b.slot_id];
+              return (
+                <div key={b.id} className="px-5 py-3 flex items-center gap-4">
+                  <span className="text-[12px] font-bold text-gray-400 w-6">{i + 1}</span>
+                  <div className="flex-1">
+                    <p className="text-[14px] font-bold text-gray-900">{b.guest_name}</p>
+                    <p className="text-[11px] text-gray-500">Room {b.room_number} · {b.pax} pax{b.notes ? ` · ${b.notes}` : ''}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[13px] font-semibold text-gray-700">{slot?.route_name || b.route_name || '—'}</p>
+                    <p className="text-[11px] text-gray-400">{slot?.departure_time?.slice(0,5) || '—'}</p>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${b.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                    {b.status}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RestaurantVendorView({ hotelId, vendorName }: { hotelId: string; vendorName: string }) {
+  const [orders, setOrders] = useState<Request[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('requests')
+      .select('*')
+      .eq('hotel_id', hotelId)
+      .eq('type', 'Food Order')
+      .order('created_at', { ascending: false });
+    setOrders((data || []) as Request[]);
+    setLoading(false);
+  }, [hotelId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const updateStatus = async (id: string, status: string) => {
+    await updateRequestStatus(id, status);
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: status as Request['status'] } : o));
+  };
+
+  if (loading) return <div className="text-center py-12"><div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" /></div>;
+
+  const pending = orders.filter(o => o.status === 'pending');
+  const inProgress = orders.filter(o => o.status === 'in-progress');
+  const completed = orders.filter(o => o.status === 'completed');
+
+  const OrderCard = ({ order }: { order: Request }) => (
+    <div className={`bg-white rounded-2xl border shadow-sm p-4 ${order.status === 'pending' ? 'border-amber-300' : order.status === 'in-progress' ? 'border-teal-300' : 'border-gray-200'}`}>
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <p className="text-[14px] font-bold text-gray-900">{order.guest_name}</p>
+          <p className="text-[11px] text-gray-500">Room {order.room} · {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+        </div>
+        <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${order.status === 'pending' ? 'bg-amber-100 text-amber-700' : order.status === 'in-progress' ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-500'}`}>
+          {order.status}
+        </span>
+      </div>
+      <p className="text-[13px] text-gray-700 mb-3 line-clamp-2">{order.details}</p>
+      <div className="flex gap-2">
+        {order.status === 'pending' && (
+          <button onClick={() => updateStatus(order.id, 'in-progress')}
+            className="flex-1 py-2 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
+            Start Preparing
+          </button>
+        )}
+        {order.status === 'in-progress' && (
+          <button onClick={() => updateStatus(order.id, 'completed')}
+            className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-[12px] font-bold">
+            Mark Delivered
+          </button>
+        )}
+        {order.status === 'completed' && (
+          <span className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-400 text-[12px] font-bold text-center">Delivered</span>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-[26px] font-extrabold text-gray-900">Incoming Orders</h1>
+          <p className="text-[13px] text-gray-500 mt-0.5">{vendorName} · Food & Beverage</p>
+        </div>
+        <button onClick={load} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-[12px] font-semibold">
+          <RefreshCw size={13} /> Refresh
+        </button>
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-amber-200 p-4 shadow-sm">
+          <p className="text-[11px] text-amber-500 uppercase font-bold">Pending</p>
+          <p className="text-[28px] font-extrabold text-amber-600">{pending.length}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-teal-200 p-4 shadow-sm">
+          <p className="text-[11px] text-teal-500 uppercase font-bold">Preparing</p>
+          <p className="text-[28px] font-extrabold text-teal-600">{inProgress.length}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <p className="text-[11px] text-gray-400 uppercase font-bold">Delivered Today</p>
+          <p className="text-[28px] font-extrabold text-gray-700">{completed.length}</p>
+        </div>
+      </div>
+      {orders.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
+          <UtensilsCrossed size={40} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-[14px] font-semibold text-gray-400">No orders yet</p>
+          <p className="text-[12px] text-gray-300 mt-1">New orders will appear here in real time</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {pending.length > 0 && (
+            <>
+              <p className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">Pending ({pending.length})</p>
+              {pending.map(o => <OrderCard key={o.id} order={o} />)}
+            </>
+          )}
+          {inProgress.length > 0 && (
+            <>
+              <p className="text-[11px] font-bold text-teal-600 uppercase tracking-wider mt-4">Preparing ({inProgress.length})</p>
+              {inProgress.map(o => <OrderCard key={o.id} order={o} />)}
+            </>
+          )}
+          {completed.length > 0 && (
+            <>
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-4">Delivered ({completed.length})</p>
+              {completed.map(o => <OrderCard key={o.id} order={o} />)}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GeneralVendorView({ hotelId, vendorName, vendorType }: { hotelId: string; vendorName: string; vendorType: string }) {
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('requests')
+      .select('*')
+      .eq('hotel_id', hotelId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    setRequests((data || []) as Request[]);
+    setLoading(false);
+  }, [hotelId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) return <div className="text-center py-12"><div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" /></div>;
+
+  const pending = requests.filter(r => r.status === 'pending').length;
+
+  return (
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-[26px] font-extrabold text-gray-900">Vendor Dashboard</h1>
+          <p className="text-[13px] text-gray-500 mt-0.5">{vendorName} · {vendorType}</p>
+        </div>
+        <button onClick={load} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-[12px] font-semibold">
+          <RefreshCw size={13} /> Refresh
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <p className="text-[11px] text-gray-400 uppercase font-bold">Total Requests</p>
+          <p className="text-[28px] font-extrabold text-teal-600">{requests.length}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-amber-200 p-4 shadow-sm">
+          <p className="text-[11px] text-amber-500 uppercase font-bold">Pending</p>
+          <p className="text-[28px] font-extrabold text-amber-600">{pending}</p>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-3 border-b border-gray-100">
+          <h3 className="font-bold text-[14px]">Recent Requests</h3>
+        </div>
+        {requests.length === 0 ? (
+          <div className="px-5 py-8 text-center"><p className="text-[13px] text-gray-400">No requests yet.</p></div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {requests.map(r => (
+              <div key={r.id} className="px-5 py-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-[14px] font-bold text-gray-900">{r.guest_name} — Room {r.room}</p>
+                    <p className="text-[12px] text-gray-500 mt-0.5">{r.type} · {r.details?.slice(0, 60)}{r.details?.length > 60 ? '…' : ''}</p>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-2 ${r.status === 'pending' ? 'bg-amber-100 text-amber-700' : r.status === 'in-progress' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {r.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Enhanced Staff View ─────────────────────────────────── */
-function StaffView({ hotelId, staff, onRefresh }: { hotelId: string; staff: StaffAccount[]; onRefresh: () => void }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', pin: '', role: 'staff' });
+function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelId: string; hotelName: string; hotelSlug: string; staff: StaffAccount[]; onRefresh: () => void }) {
+  const [form, setForm] = useState({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '' });
   const [showPin, setShowPin] = useState(false);
+  const [pinError, setPinError] = useState('');
   const [editingPerms, setEditingPerms] = useState<string | null>(null);
   const ALL_PERMS = ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes'];
 
   const handleAdd = async () => {
+    setPinError('');
     if (!form.name || !form.pin) return;
+    if (!/^\d{4,6}$/.test(form.pin)) {
+      setPinError('PIN must be 4–6 digits.');
+      return;
+    }
     await createStaffAccountWithDetails({
       hotel_id: hotelId, name: form.name, role: form.role,
       email: form.email, phone: form.phone, pin_code: form.pin,
-      permissions: ['orders', 'messages', 'shuttle'],
+      permissions: form.role === 'vendor' ? [] : ['orders', 'messages', 'shuttle'],
+      vendor_type: form.role === 'vendor' ? form.vendor_type || 'shuttle' : undefined,
     });
-    setForm({ name: '', email: '', phone: '', pin: '', role: 'staff' });
+
+    if (form.email) {
+      fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'staff_welcome',
+          data: {
+            staffEmail: form.email,
+            staffName: form.name,
+            staffRole: form.role,
+            hotelName,
+            hotelSlug,
+            pin: form.pin,
+          },
+        }),
+      }).catch(() => {});
+    }
+
+    setForm({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '' });
     onRefresh();
   };
 
@@ -1012,10 +1524,26 @@ function StaffView({ hotelId, staff, onRefresh }: { hotelId: string; staff: Staf
                 <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Role</label>
                 <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
                   className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
-                  <option value="staff">Staff</option><option value="manager">Manager</option>
+                  <option value="staff">Staff</option>
+                  <option value="manager">Manager</option>
+                  <option value="vendor">Vendor (external)</option>
                 </select>
               </div>
             </div>
+            {form.role === 'vendor' && (
+              <div>
+                <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Vendor Type</label>
+                <select value={form.vendor_type} onChange={e => setForm({ ...form, vendor_type: e.target.value })}
+                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-orange-200 text-[13px] outline-none">
+                  <option value="shuttle">Shuttle Company</option>
+                  <option value="taxi">Taxi / Rideshare</option>
+                  <option value="tour">Tour Operator</option>
+                  <option value="catering">Catering</option>
+                  <option value="other">Other</option>
+                </select>
+                <p className="text-[10px] text-orange-600 mt-1">Vendors only see their own manifest — no hotel data.</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Email</label>
@@ -1031,10 +1559,11 @@ function StaffView({ hotelId, staff, onRefresh }: { hotelId: string; staff: Staf
             <div>
               <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">PIN Code *</label>
               <div className="relative">
-                <input type={showPin ? 'text' : 'password'} value={form.pin} onChange={e => setForm({ ...form, pin: e.target.value })} maxLength={6} placeholder="4-6 digits"
-                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none pr-10" />
+                <input type={showPin ? 'text' : 'password'} value={form.pin} onChange={e => { setForm({ ...form, pin: e.target.value }); setPinError(''); }} maxLength={6} placeholder="4-6 digits"
+                  className={`w-full bg-gray-50 rounded-xl px-3 py-2.5 border text-[13px] outline-none pr-10 ${pinError ? 'border-red-400' : 'border-gray-200'}`} />
                 <button onClick={() => setShowPin(!showPin)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">{showPin ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
+              {pinError && <p className="text-[11px] text-red-500 mt-1">{pinError}</p>}
             </div>
             <button onClick={handleAdd} className="w-full py-3 rounded-xl text-white font-semibold text-[13px]" style={{ backgroundColor: '#0D9488' }}>ADD STAFF MEMBER</button>
           </div>
@@ -1049,7 +1578,9 @@ function StaffView({ hotelId, staff, onRefresh }: { hotelId: string; staff: Staf
               <div key={s.id} className="px-5 py-3">
                 <div className="flex items-center justify-between mb-1">
                   <div>
-                    <p className="text-[14px] font-bold text-gray-900">{s.name} <span className="text-[10px] text-gray-400 capitalize font-normal">· {s.role}</span></p>
+                    <p className="text-[14px] font-bold text-gray-900">{s.name}
+                      <span className="text-[10px] text-gray-400 capitalize font-normal">· {s.role}{s.vendor_type ? ` (${s.vendor_type})` : ''}</span>
+                    </p>
                     <p className="text-[11px] text-gray-400">{s.email}{s.email && s.phone ? ' · ' : ''}{s.phone} · PIN: ••••</p>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -1095,6 +1626,73 @@ function StaffView({ hotelId, staff, onRefresh }: { hotelId: string; staff: Staf
   );
 }
 
+/* ── Guest Home Preview ─────────────────────────────────── */
+function GuestHomePreview({ color, hotelName }: { color: string; hotelName: string }) {
+  const tiles = [
+    { label: 'WELCOME', filled: true },
+    { label: 'TRANSPORT', filled: false },
+    { label: 'FACILITIES', filled: false },
+    { label: 'MESSAGE', filled: false },
+  ];
+  return (
+    <div className="relative mx-auto" style={{ width: 200, height: 400 }}>
+      {/* Phone frame */}
+      <div className="absolute inset-0 rounded-[28px] border-[6px] border-gray-800 bg-[#F4F4F5] overflow-hidden shadow-2xl">
+        {/* Status bar */}
+        <div className="bg-white px-3 pt-2 pb-1">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-[9px] font-black text-black leading-none">Hello!</div>
+              <div className="text-[6px] text-gray-400 mt-0.5">What do you need today?</div>
+            </div>
+            <div className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center">
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+            </div>
+          </div>
+        </div>
+        {/* 2×2 grid */}
+        <div className="grid grid-cols-2 gap-1 p-1.5 h-[160px]">
+          {tiles.map((t) => (
+            <div
+              key={t.label}
+              className="rounded-xl flex items-center justify-center text-[6px] font-bold tracking-wider"
+              style={t.filled
+                ? { backgroundColor: color, color: 'white' }
+                : { backgroundColor: 'white', color, border: '1px solid #e5e7eb' }}
+            >
+              {t.label}
+            </div>
+          ))}
+        </div>
+        {/* Restaurant banner */}
+        <div className="mx-1.5 rounded-xl overflow-hidden" style={{ height: 44, backgroundColor: color, opacity: 0.15 }}>
+          <div className="flex items-end h-full px-2 pb-1">
+            <span className="text-[6px] font-bold" style={{ color }}>RESTAURANTS</span>
+          </div>
+        </div>
+        {/* Bottom row */}
+        <div className="flex gap-1 p-1.5 mt-1" style={{ height: 70 }}>
+          <div className="w-[38%] rounded-xl" style={{ backgroundColor: color, opacity: 0.2 }} />
+          <div className="flex-1 flex flex-col gap-1">
+            <div className="flex-1 rounded-xl bg-white border border-gray-200 flex items-center justify-center">
+              <span className="text-[5px] font-bold" style={{ color }}>NEARBY</span>
+            </div>
+            <div className="flex-1 rounded-xl bg-white border border-gray-200 flex items-center justify-center">
+              <span className="text-[5px] font-bold" style={{ color }}>REVIEW</span>
+            </div>
+          </div>
+        </div>
+        {/* Hotel name chip */}
+        <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+          <div className="px-2 py-0.5 rounded-full text-white text-[5px] font-bold" style={{ backgroundColor: color }}>
+            {hotelName || 'Your Hotel'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Hotel Settings View ────────────────────────────────── */
 function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: () => void }) {
   const [form, setForm] = useState<HotelConfig>(config);
@@ -1132,9 +1730,11 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
   };
 
   return (
-    <div className="p-8 max-w-lg">
-      <h1 className="text-[26px] font-extrabold text-gray-900 mb-6">Hotel Settings</h1>
-      <div className="space-y-5">
+    <div className="flex gap-8 p-8 min-h-full">
+      {/* ── Left: Form ── */}
+      <div className="flex-1 max-w-lg space-y-5">
+        <h1 className="text-[26px] font-extrabold text-gray-900">Hotel Settings</h1>
+
         <Section title="Hotel Identity" Icon={HotelIcon}>
           <Field label="Hotel Name" value={form.name} onChange={v => setForm({ ...form, name: v })} />
           <Field label="Manager Name" value={form.managerName} onChange={v => setForm({ ...form, managerName: v })} />
@@ -1167,6 +1767,47 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
           )}
         </Section>
 
+        <Section title="Branding" Icon={Settings}>
+          <p className="text-[11px] text-gray-400 -mt-1">
+            Set the accent color used across the guest-facing app. Preview updates live on the right.
+          </p>
+          <div className="flex items-center gap-3 mt-1">
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Brand Color</label>
+            <div className="flex items-center gap-2 flex-1">
+              <input
+                type="color"
+                value={form.brandColor || '#6B1D3C'}
+                onChange={e => setForm({ ...form, brandColor: e.target.value })}
+                className="w-10 h-10 rounded-xl cursor-pointer border border-gray-200 p-0.5"
+              />
+              <input
+                type="text"
+                value={form.brandColor || '#6B1D3C'}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) setForm({ ...form, brandColor: val });
+                }}
+                maxLength={7}
+                className="flex-1 bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 font-mono focus:outline-none"
+                placeholder="#6B1D3C"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-2 flex-wrap">
+            {['#6B1D3C','#0D9488','#1D4ED8','#7C3AED','#B45309','#DC2626','#0F172A'].map(c => (
+              <button
+                key={c}
+                onClick={() => setForm({ ...form, brandColor: c })}
+                className="w-7 h-7 rounded-lg border-2 transition-transform active:scale-90"
+                style={{ backgroundColor: c, borderColor: form.brandColor === c ? '#111' : 'transparent' }}
+                title={c}
+              />
+            ))}
+          </div>
+          <Field label="Team Photo URL" value={form.teamPhotoUrl} onChange={v => setForm({ ...form, teamPhotoUrl: v })} placeholder="https://..." />
+          <Field label="Website URL" value={form.websiteUrl} onChange={v => setForm({ ...form, websiteUrl: v })} placeholder="https://yourhotel.com" />
+        </Section>
+
         <Section title="WiFi Settings" Icon={Wifi}>
           <Field label="Network Name" value={form.wifiName} onChange={v => setForm({ ...form, wifiName: v })} />
           <Field label="Password" value={form.wifiPassword} onChange={v => setForm({ ...form, wifiPassword: v })} />
@@ -1182,6 +1823,12 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
           />
         </Section>
 
+        <Section title="Review Links" Icon={ExternalLink}>
+          <Field label="Google Review URL" value={form.googleReviewUrl} onChange={v => setForm({ ...form, googleReviewUrl: v })} placeholder="https://g.page/r/..." />
+          <Field label="TripAdvisor URL" value={form.tripadvisorUrl} onChange={v => setForm({ ...form, tripadvisorUrl: v })} placeholder="https://tripadvisor.com/..." />
+          <Field label="Yelp URL" value={form.yelpUrl} onChange={v => setForm({ ...form, yelpUrl: v })} placeholder="https://yelp.com/biz/..." />
+        </Section>
+
         <Section title="Email Notifications" Icon={Bell}>
           <p className="text-[11px] text-gray-400 -mt-1">
             Receive an email whenever a guest submits a request or sends a message.
@@ -1194,7 +1841,7 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
           />
         </Section>
 
-        <Section title="Shuttle Management" Icon={ExternalLink}>
+        <Section title="Shuttle Management" Icon={Bus}>
           <p className="text-[11px] text-gray-400 -mt-1">
             Shuttle routes, time slots, and bookings are managed from the <strong>Shuttle Schedule</strong> tab.
           </p>
@@ -1213,6 +1860,18 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
           <Save size={16} /> SAVE CHANGES
         </button>
       </div>
+
+      {/* ── Right: Live Preview ── */}
+      <div className="hidden lg:flex flex-col items-center gap-4 pt-12 sticky top-8 self-start">
+        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Live Preview</p>
+        <GuestHomePreview color={form.brandColor || '#6B1D3C'} hotelName={form.name} />
+        <div className="text-center space-y-1">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: form.brandColor || '#6B1D3C' }}>
+            {form.brandColor || '#6B1D3C'}
+          </div>
+          <p className="text-[10px] text-gray-400">Updates as you edit</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1228,11 +1887,15 @@ function PartnersView({ hotelId }: { hotelId: string }) {
   const [form, setForm] = useState({
     name: '', category: 'restaurant', description: '', image_url: '',
     phone: '', address: '', hours: '', distance: '', rating: '0', has_ordering: false, email: '',
+    attenda_fee_percent: '15', hotel_revenue_share_percent: '5',
   });
   const [cloverForm, setCloverForm] = useState({
     merchantId: '', accessToken: '', refreshToken: '', enabled: false,
   });
+  const [deliveryProviders, setDeliveryProviders] = useState<{ name: string; url: string }[]>([]);
+  const [deliveryProviderForm, setDeliveryProviderForm] = useState({ name: '', url: '' });
   const [menuForm, setMenuForm] = useState<Record<string, { name: string; description: string; price: string }>>({});
+  const [dpForm, setDpForm] = useState<Record<string, { name: string; url: string }>>({});
   const [syncing, setSyncing] = useState<string | null>(null);
 
   const loadPartners = useCallback(async () => {
@@ -1272,9 +1935,14 @@ function PartnersView({ hotelId }: { hotelId: string }) {
       clover_access_token: cloverForm.accessToken || undefined,
       clover_refresh_token: cloverForm.refreshToken || undefined,
       clover_enabled: cloverForm.enabled,
+      delivery_providers: deliveryProviders,
+      attenda_fee_percent: parseFloat(form.attenda_fee_percent) || 15,
+      hotel_revenue_share_percent: parseFloat(form.hotel_revenue_share_percent) || 5,
     });
-    setForm({ name: '', category: 'restaurant', description: '', image_url: '', phone: '', address: '', hours: '', distance: '', rating: '0', has_ordering: false, email: '' });
+    setForm({ name: '', category: 'restaurant', description: '', image_url: '', phone: '', address: '', hours: '', distance: '', rating: '0', has_ordering: false, email: '', attenda_fee_percent: '15', hotel_revenue_share_percent: '5' });
     setCloverForm({ merchantId: '', accessToken: '', refreshToken: '', enabled: false });
+    setDeliveryProviders([]);
+    setDeliveryProviderForm({ name: '', url: '' });
     setShowForm(false);
     loadPartners();
   };
@@ -1378,44 +2046,124 @@ function PartnersView({ hotelId }: { hotelId: string }) {
               <Field label="Image URL" value={form.image_url} onChange={v => setForm({ ...form, image_url: v })} placeholder="https://..." />
             </div>
             <Field label="Rating (0–5)" value={form.rating} onChange={v => setForm({ ...form, rating: v })} />
-            <div className="flex items-center gap-2 pt-5">
-              <input type="checkbox" id="has_ordering" checked={form.has_ordering}
-                onChange={e => setForm({ ...form, has_ordering: e.target.checked })}
-                className="w-4 h-4 rounded" />
-              <label htmlFor="has_ordering" className="text-[13px] font-medium text-gray-700">In-Room Ordering</label>
-            </div>
 
-            {/* Clover Integration */}
-            <div className="col-span-2 border-t border-gray-100 pt-3 mt-1">
-              <p className="text-[12px] font-bold text-purple-600 mb-2">Clover POS Integration</p>
-            </div>
-            <div className="col-span-2">
-              <a
-                href={`/api/clover-oauth?partner=new&hotel=${hotelId}`}
-                className="w-full py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-2 text-white bg-purple-600 hover:bg-purple-700"
-              >
-                🔗 Connect Clover (OAuth)
-              </a>
-              <p className="text-[10px] text-gray-400 mt-1 text-center">One-click authorized connection</p>
-            </div>
-            <div className="col-span-2 border-t border-gray-100 my-1">
-              <p className="text-[11px] font-medium text-gray-400 mt-2 mb-1">Or enter manually:</p>
-            </div>
-            <div className="col-span-2">
-              <Field label="Clover Merchant ID" value={cloverForm.merchantId} onChange={v => setCloverForm({ ...cloverForm, merchantId: v })} placeholder="ABC123DEF456" />
-            </div>
-            <div className="col-span-2">
-              <Field label="Clover Access Token" value={cloverForm.accessToken} onChange={v => setCloverForm({ ...cloverForm, accessToken: v })} placeholder="sk_..." />
-            </div>
-            <div className="col-span-2">
-              <Field label="Clover Refresh Token" value={cloverForm.refreshToken} onChange={v => setCloverForm({ ...cloverForm, refreshToken: v })} placeholder="rt_..." />
-            </div>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="clover_enabled" checked={cloverForm.enabled}
-                onChange={e => setCloverForm({ ...cloverForm, enabled: e.target.checked })}
-                className="w-4 h-4 rounded" />
-              <label htmlFor="clover_enabled" className="text-[13px] font-medium text-gray-700">Enable Clover POS</label>
-            </div>
+            {/* ── Delivery Setup (restaurants only) ── */}
+            {form.category === 'restaurant' && (
+              <div className="col-span-2 mt-2 space-y-3">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider pt-1">Delivery Setup</p>
+
+                {/* Tier A — Restaurant-managed */}
+                <div className="rounded-xl border border-gray-200 p-4 bg-gray-50">
+                  <p className="text-[13px] font-bold text-gray-800 mb-0.5">A · Restaurant manages their own delivery</p>
+                  <p className="text-[11px] text-gray-500 mb-3">Guests see tap-to-order buttons for their existing apps. Attenda just displays the links — zero extra cost.</p>
+                  <div className="flex gap-2 mb-2">
+                    <select
+                      value={deliveryProviderForm.name}
+                      onChange={e => setDeliveryProviderForm(f => ({ ...f, name: e.target.value }))}
+                      className="bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none"
+                    >
+                      <option value="">Choose app…</option>
+                      <option value="Uber Eats">Uber Eats</option>
+                      <option value="DoorDash">DoorDash</option>
+                      <option value="Grubhub">Grubhub</option>
+                      <option value="Instacart">Instacart</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <input
+                      placeholder="Paste their store link…"
+                      value={deliveryProviderForm.url}
+                      onChange={e => setDeliveryProviderForm(f => ({ ...f, url: e.target.value }))}
+                      className="flex-1 bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none"
+                    />
+                    <button type="button"
+                      onClick={() => {
+                        if (!deliveryProviderForm.name || !deliveryProviderForm.url) return;
+                        setDeliveryProviders(prev => [...prev, { name: deliveryProviderForm.name, url: deliveryProviderForm.url }]);
+                        setDeliveryProviderForm({ name: '', url: '' });
+                      }}
+                      className="px-3 py-2 rounded-lg text-white text-[12px] font-bold shrink-0" style={{ backgroundColor: TEAL }}>
+                      + Add
+                    </button>
+                  </div>
+                  {deliveryProviders.length > 0 && (
+                    <div className="space-y-1">
+                      {deliveryProviders.map((p, i) => (
+                        <div key={i} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100">
+                          <span className="text-[12px] font-semibold text-gray-800">{p.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-gray-400 max-w-[150px] truncate">{p.url}</span>
+                            <button type="button" onClick={() => setDeliveryProviders(prev => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600"><XIcon size={12} /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Tier B — Attenda-powered */}
+                <div className={`rounded-xl border-2 p-4 transition-colors ${form.has_ordering ? 'border-[#0D9488] bg-teal-50/40' : 'border-gray-200 bg-gray-50'}`}>
+                  <div className="flex items-start gap-2.5 mb-2">
+                    <input type="checkbox" id="has_ordering" checked={form.has_ordering}
+                      onChange={e => setForm({ ...form, has_ordering: e.target.checked })}
+                      className="w-4 h-4 rounded mt-0.5 shrink-0" />
+                    <div>
+                      <label htmlFor="has_ordering" className="text-[13px] font-bold text-gray-800 cursor-pointer">B · Attenda-powered delivery</label>
+                      <p className="text-[11px] text-gray-500 mt-0.5">Restaurant saves vs. Uber Eats rates. Hotel earns revenue on every order. Exclusively powered by Clover POS.</p>
+                    </div>
+                  </div>
+
+                  {form.has_ordering && (
+                    <div className="space-y-3 mt-3 pt-3 border-t border-teal-100">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Attenda charges restaurant</label>
+                          <div className="relative">
+                            <input type="number" min="1" max="50" step="0.5"
+                              value={form.attenda_fee_percent}
+                              onChange={e => setForm({ ...form, attenda_fee_percent: e.target.value })}
+                              className="w-full bg-white rounded-lg px-3 py-2.5 text-[13px] border border-gray-200 focus:outline-none pr-7" />
+                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-bold">%</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Hotel earns per order</label>
+                          <div className="relative">
+                            <input type="number" min="0" max="50" step="0.5"
+                              value={form.hotel_revenue_share_percent}
+                              onChange={e => setForm({ ...form, hotel_revenue_share_percent: e.target.value })}
+                              className="w-full bg-white rounded-lg px-3 py-2.5 text-[13px] border border-gray-200 focus:outline-none pr-7" />
+                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-bold">%</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-lg px-3 py-2 border border-teal-100 text-[11px] text-teal-700">
+                        On a $100 order: restaurant pays ${((parseFloat(form.attenda_fee_percent) || 15)).toFixed(0)}, hotel earns ${((parseFloat(form.hotel_revenue_share_percent) || 5)).toFixed(0)}, Attenda keeps ${Math.max(0, (parseFloat(form.attenda_fee_percent) || 15) - (parseFloat(form.hotel_revenue_share_percent) || 5)).toFixed(0)}.
+                      </div>
+                      <div className="space-y-2">
+                        <a href={`/api/clover-oauth?partner=new&hotel=${hotelId}`}
+                          className="w-full py-2.5 rounded-lg font-bold text-[12px] flex items-center justify-center gap-2 text-white bg-purple-600 hover:bg-purple-700">
+                          🔗 Connect Clover (OAuth)
+                        </a>
+                        <p className="text-[10px] text-gray-400 text-center">Exclusive Attenda × Clover integration</p>
+                        <details className="text-[11px]">
+                          <summary className="text-gray-400 cursor-pointer hover:text-gray-600">Enter credentials manually</summary>
+                          <div className="space-y-2 mt-2">
+                            <Field label="Clover Merchant ID" value={cloverForm.merchantId} onChange={v => setCloverForm({ ...cloverForm, merchantId: v })} placeholder="ABC123DEF456" />
+                            <Field label="Clover Access Token" value={cloverForm.accessToken} onChange={v => setCloverForm({ ...cloverForm, accessToken: v })} placeholder="sk_..." />
+                            <Field label="Clover Refresh Token" value={cloverForm.refreshToken} onChange={v => setCloverForm({ ...cloverForm, refreshToken: v })} placeholder="rt_..." />
+                            <div className="flex items-center gap-2">
+                              <input type="checkbox" id="clover_enabled" checked={cloverForm.enabled}
+                                onChange={e => setCloverForm({ ...cloverForm, enabled: e.target.checked })} className="w-4 h-4 rounded" />
+                              <label htmlFor="clover_enabled" className="text-[12px] font-medium text-gray-700">Enable Clover POS</label>
+                            </div>
+                          </div>
+                        </details>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex gap-2 mt-4">
             <button onClick={handleAdd}
@@ -1445,14 +2193,19 @@ function PartnersView({ hotelId }: { hotelId: string }) {
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${catColor[p.category] || 'bg-gray-100 text-gray-600'}`}>
                       {p.category}
                     </span>
+                    {p.delivery_providers && p.delivery_providers.length > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                        {p.delivery_providers.length} app{p.delivery_providers.length > 1 ? 's' : ''} linked
+                      </span>
+                    )}
                     {p.has_ordering && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                        In-Room Ordering
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">
+                        Attenda-powered
                       </span>
                     )}
                     {p.clover_enabled && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
-                        Clover POS
+                        Clover ✓
                       </span>
                     )}
                   </div>
@@ -1460,28 +2213,23 @@ function PartnersView({ hotelId }: { hotelId: string }) {
                   {p.description && <p className="text-[12px] text-gray-500 mt-0.5 truncate">{p.description}</p>}
                 </div>
                 <div className="flex items-center gap-2 ml-4 shrink-0">
-                  {p.has_ordering && (
+                  {(p.has_ordering || (p.delivery_providers && p.delivery_providers.length > 0)) && (
                     <button onClick={() => toggle(p.id)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold"
                       style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                      Menu {expanded === p.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                      Manage {expanded === p.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                     </button>
                   )}
-                  {!p.clover_enabled && p.has_ordering && (
-                    <a
-                      href={`/api/clover-oauth?partner=${p.id}&hotel=${hotelId}`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-50 text-purple-600 hover:bg-purple-100"
-                    >
+                  {p.has_ordering && !p.clover_enabled && (
+                    <a href={`/api/clover-oauth?partner=${p.id}&hotel=${hotelId}`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-50 text-purple-600 hover:bg-purple-100">
                       🔗 Connect Clover
                     </a>
                   )}
-                  {p.clover_enabled && p.clover_merchant_id && p.clover_access_token && (
-                    <button
-                      onClick={() => handleCloverSync(p)}
-                      disabled={syncing === p.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-100 text-purple-700 hover:bg-purple-200 disabled:opacity-50"
-                    >
-                      {syncing === p.id ? 'Syncing...' : 'Sync Clover'}
+                  {p.has_ordering && p.clover_enabled && p.clover_merchant_id && p.clover_access_token && (
+                    <button onClick={() => handleCloverSync(p)} disabled={syncing === p.id}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-100 text-purple-700 hover:bg-purple-200 disabled:opacity-50">
+                      {syncing === p.id ? 'Syncing…' : 'Sync Clover'}
                     </button>
                   )}
                   <button onClick={() => handleDelete(p.id)}
@@ -1491,9 +2239,103 @@ function PartnersView({ hotelId }: { hotelId: string }) {
                 </div>
               </div>
 
-              {expanded === p.id && p.has_ordering && (
-                <div className="border-t border-gray-100 bg-gray-50 p-5">
-                  <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-3">Menu Items</h4>
+              {expanded === p.id && (
+                <div className="border-t border-gray-100 bg-gray-50 p-5 space-y-5">
+
+                  {/* ── Tier A: Own delivery apps ── */}
+                  {p.category === 'restaurant' && (
+                    <div>
+                      <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">A · Restaurant&apos;s own delivery apps</h4>
+                      <div className="flex gap-2 mb-2">
+                        <select value={dpForm[p.id]?.name || ''}
+                          onChange={e => setDpForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], name: e.target.value } }))}
+                          className="bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none">
+                          <option value="">App…</option>
+                          <option value="Uber Eats">Uber Eats</option>
+                          <option value="DoorDash">DoorDash</option>
+                          <option value="Grubhub">Grubhub</option>
+                          <option value="Instacart">Instacart</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <input placeholder="Paste store link…" value={dpForm[p.id]?.url || ''}
+                          onChange={e => setDpForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], url: e.target.value } }))}
+                          className="flex-1 bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                        <button onClick={async () => {
+                          const name = dpForm[p.id]?.name; const url = dpForm[p.id]?.url;
+                          if (!name || !url) return;
+                          await updatePartner(p.id, { delivery_providers: [...(p.delivery_providers || []), { name, url }] });
+                          setDpForm(prev => ({ ...prev, [p.id]: { name: '', url: '' } }));
+                          loadPartners();
+                        }} className="px-3 py-2 rounded-lg text-white text-[12px] font-bold shrink-0" style={{ backgroundColor: TEAL }}>
+                          + Add
+                        </button>
+                      </div>
+                      {(p.delivery_providers || []).length > 0 ? (
+                        <div className="space-y-1">
+                          {(p.delivery_providers || []).map((dp, i) => (
+                            <div key={i} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100">
+                              <span className="text-[12px] font-semibold text-gray-800">{dp.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-gray-400 max-w-[180px] truncate">{dp.url}</span>
+                                <button onClick={async () => {
+                                  await updatePartner(p.id, { delivery_providers: (p.delivery_providers || []).filter((_, j) => j !== i) });
+                                  loadPartners();
+                                }} className="text-red-400 hover:text-red-600"><XIcon size={12} /></button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-gray-400">No apps linked — guests will only see in-room ordering or contact info.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Tier B: Attenda-powered ── */}
+                  {p.category === 'restaurant' && (
+                    <div className={`rounded-xl border-2 p-4 ${p.has_ordering ? 'border-teal-200 bg-white' : 'border-gray-200'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="text-[12px] font-bold text-gray-800">B · Attenda-powered delivery</p>
+                          <p className="text-[11px] text-gray-500">Restaurant saves, hotel earns. Powered by Clover.</p>
+                        </div>
+                        <input type="checkbox" checked={p.has_ordering}
+                          onChange={async e => { await updatePartner(p.id, { has_ordering: e.target.checked }); loadPartners(); }}
+                          className="w-4 h-4 rounded" />
+                      </div>
+                      {p.has_ordering && (
+                        <div className="space-y-2 mt-3 pt-3 border-t border-teal-100">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Attenda charges</label>
+                              <div className="relative">
+                                <input type="number" min="1" max="50" step="0.5"
+                                  defaultValue={p.attenda_fee_percent ?? 15}
+                                  onBlur={async e => { await updatePartner(p.id, { attenda_fee_percent: parseFloat(e.target.value) || 15 }); loadPartners(); }}
+                                  className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none pr-6" />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 font-bold">%</span>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Hotel earns</label>
+                              <div className="relative">
+                                <input type="number" min="0" max="50" step="0.5"
+                                  defaultValue={p.hotel_revenue_share_percent ?? 5}
+                                  onBlur={async e => { await updatePartner(p.id, { hotel_revenue_share_percent: parseFloat(e.target.value) || 5 }); loadPartners(); }}
+                                  className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none pr-6" />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 font-bold">%</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Menu items (Attenda-powered only) ── */}
+                  {p.has_ordering && (
+                    <div>
+                      <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Menu Items</h4>
                   <div className="flex gap-2 mb-4">
                     <input
                       placeholder="Item name *"
@@ -1538,6 +2380,8 @@ function PartnersView({ hotelId }: { hotelId: string }) {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
                     </div>
                   )}
                 </div>
@@ -1675,7 +2519,7 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
             return (
               <div key={code.id} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
                 <div className="flex gap-4">
-                  <img src={qrImgUrl} alt={`QR for ${code.label}`} className="w-20 h-20 rounded-lg border border-gray-100 shrink-0" />
+                  <Image src={qrImgUrl} alt={`QR for ${code.label}`} width={80} height={80} className="rounded-lg border border-gray-100 shrink-0" unoptimized />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-1">
                       <div>
@@ -1862,6 +2706,215 @@ function Field({ label, value, onChange, placeholder }: {
         placeholder={placeholder}
         className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none"
       />
+    </div>
+  );
+}
+
+/* ── Knowledge Base View ────────────────────────────────── */
+const KB_CATEGORIES = ['General', 'WiFi & Tech', 'Amenities', 'Transport', 'Food & Dining', 'Check-in / Check-out', 'Safety', 'Local Area'];
+
+function KnowledgeBaseView({ hotelId }: { hotelId: string }) {
+  const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [filterCat, setFilterCat] = useState<string>('All');
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({ category: 'General', question: '', answer: '', keywords: '' });
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    setEntries(await getAllKnowledgeBase(hotelId));
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [hotelId]);
+
+  const resetForm = () => { setForm({ category: 'General', question: '', answer: '', keywords: '' }); setEditingId(null); setShowForm(false); };
+
+  const handleSave = async () => {
+    if (!form.question.trim() || !form.answer.trim()) return;
+    setSaving(true);
+    const keywords = form.keywords.split(',').map(k => k.trim()).filter(Boolean);
+    if (editingId) {
+      await updateKnowledgeEntry(editingId, { category: form.category, question: form.question.trim(), answer: form.answer.trim(), keywords });
+    } else {
+      await createKnowledgeEntry({ hotel_id: hotelId, category: form.category, question: form.question.trim(), answer: form.answer.trim(), keywords });
+    }
+    await load();
+    resetForm();
+    setSaving(false);
+  };
+
+  const handleEdit = (e: KnowledgeEntry) => {
+    setForm({ category: e.category, question: e.question, answer: e.answer, keywords: (e.keywords || []).join(', ') });
+    setEditingId(e.id);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this entry?')) return;
+    await deleteKnowledgeEntry(id);
+    await load();
+  };
+
+  const handleToggle = async (e: KnowledgeEntry) => {
+    await updateKnowledgeEntry(e.id, { active: !e.active });
+    await load();
+  };
+
+  const usedCategories = ['All', ...Array.from(new Set(entries.map(e => e.category)))];
+  const visible = entries.filter(e => {
+    const catOk = filterCat === 'All' || e.category === filterCat;
+    const searchOk = !search || e.question.toLowerCase().includes(search.toLowerCase()) || e.answer.toLowerCase().includes(search.toLowerCase());
+    return catOk && searchOk;
+  });
+
+  const grouped: Record<string, KnowledgeEntry[]> = {};
+  visible.forEach(e => { if (!grouped[e.category]) grouped[e.category] = []; grouped[e.category].push(e); });
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-[24px] font-extrabold text-gray-900">Knowledge Base</h1>
+          <p className="text-[13px] text-gray-500 mt-0.5">Manage Q&A that the chatbot uses to answer guests automatically</p>
+        </div>
+        <button onClick={() => { resetForm(); setShowForm(true); }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-[13px] font-bold shadow-sm"
+          style={{ backgroundColor: TEAL }}>
+          <Plus size={15} /> Add Entry
+        </button>
+      </div>
+
+      {/* Add / Edit Form */}
+      {showForm && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-[15px]">{editingId ? 'Edit Entry' : 'New Knowledge Entry'}</h3>
+            <button onClick={resetForm}><XIcon size={18} className="text-gray-400" /></button>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Category</label>
+              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[14px] outline-none">
+                {KB_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Question / Topic</label>
+              <input value={form.question} onChange={e => setForm(f => ({ ...f, question: e.target.value }))}
+                placeholder="e.g. What time is breakfast served?"
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[14px] outline-none" />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Answer</label>
+              <textarea value={form.answer} onChange={e => setForm(f => ({ ...f, answer: e.target.value }))}
+                placeholder="e.g. Complimentary breakfast is served 6:30 AM – 9:30 AM daily in the lobby."
+                rows={3}
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[14px] outline-none resize-none" />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Keywords (comma-separated, optional)</label>
+              <input value={form.keywords} onChange={e => setForm(f => ({ ...f, keywords: e.target.value }))}
+                placeholder="e.g. breakfast, food, morning, eat"
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[14px] outline-none" />
+              <p className="text-[11px] text-gray-400 mt-1">Helps the chatbot match guest messages more accurately</p>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button onClick={handleSave} disabled={saving || !form.question.trim() || !form.answer.trim()}
+              className="flex-1 py-3 rounded-xl text-white font-bold text-[14px] disabled:opacity-50"
+              style={{ backgroundColor: TEAL }}>
+              {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Add to Knowledge Base'}
+            </button>
+            <button onClick={resetForm} className="px-5 py-3 rounded-xl bg-gray-100 text-gray-700 font-bold text-[14px]">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        {[
+          { label: 'Total Entries', count: entries.length, color: 'text-gray-800' },
+          { label: 'Active', count: entries.filter(e => e.active).length, color: 'text-emerald-600' },
+          { label: 'Categories', count: new Set(entries.map(e => e.category)).size, color: 'text-blue-600' },
+        ].map(s => (
+          <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+            <p className="text-[11px] text-gray-400 uppercase font-bold">{s.label}</p>
+            <p className={`text-[26px] font-extrabold ${s.color}`}>{s.count}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter bar */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search questions & answers…"
+          className="flex-1 min-w-[200px] bg-white rounded-xl px-3.5 py-2 border border-gray-200 text-[13px] outline-none" />
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+          {usedCategories.map(c => (
+            <button key={c} onClick={() => setFilterCat(c)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${filterCat === c ? 'text-white' : 'bg-gray-100 text-gray-500'}`}
+              style={filterCat === c ? { backgroundColor: TEAL } : {}}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12"><div className="w-7 h-7 border-2 border-t-transparent rounded-full animate-spin mx-auto" style={{ borderColor: TEAL }} /></div>
+      ) : visible.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center shadow-sm">
+          <BookOpen size={32} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-[14px] font-semibold text-gray-500">No entries yet</p>
+          <p className="text-[12px] text-gray-400 mt-1">Add Q&A pairs to help the chatbot answer guests automatically</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {Object.entries(grouped).map(([cat, items]) => (
+            <div key={cat}>
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">{cat}</p>
+              <div className="space-y-2">
+                {items.map(entry => (
+                  <div key={entry.id} className={`bg-white rounded-xl border p-4 shadow-sm transition-opacity ${entry.active ? 'border-gray-100' : 'border-gray-200 opacity-60'}`}>
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-bold text-gray-900 mb-1">{entry.question}</p>
+                        <p className="text-[13px] text-gray-600 leading-relaxed">{entry.answer}</p>
+                        {entry.keywords?.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {entry.keywords.map((k, i) => (
+                              <span key={i} className="px-2 py-0.5 rounded-full bg-gray-100 text-[10px] text-gray-500 font-medium">{k}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button onClick={() => handleToggle(entry)} title={entry.active ? 'Deactivate' : 'Activate'}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold ${entry.active ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
+                          {entry.active ? <Check size={14} /> : <EyeOff size={14} />}
+                        </button>
+                        <button onClick={() => handleEdit(entry)}
+                          className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => handleDelete(entry.id)}
+                          className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
