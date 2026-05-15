@@ -35,9 +35,14 @@ export default function Home() {
     if (hotel) localStorage.setItem('attenda_hotel_slug', hotel);
     if (room) localStorage.setItem('attenda_qr_room', room);
 
-    // Only show hotel guest app when ?hotel= is in URL, OR guest has an active checked-in session.
-    // Without this, admins/marketing visitors who once visited a hotel URL would never see the landing page.
+    // Show hotel guest app when:
+    //   1. ?hotel= is in the URL (first scan or admin preview)
+    //   2. Device came from a room QR scan (both hotel slug + room stored) — covers back-navigation
+    //   3. Guest has an active checked-in session
+    // Admins who preview via ?hotel= without a room param don't get a room stored,
+    // so they still see the marketing page on direct visits to /.
     const stored = localStorage.getItem('attenda_hotel_slug');
+    const qrRoom = localStorage.getItem('attenda_qr_room');
     let hasActiveSession = false;
     try {
       const gs = localStorage.getItem('guestSession');
@@ -46,7 +51,7 @@ export default function Home() {
         hasActiveSession = !!stored && new Date(s.checkout) > new Date();
       }
     } catch {}
-    setIsHotelView(!!(hotel || hasActiveSession));
+    setIsHotelView(!!(hotel || (stored && qrRoom) || hasActiveSession));
   }, []);
 
   if (isHotelView === null) return <div className="h-dvh bg-white" />;
