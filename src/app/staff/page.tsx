@@ -2255,6 +2255,7 @@ function PartnersView({ hotelId }: { hotelId: string }) {
                           <option value="Uber Eats">Uber Eats</option>
                           <option value="DoorDash">DoorDash</option>
                           <option value="Grubhub">Grubhub</option>
+                          <option value="Order Inn">Order Inn</option>
                           <option value="Instacart">Instacart</option>
                           <option value="Other">Other</option>
                         </select>
