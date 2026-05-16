@@ -2729,13 +2729,13 @@ function KnowledgeBaseView({ hotelId }: { hotelId: string }) {
   const [form, setForm] = useState({ category: 'General', question: '', answer: '', keywords: '' });
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setEntries(await getAllKnowledgeBase(hotelId));
     setLoading(false);
-  };
+  }, [hotelId]);
 
-  useEffect(() => { load(); }, [hotelId, load]);
+  useEffect(() => { load(); }, [load]);
 
   const resetForm = () => { setForm({ category: 'General', question: '', answer: '', keywords: '' }); setEditingId(null); setShowForm(false); };
 
@@ -2941,21 +2941,7 @@ function GuestsView({ hotelId }: { hotelId: string }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed'>('all');
 
-  useEffect(() => {
-    loadGuests();
-    // Subscribe to localStorage changes for real-time updates
-    const handleStorage = () => loadGuests();
-    window.addEventListener('storage', handleStorage);
-    // Poll for updates every 5 seconds
-    const interval = setInterval(loadGuests, 5000);
-    return () => {
-      window.removeEventListener('storage', handleStorage);
-      clearInterval(interval);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hotelId]);
-
-  const loadGuests = () => {
+  const loadGuests = useCallback(() => {
     // In a real implementation, this would fetch from a database
     // For now, we check localStorage and also track requests to see active guests
     const stored = localStorage.getItem('guestSession');
@@ -2973,7 +2959,9 @@ function GuestsView({ hotelId }: { hotelId: string }) {
           validatedAt: session.validatedAt,
           lastSeen: new Date().toISOString(),
         });
-      } catch {}
+      } catch (err) {
+        console.error('Error parsing guest session:', err);
+      }
     }
 
     // Also get guests from recent requests (real-time data)
@@ -3004,7 +2992,20 @@ function GuestsView({ hotelId }: { hotelId: string }) {
           setLoading(false);
         }
       });
-  };
+  }, [hotelId]);
+
+  useEffect(() => {
+    loadGuests();
+    // Subscribe to localStorage changes for real-time updates
+    const handleStorage = () => loadGuests();
+    window.addEventListener('storage', handleStorage);
+    // Poll for updates every 5 seconds
+    const interval = setInterval(loadGuests, 5000);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(interval);
+    };
+  }, [loadGuests]);
 
   const confirmGuest = (guest: GuestSessionData) => {
     // Update localStorage if it's the current session
@@ -3019,7 +3020,9 @@ function GuestsView({ hotelId }: { hotelId: string }) {
           // Broadcast to other tabs
           window.dispatchEvent(new StorageEvent('storage'));
         }
-      } catch {}
+      } catch (err) {
+        console.error('Error confirming guest:', err);
+      }
     }
     loadGuests();
   };

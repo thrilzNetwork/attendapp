@@ -52,7 +52,9 @@ export default function Home() {
         const s = JSON.parse(gs);
         hasActiveSession = !!stored && new Date(s.checkout) > new Date();
       }
-    } catch {}
+    } catch (err) {
+      console.error('Error checking guest session:', err);
+    }
     setIsHotelView(!!(hotel || (stored && qrRoom) || hasActiveSession));
   }, []);
 
@@ -96,12 +98,22 @@ function HotelGuestApp({
   setShowValidationSuccess: (v: boolean) => void;
 }) {
   const { guest, isValidated, resetValidationOnCheckout } = useGuest();
+  const [prevValidated, setPrevValidated] = useState(isValidated);
 
   // Check for checkout reset on mount
   useEffect(() => {
     resetValidationOnCheckout();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Watch for validation status change to show success modal
+  useEffect(() => {
+    if (isValidated && !prevValidated && guest) {
+      setShowValidationSuccess(true);
+    }
+    setPrevValidated(isValidated);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isValidated, prevValidated, guest]);
 
   const handleClick = (sheet: SheetName, requiresValidation = false) => {
     const stored = localStorage.getItem('guestSession');
@@ -118,7 +130,8 @@ function HotelGuestApp({
           setOpenSheet(sheet);
           return;
         }
-      } catch {
+      } catch (err) {
+        console.error('Error parsing guest session:', err);
         localStorage.removeItem('guestSession');
       }
     }
@@ -1033,7 +1046,8 @@ function EnrollForm() {
         throw new Error((err as { error?: string }).error || 'Email failed');
       }
       setStatus('sent');
-    } catch {
+    } catch (err) {
+      console.error('Enrollment submission error:', err);
       setStatus('error');
     }
   };
