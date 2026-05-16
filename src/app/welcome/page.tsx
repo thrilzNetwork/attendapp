@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getHotelConfig, HotelConfig } from '@/lib/guest-context';
@@ -42,7 +43,9 @@ export default function WelcomePage() {
 
         {config.teamPhotoUrl ? (
           <div className="rounded-2xl overflow-hidden border border-gray-100">
-            <img src={config.teamPhotoUrl} alt="Team" className="w-full h-64 object-cover" />
+            <div className="relative h-64 w-full">
+              <Image src={config.teamPhotoUrl} alt="Team" fill className="object-cover" sizes="100vw" />
+            </div>
             <div className="p-4 bg-white">
               <p className="text-xs font-semibold text-gray-800">Your team at {config.name}</p>
             </div>

@@ -32,7 +32,7 @@ type NavTab =
   | 'orders' | 'messages' | 'shuttle'
   | 'hotel' | 'staff_mgmt'
   | 'partners' | 'qrcodes' | 'properties'
-  | 'vendor_manifest' | 'knowledge';
+  | 'vendor_manifest' | 'knowledge' | 'guests';
 
 interface Request {
   id: string;
@@ -69,6 +69,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[] }[] = [
   { tab: 'orders',          label: 'Live Orders',       icon: Bell,            roles: ['admin', 'staff', 'superadmin'] },
   { tab: 'messages',        label: 'Guest Messages',     icon: MessageSquare,   roles: ['admin', 'staff', 'superadmin'] },
   { tab: 'shuttle',         label: 'Shuttle Schedule',   icon: Bus,             roles: ['admin', 'staff', 'superadmin'] },
+  { tab: 'guests',          label: 'Guest Check-ins',    icon: Users,           roles: ['admin', 'staff', 'superadmin'] },
   { tab: 'vendor_manifest', label: 'Vendor Dashboard',   icon: Users,           roles: ['vendor'] },
   { tab: 'hotel',           label: 'Hotel Settings',     icon: Settings,        roles: ['admin', 'superadmin'] },
   { tab: 'staff_mgmt',      label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'] },
@@ -349,6 +350,9 @@ export default function Dashboard() {
               if (c) { setConfig(c); setTab('orders'); }
             }}
           />
+        )}
+        {effectiveTab === 'guests' && config?.id && (
+          <GuestsView hotelId={config.id} />
         )}
       </main>
     </div>
@@ -2731,7 +2735,7 @@ function KnowledgeBaseView({ hotelId }: { hotelId: string }) {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [hotelId]);
+  useEffect(() => { load(); }, [hotelId, load]);
 
   const resetForm = () => { setForm({ category: 'General', question: '', answer: '', keywords: '' }); setEditingId(null); setShowForm(false); };
 
@@ -2917,6 +2921,235 @@ function KnowledgeBaseView({ hotelId }: { hotelId: string }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Guests View ──────────────────────────────────────── */
+interface GuestSessionData {
+  name: string;
+  room: string;
+  checkout: string;
+  checkedIn: string;
+  validationStatus?: 'pending' | 'confirmed';
+  validatedAt?: string;
+  lastSeen?: string;
+}
+
+function GuestsView({ hotelId }: { hotelId: string }) {
+  const [guests, setGuests] = useState<GuestSessionData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed'>('all');
+
+  useEffect(() => {
+    loadGuests();
+    // Subscribe to localStorage changes for real-time updates
+    const handleStorage = () => loadGuests();
+    window.addEventListener('storage', handleStorage);
+    // Poll for updates every 5 seconds
+    const interval = setInterval(loadGuests, 5000);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotelId]);
+
+  const loadGuests = () => {
+    // In a real implementation, this would fetch from a database
+    // For now, we check localStorage and also track requests to see active guests
+    const stored = localStorage.getItem('guestSession');
+    const guestList: GuestSessionData[] = [];
+
+    if (stored) {
+      try {
+        const session = JSON.parse(stored);
+        guestList.push({
+          name: session.name,
+          room: session.room,
+          checkout: session.checkout,
+          checkedIn: session.checkedIn,
+          validationStatus: session.validationStatus || 'pending',
+          validatedAt: session.validatedAt,
+          lastSeen: new Date().toISOString(),
+        });
+      } catch {}
+    }
+
+    // Also get guests from recent requests (real-time data)
+    supabase
+      .from('requests')
+      .select('guest_name, room')
+      .eq('hotel_id', hotelId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (data) {
+          const seen = new Set(guestList.map(g => `${g.name}-${g.room}`));
+          data.forEach((r: { guest_name: string; room: string }) => {
+            const key = `${r.guest_name}-${r.room}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              guestList.push({
+                name: r.guest_name,
+                room: r.room,
+                checkout: '',
+                checkedIn: '',
+                validationStatus: 'pending',
+                lastSeen: new Date().toISOString(),
+              });
+            }
+          });
+          setGuests(guestList);
+          setLoading(false);
+        }
+      });
+  };
+
+  const confirmGuest = (guest: GuestSessionData) => {
+    // Update localStorage if it's the current session
+    const stored = localStorage.getItem('guestSession');
+    if (stored) {
+      try {
+        const session = JSON.parse(stored);
+        if (session.name === guest.name && session.room === guest.room) {
+          session.validationStatus = 'confirmed';
+          session.validatedAt = new Date().toISOString();
+          localStorage.setItem('guestSession', JSON.stringify(session));
+          // Broadcast to other tabs
+          window.dispatchEvent(new StorageEvent('storage'));
+        }
+      } catch {}
+    }
+    loadGuests();
+  };
+
+  const filteredGuests = guests.filter(g => {
+    if (filter === 'pending') return g.validationStatus !== 'confirmed';
+    if (filter === 'confirmed') return g.validationStatus === 'confirmed';
+    return true;
+  });
+
+  const confirmedCount = guests.filter(g => g.validationStatus === 'confirmed').length;
+  const pendingCount = guests.length - confirmedCount;
+
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="text-center py-12">
+          <div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-[26px] font-extrabold text-gray-900">Guest Check-ins</h1>
+        <button onClick={loadGuests} className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-[13px] font-semibold text-gray-600 hover:bg-gray-50">
+          <RefreshCw size={14} /> Refresh
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <p className="text-[11px] text-gray-400 uppercase font-bold">Total Guests</p>
+          <p className="text-[28px] font-extrabold text-gray-900">{guests.length}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <p className="text-[11px] text-amber-500 uppercase font-bold">Pending</p>
+          <p className="text-[28px] font-extrabold text-amber-600">{pendingCount}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <p className="text-[11px] text-emerald-500 uppercase font-bold">Confirmed</p>
+          <p className="text-[28px] font-extrabold text-emerald-600">{confirmedCount}</p>
+        </div>
+      </div>
+
+      {/* Filter */}
+      <div className="flex gap-2 mb-4">
+        {(['all', 'pending', 'confirmed'] as const).map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${
+              filter === f
+                ? 'bg-white border border-gray-200 text-gray-900 shadow-sm'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            {f === 'all' ? 'All Guests' : f === 'pending' ? 'Pending' : 'Confirmed'}
+          </button>
+        ))}
+      </div>
+
+      {/* Guest List */}
+      <div className="space-y-3">
+        {filteredGuests.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
+            <Users size={32} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-[13px] text-gray-500">No guests found.</p>
+          </div>
+        ) : (
+          filteredGuests.map((guest, i) => (
+            <div
+              key={`${guest.name}-${guest.room}-${i}`}
+              className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`w-2 h-2 rounded-full ${
+                      guest.validationStatus === 'confirmed' ? 'bg-emerald-500' : 'bg-amber-500'
+                    }`} />
+                    <span className={`text-[11px] font-semibold uppercase tracking-wider ${
+                      guest.validationStatus === 'confirmed' ? 'text-emerald-600' : 'text-amber-600'
+                    }`}>
+                      {guest.validationStatus === 'confirmed' ? 'Validated' : 'Pending Validation'}
+                    </span>
+                  </div>
+                  <p className="text-[16px] font-bold text-gray-900">{guest.name}</p>
+                  <p className="text-[13px] text-gray-500">Room {guest.room}</p>
+                  {guest.checkout && (
+                    <p className="text-[12px] text-gray-400 mt-1">
+                      Checkout: {new Date(guest.checkout).toLocaleDateString()}
+                    </p>
+                  )}
+                  {guest.validatedAt && (
+                    <p className="text-[11px] text-emerald-600 mt-1">
+                      Confirmed at {new Date(guest.validatedAt).toLocaleTimeString()}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {guest.validationStatus !== 'confirmed' ? (
+                    <button
+                      onClick={() => confirmGuest(guest)}
+                      className="px-4 py-2 rounded-lg text-white text-[12px] font-bold bg-emerald-500 hover:bg-emerald-600 transition-colors"
+                    >
+                      Confirm Guest
+                    </button>
+                  ) : (
+                    <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-[12px] font-bold">
+                      ✓ Confirmed
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Info Note */}
+      <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <p className="text-[13px] text-amber-800">
+          <strong>Note:</strong> Since PMS integration is not yet active, guests show as &quot;Pending&quot; until manually confirmed by staff.
+          Guests can still use the app while pending, but they will need to validate before placing orders or booking transport.
+        </p>
+      </div>
     </div>
   );
 }

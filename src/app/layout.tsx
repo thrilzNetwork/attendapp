@@ -6,6 +6,12 @@ import CookieBanner from "@/components/CookieBanner";
 export const metadata: Metadata = {
   title: "Attenda - Guest Services",
   description: "Your hospitality companion",
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
 };
 
 export default function RootLayout({

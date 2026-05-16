@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Send, Plane, Bus, UserCheck, X } from 'lucide-react';
-import { getHotelConfig, HotelConfig, getAllShuttleSlotsForHotel, bookShuttleSlot, createShuttleRequest, ShuttleSlot } from '@/lib/supabase';
+import { getHotelConfig, HotelConfig, getAllShuttleSlotsForHotel, bookShuttleSlot, createShuttleRequest, getShuttleRoutes, getCruiseSchedules, ShuttleSlot, ShuttleRoute, CruiseSchedule } from '@/lib/supabase';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -57,7 +57,9 @@ export default function TransportPage() {
 function ShuttleScheduleView() {
   const [hotel, setHotel] = useState<HotelConfig | null>(null);
   const [slots, setSlots] = useState<ShuttleSlot[]>([]);
+  const [cruises, setCruises] = useState<CruiseSchedule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'shuttle' | 'cruise'>('shuttle');
   const [bookingForm, setBookingForm] = useState<{ slot_id: string; show: boolean; name: string; room: string; pax: number; notes: string; charge_accepted: boolean }>({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false });
   const [booked, setBooked] = useState<string | null>(null);
 
@@ -66,8 +68,13 @@ function ShuttleScheduleView() {
       const h = await getHotelConfig();
       setHotel(h);
       if (h?.id) {
-        const s = await getAllShuttleSlotsForHotel(h.id);
+        const [s, c] = await Promise.all([
+          getAllShuttleSlotsForHotel(h.id),
+          getCruiseSchedules(h.id),
+        ]);
         setSlots(s);
+        setCruises(c);
+        if (c.length > 0) setActiveTab('cruise');
       }
       setLoading(false);
     })();
@@ -111,7 +118,7 @@ function ShuttleScheduleView() {
     );
   }
 
-  if (slots.length === 0) {
+  if (slots.length === 0 && cruises.length === 0) {
     return (
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
         <Bus size={40} className="text-gray-300 mx-auto mb-3" />
@@ -123,7 +130,63 @@ function ShuttleScheduleView() {
 
   return (
     <div className="space-y-4">
-      {Object.entries(byRoute).map(([routeName, routeSlots]) => (
+      {/* Sub-tab toggle (show only if both exist) */}
+      {cruises.length > 0 && (
+        <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-100 flex">
+          <button onClick={() => setActiveTab('cruise')}
+            className={`flex-1 py-2 rounded-xl text-[12px] font-bold transition-colors ${activeTab === 'cruise' ? 'text-white' : 'text-gray-500'}`}
+            style={activeTab === 'cruise' ? { backgroundColor: '#6B1D3C' } : undefined}>
+            🚢 Cruise Schedule
+          </button>
+          <button onClick={() => setActiveTab('shuttle')}
+            className={`flex-1 py-2 rounded-xl text-[12px] font-bold transition-colors ${activeTab === 'shuttle' ? 'text-white' : 'text-gray-500'}`}
+            style={activeTab === 'shuttle' ? { backgroundColor: '#6B1D3C' } : undefined}>
+            ✈️ Shuttle Times
+          </button>
+        </div>
+      )}
+
+      {/* Cruise Calendar */}
+      {activeTab === 'cruise' && cruises.length > 0 && (
+        <div className="space-y-3">
+          <div className="bg-blue-50 rounded-2xl p-3 border border-blue-100 flex items-start gap-2.5">
+            <span className="text-[18px]">🚢</span>
+            <div>
+              <p className="text-[12px] font-bold text-blue-800 mb-0.5">Upcoming Cruise Departures</p>
+              <p className="text-[11px] text-blue-700">Book your hotel shuttle below to arrive at the cruise port on time.</p>
+            </div>
+          </div>
+          {cruises.map(c => (
+            <div key={c.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{c.cruise_line || 'Cruise Line'}</span>
+                      {c.terminal && <span className="text-[10px] text-gray-400">{c.terminal}</span>}
+                    </div>
+                    <p className="text-[16px] font-extrabold text-gray-900">{c.ship_name}</p>
+                    <p className="text-[13px] text-gray-600 mt-0.5">
+                      {new Date(c.departure_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    </p>
+                    <p className="text-[13px] font-semibold text-[#6B1D3C]">Departs at {c.departure_time.slice(0, 5)}</p>
+                    {c.notes && <p className="text-[11px] text-gray-400 mt-1">{c.notes}</p>}
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('shuttle')}
+                    className="shrink-0 px-3 py-2 rounded-xl text-[11px] font-bold text-white active:scale-95"
+                    style={{ backgroundColor: '#6B1D3C' }}>
+                    Book Shuttle
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Shuttle slots */}
+      {activeTab === 'shuttle' && Object.entries(byRoute).map(([routeName, routeSlots]) => (
         <div key={routeName} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
             <Bus size={16} className="text-[#6B1D3C]" />
@@ -238,10 +301,21 @@ function ShuttleScheduleView() {
 /* ── On-Demand Pickup Request ───────────────────────────── */
 function OnDemandRequest() {
   const [direction, setDirection] = useState<'arrival' | 'departure'>('departure');
-  const [form, setForm] = useState({ guestName: '', room: '', date: '', time: '', airline: '', flight: '', destination: 'airport', pax: 1, notes: '' });
+  const [form, setForm] = useState({ guestName: '', room: '', date: '', time: '', airline: '', flight: '', destination: '', pax: 1, notes: '' });
+  const [routes, setRoutes] = useState<ShuttleRoute[]>([]);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    getHotelConfig().then(async (h) => {
+      if (h?.id) {
+        const r = await getShuttleRoutes(h.id);
+        setRoutes(r);
+        if (r.length > 0) setForm(f => ({ ...f, destination: r[0].name }));
+      }
+    });
+  }, []);
 
   const handleSubmit = async () => {
     if (!form.guestName || !form.room) { setError('Name and room number are required.'); return; }
@@ -249,17 +323,12 @@ function OnDemandRequest() {
     setError('');
     try {
       const hotel = await getHotelConfig();
-      const destMap: Record<string, string> = {
-        airport: 'Miami International Airport (MIA)',
-        cruiseport: 'Port of Miami Cruise Terminal',
-        fortlauderdale: 'Fort Lauderdale Airport (FLL)',
-      };
       await createShuttleRequest({
         hotel_id: hotel?.id || '',
         guest_name: form.guestName,
         room_number: form.room,
-        pickup_location: direction === 'departure' ? 'Hotel Lobby' : destMap[form.destination] || form.destination,
-        destination: direction === 'arrival' ? 'Hotel' : destMap[form.destination] || form.destination,
+        pickup_location: direction === 'departure' ? 'Hotel Lobby' : form.destination,
+        destination: direction === 'arrival' ? 'Hotel' : form.destination,
         date: form.date || undefined,
         time: form.time || undefined,
         pax: form.pax,
@@ -329,24 +398,23 @@ function OnDemandRequest() {
           </div>
         </div>
 
-        {direction === 'arrival' ? (
-          <>
-            <div className="flex gap-2">
-              <div className="flex-1"><input placeholder="Airline / Cruise line" value={form.airline} onChange={e => setForm({ ...form, airline: e.target.value })} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" /></div>
-              <div className="w-24"><input placeholder="Flight #" value={form.flight} onChange={e => setForm({ ...form, flight: e.target.value })} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" /></div>
-            </div>
-            <select value={form.destination} onChange={e => setForm({ ...form, destination: e.target.value })} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none">
-              <option value="airport">Miami International Airport (MIA)</option>
-              <option value="cruiseport">Port of Miami Cruise Terminal</option>
-              <option value="fortlauderdale">Fort Lauderdale Airport (FLL)</option>
-            </select>
-          </>
-        ) : (
+        {direction === 'arrival' && (
+          <div className="flex gap-2">
+            <div className="flex-1"><input placeholder="Airline / Cruise line" value={form.airline} onChange={e => setForm({ ...form, airline: e.target.value })} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" /></div>
+            <div className="w-24"><input placeholder="Flight #" value={form.flight} onChange={e => setForm({ ...form, flight: e.target.value })} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" /></div>
+          </div>
+        )}
+        {routes.length > 0 ? (
           <select value={form.destination} onChange={e => setForm({ ...form, destination: e.target.value })} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none">
-            <option value="airport">Miami International Airport (MIA)</option>
-            <option value="cruiseport">Port of Miami Cruise Terminal</option>
-            <option value="fortlauderdale">Fort Lauderdale Airport (FLL)</option>
+            {routes.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
           </select>
+        ) : (
+          <input
+            placeholder="Destination (e.g. Airport, Downtown)"
+            value={form.destination}
+            onChange={e => setForm({ ...form, destination: e.target.value })}
+            className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none"
+          />
         )}
 
         <div className="flex gap-2 items-end">

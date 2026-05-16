@@ -1,14 +1,19 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Phone, Flame, AlertTriangle, ShieldCheck, DoorOpen, AlarmSmoke, Crosshair } from 'lucide-react';
+import { getHotelConfig, HotelConfig } from '@/lib/supabase';
 
 export default function SafetyPage() {
   const router = useRouter();
+  const [config, setConfig] = useState<HotelConfig | null>(null);
+  useEffect(() => { getHotelConfig().then(setConfig); }, []);
 
+  const frontDesk = config?.frontDeskPhone || 'Ext. 0';
   const emergencies = [
     { label: 'Emergency (Police, Fire, Medical)', number: '911' },
-    { label: 'Front Desk', number: '305-555-0199' },
+    { label: 'Front Desk', number: frontDesk },
     { label: 'Hotel Security', number: 'Ext. 0' },
   ];
 
@@ -28,7 +33,7 @@ export default function SafetyPage() {
             <AlertTriangle size={20} className="text-red-600 shrink-0 mt-0.5" />
             <div>
               <p className="text-[13px] font-bold text-red-800 mb-1">In Case of Emergency</p>
-              <p className="text-[12px] text-red-700 leading-relaxed">Remain calm. Call 911 for immediate emergency response. Then notify the front desk at Ext. 0.</p>
+              <p className="text-[12px] text-red-700 leading-relaxed">Remain calm. Call 911 for immediate emergency response. Then notify the front desk at {frontDesk}.</p>
             </div>
           </div>
 

@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { X, User, DoorOpen, Lock } from 'lucide-react';
+import { getHotelConfig } from '@/lib/supabase';
+import { useGuest } from '@/lib/guest-context';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  isValidationCheck?: boolean;
 }
 
 const MONTHS = [
@@ -18,12 +21,14 @@ function getDaysInMonth(month: number, year: number) {
   return new Date(year, month, 0).getDate();
 }
 
-export default function GuestAuthModal({ open, onClose, onSuccess }: Props) {
+export default function GuestAuthModal({ open, onClose, onSuccess, isValidationCheck }: Props) {
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
   const currentDay = now.getDate();
   const years = [currentYear, currentYear + 1, currentYear + 2];
+
+  const { login } = useGuest();
 
   const [name, setName] = useState('');
   const [room, setRoom] = useState('');
@@ -32,6 +37,26 @@ export default function GuestAuthModal({ open, onClose, onSuccess }: Props) {
   const [year, setYear] = useState(currentYear.toString());
   const [errors, setErrors] = useState({ name: false, room: false, date: false });
   const [isQrLocked, setIsQrLocked] = useState(false);
+
+  // Pre-fill from existing session if doing validation check
+  useEffect(() => {
+    if (isValidationCheck && open) {
+      const stored = localStorage.getItem('guestSession');
+      if (stored) {
+        try {
+          const s = JSON.parse(stored);
+          setName(s.name || '');
+          setRoom(s.room || '');
+          if (s.checkout) {
+            const d = new Date(s.checkout);
+            setYear(d.getFullYear().toString());
+            setMonth((d.getMonth() + 1).toString());
+            setDay(d.getDate().toString());
+          }
+        } catch {}
+      }
+    }
+  }, [isValidationCheck, open]);
 
   useEffect(() => {
     if (open) {
@@ -77,7 +102,35 @@ export default function GuestAuthModal({ open, onClose, onSuccess }: Props) {
       return;
     }
     const checkout = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    localStorage.setItem('guestSession', JSON.stringify({ name: name.trim(), room: room.trim(), checkout }));
+    const guestName = name.trim();
+    const guestRoom = room.trim();
+
+    // Use the context login function which sets validationStatus to 'pending'
+    login(guestName, guestRoom, checkout);
+
+    // Fire check-in notification to hotel staff (non-blocking)
+    const hotelSlug = localStorage.getItem('attenda_hotel_slug');
+    if (hotelSlug) {
+      getHotelConfig(hotelSlug).then((hotel) => {
+        if (!hotel) return;
+        fetch('/api/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'guest_welcome',
+            data: {
+              notificationEmail: hotel.notificationEmail,
+              hotelName: hotel.name,
+              hotelSlug,
+              guestName,
+              room: guestRoom,
+              checkout,
+            },
+          }),
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+
     onSuccess?.();
   };
 
@@ -114,7 +167,7 @@ export default function GuestAuthModal({ open, onClose, onSuccess }: Props) {
                   placeholder="John Smith"
                   value={name}
                   onChange={(e) => { setName(e.target.value); setErrors({ ...errors, name: false }); }}
-                  className="bg-transparent text-[15px] text-gray-800 outline-none w-full placeholder:text-gray-400"
+                  className="bg-transparent text-[16px] text-gray-800 outline-none w-full placeholder:text-gray-400"
                 />
               </div>
             </div>
@@ -130,7 +183,7 @@ export default function GuestAuthModal({ open, onClose, onSuccess }: Props) {
                   value={room}
                   onChange={(e) => { if (!isQrLocked) { setRoom(e.target.value); setErrors({ ...errors, room: false }); } }}
                   readOnly={isQrLocked}
-                  className={`bg-transparent text-[15px] outline-none w-full placeholder:text-gray-400 ${isQrLocked ? 'text-gray-500 cursor-not-allowed' : 'text-gray-800'}`}
+                  className={`bg-transparent text-[16px] outline-none w-full placeholder:text-gray-400 ${isQrLocked ? 'text-gray-500 cursor-not-allowed' : 'text-gray-800'}`}
                 />
               </div>
             </div>
@@ -141,7 +194,7 @@ export default function GuestAuthModal({ open, onClose, onSuccess }: Props) {
                 <select
                   value={month}
                   onChange={(e) => { setMonth(e.target.value); setErrors({ ...errors, date: false }); }}
-                  className="flex-1 bg-gray-50 rounded-xl px-3 py-3 text-[14px] text-gray-800 outline-none border border-gray-200 appearance-none"
+                  className="flex-1 bg-gray-50 rounded-xl px-3 py-3 text-[16px] text-gray-800 outline-none border border-gray-200 appearance-none"
                   style={{ backgroundImage: 'none' }}
                 >
                   <option value="" disabled>Month</option>
@@ -159,7 +212,7 @@ export default function GuestAuthModal({ open, onClose, onSuccess }: Props) {
                 <select
                   value={day}
                   onChange={(e) => { setDay(e.target.value); setErrors({ ...errors, date: false }); }}
-                  className="w-[70px] bg-gray-50 rounded-xl px-2 py-3 text-[14px] text-gray-800 outline-none border border-gray-200 text-center appearance-none"
+                  className="w-[70px] bg-gray-50 rounded-xl px-2 py-3 text-[16px] text-gray-800 outline-none border border-gray-200 text-center appearance-none"
                 >
                   <option value="" disabled>Day</option>
                   {days.map((d) => {
@@ -176,7 +229,7 @@ export default function GuestAuthModal({ open, onClose, onSuccess }: Props) {
                 <select
                   value={year}
                   onChange={(e) => { setYear(e.target.value); setErrors({ ...errors, date: false }); }}
-                  className="w-[80px] bg-gray-50 rounded-xl px-2 py-3 text-[14px] text-gray-800 outline-none border border-gray-200 text-center appearance-none"
+                  className="w-[80px] bg-gray-50 rounded-xl px-2 py-3 text-[16px] text-gray-800 outline-none border border-gray-200 text-center appearance-none"
                 >
                   <option value="" disabled>Year</option>
                   {years.map((y) => (

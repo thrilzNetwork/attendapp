@@ -21,10 +21,14 @@ export default function ReviewPage() {
     }
   };
 
-  const handleSubmitFeedback = () => {
+  const handleSubmitFeedback = async () => {
+    const hotel = await getHotelConfig();
+    const email = hotel?.notificationEmail;
     const sesh = JSON.parse(localStorage.getItem('guestSession') || '{}');
     const body = `Low guest review.\nRating: ${rating} stars\nFeedback: ${feedback.trim() || 'None'}\nGuest: ${sesh.name || 'Unknown'} Room ${sesh.room || 'N/A'}\nDate: ${new Date().toLocaleString()}`;
-    window.location.href = `mailto:socialalchemist.info@gmail.com?subject=Attenda - Guest Complaint ${rating} Stars&body=${encodeURIComponent(body)}`;
+    if (email) {
+      window.location.href = `mailto:${email}?subject=Attenda - Guest Complaint ${rating} Stars&body=${encodeURIComponent(body)}`;
+    }
     setStep('done');
   };
 

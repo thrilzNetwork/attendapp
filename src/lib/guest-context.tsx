@@ -8,11 +8,15 @@ import {
   getAllRequests as getAllRequestsSupabase,
 } from './supabase';
 
+export type ValidationStatus = 'pending' | 'confirmed';
+
 interface GuestSession {
   name: string;
   room: string;
   checkout: string;
   checkedIn: string;
+  validationStatus?: ValidationStatus;
+  validatedAt?: string;
 }
 
 export type RequestStatus = 'pending' | 'in-progress' | 'completed';
@@ -50,6 +54,7 @@ const DEFAULT_CONFIG: HotelConfig = {
 interface GuestContextType {
   guest: GuestSession | null;
   isAuthenticated: boolean;
+  isValidated: boolean;
   login: (name: string, room: string, checkout: string) => void;
   logout: () => void;
   addRequest: (type: string, details: string) => Promise<void>;
@@ -59,6 +64,8 @@ interface GuestContextType {
   config: HotelConfig;
   updateConfig: (c: Partial<HotelConfig>) => Promise<void>;
   loadConfig: () => Promise<void>;
+  confirmValidation: () => void;
+  resetValidationOnCheckout: () => void;
 }
 
 const GuestContext = createContext<GuestContextType | null>(null);
@@ -76,7 +83,22 @@ export function GuestProvider({ children }: { children: ReactNode }) {
         const checkout = new Date(parsed.checkout);
         const now = new Date();
         if (checkout >= now) {
-          setGuest(parsed);
+          // Check if we need to reset validation (new day after checkout)
+          const checkoutDate = new Date(parsed.checkout);
+          checkoutDate.setHours(0, 0, 0, 0);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          // If checkout date has passed (past midnight), reset validation
+          if (checkoutDate < today) {
+            localStorage.removeItem('guestSession');
+          } else {
+            // Ensure validationStatus exists (backward compatibility)
+            if (!parsed.validationStatus) {
+              parsed.validationStatus = 'pending';
+            }
+            setGuest(parsed);
+          }
         } else {
           localStorage.removeItem('guestSession');
         }
@@ -98,9 +120,36 @@ export function GuestProvider({ children }: { children: ReactNode }) {
   };
 
   const login = (name: string, room: string, checkout: string) => {
-    const session: GuestSession = { name, room, checkout, checkedIn: new Date().toISOString() };
+    const session: GuestSession = {
+      name,
+      room,
+      checkout,
+      checkedIn: new Date().toISOString(),
+      validationStatus: 'pending',
+      validatedAt: undefined
+    };
     setGuest(session);
     localStorage.setItem('guestSession', JSON.stringify(session));
+  };
+
+  const confirmValidation = () => {
+    if (!guest) return;
+    const updated = {
+      ...guest,
+      validationStatus: 'confirmed' as const,
+      validatedAt: new Date().toISOString()
+    };
+    setGuest(updated);
+    localStorage.setItem('guestSession', JSON.stringify(updated));
+  };
+
+  const resetValidationOnCheckout = () => {
+    if (!guest) return;
+    const checkout = new Date(guest.checkout);
+    const now = new Date();
+    if (checkout < now) {
+      logout();
+    }
   };
 
   const logout = () => {
@@ -152,12 +201,14 @@ export function GuestProvider({ children }: { children: ReactNode }) {
   };
 
   const isAuthenticated = !!guest;
+  const isValidated = guest?.validationStatus === 'confirmed';
 
   return (
     <GuestContext.Provider value={{
-      guest, isAuthenticated, login, logout,
+      guest, isAuthenticated, isValidated, login, logout,
       addRequest, updateRequestStatus, clearCompletedRequests, requests,
       config, updateConfig, loadConfig,
+      confirmValidation, resetValidationOnCheckout,
     }}>
       {children}
     </GuestContext.Provider>

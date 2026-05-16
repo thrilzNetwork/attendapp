@@ -17,13 +17,15 @@ export default function SuperAdminPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<{ email: string } | null>(null);
-  const [hotels, setHotels] = useState<{ id: string; slug: string; name: string; is_active?: boolean; room_count?: number; metrics?: HotelHealth['metrics'] }[]>([]);
-  const [form, setForm] = useState({ slug: '', name: '', adminEmail: '', lookupQuery: '', adminPhone: '', roomCount: 0, address: '', googleReviewUrl: '', tripadvisorUrl: '', yelpUrl: '' });
+  const [hotels, setHotels] = useState<{ id: string; slug: string; name: string }[]>([]);
+  const [form, setForm] = useState({ slug: '', name: '', adminEmail: '', lookupQuery: '', adminPhone: '', roomCount: 0, address: '', googleReviewUrl: '', tripadvisorUrl: '', yelpUrl: '', websiteUrl: '' });
   const [copied, setCopied] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupStatus, setLookupStatus] = useState('');
+  const [scrapeLoading, setScrapeLoading] = useState(false);
+  const [syncingHotel, setSyncingHotel] = useState<string | null>(null);
 interface HotelHealth {
   id: string;
   slug: string;
@@ -235,8 +237,9 @@ interface PlatformHealth {
           }),
         }).catch(() => {});
       }
-      setForm({ slug: '', name: '', adminEmail: '', lookupQuery: '', adminPhone: '', roomCount: 0, address: '', googleReviewUrl: '', tripadvisorUrl: '', yelpUrl: '' });
+      setForm({ slug: '', name: '', adminEmail: '', lookupQuery: '', adminPhone: '', roomCount: 0, address: '', googleReviewUrl: '', tripadvisorUrl: '', yelpUrl: '', websiteUrl: '' });
       loadHotels();
+      loadHealth();
     } catch (e: unknown) {
       const msg = (e instanceof Error ? e.message : '') || (typeof e === 'object' && e !== null && 'message' in e ? String((e as { message: unknown }).message) : '') || 'Failed to create property. Please try again.';
       if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already')) {
@@ -528,6 +531,54 @@ interface PlatformHealth {
               </div>
               {lookupStatus && <p className="text-[11px] text-gray-500 mt-1">{lookupStatus}</p>}
             </div>
+            <div className="col-span-2">
+              <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">
+                Hotel Website <span className="normal-case text-gray-300">(auto-fills name, address &amp; contacts)</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  value={form.websiteUrl}
+                  onChange={e => setForm({ ...form, websiteUrl: e.target.value })}
+                  placeholder="https://www.bestwestern.com/..."
+                  className="flex-1 bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
+                />
+                <button
+                  type="button"
+                  disabled={scrapeLoading || !form.websiteUrl}
+                  onClick={async () => {
+                    if (!form.websiteUrl) return;
+                    setScrapeLoading(true);
+                    try {
+                      const res = await fetch('/api/scrape-hotel', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: form.websiteUrl }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error || 'Scrape failed');
+                      setForm(prev => ({
+                        ...prev,
+                        name: data.name || prev.name,
+                        address: data.address || prev.address,
+                        adminPhone: data.phone || prev.adminPhone,
+                        googleReviewUrl: data.googleReviewUrl || prev.googleReviewUrl,
+                        tripadvisorUrl: data.tripadvisorUrl || prev.tripadvisorUrl,
+                        yelpUrl: data.yelpUrl || prev.yelpUrl,
+                      }));
+                      setLookupStatus('✅ Scraped: ' + (data.name || 'website data imported'));
+                    } catch (e) {
+                      setLookupStatus('⚠️ Scrape failed: ' + (e as Error).message);
+                    } finally {
+                      setScrapeLoading(false);
+                    }
+                  }}
+                  className="px-4 py-3 rounded-xl text-white font-semibold text-[13px] whitespace-nowrap disabled:opacity-50"
+                  style={{ backgroundColor: '#7C3AED' }}
+                >
+                  {scrapeLoading ? '...' : 'Scrape'}
+                </button>
+              </div>
+            </div>
             <div>
               <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Contact Phone</label>
               <input
@@ -615,7 +666,32 @@ interface PlatformHealth {
                         className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-gray-500 hover:bg-gray-100">
                         <Settings size={12} /> Staff Panel
                       </a>
-                      <button onClick={() => setExpandedHotel(expanded ? null : hotel.id)}
+                        <button
+                        onClick={async () => {
+                          setSyncingHotel(hotel.id);
+                          try {
+                            const { data: row } = await supabase.from('hotels').select('address').eq('id', hotel.id).single();
+                            const address = row?.address;
+                            if (!address) { alert('Set a hotel address in Hotel Settings first.'); return; }
+                            const res = await fetch('/api/places-sync', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ hotelId: hotel.id, address }),
+                            });
+                            const d = await res.json();
+                            if (!res.ok) throw new Error(d.error);
+                            alert(`Synced! Added ${d.added} new places (${d.total} found nearby)`);
+                          } catch (e) { alert('Sync failed: ' + (e as Error).message); }
+                          finally { setSyncingHotel(null); }
+                        }}
+                        disabled={syncingHotel === hotel.id}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-purple-600 hover:bg-purple-50 disabled:opacity-50"
+                        title="Sync nearby places from OpenStreetMap"
+                      >
+                        {syncingHotel === hotel.id ? <RefreshCw size={11} className="animate-spin" /> : <Globe size={11} />}
+                        Sync
+                      </button>
+                    <button onClick={() => setExpandedHotel(expanded ? null : hotel.id)}
                         className="px-2 py-1.5">
                         {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </button>

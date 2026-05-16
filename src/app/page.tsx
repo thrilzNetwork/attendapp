@@ -15,6 +15,7 @@ import {
   MessageSheetContent, TransportSheetContent, FacilitiesSheetContent,
   SafetySheetContent, WelcomeSheetContent, ReviewSheetContent,
 } from '@/components/GuestSheets';
+import { useGuest } from '@/lib/guest-context';
 
 /* ──────────────────────────────────────────────────────────── */
 /*  Root — detects hotel context and switches view             */
@@ -27,6 +28,7 @@ export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingTarget, setPendingTarget] = useState<SheetName | ''>('');
   const [openSheet, setOpenSheet] = useState<SheetName | null>(null);
+  const [showValidationSuccess, setShowValidationSuccess] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -65,6 +67,8 @@ export default function Home() {
         setPendingTarget={setPendingTarget}
         openSheet={openSheet}
         setOpenSheet={setOpenSheet}
+        showValidationSuccess={showValidationSuccess}
+        setShowValidationSuccess={setShowValidationSuccess}
       />
     );
   }
@@ -80,6 +84,7 @@ const BURGUNDY = '#6B1D3C';
 
 function HotelGuestApp({
   modalOpen, pendingTarget, setModalOpen, setPendingTarget, openSheet, setOpenSheet,
+  showValidationSuccess, setShowValidationSuccess,
 }: {
   modalOpen: boolean;
   pendingTarget: SheetName | '';
@@ -87,13 +92,29 @@ function HotelGuestApp({
   setPendingTarget: (v: SheetName | '') => void;
   openSheet: SheetName | null;
   setOpenSheet: (v: SheetName | null) => void;
+  showValidationSuccess: boolean;
+  setShowValidationSuccess: (v: boolean) => void;
 }) {
-  const handleClick = (sheet: SheetName) => {
+  const { guest, isValidated, resetValidationOnCheckout } = useGuest();
+
+  // Check for checkout reset on mount
+  useEffect(() => {
+    resetValidationOnCheckout();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleClick = (sheet: SheetName, requiresValidation = false) => {
     const stored = localStorage.getItem('guestSession');
     if (stored) {
       try {
         const session = JSON.parse(stored);
         if (new Date(session.checkout) > new Date()) {
+          // If requires validation and not validated, show validation modal
+          if (requiresValidation && session.validationStatus !== 'confirmed') {
+            setPendingTarget(sheet);
+            setModalOpen(true);
+            return;
+          }
           setOpenSheet(sheet);
           return;
         }
@@ -110,8 +131,18 @@ function HotelGuestApp({
   return (
     <div className="h-dvh w-full overflow-hidden flex flex-col px-5 pt-5 pb-4 gap-2">
       <div className="shrink-0 flex items-start justify-between">
-        <div>
-          <h1 className="text-[34px] font-black text-black leading-none">Hello!</h1>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-[34px] font-black text-black leading-none">Hello!</h1>
+            {guest && (
+              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full ${isValidated ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+                <div className={`w-2 h-2 rounded-full ${isValidated ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                <span className={`text-[11px] font-bold ${isValidated ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {isValidated ? 'Validated' : 'Pending Validation'}
+                </span>
+              </div>
+            )}
+          </div>
           <p className="text-[15px] text-gray-400 mt-1 font-normal">What do you need today?</p>
         </div>
         <button
@@ -122,28 +153,30 @@ function HotelGuestApp({
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 grid grid-cols-2 gap-2">
+      <div className="flex-1 min-h-0 grid grid-cols-2 gap-3">
         <button onClick={() => handleClick('welcome')}
-          className="h-full rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-sm"
+          className="h-full rounded-2xl flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform shadow-sm py-4"
           style={{ backgroundColor: BURGUNDY }}>
-          <MapPin size={24} className="text-white" strokeWidth={1.5} />
-          <span className="text-[10px] font-bold text-white tracking-[0.14em] uppercase">WELCOME</span>
+          <MapPin size={32} className="text-white" strokeWidth={1.5} />
+          <span className="text-[13px] font-bold text-white tracking-[0.12em] uppercase">WELCOME</span>
         </button>
-        <button onClick={() => handleClick('transport')}
-          className="h-full rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-sm">
-          <Bus size={24} className="text-[#6B1D3C]" strokeWidth={1.5} />
-          <span className="text-[10px] font-bold tracking-[0.14em] uppercase" style={{ color: BURGUNDY }}>TRANSPORT</span>
+        <button onClick={() => handleClick('transport', true)}
+          className="h-full rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform shadow-sm py-4"
+        >
+          <Bus size={32} className="text-[#6B1D3C]" strokeWidth={1.5} />
+          <span className="text-[13px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>TRANSPORT</span>
         </button>
         <button onClick={() => handleClick('facilities')}
-          className="h-full rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-sm">
-          <Bell size={24} className="text-[#6B1D3C]" strokeWidth={1.5} />
-          <span className="text-[10px] font-bold tracking-[0.14em] uppercase" style={{ color: BURGUNDY }}>FACILITIES</span>
+          className="h-full rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform shadow-sm py-4"
+        >
+          <Bell size={32} className="text-[#6B1D3C]" strokeWidth={1.5} />
+          <span className="text-[13px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>FACILITIES</span>
         </button>
         <button onClick={() => handleClick('safety')}
-          className="h-full rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-sm"
+          className="h-full rounded-2xl flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform shadow-sm py-4"
           style={{ backgroundColor: BURGUNDY }}>
-          <ShieldCheck size={24} className="text-white" strokeWidth={1.5} />
-          <span className="text-[10px] font-bold text-white tracking-[0.14em] uppercase">SAFETY</span>
+          <ShieldCheck size={32} className="text-white" strokeWidth={1.5} />
+          <span className="text-[13px] font-bold text-white tracking-[0.12em] uppercase">SAFETY</span>
         </button>
       </div>
 
@@ -153,43 +186,43 @@ function HotelGuestApp({
             <Image src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&fit=crop&q=80"
               alt="Restaurants" fill className="object-cover" sizes="100vw" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-            <div className="absolute bottom-2.5 left-4">
-              <span className="text-sm font-bold text-white tracking-wider">RESTAURANTS</span>
+            <div className="absolute bottom-3 left-4">
+              <span className="text-[15px] font-bold text-white tracking-wider">RESTAURANTS</span>
             </div>
           </div>
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 flex gap-2">
+      <div className="flex-1 min-h-0 flex gap-3">
         <a href="https://www.bestwestern.com/rewards/join.html" target="_blank" rel="noopener noreferrer"
           className="w-[38%] h-full rounded-2xl overflow-hidden shadow-sm active:scale-[0.97] block relative">
           <Image src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&fit=crop&q=80"
             alt="Rewards" fill className="object-cover" sizes="38vw" />
         </a>
-        <div className="flex-1 h-full flex flex-col gap-2">
+        <div className="flex-1 h-full flex flex-col gap-3">
           <button onClick={() => (window.location.href = '/nearby?tab=attractions')}
-            className="flex-1 rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-1.5 active:scale-[0.97] shadow-sm">
-            <MapPin size={18} className="text-[#6B1D3C]" strokeWidth={1.5} />
-            <span className="text-[10px] font-bold tracking-[0.14em] uppercase" style={{ color: BURGUNDY }}>NEARBY</span>
+            className="flex-1 rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-2 active:scale-[0.97] shadow-sm py-2">
+            <MapPin size={22} className="text-[#6B1D3C]" strokeWidth={1.5} />
+            <span className="text-[12px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>NEARBY</span>
           </button>
           <button onClick={() => handleClick('review')}
-            className="flex-1 rounded-2xl flex items-center justify-center active:scale-[0.97] shadow-sm"
+            className="flex-1 rounded-2xl flex items-center justify-center active:scale-[0.97] shadow-sm py-2"
             style={{ backgroundColor: BURGUNDY }}>
-            <span className="text-[10px] font-bold text-white tracking-[0.14em] uppercase">LEAVE A REVIEW</span>
+            <span className="text-[12px] font-bold text-white tracking-[0.12em] uppercase">LEAVE A REVIEW</span>
           </button>
         </div>
       </div>
 
-      <div className="shrink-0 flex items-end justify-between pt-1">
+      <div className="shrink-0 flex items-end justify-between pt-2">
         <div className="flex items-center gap-2">
           <Globe size={14} className="text-gray-400" />
-          <span className="text-[10px] text-gray-400 leading-none">powered by Attenda</span>
+          <span className="text-[11px] text-gray-400 leading-none">powered by Attenda</span>
         </div>
         <button onClick={() => handleClick('message')} className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: BURGUNDY }}>
-            <User size={18} className="text-white" strokeWidth={1.5} />
+          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: BURGUNDY }}>
+            <User size={20} className="text-white" strokeWidth={1.5} />
           </div>
-          <span className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>MESSAGE US</span>
+          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>MESSAGE US</span>
         </button>
       </div>
 
@@ -200,6 +233,12 @@ function HotelGuestApp({
           setModalOpen(false);
           if (pendingTarget) setOpenSheet(pendingTarget as SheetName);
         }}
+      />
+
+      {/* Validation Success Modal - shown when staff confirms guest */}
+      <ValidationSuccessModal
+        open={showValidationSuccess}
+        onClose={() => setShowValidationSuccess(false)}
       />
 
       {/* ── Guest Sheets (slide-up overlays) ── */}
@@ -1071,6 +1110,33 @@ function EnrollForm() {
         )}
       </button>
       <p className="text-[11px] text-gray-500 text-center">We reply within 1 business day. No spam, ever.</p>
+    </div>
+  );
+}
+
+/* ── Validation Success Modal ────────────────────────────── */
+function ValidationSuccessModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white rounded-[20px] w-full max-w-[340px] shadow-2xl p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+          <CheckCircle size={32} className="text-emerald-600" />
+        </div>
+        <h3 className="text-[20px] font-bold text-gray-900 mb-2">Validation Confirmed!</h3>
+        <p className="text-[14px] text-gray-500 mb-4">
+          Your information has been verified. You now have full access to all features including transport booking and ordering.
+        </p>
+        <button
+          onClick={onClose}
+          className="w-full py-3.5 rounded-[14px] text-white font-bold text-[15px] active:scale-[0.98] shadow-sm"
+          style={{ backgroundColor: '#6B1D3C' }}
+        >
+          Continue
+        </button>
+      </div>
     </div>
   );
 }

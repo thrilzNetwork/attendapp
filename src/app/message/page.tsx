@@ -164,15 +164,14 @@ export default function MessagePage() {
     }, 600);
   };
 
-  const quickReplies = [
-    'WiFi Password',
-    'Pool Hours',
-    'Breakfast Time',
-    'Request Towels',
-    'Book Transport',
-    'Late Check-out',
-    'Housekeeping',
-    'Wake-Up Call',
+  const quickReplies: { label: string; action?: { type: string; details: string } }[] = [
+    { label: 'WiFi Password' },
+    { label: 'Pool Hours' },
+    { label: 'Breakfast Time' },
+    { label: 'Request Towels',  action: { type: 'Amenity Request',    details: 'Towel Service'   } },
+    { label: 'Late Check-out',  action: { type: 'Front Desk Request', details: 'Late Checkout'   } },
+    { label: 'Housekeeping',    action: { type: 'Housekeeping',       details: 'Cleaning Service'} },
+    { label: 'Wake-Up Call',    action: { type: 'Front Desk Request', details: 'Wake-Up Call'    } },
   ];
 
   return (
@@ -240,11 +239,25 @@ export default function MessagePage() {
             <div className="shrink-0 px-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
               {quickReplies.map((q) => (
                 <button
-                  key={q}
-                  onClick={() => { setText(q); }}
+                  key={q.label}
+                  onClick={async () => {
+                    if (q.action) {
+                      // Service requests: create immediately, skip the confirm step
+                      setMessages(prev => [
+                        ...prev,
+                        { from: 'guest', text: q.label },
+                        { from: 'bot', text: `✅ "${q.action!.details}" request sent to our team! We'll take care of it shortly.` },
+                      ]);
+                      await createRequest(q.action.type, q.action.details);
+                    } else if (q.label === 'Book Transport') {
+                      window.location.href = '/transport';
+                    } else {
+                      setText(q.label);
+                    }
+                  }}
                   className="shrink-0 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-[11px] text-gray-600 font-medium active:scale-95"
                 >
-                  {q}
+                  {q.label}
                 </button>
               ))}
             </div>
