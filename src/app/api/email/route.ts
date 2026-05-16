@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = 'Attenda <noreply@attendaapp.com>';
 const SUPER_BCC = 'thrilznetwork@gmail.com';
+
+// Lazy-load Resend to avoid build-time errors when env var is not set
+const getResend = () => {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is not configured');
+  }
+  return new Resend(apiKey);
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,7 +20,7 @@ export async function POST(req: NextRequest) {
     if (type === 'tenant_onboarding') {
       const { hotelName, slug, adminEmail, guestUrl, adminUrl } = data;
       if (!adminEmail) return NextResponse.json({ ok: true });
-      await resend.emails.send({
+      await getResend().emails.send({
         from: FROM,
         to: adminEmail,
         bcc: [SUPER_BCC],
@@ -44,7 +52,7 @@ export async function POST(req: NextRequest) {
     if (type === 'new_request') {
       const { notificationEmail, hotelName, guestName, room, requestType, details } = data;
       if (!notificationEmail) return NextResponse.json({ ok: true });
-      await resend.emails.send({
+      await getResend().emails.send({
         from: FROM,
         to: notificationEmail,
         bcc: [SUPER_BCC],
@@ -72,7 +80,7 @@ export async function POST(req: NextRequest) {
     if (type === 'assignment') {
       const { notificationEmail, hotelName, guestName, room, requestType, staffName } = data;
       if (!notificationEmail) return NextResponse.json({ ok: true });
-      await resend.emails.send({
+      await getResend().emails.send({
         from: FROM,
         to: notificationEmail,
         bcc: [SUPER_BCC],
@@ -104,7 +112,7 @@ export async function POST(req: NextRequest) {
       const itemRows = (items as { name: string; qty: number; price: number }[])
         .map(i => `<tr><td style="padding:6px 0;font-size:13px;color:#333">${i.qty}x ${i.name}</td><td style="padding:6px 0;font-size:13px;color:#333;text-align:right">$${(i.qty * i.price).toFixed(2)}</td></tr>`)
         .join('');
-      await resend.emails.send({
+      await getResend().emails.send({
         from: FROM,
         to: recipients,
         bcc: [SUPER_BCC],
@@ -134,7 +142,7 @@ export async function POST(req: NextRequest) {
     if (type === 'guest_message') {
       const { notificationEmail, hotelName, guestName, room, message } = data;
       if (!notificationEmail) return NextResponse.json({ ok: true });
-      await resend.emails.send({
+      await getResend().emails.send({
         from: FROM,
         to: notificationEmail,
         bcc: [SUPER_BCC],
@@ -159,7 +167,7 @@ export async function POST(req: NextRequest) {
       const { notificationEmail, hotelName, guestName, room, checkout, hotelSlug } = data;
       const staffDashUrl = `https://attendaapp.com/staff?hotel=${hotelSlug}`;
       if (notificationEmail) {
-        await resend.emails.send({
+        await getResend().emails.send({
           from: FROM,
           to: notificationEmail,
           bcc: [SUPER_BCC],
@@ -187,7 +195,7 @@ export async function POST(req: NextRequest) {
       const { staffEmail, staffName, staffRole, hotelName, hotelSlug, pin } = data;
       if (!staffEmail) return NextResponse.json({ ok: true });
       const dashUrl = `https://attendaapp.com/staff?hotel=${hotelSlug}`;
-      await resend.emails.send({
+      await getResend().emails.send({
         from: FROM,
         to: staffEmail,
         bcc: [SUPER_BCC],
@@ -219,7 +227,7 @@ export async function POST(req: NextRequest) {
       const { contactName, contactEmail, contactPhone, propertyName, propertyType, rooms, city, message } = data;
 
       // Notify admin
-      await resend.emails.send({
+      await getResend().emails.send({
         from: FROM,
         to: SUPER_BCC,
         subject: `New Enrollment Inquiry: ${propertyName}`,
@@ -252,7 +260,7 @@ export async function POST(req: NextRequest) {
 
       // Confirmation to the requester
       if (contactEmail) {
-        await resend.emails.send({
+        await getResend().emails.send({
           from: FROM,
           to: contactEmail,
           subject: `We got your request — ${propertyName}`,
