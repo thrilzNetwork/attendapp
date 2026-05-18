@@ -142,66 +142,60 @@ function HotelGuestApp({
   const closeSheet = () => setOpenSheet(null);
 
   return (
-    <div className="h-dvh w-full flex flex-col bg-[#F5F5F5]">
-      {/* Header */}
-      <div className="shrink-0 px-5 pt-5 pb-2">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h1 className="text-[34px] font-black text-black leading-none">Hello!</h1>
-              {guest && (
-                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full ${isValidated ? 'bg-emerald-100' : 'bg-amber-100'}`}>
-                  <div className={`w-2 h-2 rounded-full ${isValidated ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  <span className={`text-[11px] font-bold ${isValidated ? 'text-emerald-700' : 'text-amber-700'}`}>
-                    {isValidated ? 'Validated' : 'Pending Validation'}
-                  </span>
-                </div>
-              )}
-            </div>
-            <p className="text-[15px] text-gray-400 mt-1 font-normal">What do you need today?</p>
+    <div className="h-dvh w-full overflow-hidden flex flex-col px-5 pt-5 pb-4 gap-2">
+      <div className="shrink-0 flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-[34px] font-black text-black leading-none">Hello!</h1>
+            {guest && (
+              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full ${isValidated ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+                <div className={`w-2 h-2 rounded-full ${isValidated ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                <span className={`text-[11px] font-bold ${isValidated ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {isValidated ? 'Validated' : 'Pending Validation'}
+                </span>
+              </div>
+            )}
           </div>
-          <button
-            onClick={() => handleClick('safety')}
-            className="w-10 h-10 rounded-full border border-gray-200 bg-white flex items-center justify-center shadow-sm active:scale-95"
-          >
-            <Phone size={18} className="text-[#6B1D3C]" strokeWidth={1.5} />
-          </button>
+          <p className="text-[15px] text-gray-400 mt-1 font-normal">What do you need today?</p>
         </div>
+        <button
+          onClick={() => handleClick('safety')}
+          className="w-10 h-10 rounded-full border border-gray-200 bg-white flex items-center justify-center shadow-sm active:scale-95"
+        >
+          <Phone size={18} className="text-[#6B1D3C]" strokeWidth={1.5} />
+        </button>
       </div>
 
-      {/* Scrollable content area */}
-      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-3 min-h-0">
-        {/* 2x2 Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => handleClick('welcome')}
-            className="aspect-square rounded-2xl flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform shadow-sm py-4"
-            style={{ backgroundColor: BURGUNDY }}>
-            <MapPin size={32} className="text-white" strokeWidth={1.5} />
-            <span className="text-[13px] font-bold text-white tracking-[0.12em] uppercase">WELCOME</span>
-          </button>
-          <button onClick={() => handleClick('transport', true)}
-            className="aspect-square rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform shadow-sm py-4"
-          >
-            <Bus size={32} className="text-[#6B1D3C]" strokeWidth={1.5} />
-            <span className="text-[13px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>TRANSPORT</span>
-          </button>
-          <button onClick={() => handleClick('facilities')}
-            className="aspect-square rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform shadow-sm py-4"
-          >
-            <Bell size={32} className="text-[#6B1D3C]" strokeWidth={1.5} />
-            <span className="text-[13px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>FACILITIES</span>
-          </button>
-          <button onClick={() => handleClick('safety')}
-            className="aspect-square rounded-2xl flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform shadow-sm py-4"
-            style={{ backgroundColor: BURGUNDY }}>
-            <ShieldCheck size={32} className="text-white" strokeWidth={1.5} />
-            <span className="text-[13px] font-bold text-white tracking-[0.12em] uppercase">SAFETY</span>
-          </button>
-        </div>
+      <div className="flex-1 min-h-0 grid grid-cols-2 gap-3">
+        <button onClick={() => handleClick('welcome')}
+          className="h-full rounded-2xl flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform shadow-sm py-4"
+          style={{ backgroundColor: BURGUNDY }}>
+          <MapPin size={32} className="text-white" strokeWidth={1.5} />
+          <span className="text-[13px] font-bold text-white tracking-[0.12em] uppercase">WELCOME</span>
+        </button>
+        <button onClick={() => handleClick('transport', true)}
+          className="h-full rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform shadow-sm py-4"
+        >
+          <Bus size={32} className="text-[#6B1D3C]" strokeWidth={1.5} />
+          <span className="text-[13px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>TRANSPORT</span>
+        </button>
+        <button onClick={() => handleClick('facilities')}
+          className="h-full rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform shadow-sm py-4"
+        >
+          <Bell size={32} className="text-[#6B1D3C]" strokeWidth={1.5} />
+          <span className="text-[13px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>FACILITIES</span>
+        </button>
+        <button onClick={() => handleClick('safety')}
+          className="h-full rounded-2xl flex flex-col items-center justify-center gap-3 active:scale-[0.97] transition-transform shadow-sm py-4"
+          style={{ backgroundColor: BURGUNDY }}>
+          <ShieldCheck size={32} className="text-white" strokeWidth={1.5} />
+          <span className="text-[13px] font-bold text-white tracking-[0.12em] uppercase">SAFETY</span>
+        </button>
+      </div>
 
-        {/* Restaurants Banner */}
-        <button onClick={() => (window.location.href = '/nearby?tab=restaurants')} className="w-full block">
-          <div className="relative w-full aspect-[4/1] rounded-2xl overflow-hidden shadow-sm">
+      <div className="h-[17%] min-h-[110px] shrink-0">
+        <button onClick={() => (window.location.href = '/nearby?tab=restaurants')} className="w-full h-full block">
+          <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-sm">
             <Image src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&fit=crop&q=80"
               alt="Restaurants" fill className="object-cover" sizes="100vw" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
@@ -210,41 +204,39 @@ function HotelGuestApp({
             </div>
           </div>
         </button>
+      </div>
 
-        {/* Rewards + Nearby/Review Row */}
-        <div className="flex gap-3">
-          <a href="https://www.bestwestern.com/rewards/join.html" target="_blank" rel="noopener noreferrer"
-            className="w-[38%] aspect-[3/4] rounded-2xl overflow-hidden shadow-sm active:scale-[0.97] block relative">
-            <Image src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&fit=crop&q=80"
-              alt="Rewards" fill className="object-cover" sizes="38vw" />
-          </a>
-          <div className="flex-1 flex flex-col gap-3">
-            <button onClick={() => (window.location.href = '/nearby?tab=attractions')}
-              className="flex-1 rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-2 active:scale-[0.97] shadow-sm py-2">
-              <MapPin size={22} className="text-[#6B1D3C]" strokeWidth={1.5} />
-              <span className="text-[12px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>NEARBY</span>
-            </button>
-            <button onClick={() => handleClick('review')}
-              className="flex-1 rounded-2xl flex items-center justify-center active:scale-[0.97] shadow-sm py-2"
-              style={{ backgroundColor: BURGUNDY }}>
-              <span className="text-[12px] font-bold text-white tracking-[0.12em] uppercase">LEAVE A REVIEW</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Footer — powered by + Message */}
-        <div className="flex items-end justify-between pt-1 pb-2">
-          <div className="flex items-center gap-2">
-            <Globe size={14} className="text-gray-400" />
-            <span className="text-[11px] text-gray-400 leading-none">powered by Attenda</span>
-          </div>
-          <button onClick={() => handleClick('message')} className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: BURGUNDY }}>
-              <User size={20} className="text-white" strokeWidth={1.5} />
-            </div>
-            <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>MESSAGE US</span>
+      <div className="flex-1 min-h-0 flex gap-3">
+        <a href="https://www.bestwestern.com/rewards/join.html" target="_blank" rel="noopener noreferrer"
+          className="w-[38%] h-full rounded-2xl overflow-hidden shadow-sm active:scale-[0.97] block relative">
+          <Image src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&fit=crop&q=80"
+            alt="Rewards" fill className="object-cover" sizes="38vw" />
+        </a>
+        <div className="flex-1 h-full flex flex-col gap-3">
+          <button onClick={() => (window.location.href = '/nearby?tab=attractions')}
+            className="flex-1 rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-2 active:scale-[0.97] shadow-sm py-2">
+            <MapPin size={22} className="text-[#6B1D3C]" strokeWidth={1.5} />
+            <span className="text-[12px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>NEARBY</span>
+          </button>
+          <button onClick={() => handleClick('review')}
+            className="flex-1 rounded-2xl flex items-center justify-center active:scale-[0.97] shadow-sm py-2"
+            style={{ backgroundColor: BURGUNDY }}>
+            <span className="text-[12px] font-bold text-white tracking-[0.12em] uppercase">LEAVE A REVIEW</span>
           </button>
         </div>
+      </div>
+
+      <div className="shrink-0 flex items-end justify-between pt-2">
+        <div className="flex items-center gap-2">
+          <Globe size={14} className="text-gray-400" />
+          <span className="text-[11px] text-gray-400 leading-none">powered by Attenda</span>
+        </div>
+        <button onClick={() => handleClick('message')} className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: BURGUNDY }}>
+            <User size={20} className="text-white" strokeWidth={1.5} />
+          </div>
+          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>MESSAGE US</span>
+        </button>
       </div>
 
       <GuestAuthModal
