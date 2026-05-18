@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { getHotelConfig, HotelConfig } from '@/lib/guest-context';
+import { getHotelConfig, HotelConfig, goBackToHotel } from '@/lib/guest-context';
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function WelcomePage() {
     <div className="min-h-screen bg-[#F5F5F5]">
       <div className="fixed top-0 left-0 right-0 z-10 bg-white/80 backdrop-blur-xl">
         <div className="flex items-center justify-between px-6 h-[52px] border-b border-gray-100">
-          <button onClick={() => router.push('/')} className="p-2 rounded-full hover:bg-gray-100 active:scale-95">
+          <button onClick={() => goBackToHotel(router)} className="p-2 rounded-full hover:bg-gray-100 active:scale-95">
             <ArrowLeft size={20} className="text-[#3A1A2D]" />
           </button>
           <span className="text-[15px] font-bold text-black">Welcome</span>

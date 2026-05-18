@@ -221,6 +221,16 @@ export function useGuest() {
   return ctx;
 }
 
+// Back navigation helper — preserves hotel tenant context
+export function goBackToHotel(router: ReturnType<typeof import('next/navigation').useRouter>) {
+  const slug = localStorage.getItem('attenda_hotel_slug');
+  if (slug) {
+    router.push(`/?hotel=${encodeURIComponent(slug)}`);
+  } else {
+    router.push('/');
+  }
+}
+
 // Staff-only helpers
 export async function getAllRequests(): Promise<RequestItem[]> {
   const data = await getAllRequestsSupabase();

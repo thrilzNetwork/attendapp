@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase, getHotelConfig } from '@/lib/supabase';
+import { goBackToHotel } from '@/lib/guest-context';
 
 type Message = {
   from: 'guest' | 'bot';
@@ -178,7 +179,7 @@ export default function MessagePage() {
     <div className="h-dvh w-full bg-[#F4F4F5] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="shrink-0 px-5 pt-6 pb-3 flex items-center gap-3 bg-white border-b border-gray-100">
-        <button onClick={() => router.push('/')} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center active:scale-95">
+        <button onClick={() => goBackToHotel(router)} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center active:scale-95">
           <ArrowLeft size={18} className="text-gray-600" />
         </button>
         <div className="flex-1">

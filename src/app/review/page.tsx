@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Star, CheckCircle, ExternalLink } from 'lucide-react';
 import { getHotelConfig } from '@/lib/supabase';
+import { goBackToHotel } from '@/lib/guest-context';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export default function ReviewPage() {
   return (
     <div className="h-dvh w-full bg-[#F4F4F5] flex flex-col overflow-hidden">
       <div className="shrink-0 px-5 pt-6 pb-3 flex items-center gap-3 bg-white">
-        <button onClick={()=>router.push('/')} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center active:scale-95"><ArrowLeft size={18} className="text-gray-600" /></button>
+        <button onClick={() => goBackToHotel(router)} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center active:scale-95"><ArrowLeft size={18} className="text-gray-600" /></button>
         <h1 className="text-lg font-bold text-black">Leave a Review</h1>
       </div>
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Send, Plane, Bus, UserCheck, X } from 'lucide-react';
 import { getHotelConfig, HotelConfig, getAllShuttleSlotsForHotel, bookShuttleSlot, createShuttleRequest, getShuttleRoutes, getCruiseSchedules, ShuttleSlot, ShuttleRoute, CruiseSchedule } from '@/lib/supabase';
+import { goBackToHotel } from '@/lib/guest-context';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -20,7 +21,7 @@ export default function TransportPage() {
   return (
     <div className="h-dvh w-full bg-[#F4F4F5] flex flex-col overflow-hidden">
       <div className="shrink-0 px-5 pt-6 pb-3 flex items-center gap-3 bg-white">
-        <button onClick={() => router.push('/')} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center active:scale-95">
+        <button onClick={() => goBackToHotel(router)} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center active:scale-95">
           <ArrowLeft size={18} className="text-gray-600" />
         </button>
         <h1 className="text-lg font-bold text-black">Transport</h1>
