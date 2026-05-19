@@ -212,7 +212,7 @@ export default function NearbyPage() {
   return (
     <Suspense fallback={
       <div className="h-dvh w-full flex items-center justify-center">
-        <div className="w-7 h-7 border-2 border-gray-300 rounded-full animate-spin" style={{ borderTopColor: brandColor }} />
+        <div className="w-7 h-7 border-2 border-gray-300 rounded-full animate-spin" />
       </div>
     }>
       <NearbyContent />
