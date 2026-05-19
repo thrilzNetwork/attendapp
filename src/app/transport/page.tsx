@@ -11,11 +11,19 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export default function TransportPage() {
   const router = useRouter();
   const [view, setView] = useState<'request' | 'schedule'>('request');
+  const [brandColor, setBrandColor] = useState('#6B1D3C');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const hotel = params.get('hotel');
     if (hotel) localStorage.setItem('attenda_hotel_slug', hotel);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const cfg = await getHotelConfig();
+      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
+    })();
   }, []);
 
   return (
@@ -34,20 +42,20 @@ export default function TransportPage() {
             <button
               onClick={() => setView('request')}
               className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${view === 'request' ? 'text-white' : 'text-gray-500'}`}
-              style={view === 'request' ? { backgroundColor: '#6B1D3C' } : undefined}
+              style={view === 'request' ? { backgroundColor: brandColor } : undefined}
             >
               Request Pickup
             </button>
             <button
               onClick={() => setView('schedule')}
               className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${view === 'schedule' ? 'text-white' : 'text-gray-500'}`}
-              style={view === 'schedule' ? { backgroundColor: '#6B1D3C' } : undefined}
+              style={view === 'schedule' ? { backgroundColor: brandColor } : undefined}
             >
               Airport & Cruise Shuttle
             </button>
           </div>
 
-          {view === 'schedule' ? <ShuttleScheduleView /> : <OnDemandRequest />}
+          {view === 'schedule' ? <ShuttleScheduleView brandColor={brandColor} /> : <OnDemandRequest brandColor={brandColor} />}
         </div>
       </div>
     </div>
@@ -55,7 +63,7 @@ export default function TransportPage() {
 }
 
 /* ── Shuttle Schedule (Airport + Cruise Port) ───────────── */
-function ShuttleScheduleView() {
+function ShuttleScheduleView({ brandColor }: { brandColor: string }) {
   const [hotel, setHotel] = useState<HotelConfig | null>(null);
   const [slots, setSlots] = useState<ShuttleSlot[]>([]);
   const [cruises, setCruises] = useState<CruiseSchedule[]>([]);
@@ -114,7 +122,7 @@ function ShuttleScheduleView() {
   if (loading) {
     return (
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
-        <div className="w-6 h-6 border-2 border-[#6B1D3C] border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mx-auto" style={{ borderLeftColor: brandColor, borderRightColor: brandColor, borderBottomColor: brandColor }} />
       </div>
     );
   }
@@ -136,12 +144,12 @@ function ShuttleScheduleView() {
         <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-100 flex">
           <button onClick={() => setActiveTab('cruise')}
             className={`flex-1 py-2 rounded-xl text-[12px] font-bold transition-colors ${activeTab === 'cruise' ? 'text-white' : 'text-gray-500'}`}
-            style={activeTab === 'cruise' ? { backgroundColor: '#6B1D3C' } : undefined}>
+            style={activeTab === 'cruise' ? { backgroundColor: brandColor } : undefined}>
             🚢 Cruise Schedule
           </button>
           <button onClick={() => setActiveTab('shuttle')}
             className={`flex-1 py-2 rounded-xl text-[12px] font-bold transition-colors ${activeTab === 'shuttle' ? 'text-white' : 'text-gray-500'}`}
-            style={activeTab === 'shuttle' ? { backgroundColor: '#6B1D3C' } : undefined}>
+            style={activeTab === 'shuttle' ? { backgroundColor: brandColor } : undefined}>
             ✈️ Shuttle Times
           </button>
         </div>
@@ -170,13 +178,13 @@ function ShuttleScheduleView() {
                     <p className="text-[13px] text-gray-600 mt-0.5">
                       {new Date(c.departure_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                     </p>
-                    <p className="text-[13px] font-semibold text-[#6B1D3C]">Departs at {c.departure_time.slice(0, 5)}</p>
+                    <p className="text-[13px] font-semibold" style={{ color: brandColor }}>Departs at {c.departure_time.slice(0, 5)}</p>
                     {c.notes && <p className="text-[11px] text-gray-400 mt-1">{c.notes}</p>}
                   </div>
                   <button
                     onClick={() => setActiveTab('shuttle')}
                     className="shrink-0 px-3 py-2 rounded-xl text-[11px] font-bold text-white active:scale-95"
-                    style={{ backgroundColor: '#6B1D3C' }}>
+                    style={{ backgroundColor: brandColor }}>
                     Book Shuttle
                   </button>
                 </div>
@@ -190,7 +198,7 @@ function ShuttleScheduleView() {
       {activeTab === 'shuttle' && Object.entries(byRoute).map(([routeName, routeSlots]) => (
         <div key={routeName} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-            <Bus size={16} className="text-[#6B1D3C]" />
+            <Bus size={16} style={{ color: brandColor }} />
             <h3 className="font-extrabold text-[15px] text-gray-900">{routeName}</h3>
           </div>
           <div className="divide-y divide-gray-50">
@@ -223,13 +231,13 @@ function ShuttleScheduleView() {
                   ) : bookingForm.show && bookingForm.slot_id === slot.id ? (
                     <div className="flex items-center gap-2">
                       <button onClick={() => setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false })} className="text-gray-400"><X size={16} /></button>
-                      <button onClick={handleBook} className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white disabled:opacity-40" style={{ backgroundColor: '#6B1D3C' }} disabled={(() => { const pricePer = slot.override_price ?? slot.route_price ?? 0; return pricePer > 0 && !bookingForm.charge_accepted; })()}>Confirm</button>
+                      <button onClick={handleBook} className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white disabled:opacity-40" style={{ backgroundColor: brandColor }} disabled={(() => { const pricePer = slot.override_price ?? slot.route_price ?? 0; return pricePer > 0 && !bookingForm.charge_accepted; })()}>Confirm</button>
                     </div>
                   ) : (
                     <button
                       onClick={() => setBookingForm({ slot_id: slot.id, show: true, name: '', room: '', pax: 1, notes: '', charge_accepted: false })}
                       className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white active:scale-95"
-                      style={{ backgroundColor: '#6B1D3C' }}
+                      style={{ backgroundColor: brandColor }}
                     >
                       Sign Up
                     </button>
@@ -281,7 +289,7 @@ function ShuttleScheduleView() {
                 <p className="text-[11px] text-amber-700">This amount will be added to your final bill at checkout.</p>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={bookingForm.charge_accepted} onChange={e => setBookingForm({ ...bookingForm, charge_accepted: e.target.checked })}
-                    className="w-4 h-4 rounded accent-[#6B1D3C]" />
+                    className="w-4 h-4 rounded" style={{ accentColor: brandColor }} />
                   <span className="text-[12px] font-semibold text-amber-900">I accept this charge to my final bill</span>
                 </label>
               </div>
@@ -300,7 +308,7 @@ function ShuttleScheduleView() {
 }
 
 /* ── On-Demand Pickup Request ───────────────────────────── */
-function OnDemandRequest() {
+function OnDemandRequest({ brandColor }: { brandColor: string }) {
   const [direction, setDirection] = useState<'arrival' | 'departure'>('departure');
   const [form, setForm] = useState({ guestName: '', room: '', date: '', time: '', airline: '', flight: '', destination: '', pax: 1, notes: '' });
   const [routes, setRoutes] = useState<ShuttleRoute[]>([]);
@@ -351,7 +359,7 @@ function OnDemandRequest() {
         </div>
         <h2 className="text-lg font-bold text-black mb-1">Request Sent!</h2>
         <p className="text-[13px] text-gray-500">Our team will confirm your transport shortly.</p>
-        <button onClick={() => setSent(false)} className="mt-4 text-[13px] font-semibold text-[#6B1D3C]">New Request</button>
+        <button onClick={() => setSent(false)} className="mt-4 text-[13px] font-semibold" style={{ color: brandColor }}>New Request</button>
       </div>
     );
   }
@@ -363,14 +371,14 @@ function OnDemandRequest() {
         <button
           onClick={() => setDirection('arrival')}
           className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors flex items-center justify-center gap-1.5 ${direction === 'arrival' ? 'text-white' : 'text-gray-500 bg-gray-50'}`}
-          style={direction === 'arrival' ? { backgroundColor: '#6B1D3C' } : undefined}
+          style={direction === 'arrival' ? { backgroundColor: brandColor } : undefined}
         >
           <Plane size={14} /> Arrival
         </button>
         <button
           onClick={() => setDirection('departure')}
           className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors flex items-center justify-center gap-1.5 ${direction === 'departure' ? 'text-white' : 'text-gray-500 bg-gray-50'}`}
-          style={direction === 'departure' ? { backgroundColor: '#6B1D3C' } : undefined}
+          style={direction === 'departure' ? { backgroundColor: brandColor } : undefined}
         >
           Departure <Plane size={14} />
         </button>
@@ -435,7 +443,7 @@ function OnDemandRequest() {
         onClick={handleSubmit}
         disabled={submitting}
         className="w-full py-3.5 rounded-xl text-white font-bold text-[14px] active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 disabled:opacity-60"
-        style={{ backgroundColor: '#6B1D3C' }}
+        style={{ backgroundColor: brandColor }}
       >
         {submitting ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Submitting…</> : 'Submit Request'}
       </button>

@@ -24,7 +24,15 @@ export default function MessagePage() {
   ]);
   const [guestName, setGuestName] = useState('Guest');
   const [guestRoom, setGuestRoom] = useState('?');
+  const [brandColor, setBrandColor] = useState('#6B1D3C');
+  const [isFocused, setIsFocused] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    getHotelConfig().then((config) => {
+      if (config?.brandColor) setBrandColor(config.brandColor);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem('guestSession');
@@ -195,7 +203,7 @@ export default function MessagePage() {
           </div>
           <h2 className="text-lg font-bold text-black mb-1">Message Sent!</h2>
           <p className="text-[13px] text-gray-500 text-center">Our team will respond shortly.</p>
-          <button onClick={() => { setSent(false); setMessages([{ from: 'bot', text: 'Hello! How can I assist you today?' }]); }} className="mt-5 text-[13px] font-semibold text-[#6B1D3C]">New Message</button>
+          <button onClick={() => { setSent(false); setMessages([{ from: 'bot', text: 'Hello! How can I assist you today?' }]); }} className="mt-5 text-[13px] font-semibold" style={{ color: brandColor }}>New Message</button>
         </div>
       ) : (
         <>
@@ -210,7 +218,7 @@ export default function MessagePage() {
                       <button
                         onClick={() => handleConfirm(m.confirmType!, m.confirmDetails!)}
                         className="flex-1 py-2.5 rounded-xl text-white text-[12px] font-bold active:scale-95"
-                        style={{ backgroundColor: '#6B1D3C' }}
+                        style={{ backgroundColor: brandColor }}
                       >
                         Yes, send request
                       </button>
@@ -225,9 +233,10 @@ export default function MessagePage() {
                 ) : (
                   <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed ${
                     m.from === 'guest'
-                      ? 'bg-[#6B1D3C] text-white rounded-br-md'
+                      ? 'text-white rounded-br-md'
                       : 'bg-white text-gray-800 border border-gray-100 rounded-bl-md'
-                  }`}>
+                  }`}
+                  style={m.from === 'guest' ? { backgroundColor: brandColor } : {}}>
                     {m.text}
                   </div>
                 )}
@@ -273,13 +282,16 @@ export default function MessagePage() {
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && send()}
                 placeholder="Type a message..."
-                className="flex-1 bg-gray-50 rounded-full px-4 py-3 text-[14px] text-gray-800 outline-none placeholder:text-gray-400 border border-gray-200 focus:border-[#6B1D3C]"
+                className="flex-1 bg-gray-50 rounded-full px-4 py-3 text-[14px] text-gray-800 outline-none placeholder:text-gray-400 border"
+                style={{ borderColor: isFocused ? brandColor : '#e5e7eb' }}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
               />
               <button
                 onClick={send}
                 disabled={!text.trim()}
                 className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 disabled:opacity-30"
-                style={{ backgroundColor: text.trim() ? '#6B1D3C' : '#e5e7eb' }}
+                style={{ backgroundColor: text.trim() ? brandColor : '#e5e7eb' }}
               >
                 <Send size={18} className="text-white" />
               </button>

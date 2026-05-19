@@ -13,6 +13,7 @@ function NearbyContent() {
   const tab = searchParams.get('tab') || 'attractions';
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [brandColor, setBrandColor] = useState('#6B1D3C');
 
   useEffect(() => {
     const load = async () => {
@@ -21,6 +22,7 @@ function NearbyContent() {
         const data = await getPartners(hotel.id);
         setPartners(data);
       }
+      if (hotel?.brandColor) setBrandColor(hotel.brandColor);
       setLoading(false);
     };
     load();
@@ -44,7 +46,7 @@ function NearbyContent() {
 
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <div className="w-7 h-7 border-2 border-gray-300 border-t-[#6B1D3C] rounded-full animate-spin" />
+              <div className="w-7 h-7 border-2 border-gray-300 rounded-full animate-spin" style={{ borderTopColor: brandColor }} />
             </div>
           ) : (
             <>
@@ -100,15 +102,15 @@ function NearbyContent() {
               {tab === 'attractions' && (
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                 <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-[#6B1D3C]/10 flex items-center justify-center shrink-0">
-                    <MapPin size={22} className="text-[#6B1D3C]" />
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${brandColor}10` }}>
+                    <MapPin size={22} style={{ color: brandColor }} />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-[14px] font-bold text-black">Need a ride?</h3>
                     <p className="text-[12px] text-gray-500 mt-0.5">Taxi, Uber, or Lyft available 24/7. Ask front desk to book.</p>
                     <div className="flex gap-2 mt-2">
                       <a href="tel:+13051234567" className="px-3 py-1.5 rounded-lg bg-gray-100 text-[11px] font-bold text-gray-700 active:scale-95">Call Taxi</a>
-                      <a href="https://m.uber.com" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg text-white text-[11px] font-bold active:scale-95" style={{ backgroundColor: '#6B1D3C' }}>Open Uber</a>
+                      <a href="https://m.uber.com" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg text-white text-[11px] font-bold active:scale-95" style={{ backgroundColor: brandColor }}>Open Uber</a>
                     </div>
                   </div>
                 </div>
@@ -129,7 +131,7 @@ function NearbyContent() {
                       <div className="p-4">
                         <div className="flex items-start justify-between mb-1">
                           <div>
-                            <p className="text-[10px] text-[#6B1D3C] font-bold uppercase tracking-wider capitalize">{a.category}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider capitalize" style={{ color: brandColor }}>{a.category}</p>
                             <h3 className="text-[15px] font-bold text-black">{a.name}</h3>
                           </div>
                           {a.rating > 0 && (
@@ -161,7 +163,7 @@ function NearbyContent() {
                           )}
                           {a.address && (
                             <a href={`https://www.google.com/maps/search/${encodeURIComponent(a.name + ' ' + a.address)}`} target="_blank" rel="noopener noreferrer"
-                              className="flex-1 py-2.5 rounded-xl text-white flex items-center justify-center gap-1.5 active:scale-95" style={{ backgroundColor: '#6B1D3C' }}>
+                              className="flex-1 py-2.5 rounded-xl text-white flex items-center justify-center gap-1.5 active:scale-95" style={{ backgroundColor: brandColor }}>
                               <MapPin size={14} />
                               <span className="text-[12px] font-bold">Directions</span>
                             </a>
@@ -210,7 +212,7 @@ export default function NearbyPage() {
   return (
     <Suspense fallback={
       <div className="h-dvh w-full flex items-center justify-center">
-        <div className="w-7 h-7 border-2 border-gray-300 border-t-[#6B1D3C] rounded-full animate-spin" />
+        <div className="w-7 h-7 border-2 border-gray-300 rounded-full animate-spin" style={{ borderTopColor: brandColor }} />
       </div>
     }>
       <NearbyContent />

@@ -1,10 +1,19 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import { getHotelConfig } from '@/lib/supabase';
 
 export default function PrivacyPage() {
   const router = useRouter();
+  const [brandColor, setBrandColor] = useState('#6B1D3C');
+
+  useEffect(() => {
+    getHotelConfig().then((config) => {
+      if (config?.brandColor) setBrandColor(config.brandColor);
+    }).catch(() => {});
+  }, []);
 
   return (
     <div className="h-dvh w-full bg-[#F4F4F5] flex flex-col overflow-hidden">
@@ -22,8 +31,9 @@ export default function PrivacyPage() {
         <div className="px-5 pt-4 pb-8 space-y-4">
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-[#6B1D3C]/10 flex items-center justify-center">
-                <ShieldCheck size={20} className="text-[#6B1D3C]" />
+              <div className="w-10 h-10 rounded-full flex items-center justify-center"
+                   style={{ backgroundColor: `${brandColor}1A` }}>
+                <ShieldCheck size={20} style={{ color: brandColor }} />
               </div>
               <div>
                 <p className="text-[15px] font-bold text-gray-800">Your Privacy Matters</p>

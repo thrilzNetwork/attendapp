@@ -17,6 +17,7 @@ function PartnerContent() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [ordering, setOrdering] = useState(false);
+  const [brandColor, setBrandColor] = useState('#6B1D3C');
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
@@ -26,6 +27,13 @@ function PartnerContent() {
       setLoading(false);
     });
   }, [id]);
+
+  useEffect(() => {
+    (async () => {
+      const cfg = await getHotelConfig();
+      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
+    })();
+  }, []);
 
   if (loading) return (
     <div className="h-screen flex items-center justify-center">
@@ -178,7 +186,7 @@ function PartnerContent() {
                 <Phone size={14} className="text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs text-gray-400 font-semibold uppercase">Phone</p>
-                  <a href={`tel:${partner.phone}`} className="text-sm text-[#6B1D3C] font-bold">{partner.phone}</a>
+                  <a href={`tel:${partner.phone}`} className="text-sm font-bold" style={{ color: brandColor }}>{partner.phone}</a>
                 </div>
               </div>
             )}
@@ -204,8 +212,8 @@ function PartnerContent() {
           {partner.has_ordering ? (
             <>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-[#6B1D3C]" />
-                <span className="text-xs font-bold text-[#6B1D3C] uppercase tracking-wider">In-Room Ordering · Powered by Attenda</span>
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: brandColor }} />
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: brandColor }}>In-Room Ordering · Powered by Attenda</span>
               </div>
 
               {menuItems.length > 0 && (
@@ -262,7 +270,7 @@ function PartnerContent() {
 
               <div className="flex gap-2 pt-2">
                 {partner.phone && (
-                  <a href={`tel:${partner.phone}`} className="flex-1 py-3 rounded-xl bg-[#6B1D3C] text-white flex items-center justify-center gap-2 active:scale-95">
+                  <a href={`tel:${partner.phone}`} className="flex-1 py-3 rounded-xl text-white flex items-center justify-center gap-2 active:scale-95" style={{ backgroundColor: brandColor }}>
                     <Phone size={16} />
                     <span className="text-sm font-bold">Call</span>
                   </a>

@@ -1668,18 +1668,20 @@ function GuestHomePreview({ color, hotelName }: { color: string; hotelName: stri
             </div>
           ))}
         </div>
-        {/* Restaurant banner */}
+        {/* Rewards banner */}
         <div className="mx-1.5 rounded-xl overflow-hidden" style={{ height: 44, backgroundColor: color, opacity: 0.15 }}>
           <div className="flex items-end h-full px-2 pb-1">
-            <span className="text-[6px] font-bold" style={{ color }}>RESTAURANTS</span>
+            <span className="text-[6px] font-bold" style={{ color }}>BEST WESTERN REWARDS</span>
           </div>
         </div>
         {/* Bottom row */}
         <div className="flex gap-1 p-1.5 mt-1" style={{ height: 70 }}>
-          <div className="w-[38%] rounded-xl" style={{ backgroundColor: color, opacity: 0.2 }} />
+          <div className="w-[38%] rounded-xl bg-white border border-gray-200 flex items-center justify-center">
+            <span className="text-[5px] font-bold" style={{ color }}>NEARBY</span>
+          </div>
           <div className="flex-1 flex flex-col gap-1">
-            <div className="flex-1 rounded-xl bg-white border border-gray-200 flex items-center justify-center">
-              <span className="text-[5px] font-bold" style={{ color }}>NEARBY</span>
+            <div className="flex-1 rounded-xl flex items-center justify-center" style={{ backgroundColor: color }}>
+              <span className="text-[5px] font-bold text-white">FOOD</span>
             </div>
             <div className="flex-1 rounded-xl bg-white border border-gray-200 flex items-center justify-center">
               <span className="text-[5px] font-bold" style={{ color }}>REVIEW</span>

@@ -16,6 +16,7 @@ import {
   SafetySheetContent, WelcomeSheetContent, ReviewSheetContent,
 } from '@/components/GuestSheets';
 import { useGuest } from '@/lib/guest-context';
+import { getHotelConfig } from '@/lib/supabase';
 
 /* ──────────────────────────────────────────────────────────── */
 /*  Root — detects hotel context and switches view             */
@@ -29,6 +30,7 @@ export default function Home() {
   const [pendingTarget, setPendingTarget] = useState<SheetName | ''>('');
   const [openSheet, setOpenSheet] = useState<SheetName | null>(null);
   const [showValidationSuccess, setShowValidationSuccess] = useState(false);
+  const [brandColor, setBrandColor] = useState('#6B1D3C');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -36,6 +38,11 @@ export default function Home() {
     const room = params.get('room');
     if (hotel) localStorage.setItem('attenda_hotel_slug', hotel);
     if (room) localStorage.setItem('attenda_qr_room', room);
+
+    // Load brand color from hotel config
+    getHotelConfig().then(cfg => {
+      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
+    });
 
     // Show hotel guest app when:
     //   1. ?hotel= is in the URL (first scan or admin preview)
@@ -63,6 +70,7 @@ export default function Home() {
   if (isHotelView) {
     return (
       <HotelGuestApp
+        brandColor={brandColor}
         modalOpen={modalOpen}
         pendingTarget={pendingTarget}
         setModalOpen={setModalOpen}
@@ -79,15 +87,14 @@ export default function Home() {
 }
 
 /* ──────────────────────────────────────────────────────────── */
-/*  Hotel Guest App (unchanged)                                */
+/*  Hotel Guest App                                             */
 /* ──────────────────────────────────────────────────────────── */
 
-const BURGUNDY = '#6B1D3C';
-
 function HotelGuestApp({
-  modalOpen, pendingTarget, setModalOpen, setPendingTarget, openSheet, setOpenSheet,
+  brandColor, modalOpen, pendingTarget, setModalOpen, setPendingTarget, openSheet, setOpenSheet,
   showValidationSuccess, setShowValidationSuccess,
 }: {
+  brandColor: string;
   modalOpen: boolean;
   pendingTarget: SheetName | '';
   setModalOpen: (v: boolean) => void;
@@ -163,7 +170,7 @@ function HotelGuestApp({
           onClick={() => handleClick('safety')}
           className="w-10 h-10 rounded-full border border-gray-200 bg-white flex items-center justify-center shadow-sm active:scale-95 shrink-0"
         >
-          <Phone size={18} className="text-[#6B1D3C]" strokeWidth={1.5} />
+          <Phone size={18} style={{ color: brandColor }} strokeWidth={1.5} />
         </button>
       </div>
 
@@ -171,25 +178,25 @@ function HotelGuestApp({
       <div className="grid grid-cols-2 gap-3 min-h-0">
         <button onClick={() => handleClick('welcome')}
           className="rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-sm"
-          style={{ backgroundColor: BURGUNDY }}>
+          style={{ backgroundColor: brandColor }}>
           <MapPin size={28} className="text-white" strokeWidth={1.5} />
           <span className="text-[11px] font-bold text-white tracking-[0.12em] uppercase">WELCOME</span>
         </button>
         <button onClick={() => handleClick('transport', true)}
           className="rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-sm"
         >
-          <Bus size={28} className="text-[#6B1D3C]" strokeWidth={1.5} />
-          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>TRANSPORT</span>
+          <Bus size={28} className="" strokeWidth={1.5} style={{ color: brandColor }} />
+          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: brandColor }}>TRANSPORT</span>
         </button>
         <button onClick={() => handleClick('facilities')}
           className="rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-sm"
         >
-          <Bell size={28} className="text-[#6B1D3C]" strokeWidth={1.5} />
-          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>FACILITIES</span>
+          <Bell size={28} className="" strokeWidth={1.5} style={{ color: brandColor }} />
+          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: brandColor }}>FACILITIES</span>
         </button>
         <button onClick={() => handleClick('safety')}
           className="rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-sm"
-          style={{ backgroundColor: BURGUNDY }}>
+          style={{ backgroundColor: brandColor }}>
           <ShieldCheck size={28} className="text-white" strokeWidth={1.5} />
           <span className="text-[11px] font-bold text-white tracking-[0.12em] uppercase">SAFETY</span>
         </button>
@@ -212,19 +219,19 @@ function HotelGuestApp({
       <div className="flex gap-3 min-h-0">
         <button onClick={() => (window.location.href = '/nearby?tab=attractions')}
           className="w-[38%] h-full rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-1 active:scale-[0.97] shadow-sm">
-          <MapPin size={24} className="text-[#6B1D3C]" strokeWidth={1.5} />
-          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>NEARBY</span>
+          <MapPin size={24} className="" strokeWidth={1.5} style={{ color: brandColor }} />
+          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: brandColor }}>NEARBY</span>
         </button>
         <div className="flex-1 h-full flex flex-col gap-3">
           <button onClick={() => (window.location.href = '/nearby?tab=restaurants')}
             className="flex-1 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.97] shadow-sm"
-            style={{ backgroundColor: BURGUNDY }}>
+            style={{ backgroundColor: brandColor }}>
             <Utensils size={20} className="text-white" strokeWidth={1.5} />
             <span className="text-[11px] font-bold text-white tracking-[0.12em] uppercase">FOOD</span>
           </button>
           <button onClick={() => handleClick('review')}
             className="flex-1 rounded-2xl bg-white border border-gray-200 flex items-center justify-center active:scale-[0.97] shadow-sm">
-            <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>LEAVE A REVIEW</span>
+            <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: brandColor }}>LEAVE A REVIEW</span>
           </button>
         </div>
       </div>
@@ -236,10 +243,10 @@ function HotelGuestApp({
           <span className="text-[11px] text-gray-400 leading-none">powered by Attenda</span>
         </div>
         <button onClick={() => handleClick('message')} className="flex items-center gap-2 shrink-0">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: BURGUNDY }}>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: brandColor }}>
             <User size={20} className="text-white" strokeWidth={1.5} />
           </div>
-          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>MESSAGE US</span>
+          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: brandColor }}>MESSAGE US</span>
         </button>
       </div>
 
@@ -256,6 +263,7 @@ function HotelGuestApp({
       <ValidationSuccessModal
         open={showValidationSuccess}
         onClose={() => setShowValidationSuccess(false)}
+        brandColor={brandColor}
       />
 
       {/* ── Guest Sheets (slide-up overlays) ── */}
@@ -1133,7 +1141,7 @@ function EnrollForm() {
 }
 
 /* ── Validation Success Modal ────────────────────────────── */
-function ValidationSuccessModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+function ValidationSuccessModal({ open, onClose, brandColor }: { open: boolean; onClose: () => void; brandColor: string }) {
   if (!open) return null;
 
   return (
@@ -1150,7 +1158,7 @@ function ValidationSuccessModal({ open, onClose }: { open: boolean; onClose: () 
         <button
           onClick={onClose}
           className="w-full py-3.5 rounded-[14px] text-white font-bold text-[15px] active:scale-[0.98] shadow-sm"
-          style={{ backgroundColor: '#6B1D3C' }}
+          style={{ backgroundColor: brandColor }}
         >
           Continue
         </button>
