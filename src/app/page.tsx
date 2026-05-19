@@ -208,18 +208,23 @@ function HotelGuestApp({
         </div>
       </a>
 
-      {/* Row 4: Nearby/Review */}
+      {/* Row 4: Nearby + Food */}
       <div className="flex gap-3 min-h-0">
+        <button onClick={() => (window.location.href = '/nearby?tab=attractions')}
+          className="w-[38%] h-full rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-1 active:scale-[0.97] shadow-sm">
+          <MapPin size={24} className="text-[#6B1D3C]" strokeWidth={1.5} />
+          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>NEARBY</span>
+        </button>
         <div className="flex-1 h-full flex flex-col gap-3">
-          <button onClick={() => (window.location.href = '/nearby?tab=attractions')}
-            className="flex-1 rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-1 active:scale-[0.97] shadow-sm">
-            <MapPin size={20} className="text-[#6B1D3C]" strokeWidth={1.5} />
-            <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>NEARBY</span>
+          <button onClick={() => (window.location.href = '/nearby?tab=restaurants')}
+            className="flex-1 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.97] shadow-sm"
+            style={{ backgroundColor: BURGUNDY }}>
+            <Utensils size={20} className="text-white" strokeWidth={1.5} />
+            <span className="text-[11px] font-bold text-white tracking-[0.12em] uppercase">FOOD</span>
           </button>
           <button onClick={() => handleClick('review')}
-            className="flex-1 rounded-2xl flex items-center justify-center active:scale-[0.97] shadow-sm"
-            style={{ backgroundColor: BURGUNDY }}>
-            <span className="text-[11px] font-bold text-white tracking-[0.12em] uppercase">LEAVE A REVIEW</span>
+            className="flex-1 rounded-2xl bg-white border border-gray-200 flex items-center justify-center active:scale-[0.97] shadow-sm">
+            <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: BURGUNDY }}>LEAVE A REVIEW</span>
           </button>
         </div>
       </div>
