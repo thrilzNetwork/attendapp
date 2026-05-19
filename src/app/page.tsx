@@ -195,25 +195,21 @@ function HotelGuestApp({
         </button>
       </div>
 
-      {/* Row 3: Restaurants Banner */}
-      <button onClick={() => (window.location.href = '/nearby?tab=restaurants')} className="w-full h-full block min-h-0">
-        <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-sm">
-          <Image src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&fit=crop&q=80"
-            alt="Restaurants" fill className="object-cover" sizes="100vw" />
+      {/* Row 3: Rewards Banner */}
+      <a href="https://www.bestwestern.com/rewards/join.html" target="_blank" rel="noopener noreferrer"
+        className="w-full h-full block min-h-0 rounded-2xl overflow-hidden shadow-sm active:scale-[0.97]">
+        <div className="relative w-full h-full rounded-2xl overflow-hidden">
+          <Image src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&fit=crop&q=80"
+            alt="Rewards" fill className="object-cover" sizes="100vw" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
           <div className="absolute bottom-2 left-3">
-            <span className="text-[13px] font-bold text-white tracking-wider">RESTAURANTS</span>
+            <span className="text-[13px] font-bold text-white tracking-wider">BEST WESTERN REWARDS</span>
           </div>
         </div>
-      </button>
+      </a>
 
-      {/* Row 4: Rewards + Nearby/Review */}
+      {/* Row 4: Nearby/Review */}
       <div className="flex gap-3 min-h-0">
-        <a href="https://www.bestwestern.com/rewards/join.html" target="_blank" rel="noopener noreferrer"
-          className="w-[38%] h-full rounded-2xl overflow-hidden shadow-sm active:scale-[0.97] block relative">
-          <Image src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&fit=crop&q=80"
-            alt="Rewards" fill className="object-cover" sizes="38vw" />
-        </a>
         <div className="flex-1 h-full flex flex-col gap-3">
           <button onClick={() => (window.location.href = '/nearby?tab=attractions')}
             className="flex-1 rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-1 active:scale-[0.97] shadow-sm">
