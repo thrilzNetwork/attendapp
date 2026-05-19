@@ -25,7 +25,7 @@ import {
   getShuttleRequests, updateShuttleRequest, ShuttleRoute, ShuttleSlot, ShuttleBooking, ShuttleRequest,
   getCruiseSchedulesAll, createCruiseSchedule, deleteCruiseSchedule, CruiseSchedule,
   getAllKnowledgeBase, createKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry, KnowledgeEntry,
-  getHotelRooms, getAllHotelRooms, bulkInsertRooms, deleteRoom, createRoom, HotelRoom,
+  getAllHotelRooms, bulkInsertRooms, deleteRoom, createRoom, HotelRoom,
 } from '@/lib/supabase';
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -3261,12 +3261,13 @@ function RoomsView({ hotelId, hotelName }: { hotelId: string; hotelName: string 
           for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const content = await page.getTextContent();
-            fullText += content.items.map((item: any) => item.str).join(' ') + '\n';
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            fullText += content.items.map((item: any) => (item as any).str).join(' ') + '\\n';
           }
           const roomRegex = /\b(\d{3,4}[A-Z]?)\b/g;
           const matches = fullText.match(roomRegex);
           if (matches && matches.length > 0) {
-            const unique = [...new Set(matches)].map(r => ({ room_number: r, room_type: '', floor: parseInt(r) > 100 ? Math.floor(parseInt(r) / 100) : 0 }));
+            const unique = Array.from(new Set(matches)).map(r => ({ room_number: r, room_type: '', floor: parseInt(r) > 100 ? Math.floor(parseInt(r) / 100) : 0 }));
             setParsedRooms(unique);
             setMessage({ type: 'success', text: `Extracted ${unique.length} rooms from PDF. Review below, then click "Replace All Rooms".` });
           } else {
@@ -3392,6 +3393,7 @@ function RoomsView({ hotelId, hotelName }: { hotelId: string; hotelName: string 
               const input = document.createElement('input');
               input.type = 'file';
               input.accept = '.csv,.xlsx,.xls,.pdf';
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               input.onchange = (e: any) => { if (e.target?.files?.[0]) handleFile(e.target.files[0]); };
               input.click();
             }}

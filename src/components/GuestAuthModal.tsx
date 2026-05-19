@@ -244,7 +244,7 @@ export default function GuestAuthModal({ open, onClose, onSuccess, isValidationC
                           </button>
                         ))}
                       {rooms.filter(r => !roomSearch || r.room_number.toLowerCase().includes(roomSearch.toLowerCase())).length === 0 && (
-                        <div className="px-4 py-3 text-[13px] text-gray-400 text-center">No rooms match "{roomSearch}"</div>
+                        <div className="px-4 py-3 text-[13px] text-gray-400 text-center">{'No rooms match "'}{roomSearch}{'"'}</div>
                       )}
                     </div>
                   )}
