@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { X, User, DoorOpen, Lock } from 'lucide-react';
-import { getHotelConfig } from '@/lib/supabase';
+import { useState, useEffect, useRef } from 'react';
+import { X, User, DoorOpen, Lock, Search } from 'lucide-react';
+import { getHotelConfig, getHotelRooms, HotelRoom } from '@/lib/supabase';
 import { useGuest } from '@/lib/guest-context';
 
 interface Props {
@@ -37,6 +37,10 @@ export default function GuestAuthModal({ open, onClose, onSuccess, isValidationC
   const [year, setYear] = useState(currentYear.toString());
   const [errors, setErrors] = useState({ name: false, room: false, date: false });
   const [isQrLocked, setIsQrLocked] = useState(false);
+  const [rooms, setRooms] = useState<HotelRoom[]>([]);
+  const [roomSearch, setRoomSearch] = useState('');
+  const [showRoomDropdown, setShowRoomDropdown] = useState(false);
+  const roomSelectRef = useRef<HTMLDivElement>(null);
 
   // Pre-fill from existing session if doing validation check
   useEffect(() => {
@@ -68,6 +72,29 @@ export default function GuestAuthModal({ open, onClose, onSuccess, isValidationC
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Load rooms from DB when modal opens
+  useEffect(() => {
+    if (open) {
+      const slug = localStorage.getItem('attenda_hotel_slug');
+      if (slug) {
+        getHotelConfig(slug).then(cfg => {
+          if (cfg?.id) getHotelRooms(cfg.id).then(setRooms);
+        });
+      }
+    }
+  }, [open]);
+
+  // Close room dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (roomSelectRef.current && !roomSelectRef.current.contains(e.target as Node)) {
+        setShowRoomDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -172,20 +199,69 @@ export default function GuestAuthModal({ open, onClose, onSuccess, isValidationC
               </div>
             </div>
 
-            <div>
+            <div ref={roomSelectRef}>
               <label className="text-[12px] font-semibold text-gray-600 mb-1.5 block">Room Number {isQrLocked && '🔒'}</label>
-              <div className={`flex items-center gap-2 rounded-xl px-3 py-3 border ${errors.room ? 'border-red-400' : 'border-gray-200'} ${isQrLocked ? 'bg-gray-100' : 'bg-gray-50'}`}>
-                {isQrLocked ? <Lock size={16} className="text-gray-400 shrink-0" /> : <DoorOpen size={16} className="text-gray-400 shrink-0" />}
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="e.g. 205"
-                  value={room}
-                  onChange={(e) => { if (!isQrLocked) { setRoom(e.target.value); setErrors({ ...errors, room: false }); } }}
-                  readOnly={isQrLocked}
-                  className={`bg-transparent text-[16px] outline-none w-full placeholder:text-gray-400 ${isQrLocked ? 'text-gray-500 cursor-not-allowed' : 'text-gray-800'}`}
-                />
-              </div>
+              {isQrLocked ? (
+                <div className={`flex items-center gap-2 rounded-xl px-3 py-3 border ${errors.room ? 'border-red-400' : 'border-gray-200'} bg-gray-100`}>
+                  <Lock size={16} className="text-gray-400 shrink-0" />
+                  <input type="text" value={room} readOnly className="bg-transparent text-[16px] text-gray-500 outline-none w-full cursor-not-allowed" />
+                </div>
+              ) : rooms.length > 0 ? (
+                <div className="relative">
+                  <div
+                    className={`flex items-center gap-2 rounded-xl px-3 py-3 border ${errors.room ? 'border-red-400' : 'border-gray-200'} bg-gray-50 cursor-pointer`}
+                    onClick={() => setShowRoomDropdown(!showRoomDropdown)}
+                  >
+                    <DoorOpen size={16} className="text-gray-400 shrink-0" />
+                    <span className={`bg-transparent text-[16px] outline-none w-full ${room ? 'text-gray-800' : 'text-gray-400'}`}>
+                      {room || 'Select your room...'}
+                    </span>
+                    <Search size={16} className="text-gray-400" />
+                  </div>
+                  {showRoomDropdown && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white rounded-xl border border-gray-200 shadow-lg max-h-48 overflow-y-auto">
+                      <div className="sticky top-0 bg-white border-b border-gray-100 p-2">
+                        <input
+                          type="text"
+                          value={roomSearch}
+                          onChange={e => setRoomSearch(e.target.value)}
+                          placeholder="Search rooms..."
+                          className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[13px] outline-none"
+                          autoFocus
+                        />
+                      </div>
+                      {rooms
+                        .filter(r => !roomSearch || r.room_number.toLowerCase().includes(roomSearch.toLowerCase()) || r.room_type.toLowerCase().includes(roomSearch.toLowerCase()))
+                        .slice(0, 100)
+                        .map(r => (
+                          <button
+                            key={r.id}
+                            onClick={() => { setRoom(r.room_number); setRoomSearch(''); setShowRoomDropdown(false); setErrors({ ...errors, room: false }); }}
+                            className={`w-full text-left px-4 py-2.5 text-[14px] hover:bg-gray-50 flex items-center justify-between ${room === r.room_number ? 'bg-teal-50 text-teal-700 font-semibold' : 'text-gray-800'}`}
+                          >
+                            <span>{r.room_number}</span>
+                            {r.room_type && <span className="text-[11px] text-gray-400">{r.room_type}</span>}
+                          </button>
+                        ))}
+                      {rooms.filter(r => !roomSearch || r.room_number.toLowerCase().includes(roomSearch.toLowerCase())).length === 0 && (
+                        <div className="px-4 py-3 text-[13px] text-gray-400 text-center">No rooms match "{roomSearch}"</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className={`flex items-center gap-2 rounded-xl px-3 py-3 border ${errors.room ? 'border-red-400' : 'border-gray-200'} bg-gray-50`}>
+                  <DoorOpen size={16} className="text-gray-400 shrink-0" />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="e.g. 205"
+                    value={room}
+                    onChange={(e) => { setRoom(e.target.value); setErrors({ ...errors, room: false }); }}
+                    className="bg-transparent text-[16px] text-gray-800 outline-none w-full placeholder:text-gray-400"
+                  />
+                </div>
+              )}
             </div>
 
             <div>

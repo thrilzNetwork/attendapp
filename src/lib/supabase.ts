@@ -733,4 +733,71 @@ export async function deleteKnowledgeEntry(id: string): Promise<void> {
   await supabase.from('hotel_knowledge_base').delete().eq('id', id);
 }
 
+// ─── Hotel Rooms (bulk upload + CRUD) ─────────────────────────
+
+export interface HotelRoom {
+  id: string;
+  hotel_id: string;
+  room_number: string;
+  room_type: string;
+  floor: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export async function getHotelRooms(hotelId: string): Promise<HotelRoom[]> {
+  const { data } = await supabase
+    .from('hotel_rooms')
+    .select('*')
+    .eq('hotel_id', hotelId)
+    .eq('is_active', true)
+    .order('room_number');
+  return data || [];
+}
+
+export async function getAllHotelRooms(hotelId: string): Promise<HotelRoom[]> {
+  const { data } = await supabase
+    .from('hotel_rooms')
+    .select('*')
+    .eq('hotel_id', hotelId)
+    .order('room_number');
+  return data || [];
+}
+
+export async function bulkInsertRooms(hotelId: string, rooms: { room_number: string; room_type?: string; floor?: number }[]) {
+  // Delete existing active rooms first, then insert fresh
+  await supabase.from('hotel_rooms').delete().eq('hotel_id', hotelId);
+  
+  if (rooms.length === 0) return [];
+  
+  const { data, error } = await supabase.from('hotel_rooms').insert(
+    rooms.map(r => ({
+      hotel_id: hotelId,
+      room_number: r.room_number,
+      room_type: r.room_type || '',
+      floor: r.floor || 0,
+      is_active: true,
+    }))
+  ).select();
+  
+  if (error) throw error;
+  return data || [];
+}
+
+export async function deleteRoom(id: string) {
+  await supabase.from('hotel_rooms').delete().eq('id', id);
+}
+
+export async function createRoom(hotelId: string, room: { room_number: string; room_type?: string; floor?: number }) {
+  const { data, error } = await supabase.from('hotel_rooms').insert({
+    hotel_id: hotelId,
+    room_number: room.room_number,
+    room_type: room.room_type || '',
+    floor: room.floor || 0,
+    is_active: true,
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export default supabase;

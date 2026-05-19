@@ -45,6 +45,23 @@ create table restaurant_menu_items (
   active boolean default true
 );
 
+-- Hotel rooms table (one row per room, per hotel)
+create table hotel_rooms (
+  id uuid default gen_random_uuid() primary key,
+  hotel_id uuid references hotels(id) on delete cascade not null,
+  room_number text not null,
+  room_type text default '',  -- 'Standard', 'Suite', 'Deluxe', etc.
+  floor integer default 0,
+  is_active boolean default true,
+  created_at timestamptz default now(),
+  unique(hotel_id, room_number)
+);
+
+alter table hotel_rooms enable row level security;
+create policy "Anyone can read hotel rooms" on hotel_rooms for select using (true);
+create policy "Anyone can insert hotel rooms" on hotel_rooms for insert with check (true);
+create policy "Anyone can delete hotel rooms" on hotel_rooms for delete using (true);
+
 -- RLS policies
 alter table hotels enable row level security;
 alter table requests enable row level security;
