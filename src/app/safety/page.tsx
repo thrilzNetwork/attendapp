@@ -9,7 +9,13 @@ import { goBackToHotel } from '@/lib/guest-context';
 export default function SafetyPage() {
   const router = useRouter();
   const [config, setConfig] = useState<HotelConfig | null>(null);
-  useEffect(() => { getHotelConfig().then(setConfig); }, []);
+  const [brandColor, setBrandColor] = useState('#6B1D3C');
+  useEffect(() => {
+    getHotelConfig().then(cfg => {
+      setConfig(cfg);
+      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
+    });
+  }, []);
 
   const frontDesk = config?.frontDeskPhone || 'Ext. 0';
   const emergencies = [
@@ -45,12 +51,12 @@ export default function SafetyPage() {
               {emergencies.map((e, i) => (
                 <a key={i} href={`tel:${e.number.replace(/[^0-9]/g, '')}`} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 active:bg-gray-100">
                   <div className="flex items-center gap-3">
-                    <Phone size={16} className="text-[#6B1D3C]" />
+                    <Phone size={16} style={{ color: brandColor }} />
                     <div>
                       <p className="text-[13px] font-semibold text-gray-800">{e.label}</p>
                     </div>
                   </div>
-                  <span className="text-[14px] font-bold text-[#6B1D3C]">{e.number}</span>
+                  <span className="text-[14px] font-bold" style={{ color: brandColor }}>{e.number}</span>
                 </a>
               ))}
             </div>
@@ -81,7 +87,7 @@ export default function SafetyPage() {
           {/* COA / Smoke Detectors */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 mb-3">
-              <AlarmSmoke size={18} className="text-[#6B1D3C]" />
+              <AlarmSmoke size={18} style={{ color: brandColor }} />
               <p className="text-[14px] font-bold text-gray-800">Carbon Monoxide & Smoke Detection</p>
             </div>
             <div className="space-y-2">
@@ -103,7 +109,7 @@ export default function SafetyPage() {
           {/* Property Security */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 mb-3">
-              <Crosshair size={18} className="text-[#6B1D3C]" />
+              <Crosshair size={18} style={{ color: brandColor }} />
               <p className="text-[14px] font-bold text-gray-800">Property Security</p>
             </div>
             <div className="space-y-2">

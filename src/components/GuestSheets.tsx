@@ -14,6 +14,7 @@ import {
   getShuttleRoutes, getCruiseSchedules,
   ShuttleSlot, ShuttleRoute, CruiseSchedule,
   getKnowledgeBase, KnowledgeEntry,
+  getMessages,
 } from '@/lib/supabase';
 
 const BURGUNDY = '#6B1D3C';
@@ -76,9 +77,7 @@ type ChatMsg = {
 
 export function MessageSheetContent() {
   const [text, setText] = useState('');
-  const [messages, setMessages] = useState<ChatMsg[]>([
-    { from: 'bot', text: 'Hello! How can I assist you today? I can help with room service, transport, nearby attractions, and more.' },
-  ]);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [guestName, setGuestName] = useState('Guest');
   const [guestRoom, setGuestRoom] = useState('?');
   const [kb, setKb] = useState<KnowledgeEntry[]>([]);
@@ -94,8 +93,25 @@ export function MessageSheetContent() {
       } catch { localStorage.removeItem('guestSession'); }
     }
     // Load hotel knowledge base
-    getHotelConfig().then(hotel => {
-      if (hotel?.id) getKnowledgeBase(hotel.id).then(setKb);
+    getHotelConfig().then(async hotel => {
+      if (hotel?.id) {
+        getKnowledgeBase(hotel.id).then(setKb);
+        // Load past messages
+        const stored = localStorage.getItem('guestSession');
+        if (stored) {
+          try {
+            const s = JSON.parse(stored);
+            if (s.name && s.room) {
+              const pastMessages = await getMessages(hotel.id, s.name, s.room);
+              const chatMsgs: ChatMsg[] = pastMessages.map(m => ({
+                from: m.sender === 'guest' ? 'guest' : 'bot',
+                text: m.body,
+              }));
+              setMessages(chatMsgs);
+            }
+          } catch { /* ignore */ }
+        }
+      }
     });
   }, []);
 

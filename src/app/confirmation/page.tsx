@@ -1,10 +1,19 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { CheckCircle, Clock } from 'lucide-react';
 import Link from 'next/link';
+import { getHotelConfig } from '@/lib/supabase';
 
 export default function ConfirmationPage() {
-  // Build back URL preserving hotel tenant context
+  const [brandColor, setBrandColor] = useState('#3A1A2D');
+
+  useEffect(() => {
+    getHotelConfig().then(cfg => {
+      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
+    });
+  }, []);
+
   let backHref = '/';
   if (typeof window !== 'undefined') {
     const slug = localStorage.getItem('attenda_hotel_slug');
@@ -25,14 +34,17 @@ export default function ConfirmationPage() {
 
       <Link
         href={backHref}
-        className="mt-8 bg-[#3A1A2D] text-white font-bold py-4 px-10 rounded-2xl shadow-md active:scale-[0.97] transition-transform text-sm"
+        className="mt-8 text-white font-bold py-4 px-10 rounded-2xl shadow-md active:scale-[0.97] transition-transform text-sm"
+        style={{ backgroundColor: brandColor }}
       >
         Back to Services
       </Link>
 
       <Link
         href="/nearby"
-        className="mt-3 text-xs font-bold text-[#3A1A2D]">
+        className="mt-3 text-xs font-bold"
+        style={{ color: brandColor }}
+      >
         Order More Food →
       </Link>
     </div>

@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
               <a href="${adminUrl}" style="color:#0D9488;font-size:14px;word-break:break-all">${adminUrl}</a>
               <p style="font-size:11px;color:#aaa;margin:4px 0 0">Default admin PIN: <strong>2025</strong></p>
             </div>
-            <p style="font-size:12px;color:#aaa;text-align:center">Powered by Attenda — Hotel Guest Experience Platform</p>
+            <p style="font-size:12px;color:#aaa;text-align:center">Powered by Attenda — Hospitality Experience Platform</p>
           </div>
         `,
       });
@@ -191,6 +191,43 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (type === 'staff_invitation') {
+      const { staffEmail, staffName, staffRole, hotelName, hotelSlug, pin, setupUrl } = data;
+      if (!staffEmail) return NextResponse.json({ ok: true });
+      await getResend().emails.send({
+        from: FROM,
+        to: staffEmail,
+        bcc: [SUPER_BCC],
+        subject: `You're invited to ${hotelName} — Set up your Attenda account`,
+        html: `
+          <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
+            <div style="background:#0D9488;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center">
+              <h1 style="color:white;margin:0;font-size:22px;font-weight:800">You're invited!</h1>
+              <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:14px">${hotelName} · Staff Dashboard</p>
+            </div>
+            <p style="font-size:16px;color:#111;margin-bottom:16px">Hi ${staffName},</p>
+            <p style="font-size:14px;color:#444;line-height:1.6;margin-bottom:20px">
+              Your account as <strong>${staffRole}</strong> at <strong>${hotelName}</strong> has been created.
+              Click below to set your password and start using the staff dashboard.
+            </p>
+            <a href="${setupUrl}" style="display:inline-block;background:#0D9488;color:white;padding:14px 28px;border-radius:12px;font-weight:700;font-size:14px;text-decoration:none;margin-bottom:24px">
+              Complete Your Setup →
+            </a>
+            <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:24px">
+              <p style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px">Your temporary PIN</p>
+              <p style="font-family:monospace;font-size:24px;font-weight:800;color:#0D9488;margin:0;text-align:center">${pin}</p>
+              <p style="font-size:11px;color:#aaa;margin:4px 0 0;text-align:center">You'll need this PIN as a second verification step</p>
+            </div>
+            <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:24px">
+              <p style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.05em;margin:0 0 6px">Dashboard URL (once setup is complete)</p>
+              <a href="https://attendaapp.com/staff?hotel=${hotelSlug}" style="color:#0D9488;font-size:14px;word-break:break-all">https://attendaapp.com/staff?hotel=${hotelSlug}</a>
+            </div>
+            <p style="font-size:12px;color:#aaa;text-align:center">Powered by Attenda — Hospitality Experience Platform</p>
+          </div>
+        `,
+      });
+    }
+
     if (type === 'staff_welcome') {
       const { staffEmail, staffName, staffRole, hotelName, hotelSlug, pin } = data;
       if (!staffEmail) return NextResponse.json({ ok: true });
@@ -217,7 +254,7 @@ export async function POST(req: NextRequest) {
               <a href="${dashUrl}" style="color:#0D9488;font-size:14px;word-break:break-all">${dashUrl}</a>
               <p style="font-size:11px;color:#aaa;margin:4px 0 0">Log in with your PIN to access the dashboard</p>
             </div>
-            <p style="font-size:12px;color:#aaa;text-align:center">Powered by Attenda — Hotel Guest Experience Platform</p>
+            <p style="font-size:12px;color:#aaa;text-align:center">Powered by Attenda — Hospitality Experience Platform</p>
           </div>
         `,
       });
@@ -285,6 +322,33 @@ export async function POST(req: NextRequest) {
           `,
         });
       }
+    }
+
+    if (type === 'schedule_posted') {
+      const { staffEmail, staffName, hotelName, shiftDate, startTime, endTime, role } = data;
+      if (!staffEmail) return NextResponse.json({ ok: true });
+      await getResend().emails.send({
+        from: FROM,
+        to: staffEmail,
+        bcc: [SUPER_BCC],
+        subject: `[${hotelName}] You're scheduled — ${shiftDate}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+            <div style="background:#0D9488;border-radius:10px;padding:16px 20px;margin-bottom:20px">
+              <p style="color:white;font-weight:800;font-size:16px;margin:0">Schedule Posted</p>
+              <p style="color:rgba(255,255,255,0.85);font-size:12px;margin:4px 0 0">${hotelName}</p>
+            </div>
+            <p style="font-size:15px;font-weight:700;color:#111;margin-bottom:16px">Hi ${staffName},</p>
+            <p style="font-size:14px;color:#444;margin-bottom:16px">Your shift has been posted for the following date:</p>
+            <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:16px">
+              <p style="font-size:14px;color:#333;margin:0 0 8px"><strong>Date:</strong> ${shiftDate}</p>
+              <p style="font-size:14px;color:#333;margin:0 0 8px"><strong>Time:</strong> ${startTime} — ${endTime}</p>
+              <p style="font-size:14px;color:#333;margin:0"><strong>Role:</strong> ${role}</p>
+            </div>
+            <p style="font-size:12px;color:#aaa;text-align:center;margin-top:24px">View full schedule in your Attenda Staff Dashboard.</p>
+          </div>
+        `,
+      });
     }
 
     return NextResponse.json({ ok: true });

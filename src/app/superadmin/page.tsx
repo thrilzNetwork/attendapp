@@ -18,7 +18,7 @@ export default function SuperAdminPage() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<{ email: string } | null>(null);
   const [hotels, setHotels] = useState<{ id: string; slug: string; name: string }[]>([]);
-  const [form, setForm] = useState({ slug: '', name: '', adminEmail: '', lookupQuery: '', adminPhone: '', roomCount: 0, address: '', googleReviewUrl: '', tripadvisorUrl: '', yelpUrl: '', websiteUrl: '' });
+  const [form, setForm] = useState({ slug: '', name: '', adminEmail: '', lookupQuery: '', adminPhone: '', roomCount: 0, address: '', googleReviewUrl: '', tripadvisorUrl: '', yelpUrl: '', websiteUrl: '', propertyType: 'Hotel' });
   const [copied, setCopied] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -220,6 +220,7 @@ interface PlatformHealth {
         googleReviewUrl: form.googleReviewUrl || undefined,
         tripadvisorUrl: form.tripadvisorUrl || undefined,
         yelpUrl: form.yelpUrl || undefined,
+        propertyType: form.propertyType,
       });
       if (form.adminEmail && hotel) {
         fetch('/api/email', {
@@ -237,7 +238,7 @@ interface PlatformHealth {
           }),
         }).catch(() => {});
       }
-      setForm({ slug: '', name: '', adminEmail: '', lookupQuery: '', adminPhone: '', roomCount: 0, address: '', googleReviewUrl: '', tripadvisorUrl: '', yelpUrl: '', websiteUrl: '' });
+      setForm({ slug: '', name: '', adminEmail: '', lookupQuery: '', adminPhone: '', roomCount: 0, address: '', googleReviewUrl: '', tripadvisorUrl: '', yelpUrl: '', websiteUrl: '', propertyType: 'Hotel' });
       loadHotels();
       loadHealth();
     } catch (e: unknown) {
@@ -446,10 +447,10 @@ interface PlatformHealth {
         {/* Create hotel form */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-8 shadow-sm">
           <h3 className="font-extrabold text-[16px] mb-1">+ Onboard New Property</h3>
-          <p className="text-[12px] text-gray-400 mb-4">Paste the hotel website to auto-fill details, then create with one click.</p>
+          <p className="text-[12px] text-gray-400 mb-4">Paste the property website to auto-fill details, then create with one click.</p>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
-              <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Hotel Name *</label>
+              <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Property Name *</label>
               <input
                 value={form.name}
                 onChange={e => { setForm({ ...form, name: e.target.value }); setCreateError(''); }}
@@ -466,9 +467,24 @@ interface PlatformHealth {
                 className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400 font-mono"
               />
             </div>
+            <div>
+              <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Property Type</label>
+              <select
+                value={form.propertyType}
+                onChange={e => setForm({ ...form, propertyType: e.target.value })}
+                className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
+              >
+                <option value="Hotel">Hotel</option>
+                <option value="Short-Term Rental">Short-Term Rental</option>
+                <option value="Motel">Motel</option>
+                <option value="Vacation Rental">Vacation Rental</option>
+                <option value="Boutique Stay">Boutique Stay</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
             <div className="col-span-2">
               <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">
-                Hotel Name + City <span className="normal-case text-gray-300">(auto-fills address & review links)</span>
+                Property Name + City <span className="normal-case text-gray-300">(auto-fills address & review links)</span>
               </label>
               <div className="flex gap-2">
                 <input

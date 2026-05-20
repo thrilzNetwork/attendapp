@@ -8,6 +8,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 export { supabase };
 
 // Types
+export interface ReviewLink {
+  label: string;
+  url: string;
+}
+
 export interface HotelConfig {
   id?: string;
   slug: string;
@@ -30,6 +35,8 @@ export interface HotelConfig {
   tripadvisorUrl: string;
   yelpUrl: string;
   brandColor: string;
+  customReviewLinks: ReviewLink[];
+  propertyType: string;
 }
 
 export interface StaffAccount {
@@ -65,7 +72,7 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     .select('*')
     .eq('slug', hotelSlug)
     .single();
-  if (error) { console.log('Hotel config not found:', error.message); return null; }
+  if (error) { /* hotel config not found — common before slug is stored */ return null; }
   return {
     id: data.id,
     slug: data.slug,
@@ -88,6 +95,8 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     tripadvisorUrl: data.tripadvisor_url || '',
     yelpUrl: data.yelp_url || '',
     brandColor: data.brand_color || '#6B1D3C',
+    customReviewLinks: data.custom_review_links || [],
+    propertyType: data.brand || 'Hotel',
   };
 }
 
@@ -115,14 +124,20 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       tripadvisor_url: config.tripadvisorUrl,
       yelp_url: config.yelpUrl,
       brand_color: config.brandColor,
+      custom_review_links: config.customReviewLinks,
+      brand: config.propertyType || 'Hotel',
     }, { onConflict: 'slug' });
   if (error) throw error;
   return data;
 }
 
 // Request helpers
-export async function getAllRequests(): Promise<RequestItem[]> {
-  const { data, error } = await supabase.from('requests').select('*').order('created_at', { ascending: false });
+export async function getAllRequests(hotelId?: string): Promise<RequestItem[]> {
+  let query = supabase.from('requests').select('*').order('created_at', { ascending: false });
+  if (hotelId) {
+    query = query.eq('hotel_id', hotelId);
+  }
+  const { data, error } = await query;
   if (error) throw error;
   return (data || []).map((r: Record<string, unknown>) => ({
     id: r.id as string,
@@ -135,10 +150,40 @@ export async function getAllRequests(): Promise<RequestItem[]> {
   }));
 }
 
+export async function getMessages(hotelId: string, guestName: string, room: string): Promise<ChatMessage[]> {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('hotel_id', hotelId)
+    .eq('guest_name', guestName)
+    .eq('room', room)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data || []).map((m: Record<string, unknown>) => ({
+    id: m.id as string,
+    hotel_id: m.hotel_id as string,
+    guest_name: m.guest_name as string,
+    room: m.room as string,
+    sender: m.sender as 'guest' | 'staff' | 'bot',
+    body: m.body as string,
+    created_at: m.created_at as string,
+  }));
+}
+
+export type ChatMessage = {
+  id: string;
+  hotel_id: string;
+  guest_name: string;
+  room: string;
+  sender: 'guest' | 'staff' | 'bot';
+  body: string;
+  created_at: string;
+};
+
 export async function insertRequest(req: { guestName: string; room: string; type: string; details: string; hotelId?: string }) {
-  const hotelId = req.hotelId || (await getHotelConfig())?.id;
+  const hid = req.hotelId || (await getHotelConfig())?.id;
   const { data, error } = await supabase.from('requests').insert({
-    hotel_id: hotelId,
+    hotel_id: hid,
     guest_name: req.guestName,
     room: req.room,
     type: req.type,
@@ -160,8 +205,12 @@ export async function deleteRequest(id: string) {
 }
 
 // Staff account helpers
-export async function getStaffAccounts(): Promise<StaffAccount[]> {
-  const { data, error } = await supabase.from('staff_accounts').select('*');
+export async function getStaffAccounts(hotelId?: string): Promise<StaffAccount[]> {
+  let query = supabase.from('staff_accounts').select('*');
+  if (hotelId) {
+    query = query.eq('hotel_id', hotelId);
+  }
+  const { data, error } = await query;
   if (error) throw error;
   return (data || []).map((s: Record<string, unknown>) => ({
     id: s.id as string,
@@ -189,21 +238,36 @@ export async function deleteStaffAccount(id: string) {
 }
 
 // Real-time subscription helper
-export function subscribeToRequests(callback: (payload: Record<string, unknown>) => void) {
+export function subscribeToRequests(hotelId: string | null, callback: (payload: Record<string, unknown>) => void) {
   const channel = supabase
-    .channel('requests-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, (payload) => {
+    .channel('requests-changes');
+  if (hotelId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (channel as any).on('postgres_changes', { event: '*', schema: 'public', table: 'requests', filter: `hotel_id=eq.${hotelId}` }, (payload: Record<string, unknown>) => {
       callback(payload);
-    })
-    .subscribe();
+    });
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (channel as any).on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, (payload: Record<string, unknown>) => {
+      callback(payload);
+    });
+  }
+  channel.subscribe();
   return channel;
 }
 
-export function subscribeToMessages(callback: () => void) {
-  return supabase
-    .channel('messages-live')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, callback)
-    .subscribe();
+export function subscribeToMessages(hotelId: string | null, callback: () => void) {
+  const channel = supabase
+    .channel('messages-live');
+  if (hotelId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (channel as any).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `hotel_id=eq.${hotelId}` }, callback);
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (channel as any).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, callback);
+  }
+  channel.subscribe();
+  return channel;
 }
 
 // ─── Partners ────────────────────────────────────────────────
@@ -302,6 +366,7 @@ export async function createHotel(data: {
   googleReviewUrl?: string;
   tripadvisorUrl?: string;
   yelpUrl?: string;
+  propertyType?: string;
 }) {
   const { data: hotel, error } = await supabase.from('hotels').insert({
     slug: data.slug,
@@ -314,6 +379,7 @@ export async function createHotel(data: {
     google_review_url: data.googleReviewUrl || null,
     tripadvisor_url: data.tripadvisorUrl || null,
     yelp_url: data.yelpUrl || null,
+    brand: data.propertyType || 'Hotel',
   }).select().single();
   if (error) throw error;
   return hotel;
@@ -561,6 +627,21 @@ export async function createShuttleRequest(req: {
     ...req, pickup_location: req.pickup_location || 'Hotel Lobby',
     pax: req.pax || 1, notes: req.notes || '',
   }).select().single();
+
+  // Also insert into requests table so it appears in Live Orders
+  if (data) {
+    const details = `Shuttle to ${req.destination}${req.date ? ` on ${req.date}` : ''}${req.time ? ` at ${req.time}` : ''}${req.pax && req.pax > 1 ? ` (${req.pax} guests)` : ''}${req.notes ? ` — ${req.notes}` : ''}`;
+    await supabase.from('requests').insert({
+      hotel_id: req.hotel_id,
+      guest_name: req.guest_name,
+      room: req.room_number,
+      type: 'Shuttle Booking',
+      details: details.trim(),
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    });
+  }
+
   return data;
 }
 
@@ -684,6 +765,7 @@ export interface KnowledgeEntry {
   answer: string;
   keywords: string[];
   active: boolean;
+  source_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -710,18 +792,18 @@ export async function getAllKnowledgeBase(hotelId: string): Promise<KnowledgeEnt
 }
 
 export async function createKnowledgeEntry(entry: {
-  hotel_id: string; category: string; question: string; answer: string; keywords?: string[];
+  hotel_id: string; category: string; question: string; answer: string; keywords?: string[]; source_url?: string;
 }): Promise<KnowledgeEntry | null> {
   const { data } = await supabase
     .from('hotel_knowledge_base')
-    .insert({ ...entry, keywords: entry.keywords || [], active: true })
+    .insert({ ...entry, keywords: entry.keywords || [], source_url: entry.source_url || null, active: true })
     .select()
     .single();
   return data;
 }
 
 export async function updateKnowledgeEntry(id: string, updates: {
-  category?: string; question?: string; answer?: string; keywords?: string[]; active?: boolean;
+  category?: string; question?: string; answer?: string; keywords?: string[]; active?: boolean; source_url?: string;
 }): Promise<void> {
   await supabase
     .from('hotel_knowledge_base')
@@ -798,6 +880,247 @@ export async function createRoom(hotelId: string, room: { room_number: string; r
   }).select().single();
   if (error) throw error;
   return data;
+}
+
+export async function updateRoomType(id: string, room_type: string) {
+  const { error } = await supabase.from('hotel_rooms').update({ room_type }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function updateRoomTypeBatch(ids: Set<string>, room_type: string) {
+  const idArr = Array.from(ids);
+  const { error } = await supabase.from('hotel_rooms').update({ room_type }).in('id', idArr);
+  if (error) throw error;
+}
+
+// ─── Staff Auth Helpers ──────────────────────────────────────
+
+// ─── Guest Validation ───────────────────────────────────────
+export async function upsertGuestValidation(hotelId: string, name: string, room: string, validatedAt: string) {
+  const { error } = await supabase.from('guests').upsert({
+    hotel_id: hotelId,
+    name,
+    room,
+    checkout: validatedAt.split('T')[0],
+    checked_in_at: validatedAt,
+    status: 'active',
+  }, { onConflict: 'hotel_id,name,room', ignoreDuplicates: false });
+  if (error) throw error;
+}
+
+export async function getGuestValidations(hotelId: string): Promise<{ name: string; room: string; validatedAt: string }[]> {
+  const { data } = await supabase.from('guests')
+    .select('name, room, checked_in_at')
+    .eq('hotel_id', hotelId)
+    .eq('status', 'active');
+  return (data || []).map((g: Record<string, unknown>) => ({
+    name: g.name as string,
+    room: g.room as string,
+    validatedAt: g.checked_in_at as string,
+  }));
+}
+
+export async function getStaffAccountByEmail(email: string): Promise<StaffAccount | null> {
+  const { data } = await supabase.from('staff_accounts').select('*')
+    .eq('email', email)
+    .eq('active', true)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    id: data.id,
+    hotel_id: data.hotel_id,
+    name: data.name,
+    role: data.role,
+    email: data.email || '',
+    phone: data.phone || '',
+    pin_code: data.pin_code,
+    active: data.active,
+    permissions: data.permissions || ['orders', 'messages', 'shuttle'],
+    vendor_type: data.vendor_type || undefined,
+  };
+}
+
+export async function getStaffAccountByPin(pin: string, hotelSlug?: string): Promise<StaffAccount | null> {
+  let query = supabase.from('staff_accounts').select('*').eq('pin_code', pin).eq('active', true).maybeSingle();
+  if (hotelSlug) {
+    const hotel = await getHotelConfig(hotelSlug);
+    if (hotel?.id) query = supabase.from('staff_accounts').select('*').eq('pin_code', pin).eq('active', true).eq('hotel_id', hotel.id).maybeSingle();
+  }
+  const { data } = await query;
+  if (!data) return null;
+  return {
+    id: data.id, hotel_id: data.hotel_id, name: data.name, role: data.role,
+    email: data.email || '', phone: data.phone || '', pin_code: data.pin_code,
+    active: data.active, permissions: data.permissions || ['orders', 'messages', 'shuttle'],
+    vendor_type: data.vendor_type || undefined,
+  };
+}
+
+// ─── Staff Checklists ───────────────────────────────────────
+export interface Checklist {
+  id: string;
+  hotel_id: string;
+  name: string;
+  items: { id: string; label: string; }[];
+  assigned_role: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistInstance {
+  id: string;
+  checklist_id: string;
+  hotel_id: string;
+  staff_id?: string;
+  staff_name?: string;
+  shift_date: string;
+  checked_items: { item_id: string; checked_at: string }[];
+  completed: boolean;
+  created_at: string;
+  completed_at?: string;
+}
+
+export async function getChecklists(hotelId: string): Promise<Checklist[]> {
+  const { data } = await supabase.from('staff_checklists').select('*')
+    .eq('hotel_id', hotelId).eq('is_active', true).order('name');
+  return (data || []).map((c: Record<string, unknown>) => ({
+    ...c,
+    items: typeof c.items === 'string' ? JSON.parse(c.items as string) : (c.items || []),
+  })) as Checklist[];
+}
+
+export async function createChecklist(hotelId: string, name: string, items: { id: string; label: string }[], assignedRole?: string) {
+  const { data, error } = await supabase.from('staff_checklists').insert({
+    hotel_id: hotelId, name, items, assigned_role: assignedRole || 'staff',
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateChecklist(id: string, updates: { name?: string; items?: { id: string; label: string }[]; assigned_role?: string; is_active?: boolean }) {
+  const { error } = await supabase.from('staff_checklists').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteChecklist(id: string) {
+  await supabase.from('staff_checklists').delete().eq('id', id);
+}
+
+export async function getChecklistInstances(hotelId: string, date?: string): Promise<ChecklistInstance[]> {
+  const d = date || new Date().toISOString().split('T')[0];
+  const { data } = await supabase.from('staff_checklist_instances').select('*')
+    .eq('hotel_id', hotelId).eq('shift_date', d).order('created_at');
+  return (data || []).map((c: Record<string, unknown>) => ({
+    ...c,
+    checked_items: typeof c.checked_items === 'string' ? JSON.parse(c.checked_items as string) : (c.checked_items || []),
+  })) as ChecklistInstance[];
+}
+
+export async function createChecklistInstance(instance: {
+  checklist_id: string; hotel_id: string; staff_id?: string; staff_name?: string; shift_date?: string;
+}) {
+  const { data, error } = await supabase.from('staff_checklist_instances').insert({
+    ...instance,
+    shift_date: instance.shift_date || new Date().toISOString().split('T')[0],
+    checked_items: [],
+    completed: false,
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateChecklistInstance(id: string, updates: { checked_items?: { item_id: string; checked_at: string }[]; completed?: boolean }) {
+  const upd: Record<string, unknown> = { ...updates };
+  if (updates.completed) upd.completed_at = new Date().toISOString();
+  const { error } = await supabase.from('staff_checklist_instances').update(upd).eq('id', id);
+  if (error) throw error;
+}
+
+// ─── Staff Schedules ────────────────────────────────────────
+export interface StaffSchedule {
+  id: string;
+  hotel_id: string;
+  staff_id?: string;
+  staff_name: string;
+  shift_date: string;
+  start_time: string;
+  end_time: string;
+  role: string;
+  notes?: string;
+  created_by?: string;
+  created_at: string;
+}
+
+export async function getStaffSchedules(hotelId: string, date?: string): Promise<StaffSchedule[]> {
+  const d = date || new Date().toISOString().split('T')[0];
+  const { data } = await supabase.from('staff_schedules').select('*')
+    .eq('hotel_id', hotelId).eq('shift_date', d).order('start_time');
+  return (data || []) as StaffSchedule[];
+}
+
+export async function getStaffSchedulesRange(hotelId: string, from: string, to: string): Promise<StaffSchedule[]> {
+  const { data } = await supabase.from('staff_schedules').select('*')
+    .eq('hotel_id', hotelId).gte('shift_date', from).lte('shift_date', to).order('shift_date').order('start_time');
+  return (data || []) as StaffSchedule[];
+}
+
+export async function createStaffSchedule(schedule: {
+  hotel_id: string; staff_id?: string; staff_name: string;
+  shift_date: string; start_time: string; end_time: string;
+  role?: string; notes?: string; created_by?: string;
+}) {
+  const { data, error } = await supabase.from('staff_schedules').insert(schedule).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteStaffSchedule(id: string) {
+  await supabase.from('staff_schedules').delete().eq('id', id);
+}
+
+// ─── Daily Recap ────────────────────────────────────────────
+export async function getDailyRecap(hotelId: string): Promise<{
+  requestsToday: number; completedToday: number; pendingNow: number;
+  messagesToday: number; shuttleBookingsToday: number;
+  avgResponseMin: number;
+  staffOnDuty: number;
+  checklistsCompleted: number; checklistsTotal: number;
+}> {
+  const today = new Date().toISOString().split('T')[0];
+
+  const [reqRes, msgRes, shuttleRes, staffRes, checklistRes] = await Promise.all([
+    supabase.from('requests').select('status, created_at').eq('hotel_id', hotelId).gte('created_at', today),
+    supabase.from('messages').select('id, created_at').eq('hotel_id', hotelId).gte('created_at', today),
+    supabase.from('shuttle_bookings').select('id, created_at, status').gte('created_at', today),
+    supabase.from('staff_schedules').select('id').eq('hotel_id', hotelId).eq('shift_date', today),
+    supabase.from('staff_checklist_instances').select('completed').eq('hotel_id', hotelId).eq('shift_date', today),
+  ]);
+
+  const requests = reqRes.data || [];
+  const requestsToday = requests.length;
+  const completedToday = requests.filter((r: Record<string, unknown>) => r.status === 'completed').length;
+  const pendingNow = requests.filter((r: Record<string, unknown>) => r.status === 'pending').length;
+  const messagesToday = (msgRes.data || []).length;
+  const shuttleBookingsToday = (shuttleRes.data || []).filter((b: Record<string, unknown>) => b.status === 'confirmed').length;
+
+  // Avg response time: time between created_at and first status change to in-progress or completed
+  const responded = requests.filter((r: Record<string, unknown>) => r.status !== 'pending');
+  let avgResponseMin = 0;
+  if (responded.length > 0) {
+    const diffs = responded.map((r: Record<string, unknown>) => {
+      const created = new Date(r.created_at as string).getTime();
+      return Math.max(0, (Date.now() - created) / 60000);
+    });
+    avgResponseMin = Math.round(diffs.reduce((a: number, b: number) => a + b, 0) / diffs.length);
+  }
+
+  const staffOnDuty = (staffRes.data || []).length;
+  const checklists = checklistRes.data || [];
+  const checklistsCompleted = checklists.filter((c: Record<string, unknown>) => c.completed).length;
+  const checklistsTotal = checklists.length;
+
+  return { requestsToday, completedToday, pendingNow, messagesToday, shuttleBookingsToday, avgResponseMin, staffOnDuty, checklistsCompleted, checklistsTotal };
 }
 
 export default supabase;

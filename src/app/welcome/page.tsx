@@ -9,14 +9,18 @@ import { getHotelConfig, HotelConfig, goBackToHotel } from '@/lib/guest-context'
 export default function WelcomePage() {
   const router = useRouter();
   const [config, setConfig] = useState<HotelConfig | null>(null);
+  const [brandColor, setBrandColor] = useState('#3A1A2D');
 
   useEffect(() => {
-    getHotelConfig().then(setConfig);
+    getHotelConfig().then(cfg => {
+      setConfig(cfg);
+      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
+    });
   }, []);
 
   if (!config) return (
     <div className="min-h-screen bg-[#F5F5F5] flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-[#3A1A2D] border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: `${brandColor} transparent transparent transparent` }} />
     </div>
   );
 
@@ -25,7 +29,7 @@ export default function WelcomePage() {
       <div className="fixed top-0 left-0 right-0 z-10 bg-white/80 backdrop-blur-xl">
         <div className="flex items-center justify-between px-6 h-[52px] border-b border-gray-100">
           <button onClick={() => goBackToHotel(router)} className="p-2 rounded-full hover:bg-gray-100 active:scale-95">
-            <ArrowLeft size={20} className="text-[#3A1A2D]" />
+            <ArrowLeft size={20} style={{ color: brandColor }} />
           </button>
           <span className="text-[15px] font-bold text-black">Welcome</span>
           <div className="w-9" />
@@ -36,7 +40,7 @@ export default function WelcomePage() {
         <div className="bg-white rounded-2xl p-6 border border-gray-100 mb-6">
           <p className="text-[13px] text-gray-700 leading-relaxed whitespace-pre-wrap">{config.welcomeLetter || 'Thank you for choosing our hotel. We are delighted to welcome you and hope you have a wonderful stay with us.'}</p>
           <div className="mt-5 pt-5 border-t border-gray-100">
-            <p className="text-[14px] font-bold text-[#3A1D3C] mb-0.5">{config.managerName || 'Hotel Manager'}</p>
+            <p className="text-[14px] font-bold mb-0.5" style={{ color: brandColor }}>{config.managerName || 'Hotel Manager'}</p>
             <p className="text-[12px] text-gray-400">{config.name || 'Best Western'}</p>
           </div>
         </div>

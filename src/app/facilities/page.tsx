@@ -10,8 +10,14 @@ export default function FacilitiesPage() {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [config, setConfig] = useState<HotelConfig | null>(null);
+  const [brandColor, setBrandColor] = useState('#6B1D3C');
 
-  useEffect(() => { getHotelConfig().then(setConfig); }, []);
+  useEffect(() => {
+    getHotelConfig().then(cfg => {
+      setConfig(cfg);
+      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
+    });
+  }, []);
 
   const wifiName = config?.wifiName || 'Hotel-WiFi';
   const wifiPassword = config?.wifiPassword || '';
@@ -46,8 +52,8 @@ export default function FacilitiesPage() {
           {/* WiFi Card */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-[#6B1D3C]/10 flex items-center justify-center">
-                <Wifi size={20} className="text-[#6B1D3C]" />
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${brandColor}10` }}>
+                <Wifi size={20} style={{ color: brandColor }} />
               </div>
               <div>
                 <p className="text-[14px] font-bold text-gray-800">Free Wi-Fi</p>
@@ -67,7 +73,8 @@ export default function FacilitiesPage() {
               </div>
               <button
                 onClick={copyWiFi}
-                className="px-3 py-1.5 rounded-lg bg-[#6B1D3C] text-white text-[11px] font-bold active:scale-95 flex items-center gap-1"
+                className="px-3 py-1.5 rounded-lg text-white text-[11px] font-bold active:scale-95 flex items-center gap-1"
+                style={{ backgroundColor: brandColor }}
               >
                 {copied ? <Check size={12} /> : null}
                 {copied ? 'Copied' : 'Copy'}
@@ -82,7 +89,7 @@ export default function FacilitiesPage() {
             <div className="space-y-3">
               {amenities.map((a, i) => (
                 <div key={i} className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-[#6B1D3C]/10 flex items-center justify-center shrink-0 text-[#6B1D3C]">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${brandColor}10`, color: brandColor }}>
                     {a.icon}
                   </div>
                   <div>

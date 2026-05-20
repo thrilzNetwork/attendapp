@@ -8,12 +8,12 @@ import {
   Wifi, Hotel as HotelIcon, ExternalLink, ImageIcon, type LucideIcon,
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
   UtensilsCrossed, UserPlus,  BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
-  FileSpreadsheet, FileText,
+  FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
 } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
   getHotelConfig, updateHotelConfig, HotelConfig,
-  getStaffAccounts, getStaffAccountsForHotel, createStaffAccountWithDetails,
+  getStaffAccounts, getStaffAccountsForHotel, createStaffAccountWithDetails, getStaffAccountByEmail,
   deleteStaffAccount, updateStaffDetails, updateStaffPermissions, StaffAccount,
   getPartners, createPartner, updatePartner, deletePartner, Partner,
   getPartnerMenuItems, createPartnerMenuItem, deletePartnerMenuItem, PartnerMenuItem,
@@ -25,7 +25,13 @@ import {
   getShuttleRequests, updateShuttleRequest, ShuttleRoute, ShuttleSlot, ShuttleBooking, ShuttleRequest,
   getCruiseSchedulesAll, createCruiseSchedule, deleteCruiseSchedule, CruiseSchedule,
   getAllKnowledgeBase, createKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry, KnowledgeEntry,
-  getAllHotelRooms, bulkInsertRooms, deleteRoom, createRoom, HotelRoom,
+  getAllHotelRooms, bulkInsertRooms, deleteRoom, createRoom, updateRoomType, updateRoomTypeBatch, HotelRoom,
+  upsertGuestValidation, getGuestValidations,
+  // Front Desk Ops
+  getChecklists, createChecklist, deleteChecklist, Checklist,
+  getChecklistInstances, createChecklistInstance, updateChecklistInstance, ChecklistInstance,
+  getStaffSchedules, createStaffSchedule, deleteStaffSchedule, StaffSchedule,
+  getDailyRecap,
 } from '@/lib/supabase';
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -34,7 +40,8 @@ type NavTab =
   | 'orders' | 'messages' | 'shuttle'
   | 'hotel' | 'staff_mgmt'
   | 'partners' | 'qrcodes' | 'properties'
-  | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms';
+  | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
+  | 'frontdesk';
 
 interface Request {
   id: string;
@@ -72,8 +79,9 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[] }[] = [
   { tab: 'messages',        label: 'Guest Messages',     icon: MessageSquare,   roles: ['admin', 'staff', 'superadmin'] },
   { tab: 'shuttle',         label: 'Shuttle Schedule',   icon: Bus,             roles: ['admin', 'staff', 'superadmin'] },
   { tab: 'guests',          label: 'Guest Check-ins',    icon: Users,           roles: ['admin', 'staff', 'superadmin'] },
+  { tab: 'frontdesk',       label: 'Front Desk',         icon: ClipboardList,   roles: ['admin', 'staff', 'superadmin'] },
   { tab: 'vendor_manifest', label: 'Vendor Dashboard',   icon: Users,           roles: ['vendor'] },
-  { tab: 'hotel',           label: 'Hotel Settings',     icon: Settings,        roles: ['admin', 'superadmin'] },
+  { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'] },
   { tab: 'staff_mgmt',      label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'] },
   { tab: 'partners',        label: 'Partners & Menu',    icon: Store,           roles: ['admin', 'superadmin'] },
   { tab: 'qrcodes',         label: 'QR Codes',           icon: QrCodeIcon,      roles: ['admin', 'superadmin'] },
@@ -86,8 +94,18 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[] }[] = [
 export default function Dashboard() {
   const [session, setSession] = useState<Session | null>(null);
   const [tab, setTab] = useState<NavTab>('orders');
+  // Auth state
+  const [authMode, setAuthMode] = useState<'email' | 'pin' | 'authenticated'>('pin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
+  const [pendingAuthUser, setPendingAuthUser] = useState<{ name: string; role: Role; vendorType?: string } | null>(null);
+  const [allHotels, setAllHotels] = useState<{ id: string; slug: string; name: string }[]>([]);
+  const [showHotelPicker, setShowHotelPicker] = useState(false);
   const [requests, setRequests] = useState<Request[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [config, setConfig] = useState<HotelConfig | null>(null);
@@ -99,14 +117,100 @@ export default function Dashboard() {
     if (hotel) localStorage.setItem('attenda_hotel_slug', hotel);
   }, []);
 
-  const handleLogin = async () => {
+  const handleEmailLogin = async () => {
+    setAuthError('');
+    if (!email || !password) { setAuthError('Email and password required.'); return; }
+    setAuthLoading(true);
+    try {
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInErr) throw signInErr;
+
+      // Look up staff account by email
+      const staff = await getStaffAccountByEmail(email);
+      if (!staff) {
+        await supabase.auth.signOut();
+        setAuthError('No staff account found for this email. Contact your admin.');
+        setAuthLoading(false);
+        return;
+      }
+
+      // If they have a PIN set, require PIN 2FA
+      if (staff.pin_code && staff.pin_code.length >= 4) {
+        setPendingAuthUser({
+          name: staff.name,
+          role: (staff.role === 'manager' || staff.role === 'admin' ? 'admin' : staff.role === 'vendor' ? 'vendor' : 'staff') as Role,
+          vendorType: staff.vendor_type || undefined,
+        });
+        setAuthMode('pin');
+        setPin('');
+        setPinError('');
+        setAuthLoading(false);
+        return;
+      }
+
+      // No PIN — log in directly
+      const role: Role = staff.role === 'manager' || staff.role === 'admin' ? 'admin' : staff.role === 'vendor' ? 'vendor' : 'staff';
+      setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined });
+      setAuthMode('authenticated');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Login failed.';
+      if (msg.includes('Invalid login credentials')) {
+        setAuthError('Invalid email or password.');
+      } else {
+        setAuthError(msg);
+      }
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handlePin2FA = async () => {
+    setPinError('');
+    if (!pin || !pendingAuthUser) return;
+    if (pin === SUPERADMIN_PIN || pin === ADMIN_PIN) {
+      // Legacy PINs work as 2FA too
+      setSession(pendingAuthUser);
+      setPendingAuthUser(null);
+      setAuthMode('authenticated');
+      return;
+    }
+    const { data } = await supabase
+      .from('staff_accounts')
+      .select('*')
+      .eq('pin_code', pin)
+      .eq('active', true)
+      .single();
+    if (data) {
+      setSession(pendingAuthUser);
+      setPendingAuthUser(null);
+      setAuthMode('authenticated');
+    } else {
+      setPinError('Incorrect PIN. Try again.');
+      setPin('');
+    }
+  };
+
+  const handlePinOnlyFallback = async () => {
     setPinError('');
     if (pin === SUPERADMIN_PIN) {
       setSession({ name: 'Super Admin', role: 'superadmin' });
+      setAuthMode('authenticated');
       return;
     }
     if (pin === ADMIN_PIN) {
-      setSession({ name: 'Admin', role: 'admin' });
+      // Load all hotels so admin can pick one
+      const { data } = await supabase.from('hotels').select('id,slug,name').order('name');
+      setAllHotels(data || []);
+      if (data && data.length === 1) {
+        // Only one hotel — skip picker
+        localStorage.setItem('attenda_hotel_slug', data[0].slug);
+        setSession({ name: 'Admin', role: 'admin' });
+        setAuthMode('authenticated');
+      } else {
+        setShowHotelPicker(true);
+        setAuthMode('authenticated');
+        // Session set in pickHotel callback
+      }
       return;
     }
     const { data } = await supabase
@@ -120,10 +224,25 @@ export default function Dashboard() {
         data.role === 'manager' || data.role === 'admin' ? 'admin' :
         data.role === 'vendor' ? 'vendor' : 'staff';
       setSession({ name: data.name, role, vendorType: data.vendor_type || undefined });
+      setAuthMode('authenticated');
     } else {
       setPinError('Incorrect PIN. Try again.');
       setPin('');
     }
+  };
+
+  const pickHotel = async (slug: string) => {
+    localStorage.setItem('attenda_hotel_slug', slug);
+    setSession({ name: 'Admin', role: 'admin' });
+    setShowHotelPicker(false);
+    setAuthMode('authenticated');
+  };
+
+  const switchHotel = async (slug: string) => {
+    localStorage.setItem('attenda_hotel_slug', slug);
+    const c = await getHotelConfig(slug);
+    if (c) { setConfig(c); setTab('orders'); }
+    if (session) await reload(session.role);
   };
 
   const reload = useCallback(async (role: Role) => {
@@ -144,60 +263,135 @@ export default function Dashboard() {
     if (msg.data) setMessages(msg.data);
 
     if (role === 'admin' || role === 'superadmin') {
-      setStaff(await getStaffAccounts());
+      setStaff(await getStaffAccounts(hotelId));
     }
   }, []);
 
   useEffect(() => {
     if (!session) return;
     reload(session.role);
-    const ch1 = subscribeToRequests(() => { reload(session.role); });
-    const ch2 = subscribeToMessages(() => { reload(session.role); });
+    // Load hotels list for sidebar switcher
+    if (session.role === 'admin' || session.role === 'superadmin') {
+      getAllHotels().then(data => setAllHotels(data as { id: string; slug: string; name: string }[]));
+    }
+    const hotelId = config?.id || null;
+    const ch1 = subscribeToRequests(hotelId, () => { reload(session.role); });
+    const ch2 = subscribeToMessages(hotelId, () => { reload(session.role); });
     return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
-  }, [session, reload]);
+  }, [session, reload, config]);
 
   /* ── Login screen ─────────────────────────────────── */
   if (!session) {
+    if (authMode === 'pin') {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: `${TEAL}18` }}>
+              <Lock size={24} style={{ color: TEAL }} />
+            </div>
+            <h1 className="text-xl font-bold text-center mb-1">Staff Dashboard</h1>
+            {pendingAuthUser ? (
+              <p className="text-sm text-gray-400 text-center mb-6">{pendingAuthUser.name} — enter your PIN to continue</p>
+            ) : (
+              <p className="text-sm text-gray-400 text-center mb-6">Enter your PIN</p>
+            )}
+            <input
+              type="password"
+              value={pin}
+              onChange={e => { setPin(e.target.value); setPinError(''); }}
+              onKeyDown={e => e.key === 'Enter' && (pendingAuthUser ? handlePin2FA() : handlePinOnlyFallback())}
+              placeholder="PIN"
+              maxLength={6} autoFocus
+              className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[15px] border border-gray-100 focus:outline-none text-center tracking-[0.3em] font-mono mb-2"
+            />
+            {pinError && <p className="text-red-500 text-[12px] text-center mb-2">{pinError}</p>}
+            <button onClick={pendingAuthUser ? handlePin2FA : handlePinOnlyFallback}
+              className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px]" style={{ backgroundColor: TEAL }}>
+              {pendingAuthUser ? 'CONFIRM' : 'ACCESS DASHBOARD'}
+            </button>
+            {!pendingAuthUser && (
+              <div className="mt-5 border-t border-gray-100 pt-4">
+                <p className="text-center text-[12px] text-gray-400 mb-3">Need email sign in?</p>
+                <button onClick={() => setAuthMode('email')} className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-600 font-semibold text-[12px] hover:bg-gray-200">
+                  Sign in with email instead
+                </button>
+              </div>
+            )}
+            <p className="text-center mt-4 text-[12px] text-gray-400">
+              Platform admin?{' '}
+              <a href="/superadmin" className="font-semibold underline" style={{ color: TEAL }}>Super Admin →</a>
+            </p>
+          </div>
+        </div>
+      );
+    }
+    if (authMode === 'email') {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: `${TEAL}18` }}>
+              <Mail size={24} style={{ color: TEAL }} />
+            </div>
+            <h1 className="text-xl font-bold text-center mb-1">Staff Dashboard</h1>
+            <p className="text-sm text-gray-400 text-center mb-6">Sign in with your email and password</p>
+            <div className="space-y-3">
+              <input type="email" value={email} onChange={e => { setEmail(e.target.value); setAuthError(''); }} placeholder="Email address" onKeyDown={e => e.key === 'Enter' && handleEmailLogin()} autoComplete="email" className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400" />
+              <div className="relative">
+                <input type={showPass ? 'text' : 'password'} value={password} onChange={e => { setPassword(e.target.value); setAuthError(''); }} placeholder="Password" onKeyDown={e => e.key === 'Enter' && handleEmailLogin()} autoComplete="current-password" className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400 pr-11" />
+                <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400">{showPass ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+              </div>
+              {authError && <p className="text-red-500 text-[12px] text-center bg-red-50 py-2 rounded-lg">{authError}</p>}
+              <button onClick={handleEmailLogin} disabled={authLoading} className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundColor: TEAL }}>
+                {authLoading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Lock size={16} />}
+                {authLoading ? 'Signing in...' : 'SIGN IN'}
+              </button>
+            </div>
+            <div className="mt-5 border-t border-gray-100 pt-4">
+              <p className="text-center text-[12px] text-gray-400 mb-3">Need access?</p>
+              <button onClick={() => setAuthMode('pin')} className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-600 font-semibold text-[12px] hover:bg-gray-200">Sign in with PIN instead</button>
+            </div>
+            <p className="text-center mt-4 text-[12px] text-gray-400">Platform admin? <a href="/superadmin" className="font-semibold underline" style={{ color: TEAL }}>Super Admin →</a></p>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  /* ── Hotel Picker (for PIN 2025 admins with multiple properties) ─── */
+  if (showHotelPicker) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
         <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
           <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: `${TEAL}18` }}>
-            <HotelIcon size={28} style={{ color: TEAL }} />
+            <Building2 size={24} style={{ color: TEAL }} />
           </div>
-          <h1 className="text-xl font-bold text-center mb-1">Staff Access</h1>
-          <p className="text-sm text-gray-400 text-center mb-6">Enter your PIN to continue</p>
-          <input
-            type="password"
-            value={pin}
-            onChange={e => { setPin(e.target.value); setPinError(''); }}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            placeholder="PIN"
-            maxLength={6}
-            className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[15px] border border-gray-100 focus:outline-none text-center tracking-[0.3em] font-mono mb-2"
-          />
-          {pinError && <p className="text-red-500 text-[12px] text-center mb-2">{pinError}</p>}
-          <button
-            onClick={handleLogin}
-            className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px]"
-            style={{ backgroundColor: TEAL }}
-          >
-            ACCESS DASHBOARD
+          <h1 className="text-xl font-bold text-center mb-1">Select Property</h1>
+          <p className="text-sm text-gray-400 text-center mb-6">Choose which property to manage</p>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {allHotels.map(h => (
+              <button key={h.id} onClick={() => pickHotel(h.slug)}
+                className="w-full text-left bg-gray-50 hover:bg-gray-100 rounded-xl px-4 py-3.5 transition-colors border border-gray-100 hover:border-gray-200">
+                <p className="text-[14px] font-semibold text-gray-900">{h.name}</p>
+                <p className="text-[11px] text-gray-400 font-mono">@{h.slug}</p>
+              </button>
+            ))}
+          </div>
+          <button onClick={() => { setShowHotelPicker(false); setAuthMode('pin'); setSession(null); }}
+            className="w-full mt-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-semibold text-[12px] hover:bg-gray-200">
+            ← Back to login
           </button>
-          <p className="text-center mt-4 text-[12px] text-gray-400">
-            Platform admin?{' '}
-            <a href="/superadmin" className="font-semibold underline" style={{ color: TEAL }}>Sign in with Google →</a>
-          </p>
         </div>
       </div>
     );
   }
 
   /* ── Dashboard ────────────────────────────────────── */
-  const visibleNav = NAV.filter(n => n.roles.includes(session.role));
+  const s = session!;
+  const visibleNav = NAV.filter(n => n.roles.includes(s.role));
   const pendingCount = requests.filter(r => r.status === 'pending').length;
-  const isAdmin = session.role === 'admin' || session.role === 'superadmin';
+  const isAdmin = s.role === 'admin' || s.role === 'superadmin';
   // Vendors land on their manifest tab
-  const effectiveTab = (session.role === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab;
+  const effectiveTab = (s.role === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab;
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row">
@@ -207,14 +401,14 @@ export default function Dashboard() {
         <div className="flex items-center justify-between px-4 py-3">
           <div>
             <p className="text-[15px] font-bold text-gray-900 leading-tight">{config?.name || 'Attenda'}</p>
-            <p className="text-[11px] text-gray-500">{session.name} ·{' '}
-              <span className={`font-semibold ${session.role === 'superadmin' ? 'text-purple-600' : session.role === 'admin' ? 'text-teal-600' : 'text-blue-600'}`}>
-                {session.role === 'superadmin' ? 'Super Admin' : session.role === 'admin' ? 'Admin' : 'Staff'}
+            <p className="text-[11px] text-gray-500">{s.name} ·{' '}
+              <span className={`font-semibold ${s.role === 'superadmin' ? 'text-purple-600' : s.role === 'admin' ? 'text-teal-600' : 'text-blue-600'}`}>
+                {s.role === 'superadmin' ? 'Super Admin' : s.role === 'admin' ? 'Admin' : 'Staff'}
               </span>
             </p>
           </div>
           <button
-            onClick={() => { setSession(null); setPin(''); setTab('orders'); }}
+            onClick={() => { supabase.auth.signOut(); setSession(null); setAuthMode('email'); setPin(''); setTab('orders'); }}
             className="flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-red-500 transition-colors"
           >
             <LogOut size={14} />
@@ -250,22 +444,38 @@ export default function Dashboard() {
             <span className="text-[10px] font-bold" style={{ color: TEAL }}>A</span>
           </div>
           <h2 className="text-[15px] font-bold text-gray-900 leading-tight">
-            {config?.name || 'Attenda Hotel'}
+            {config?.name || 'Attenda'}
           </h2>
-          <p className="text-[12px] text-gray-500">
-            {config?.slug ? `@${config.slug}` : 'Dashboard'}
-          </p>
+          {isAdmin ? (
+            <select
+              value={config?.slug || ''}
+              onChange={e => switchHotel(e.target.value)}
+              className="w-full mt-1 text-[11px] text-gray-500 bg-transparent border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-teal-400"
+            >
+              {allHotels.length === 0 && (
+                // Lazy load hotels the first time
+                <option value={config?.slug || ''}>{config?.slug || 'Loading...'}</option>
+              )}
+              {allHotels.map(h => (
+                <option key={h.slug} value={h.slug}>{h.name}</option>
+              ))}
+            </select>
+          ) : (
+            <p className="text-[12px] text-gray-500">
+              {config?.slug ? `@${config.slug}` : 'Dashboard'}
+            </p>
+          )}
         </div>
 
         <div className="px-5 py-3 border-t border-gray-200/60">
           <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Logged in as</p>
-          <p className="text-[14px] font-semibold text-gray-900">{session.name}</p>
+          <p className="text-[14px] font-semibold text-gray-900">{s.name}</p>
           <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 ${
-            session.role === 'superadmin' ? 'bg-purple-100 text-purple-700' :
-            session.role === 'admin' ? 'bg-teal-100 text-teal-700' :
-            session.role === 'vendor' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+            s.role === 'superadmin' ? 'bg-purple-100 text-purple-700' :
+            s.role === 'admin' ? 'bg-teal-100 text-teal-700' :
+            s.role === 'vendor' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
           }`}>
-            {session.role === 'superadmin' ? 'Super Admin' : session.role === 'admin' ? 'Admin' : session.role === 'vendor' ? `Vendor · ${session.vendorType || ''}` : 'Staff'}
+            {s.role === 'superadmin' ? 'Super Admin' : s.role === 'admin' ? 'Admin' : s.role === 'vendor' ? `Vendor · ${s.vendorType || ''}` : 'Staff'}
           </span>
         </div>
 
@@ -290,18 +500,9 @@ export default function Dashboard() {
           ))}
         </nav>
 
-        {config?.googleSheetUrl && (
-          <div className="px-4 pb-3">
-            <a href={config.googleSheetUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-teal-600 transition-colors">
-              <ExternalLink size={11} /> Operations Sheet
-            </a>
-          </div>
-        )}
-
         <div className="p-4 border-t border-gray-200/60">
           <button
-            onClick={() => { setSession(null); setPin(''); setTab('orders'); }}
+            onClick={() => { supabase.auth.signOut(); setSession(null); setAuthMode('email'); setPin(''); setTab('orders'); }}
             className="flex items-center gap-2 text-[12px] text-gray-500 hover:text-red-500 transition-colors"
           >
             <LogOut size={14} /> Sign Out
@@ -315,9 +516,9 @@ export default function Dashboard() {
           <OrdersView
             requests={requests}
             messages={messages}
-            onStatusChange={async (id, s) => { await updateRequestStatus(id, s); reload(session.role); }}
-            onDelete={async id => { await deleteRequest(id); reload(session.role); }}
-            onRefresh={() => reload(session.role)}
+            onStatusChange={async (id, status) => { await updateRequestStatus(id, status); reload(s.role); }}
+            onDelete={async id => { await deleteRequest(id); reload(s.role); }}
+            onRefresh={() => reload(s.role)}
           />
         )}
         {effectiveTab === 'messages' && <MessagesView messages={messages} />}
@@ -325,7 +526,7 @@ export default function Dashboard() {
           <ShuttleView hotelId={config.id} isAdmin={isAdmin} />
         )}
         {effectiveTab === 'vendor_manifest' && config?.id && (
-          <VendorDashboard hotelId={config.id} vendorType={session.vendorType || 'shuttle'} vendorName={session.name} />
+          <VendorDashboard hotelId={config.id} vendorType={s.vendorType || 'shuttle'} vendorName={s.name} />
         )}
         {effectiveTab === 'hotel' && isAdmin && config && (
           <HotelSettingsView
@@ -348,7 +549,7 @@ export default function Dashboard() {
         {effectiveTab === 'rooms' && isAdmin && config?.id && config?.slug && (
           <RoomsView hotelId={config.id} hotelName={config.name} />
         )}
-        {effectiveTab === 'properties' && session.role === 'superadmin' && (
+        {effectiveTab === 'properties' && s.role === 'superadmin' && (
           <PropertiesView
             onSwitchHotel={async (slug: string) => {
               localStorage.setItem('attenda_hotel_slug', slug);
@@ -359,6 +560,9 @@ export default function Dashboard() {
         )}
         {effectiveTab === 'guests' && config?.id && (
           <GuestsView hotelId={config.id} />
+        )}
+        {effectiveTab === 'frontdesk' && config?.id && (
+          <FrontDeskView hotelId={config.id} isAdmin={isAdmin} staff={staff.map(s => ({ id: s.id, name: s.name, email: s.email, role: s.role }))} hotelName={config.name} />
         )}
       </main>
     </div>
@@ -377,8 +581,11 @@ function OrdersView({
 }) {
   const [statusTab, setStatusTab] = useState<'active' | 'completed' | 'messages'>('active');
   const [typeFilter, setTypeFilter] = useState<'All' | 'Food' | 'Transport' | 'Amenities' | 'Other'>('All');
+  const [transportSubFilter, setTransportSubFilter] = useState<'all' | 'airport' | 'cruise'>('all');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [assignForm, setAssignForm] = useState<Record<string, string>>({});
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({ guest_name: '', room: '', type: 'Other', details: '' });
 
   // Guest messages (sender=guest only, most recent first)
   const guestMessages = messages.filter(m => m.sender === 'guest')
@@ -409,17 +616,33 @@ function OrdersView({
     }
   };
 
+  const checkTypeOrDetails = (r: Request, keywords: string[]) =>
+    keywords.some(kw => r.type?.toLowerCase().includes(kw) || r.details?.toLowerCase().includes(kw));
+
   const isFood = (r: Request) =>
-    ['food_order', 'order', 'restaurant', 'food'].some(kw => r.type?.toLowerCase().includes(kw));
+    checkTypeOrDetails(r, ['food_order', 'order', 'restaurant', 'food', 'burger', 'pizza', 'menu', 'delivery']);
   const isTransport = (r: Request) =>
-    ['transport', 'shuttle', 'taxi', 'uber', 'ride'].some(kw => r.type?.toLowerCase().includes(kw));
+    checkTypeOrDetails(r, ['transport', 'shuttle', 'taxi', 'uber', 'ride', 'pickup', 'dropoff']);
+
+  const isAirport = (r: Request) =>
+    isTransport(r) && r.details?.toLowerCase().includes('airport');
+  const isCruise = (r: Request) =>
+    isTransport(r) && r.details?.toLowerCase().includes('cruise');
+
+  const isCheckinRequest = (r: Request) =>
+    r.type?.toLowerCase().includes('check-in') || r.type?.toLowerCase().includes('checkin');
+
   const isAmenity = (r: Request) =>
-    ['amenity', 'towel', 'housekeep', 'clean', 'water', 'bottle', 'toilet'].some(kw => r.type?.toLowerCase().includes(kw));
+    checkTypeOrDetails(r, ['amenity', 'towel', 'housekeep', 'clean', 'water', 'bottle', 'toilet', 'soap', 'shampoo']);
 
   const filtered = requests.filter(r => {
     if (typeFilter === 'All') return true;
     if (typeFilter === 'Food') return isFood(r);
-    if (typeFilter === 'Transport') return isTransport(r);
+    if (typeFilter === 'Transport') {
+      if (transportSubFilter === 'airport') return isAirport(r);
+      if (transportSubFilter === 'cruise') return isCruise(r);
+      return isTransport(r);
+    }
     if (typeFilter === 'Amenities') return isAmenity(r);
     return !isFood(r) && !isTransport(r) && !isAmenity(r);
   });
@@ -436,16 +659,38 @@ function OrdersView({
     { key: 'Other', label: '📋 Other' },
   ];
 
+  const handleCreateRequest = async () => {
+    if (!createForm.guest_name.trim() || !createForm.room.trim()) return;
+    const hotelSlug = localStorage.getItem('attenda_hotel_slug');
+    const cfg = await getHotelConfig(hotelSlug || undefined);
+    await supabase.from('requests').insert({
+      hotel_id: cfg?.id,
+      guest_name: createForm.guest_name.trim(),
+      room: createForm.room.trim(),
+      type: createForm.type,
+      details: createForm.details.trim() || createForm.type,
+      status: 'pending',
+    });
+    setShowCreateModal(false);
+    setCreateForm({ guest_name: '', room: '', type: 'Other', details: '' });
+    onRefresh();
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[26px] font-extrabold text-gray-900">Live Orders</h1>
-        <button onClick={onRefresh} className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-[13px] font-semibold text-gray-600 hover:bg-gray-50">
-          <RefreshCw size={14} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 text-white px-3 py-1.5 rounded-lg text-[13px] font-bold hover:opacity-90 transition-opacity" style={{ backgroundColor: TEAL }}>
+            <Plus size={14} /> New
+          </button>
+          <button onClick={onRefresh} className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-[13px] font-semibold text-gray-600 hover:bg-gray-50">
+            <RefreshCw size={14} /> Refresh
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4">
         {[
           { label: 'Pending', count: filtered.filter(r => r.status === 'pending').length, color: 'text-amber-600' },
           { label: 'In Progress', count: filtered.filter(r => r.status === 'in-progress').length, color: 'text-blue-600' },
@@ -476,6 +721,30 @@ function OrdersView({
           </button>
         ))}
       </div>
+
+      {/* Transport sub-tabs */}
+      {typeFilter === 'Transport' && (
+        <div className="flex gap-1.5 mb-4 overflow-x-auto no-scrollbar">
+          {[
+            { key: 'all' as const, label: 'All Transport' },
+            { key: 'airport' as const, label: '✈️ Airport' },
+            { key: 'cruise' as const, label: '🚢 Cruise' },
+          ].map(sub => (
+            <button
+              key={sub.key}
+              onClick={() => setTransportSubFilter(sub.key)}
+              className={`shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold transition-colors ${
+                transportSubFilter === sub.key
+                  ? 'text-white shadow-sm'
+                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+              }`}
+              style={transportSubFilter === sub.key ? { backgroundColor: TEAL } : {}}
+            >
+              {sub.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Active/Completed/Messages tabs */}
       <div className="flex gap-2 mb-4">
@@ -538,6 +807,11 @@ function OrdersView({
                   <span className={`w-2 h-2 rounded-full ${req.status === 'pending' ? 'bg-amber-400' : req.status === 'in-progress' ? 'bg-blue-400' : 'bg-emerald-400'}`} />
                   <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{req.type}</span>
                   {foodOrder && <UtensilsCrossed size={11} className="text-amber-500" />}
+                  {isCheckinRequest(req) && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                      ⚠️ Unverified Guest
+                    </span>
+                  )}
                   {req.details?.includes('Clover #') && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
                       Clover POS
@@ -556,11 +830,19 @@ function OrdersView({
               <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
                 {req.status === 'pending' && (
                   <>
-                    <button onClick={() => onStatusChange(req.id, 'in-progress')}
-                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold hover:opacity-80"
-                      style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                      {foodOrder ? 'Notify Restaurant' : 'Start'}
-                    </button>
+                    {isCheckinRequest(req) ? (
+                      <button onClick={async () => { await supabase.from('requests').update({status:'completed'}).eq('id', req.id); onRefresh(); }}
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-bold hover:opacity-80"
+                        style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+                        ✅ Confirm Guest
+                      </button>
+                    ) : (
+                      <button onClick={() => onStatusChange(req.id, 'in-progress')}
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-bold hover:opacity-80"
+                        style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+                        {foodOrder ? 'Notify Restaurant' : 'Start'}
+                      </button>
+                    )}
                     <button onClick={() => onDelete(req.id)}
                       className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-[11px] font-bold hover:bg-red-100">
                       Delete
@@ -661,53 +943,239 @@ function OrdersView({
         );
         })}
       </div>}
+      {/* Create Request Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4" onClick={() => setShowCreateModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-[16px] font-bold text-gray-900">New Request</h3>
+              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
+            </div>
+            <div className="p-5 space-y-3">
+              <input value={createForm.guest_name} onChange={e => setCreateForm({ ...createForm, guest_name: e.target.value })}
+                placeholder="Guest name" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
+              <input value={createForm.room} onChange={e => setCreateForm({ ...createForm, room: e.target.value })}
+                placeholder="Room number" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
+              <select value={createForm.type} onChange={e => setCreateForm({ ...createForm, type: e.target.value })}
+                className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none">
+                <option value="Airport Shuttle">✈️ Airport Shuttle</option>
+                <option value="Cruise Shuttle">🚢 Cruise Shuttle</option>
+                <option value="Housekeeping">🧹 Housekeeping</option>
+                <option value="Maintenance">🔧 Maintenance</option>
+                <option value="Amenity">🛁 Amenity</option>
+                <option value="Food Order">🍴 Food Order</option>
+                <option value="Other">📋 Other</option>
+              </select>
+              <textarea value={createForm.details} onChange={e => setCreateForm({ ...createForm, details: e.target.value })}
+                placeholder="Details (optional)" rows={3} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none resize-none" />
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 flex gap-2 justify-end">
+              <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">Cancel</button>
+              <button onClick={handleCreateRequest} disabled={!createForm.guest_name.trim() || !createForm.room.trim()}
+                className="px-5 py-2 rounded-xl text-white text-[13px] font-bold disabled:opacity-40" style={{ backgroundColor: TEAL }}>
+                <Plus size={14} className="inline mr-1" /> Create Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ── Messages View ──────────────────────────────────────── */
+/* ── Messages View (WhatsApp-Style Split) ──────────────── */
 function MessagesView({ messages }: { messages: Message[] }) {
+  const [selectedGuest, setSelectedGuest] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Build conversation groups (by guest_name), sorted by most recent
+  const byGuest = new Map<string, Message[]>();
+  messages.forEach(msg => {
+    const arr = byGuest.get(msg.guest_name) || [];
+    arr.push(msg);
+    byGuest.set(msg.guest_name, arr);
+  });
+  const groups: { guest_name: string; room: string; messages: Message[]; lastMsg: Message; unread: number }[] = [];
+  byGuest.forEach((msgs, name) => {
+    msgs.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    groups.push({
+      guest_name: name,
+      room: msgs[msgs.length - 1].room,
+      messages: msgs,
+      lastMsg: msgs[msgs.length - 1],
+      unread: msgs.length,
+    });
+  });
+  groups.sort((a, b) => new Date(b.lastMsg.created_at).getTime() - new Date(a.lastMsg.created_at).getTime());
+
+  const selected = groups.find(g => g.guest_name === selectedGuest);
+  const [showArchived, setShowArchived] = useState(false);
+
+  // Split into today's active convos vs archived (no activity today)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const activeGroups = groups.filter(g => new Date(g.lastMsg.created_at) >= today);
+  const archivedGroups = groups.filter(g => new Date(g.lastMsg.created_at) < today);
+
+  const filteredGroups = showArchived ? archivedGroups : activeGroups;
+
+  const handleSend = async () => {
+    if (!replyText.trim() || !selected) return;
+    await supabase.from('messages').insert({
+      guest_name: selected.guest_name,
+      room: selected.room,
+      sender: 'staff',
+      body: replyText.trim(),
+    });
+    setReplyText('');
+  };
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
+  }, [selected, selectedGuest]);
 
-  return (
-    <div className="h-full flex flex-col">
-      <div className="shrink-0 p-8 pb-4">
-        <h1 className="text-[26px] font-extrabold text-gray-900">Guest Messages</h1>
-        <p className="text-[13px] text-gray-500 mt-0.5">All guest conversations appear here in real time.</p>
+  /* ── Left Panel: Contact List ────────────────────────── */
+  const contactList = (
+    <div className="h-full flex flex-col bg-white">
+      <div className="shrink-0 px-4 py-3 border-b border-gray-200">
+        <h2 className="text-[15px] font-extrabold text-gray-900">Chats</h2>
+        <p className="text-[11px] text-gray-400 mt-0.5">{activeGroups.length} active · {archivedGroups.length} archived</p>
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 pb-8 space-y-4">
-        {messages.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
-            <MessageSquare size={32} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-[13px] text-gray-500">No messages yet.</p>
-            <p className="text-[11px] text-gray-400 mt-1">Messages sent by guests appear here in real time.</p>
+      <div className="flex gap-1 px-4 py-2 border-b border-gray-100">
+        <button onClick={() => setShowArchived(false)} className={`text-[11px] font-semibold px-3 py-1.5 rounded-full transition-colors ${!showArchived ? 'bg-teal-100 text-teal-800' : 'text-gray-500 hover:bg-gray-100'}`}>Active ({activeGroups.length})</button>
+        <button onClick={() => setShowArchived(true)} className={`text-[11px] font-semibold px-3 py-1.5 rounded-full transition-colors ${showArchived ? 'bg-teal-100 text-teal-800' : 'text-gray-500 hover:bg-gray-100'}`}>Archived ({archivedGroups.length})</button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {filteredGroups.length === 0 ? (
+          <div className="p-8 text-center">
+            <MessageSquare size={28} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-[12px] text-gray-500">{showArchived ? 'No archived conversations.' : 'No active conversations today.'}</p>
           </div>
         ) : (
-          messages.map(msg => (
-            <div key={msg.id} className={`flex flex-col ${msg.sender === 'guest' ? 'items-end' : 'items-start'}`}>
-              {/* Name + Room header */}
-              <div className={`flex items-center gap-2 mb-1 px-1 ${msg.sender === 'guest' ? 'flex-row-reverse' : ''}`}>
-                <span className="text-[11px] font-semibold text-gray-600">
-                  {msg.guest_name} — Room {msg.room}
-                </span>
-                <span className="text-[10px] text-gray-400">
-                  {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+          filteredGroups.map(g => (
+            <button
+              key={g.guest_name}
+              onClick={() => setSelectedGuest(g.guest_name)}
+              className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors border-b border-gray-100 ${
+                selectedGuest === g.guest_name ? 'bg-teal-50' : ''
+              }`}
+            >
+              {/* Avatar */}
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[14px] font-bold shrink-0" style={{ backgroundColor: TEAL }}>
+                {g.guest_name.charAt(0).toUpperCase()}
               </div>
-              {/* Bubble */}
-              <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
-                msg.sender === 'guest'
-                  ? 'bg-[#6B1D3C] text-white rounded-br-md'
-                  : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
-              }`}>
-                {msg.body}
+              {/* Preview */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="text-[13px] font-semibold text-gray-900 truncate">{g.guest_name}</p>
+                  <span className="text-[10px] text-gray-400 shrink-0 ml-2">
+                    {new Date(g.lastMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                  Room {g.room} — {g.lastMsg.body}
+                </p>
               </div>
-            </div>
+              {/* Unread badge */}
+              {g.unread > 0 && (
+                <span className="text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: TEAL }}>
+                  {g.unread}
+                </span>
+              )}
+            </button>
           ))
         )}
+      </div>
+    </div>
+  );
+
+  /* ── Right Panel: Chat History + Reply ───────────────── */
+  const chatContent = selected ? (
+    <div className="h-full flex flex-col bg-[#ECE5DD]">
+      {/* Header */}
+      <div className="shrink-0 px-4 py-3 border-b border-gray-200 bg-white flex items-center gap-3">
+        <button
+          onClick={() => setSelectedGuest(null)}
+          className="lg:hidden text-gray-500 hover:text-gray-700"
+          aria-label="Back to conversations"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ backgroundColor: TEAL }}>
+          {selected.guest_name.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <p className="text-[13px] font-semibold text-gray-900">{selected.guest_name}</p>
+          <p className="text-[11px] text-gray-500">Room {selected.room}</p>
+        </div>
+      </div>
+
+      {/* Message bubbles (all) */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        {selected.messages.map(msg => (
+          <div key={msg.id} className={`flex flex-col ${msg.sender === 'staff' ? 'items-end' : 'items-start'}`}>
+            <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
+              msg.sender === 'staff'
+                ? 'bg-[#DCF8C6] text-gray-800 rounded-br-md'   // staff = sent = green bubble
+                : 'bg-white text-gray-800 rounded-bl-md'        // guest = received = white bubble
+            }`}>
+              {msg.body}
+            </div>
+            <span className="text-[9px] text-gray-400 mt-0.5 px-1">
+              {msg.sender === 'staff' ? 'Staff' : msg.guest_name} · {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Reply input */}
+      <div className="shrink-0 bg-gray-50 border-t border-gray-200 px-4 py-3">
+        <div className="flex gap-2">
+          <input
+            value={replyText}
+            onChange={e => setReplyText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+            placeholder="Type a reply..."
+            className="flex-1 bg-white rounded-full px-4 py-2.5 text-[13px] outline-none border border-gray-200 placeholder-gray-400 focus:border-teal-500 transition-colors"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!replyText.trim()}
+            className="px-5 py-2.5 rounded-full text-white font-semibold text-[13px] disabled:opacity-40 transition-colors"
+            style={{ backgroundColor: TEAL }}
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div className="h-full flex items-center justify-center bg-[#FAFAFA]">
+      <div className="text-center">
+        <MessageSquare size={44} className="text-gray-200 mx-auto mb-3" />
+        <p className="text-[13px] text-gray-500 font-medium">Select a conversation</p>
+        <p className="text-[11px] text-gray-400 mt-1">Choose a guest from the sidebar to view their messages.</p>
+      </div>
+    </div>
+  );
+
+  /* ── Layout: Desktop = split, Mobile = full screen ─── */
+  return (
+    <div className="h-full flex">
+      {/* Left panel — hidden on mobile when a conversation is open */}
+      <div className="hidden lg:flex lg:flex-col w-80 border-r border-gray-200 shrink-0">
+        {contactList}
+      </div>
+      <div className={`lg:hidden w-full ${selectedGuest ? 'hidden' : 'block'}`}>
+        {contactList}
+      </div>
+
+      {/* Right panel — chat */}
+      <div className={`flex-1 min-w-0 ${selectedGuest ? 'block' : 'hidden lg:block'}`}>
+        {chatContent}
       </div>
     </div>
   );
@@ -715,35 +1183,295 @@ function MessagesView({ messages }: { messages: Message[] }) {
 
 /* ── Shuttle View (In-App) ──────────────────────────────── */
 function ShuttleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
-  const [tab, setTab] = useState<'routes' | 'requests' | 'cruise'>('routes');
+  const [calendarTab, setCalendarTab] = useState<'calendar' | 'routes'>('calendar');
+  const [calendarEntries, setCalendarEntries] = useState<{ id: string; name: string; date: string; time: string; price: number; link: string; type: string }[]>([]);
+  const [loadingCal, setLoadingCal] = useState(true);
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [showAddEvent, setShowAddEvent] = useState(false);
+  const [newEvent, setNewEvent] = useState({ name: '', date: '', time: '', price: '0', link: '', type: 'airport' });
+  // editingEvent unused - reserved for future inline editing
+  // setEditingEvent unused - reserved for future inline editing
+
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  useEffect(() => {
+    const loadCal = async () => {
+      setLoadingCal(true);
+      try {
+        const [slots, cruises] = await Promise.all([
+          getAllShuttleSlotsForHotel(hotelId),
+          getCruiseSchedulesAll(hotelId),
+        ]);
+        const entries: typeof calendarEntries = [];
+        slots.forEach(s => {
+          (s.days_of_week || []).forEach(() => {
+            entries.push({
+              id: `slot-${s.id}`,
+              name: s.route_name || s.event_label || 'Shuttle',
+              date: s.date || new Date().toISOString().split('T')[0],
+              time: s.departure_time?.slice(0,5) || '',
+              price: s.override_price ?? s.route_price ?? 0,
+              link: '',
+              type: s.route_type || 'custom',
+            });
+          });
+        });
+        cruises.forEach(c => {
+          entries.push({
+            id: `cruise-${c.id}`,
+            name: `${c.ship_name}${c.cruise_line ? ` (${c.cruise_line})` : ''}`,
+            date: c.departure_date,
+            time: c.departure_time?.slice(0,5) || '',
+            price: 0,
+            link: '',
+            type: 'cruise',
+          });
+        });
+        setCalendarEntries(entries);
+      } catch (e) { console.error('Load calendar error:', e); }
+      setLoadingCal(false);
+    };
+    loadCal();
+  }, [hotelId]);
+
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const today = new Date().toISOString().split('T')[0];
+
+  const getEventsForDay = (day: number) => {
+    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return calendarEntries.filter(e => e.date === dateStr);
+  };
+
+  const handlePrevMonth = () => {
+    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
+    else setCurrentMonth(currentMonth - 1);
+  };
+  const handleNextMonth = () => {
+    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); }
+    else setCurrentMonth(currentMonth + 1);
+  };
+
+  const handleAddEvent = async () => {
+    if (!newEvent.name || !newEvent.date || !newEvent.time) return;
+    try {
+      if (newEvent.type === 'cruise') {
+        await createCruiseSchedule({
+          hotel_id: hotelId,
+          ship_name: newEvent.name,
+          cruise_line: newEvent.name,
+          terminal: '',
+          departure_date: newEvent.date,
+          departure_time: newEvent.time,
+          notes: newEvent.link ? `Link: ${newEvent.link}` : '',
+        });
+      } else {
+        const routeName = `Calendar: ${newEvent.name}`;
+        const route = await createShuttleRoute({
+          hotel_id: hotelId,
+          name: routeName,
+          type: newEvent.type as 'airport' | 'cruise' | 'custom',
+          price: parseFloat(newEvent.price) || 0,
+        });
+        if (route) {
+          await createShuttleSlot({
+            route_id: route.id,
+            departure_time: newEvent.time + ':00',
+            date: newEvent.date,
+            days_of_week: [],
+            capacity: 0,
+            event_label: newEvent.name,
+            override_price: parseFloat(newEvent.price) || 0,
+          });
+        }
+      }
+    } catch (e) { console.error('Add event error:', e); }
+    setNewEvent({ name: '', date: '', time: '', price: '0', link: '', type: 'airport' });
+    setShowAddEvent(false);
+    window.location.reload();
+  };
+
+  const calView = (
+    <div className="space-y-4">
+      {/* Calendar header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button onClick={handlePrevMonth} className="px-3 py-1.5 text-[13px] font-bold text-gray-600 hover:bg-gray-100 rounded-lg">&lt;</button>
+          <h2 className="text-[18px] font-extrabold text-gray-900">{MONTH_NAMES[currentMonth]} {currentYear}</h2>
+          <button onClick={handleNextMonth} className="px-3 py-1.5 text-[13px] font-bold text-gray-600 hover:bg-gray-100 rounded-lg">&gt;</button>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setCalendarTab(calendarTab === 'calendar' ? 'routes' : 'calendar')}
+            className={`px-4 py-2 rounded-full text-[13px] font-semibold ${calendarTab === 'calendar' ? 'bg-white border border-gray-200 shadow-sm text-gray-900' : 'bg-gray-100 text-gray-500'}`}>
+            {calendarTab === 'calendar' ? '📋 Routes View' : '📅 Calendar View'}
+          </button>
+          {isAdmin && (
+            <button onClick={() => setShowAddEvent(!showAddEvent)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-[13px] font-semibold" style={{ backgroundColor: TEAL }}>
+              <Plus size={14} /> Add Calendar Entry
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Add event form */}
+      {showAddEvent && isAdmin && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-3">
+          <h3 className="font-bold text-[15px]">New Calendar Entry</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Calendar Name *</label>
+              <input value={newEvent.name} onChange={e => setNewEvent({ ...newEvent, name: e.target.value })}
+                placeholder='e.g. "Airport Shuttle" or "Royal Caribbean"'
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Type</label>
+              <select value={newEvent.type} onChange={e => setNewEvent({ ...newEvent, type: e.target.value })}
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
+                <option value="airport">Airport (free)</option>
+                <option value="cruise">Cruise Port</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Date *</label>
+              <input type="date" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })}
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Time *</label>
+              <input type="time" value={newEvent.time} onChange={e => setNewEvent({ ...newEvent, time: e.target.value })}
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+            </div>
+            {newEvent.type !== 'airport' && (
+              <>
+                <div>
+                  <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Price ($)</label>
+                  <input type="number" min="0" step="0.01" value={newEvent.price}
+                    onChange={e => setNewEvent({ ...newEvent, price: e.target.value })}
+                    className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Link to Order (optional)</label>
+                  <input value={newEvent.link} onChange={e => setNewEvent({ ...newEvent, link: e.target.value })}
+                    placeholder="https://..."
+                    className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+                </div>
+              </>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleAddEvent} className="flex-1 py-2.5 rounded-xl text-white font-bold text-[13px]" style={{ backgroundColor: TEAL }}>
+              Add to Calendar
+            </button>
+            <button onClick={() => setShowAddEvent(false)} className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Calendar grid */}
+      {loadingCal ? (
+        <div className="text-center py-12"><div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mx-auto" style={{ borderColor: TEAL }} /></div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
+            {DAY_NAMES.map(d => (
+              <div key={d} className="px-2 py-2 text-[11px] font-bold text-gray-400 uppercase text-center">{d}</div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7">
+            {Array.from({ length: firstDay }).map((_, i) => (
+              <div key={`empty-${i}`} className="min-h-[80px] bg-gray-50/50 border-b border-r border-gray-100" />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const events = getEventsForDay(day);
+              const isToday = dateStr === today;
+              return (
+                <div key={day}
+                  className={`min-h-[80px] p-1.5 border-b border-r border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${isToday ? 'bg-teal-50' : ''}`}
+                  onClick={() => isAdmin && setShowAddEvent(true)}>
+                  <div className={`text-[12px] font-bold mb-1 ${isToday ? 'text-teal-600' : 'text-gray-700'}`}>{day}</div>
+                  <div className="space-y-0.5">
+                    {events.slice(0, 2).map(e => (
+                      <div key={e.id}
+                        className={`text-[9px] font-bold px-1 py-0.5 rounded truncate ${
+                          e.type === 'airport' ? 'bg-blue-100 text-blue-700' :
+                          e.type === 'cruise' ? 'bg-purple-100 text-purple-700' :
+                          'bg-amber-100 text-amber-700'
+                        }`}
+                        title={`${e.name} ${e.time}${e.price > 0 ? ` $${e.price}` : ''}`}>
+                        {e.name.split(' ')[0]} {e.time}
+                      </div>
+                    ))}
+                    {events.length > 2 && <div className="text-[9px] text-gray-400 font-bold px-1">+{events.length - 2} more</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Event list below calendar */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
+        <div className="px-5 py-3 border-b border-gray-100">
+          <h3 className="font-bold text-[14px]">All Upcoming ({calendarEntries.filter(e => e.date >= today).length})</h3>
+        </div>
+        {calendarEntries.filter(e => e.date >= today).length === 0 ? (
+          <div className="px-5 py-8 text-center"><p className="text-[13px] text-gray-400">No scheduled events.</p></div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {calendarEntries.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date)).map(e => (
+              <div key={e.id} className="px-5 py-3 flex items-center gap-3">
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                  e.type === 'airport' ? 'bg-blue-100 text-blue-700' :
+                  e.type === 'cruise' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'
+                }`}>{e.type}</span>
+                <div className="flex-1">
+                  <p className="text-[13px] font-semibold text-gray-900">{e.name}</p>
+                  <p className="text-[11px] text-gray-400">{e.date} at {e.time}</p>
+                </div>
+                {e.price > 0 && <span className="text-[12px] font-bold text-amber-700">${e.price}</span>}
+                {e.price === 0 && e.type === 'airport' && <span className="text-[10px] font-bold text-emerald-700">Free</span>}
+                {e.link && (
+                  <a href={e.link} target="_blank" rel="noopener noreferrer"
+                    className="text-[11px] font-bold px-2 py-1 rounded bg-teal-50 text-teal-600 hover:bg-teal-100">Order</a>
+                )}
+                {isAdmin && (
+                  <button onClick={async () => {
+                    const id = e.id;
+                    if (id.startsWith('slot-')) await deleteShuttleSlot(id.replace('slot-', ''));
+                    if (id.startsWith('cruise-')) await deleteCruiseSchedule(id.replace('cruise-', ''));
+                    window.location.reload();
+                  }} className="text-red-400 hover:text-red-600"><Trash2 size={12} /></button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-[26px] font-extrabold text-gray-900">Shuttle Operations</h1>
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setTab('routes')}
-            className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${tab === 'routes' ? 'bg-white border border-gray-200 text-gray-900 shadow-sm' : 'bg-gray-100 text-gray-500'}`}>
-            🚐 Routes & Bookings
-          </button>
-          <button onClick={() => setTab('requests')}
-            className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${tab === 'requests' ? 'bg-white border border-gray-200 text-gray-900 shadow-sm' : 'bg-gray-100 text-gray-500'}`}>
-            📋 Pickup Requests
-          </button>
-          <button onClick={() => setTab('cruise')}
-            className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${tab === 'cruise' ? 'bg-white border border-gray-200 text-gray-900 shadow-sm' : 'bg-gray-100 text-gray-500'}`}>
-            🚢 Cruise Calendar
-          </button>
-        </div>
+        <h1 className="text-[26px] font-extrabold text-gray-900">Shuttle Schedule</h1>
       </div>
-      {tab === 'routes' && <ShuttleRoutesPanel hotelId={hotelId} isAdmin={isAdmin} />}
-      {tab === 'requests' && <ShuttleRequestsPanel hotelId={hotelId} />}
-      {tab === 'cruise' && <CruiseCalendarPanel hotelId={hotelId} isAdmin={isAdmin} />}
+      {calView}
     </div>
   );
 }
 
 /* ── Shuttle Routes Panel ───────────────────────────────── */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
   const [routes, setRoutes] = useState<ShuttleRoute[]>([]);
   const [slots, setSlots] = useState<ShuttleSlot[]>([]);
@@ -937,6 +1665,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
 }
 
 /* ── Shuttle Requests Panel ─────────────────────────────── */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ShuttleRequestsPanel({ hotelId }: { hotelId: string }) {
   const [requests, setRequests] = useState<ShuttleRequest[]>([]);
   const [staffList, setStaffList] = useState<StaffAccount[]>([]);
@@ -1034,6 +1763,7 @@ function ShuttleRequestsPanel({ hotelId }: { hotelId: string }) {
 }
 
 /* ── Cruise Calendar Panel ───────────────────────────────── */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CruiseCalendarPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
   const [schedules, setSchedules] = useState<CruiseSchedule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1463,6 +2193,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   const [showPin, setShowPin] = useState(false);
   const [pinError, setPinError] = useState('');
   const [editingPerms, setEditingPerms] = useState<string | null>(null);
+  const [sendInvite, setSendInvite] = useState(true);
   const ALL_PERMS = ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes'];
 
   const handleAdd = async () => {
@@ -1472,6 +2203,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       setPinError('PIN must be 4–6 digits.');
       return;
     }
+    // If email is set and sendInvite is on, use auto-generated PIN (don't show raw PIN to admin)
     await createStaffAccountWithDetails({
       hotel_id: hotelId, name: form.name, role: form.role,
       email: form.email, phone: form.phone, pin_code: form.pin,
@@ -1479,12 +2211,14 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       vendor_type: form.role === 'vendor' ? form.vendor_type || 'shuttle' : undefined,
     });
 
-    if (form.email) {
+    // Send invitation email with setup link
+    if (form.email && sendInvite) {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://attendaapp.com';
       fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'staff_welcome',
+          type: 'staff_invitation',
           data: {
             staffEmail: form.email,
             staffName: form.name,
@@ -1492,6 +2226,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
             hotelName,
             hotelSlug,
             pin: form.pin,
+            setupUrl: `${baseUrl}/staff/setup?email=${encodeURIComponent(form.email)}&hotel=${encodeURIComponent(hotelSlug)}&mode=setup`,
           },
         }),
       }).catch(() => {});
@@ -1576,6 +2311,12 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
               {pinError && <p className="text-[11px] text-red-500 mt-1">{pinError}</p>}
             </div>
             <button onClick={handleAdd} className="w-full py-3 rounded-xl text-white font-semibold text-[13px]" style={{ backgroundColor: '#0D9488' }}>ADD STAFF MEMBER</button>
+            {form.email && (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={sendInvite} onChange={e => setSendInvite(e.target.checked)} className="w-4 h-4 rounded" style={{ accentColor: '#0D9488' }} />
+                <span className="text-[11px] text-gray-500">Send invitation email with setup link</span>
+              </label>
+            )}
           </div>
         </div>
 
@@ -1745,14 +2486,29 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
     <div className="flex gap-8 p-8 min-h-full">
       {/* ── Left: Form ── */}
       <div className="flex-1 max-w-lg space-y-5">
-        <h1 className="text-[26px] font-extrabold text-gray-900">Hotel Settings</h1>
+        <h1 className="text-[26px] font-extrabold text-gray-900">Property Settings</h1>
 
-        <Section title="Hotel Identity" Icon={HotelIcon}>
-          <Field label="Hotel Name" value={form.name} onChange={v => setForm({ ...form, name: v })} />
+        <Section title="Property Identity" Icon={HotelIcon}>
+          <Field label="Property Name" value={form.name} onChange={v => setForm({ ...form, name: v })} />
+          <div>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Property Type</label>
+            <select
+              value={form.propertyType || 'Hotel'}
+              onChange={e => setForm({ ...form, propertyType: e.target.value })}
+              className="w-full bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            >
+              <option value="Hotel">Hotel</option>
+              <option value="Short-Term Rental">Short-Term Rental</option>
+              <option value="Motel">Motel</option>
+              <option value="Vacation Rental">Vacation Rental</option>
+              <option value="Boutique Stay">Boutique Stay</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
           <Field label="Manager Name" value={form.managerName} onChange={v => setForm({ ...form, managerName: v })} />
           <Field label="Front Desk Phone" value={form.frontDeskPhone} onChange={v => setForm({ ...form, frontDeskPhone: v })} />
           <Field
-            label="Hotel Address"
+            label="Property Address"
             value={form.address}
             onChange={v => setForm({ ...form, address: v })}
             placeholder="1601 NW 42nd Ave, Miami, FL 33126"
@@ -1816,7 +2572,6 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
               />
             ))}
           </div>
-          <Field label="Team Photo URL" value={form.teamPhotoUrl} onChange={v => setForm({ ...form, teamPhotoUrl: v })} placeholder="https://..." />
           <Field label="Website URL" value={form.websiteUrl} onChange={v => setForm({ ...form, websiteUrl: v })} placeholder="https://yourhotel.com" />
         </Section>
 
@@ -1833,12 +2588,91 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
             className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none"
             placeholder="Dear Guest, welcome to our hotel..."
           />
+          <div className="mt-3">
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5"
+            >Welcome Photo / Team Photo</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={form.teamPhotoUrl}
+                onChange={e => setForm({ ...form, teamPhotoUrl: e.target.value })}
+                placeholder="https://..."
+                className="flex-1 bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 focus:outline-none"
+              />
+              <label className="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold text-white transition-colors"
+                style={{ backgroundColor: TEAL }}>
+                <Upload size={14} />
+                Upload
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      const dataUrl = event.target?.result as string;
+                      setForm({ ...form, teamPhotoUrl: dataUrl });
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </label>
+            </div>
+          </div>
         </Section>
 
         <Section title="Review Links" Icon={ExternalLink}>
-          <Field label="Google Review URL" value={form.googleReviewUrl} onChange={v => setForm({ ...form, googleReviewUrl: v })} placeholder="https://g.page/r/..." />
-          <Field label="TripAdvisor URL" value={form.tripadvisorUrl} onChange={v => setForm({ ...form, tripadvisorUrl: v })} placeholder="https://tripadvisor.com/..." />
-          <Field label="Yelp URL" value={form.yelpUrl} onChange={v => setForm({ ...form, yelpUrl: v })} placeholder="https://yelp.com/biz/..." />
+          <p className="text-[11px] text-gray-400 -mt-1">
+            Add links to your hotel&apos;s profiles on review sites. Guests can leave reviews directly from their app.
+          </p>
+          <div className="space-y-2">
+            {(form.customReviewLinks || []).map((link, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={link.label}
+                  onChange={e => {
+                    const updated = [...(form.customReviewLinks || [])];
+                    updated[idx] = { ...updated[idx], label: e.target.value };
+                    setForm({ ...form, customReviewLinks: updated });
+                  }}
+                  className="w-[110px] bg-gray-50 rounded-xl px-2.5 py-2 text-[12px] border border-gray-100 focus:outline-none"
+                  placeholder="Label (e.g. Google)"
+                />
+                <input
+                  type="text"
+                  value={link.url}
+                  onChange={e => {
+                    const updated = [...(form.customReviewLinks || [])];
+                    updated[idx] = { ...updated[idx], url: e.target.value };
+                    setForm({ ...form, customReviewLinks: updated });
+                  }}
+                  className="flex-1 bg-gray-50 rounded-xl px-2.5 py-2 text-[12px] border border-gray-100 focus:outline-none"
+                  placeholder="https://..."
+                />
+                <button
+                  onClick={() => {
+                    const updated = (form.customReviewLinks || []).filter((_, i) => i !== idx);
+                    setForm({ ...form, customReviewLinks: updated });
+                  }}
+                  className="text-red-400 hover:text-red-600 p-1"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={() => {
+                const updated = [...(form.customReviewLinks || []), { label: '', url: '' }];
+                setForm({ ...form, customReviewLinks: updated });
+              }}
+              className="flex items-center gap-1.5 text-[12px] font-medium text-teal-600 hover:text-teal-700 transition-colors"
+            >
+              <Plus size={14} /> Add Review Link
+            </button>
+          </div>
         </Section>
 
         <Section title="Email Notifications" Icon={Bell}>
@@ -1853,14 +2687,7 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
           />
         </Section>
 
-        <Section title="Shuttle Management" Icon={Bus}>
-          <p className="text-[11px] text-gray-400 -mt-1">
-            Shuttle routes, time slots, and bookings are managed from the <strong>Shuttle Schedule</strong> tab.
-          </p>
-          <p className="text-[10px] text-gray-400 mt-1">
-            Add airport, cruise port, or custom routes with departure times. Guests book slots from their app.
-          </p>
-        </Section>
+        {/* Shuttle Management section removed per admin request */}
 
         {saved && (
           <div className="bg-emerald-50 text-emerald-600 px-4 py-2.5 rounded-xl text-[13px] font-medium text-center">
@@ -1909,6 +2736,7 @@ function PartnersView({ hotelId }: { hotelId: string }) {
   const [menuForm, setMenuForm] = useState<Record<string, { name: string; description: string; price: string }>>({});
   const [dpForm, setDpForm] = useState<Record<string, { name: string; url: string }>>({});
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
 
   const loadPartners = useCallback(async () => {
     const data = await getPartners(hotelId);
@@ -2055,7 +2883,30 @@ function PartnersView({ hotelId }: { hotelId: string }) {
               <Field label="Address" value={form.address} onChange={v => setForm({ ...form, address: v })} />
             </div>
             <div className="col-span-2">
-              <Field label="Image URL" value={form.image_url} onChange={v => setForm({ ...form, image_url: v })} placeholder="https://..." />
+              <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Image</label>
+              <div className="flex gap-2 items-center">
+                <button type="button" onClick={() => document.getElementById('partner-image-upload')?.click()}
+                  className="px-4 py-2.5 rounded-xl text-[13px] font-semibold bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-600">
+                  <Upload size={14} className="inline mr-1.5" />Upload Image
+                </button>
+                <input id="partner-image-upload" type="file" accept="image/*" className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = ev => setForm({ ...form, image_url: ev.target?.result as string });
+                    reader.readAsDataURL(file);
+                  }} />
+                {form.image_url && (
+                  <>
+                    <div className="w-8 h-8 rounded-lg overflow-hidden border border-gray-200 shrink-0">
+                      <img src={form.image_url} alt="preview" className="w-full h-full object-cover" />
+                    </div>
+                    <button type="button" onClick={() => setForm({ ...form, image_url: '' })}
+                      className="text-red-400 hover:text-red-600 text-[11px] font-medium">Clear</button>
+                  </>
+                )}
+              </div>
             </div>
             <Field label="Rating (0–5)" value={form.rating} onChange={v => setForm({ ...form, rating: v })} />
 
@@ -2198,7 +3049,9 @@ function PartnersView({ hotelId }: { hotelId: string }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {partners.map(p => (
+          {partners.map(p => {
+            const isEditing = editingPartner?.id === p.id;
+            return (
             <div key={p.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="p-5 flex items-center justify-between">
                 <div className="flex-1 min-w-0">
@@ -2222,37 +3075,102 @@ function PartnersView({ hotelId }: { hotelId: string }) {
                       </span>
                     )}
                   </div>
-                  <p className="font-bold text-[15px] text-gray-900">{p.name}</p>
-                  {p.description && <p className="text-[12px] text-gray-500 mt-0.5 truncate">{p.description}</p>}
+
+                  {isEditing ? (
+                    <div className="space-y-2 mt-2">
+                      <input value={editingPartner!.name} onChange={e => setEditingPartner({ ...editingPartner!, name: e.target.value })}
+                        className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none font-bold" placeholder="Name" />
+                      <input value={editingPartner!.description} onChange={e => setEditingPartner({ ...editingPartner!, description: e.target.value })}
+                        className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="Description" />
+                      <div className="flex gap-2">
+                        <input value={editingPartner!.phone} onChange={e => setEditingPartner({ ...editingPartner!, phone: e.target.value })}
+                          className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="Phone" />
+                        <input value={editingPartner!.hours} onChange={e => setEditingPartner({ ...editingPartner!, hours: e.target.value })}
+                          className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="Hours" />
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <button type="button" onClick={() => document.getElementById(`partner-edit-upload-${p.id}`)?.click()}
+                          className="text-[11px] font-semibold px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-600">
+                          <Upload size={12} className="inline mr-1" />Upload Image
+                        </button>
+                        <input id={`partner-edit-upload-${p.id}`} type="file" accept="image/*" className="hidden"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = ev => setEditingPartner({ ...editingPartner!, image_url: ev.target?.result as string });
+                            reader.readAsDataURL(file);
+                          }} />
+                        {editingPartner!.image_url && (
+                          <span className="text-[10px] text-gray-400 truncate max-w-[100px]">✓ image set</span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="font-bold text-[15px] text-gray-900">{p.name}</p>
+                      {p.description && <p className="text-[12px] text-gray-500 mt-0.5 truncate">{p.description}</p>}
+                    </>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 ml-4 shrink-0">
-                  {(p.has_ordering || (p.delivery_providers && p.delivery_providers.length > 0)) && (
-                    <button onClick={() => toggle(p.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold"
-                      style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                      Manage {expanded === p.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                    </button>
+                  {isEditing ? (
+                    <>
+                      <button onClick={async () => {
+                        if (!editingPartner) return;
+                        await updatePartner(p.id, {
+                          name: editingPartner.name,
+                          description: editingPartner.description,
+                          phone: editingPartner.phone,
+                          hours: editingPartner.hours,
+                          image_url: editingPartner.image_url,
+                        });
+                        setEditingPartner(null);
+                        loadPartners();
+                      }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-600 hover:bg-teal-100">
+                        <Save size={12} /> Save
+                      </button>
+                      <button onClick={() => setEditingPartner(null)}
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-gray-100 text-gray-600 hover:bg-gray-200">
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => setEditingPartner({ ...p })}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-blue-50 text-blue-400">
+                        <Pencil size={14} />
+                      </button>
+                      {(p.has_ordering || (p.delivery_providers && p.delivery_providers.length > 0)) && (
+                        <button onClick={() => toggle(p.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold"
+                          style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+                          Manage {expanded === p.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        </button>
+                      )}
+                      {p.has_ordering && !p.clover_enabled && (
+                        <a href={`/api/clover-oauth?partner=${p.id}&hotel=${hotelId}`}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-50 text-purple-600 hover:bg-purple-100">
+                          🔗 Connect Clover
+                        </a>
+                      )}
+                      {p.has_ordering && p.clover_enabled && p.clover_merchant_id && p.clover_access_token && (
+                        <button onClick={() => handleCloverSync(p)} disabled={syncing === p.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-100 text-purple-700 hover:bg-purple-200 disabled:opacity-50">
+                          {syncing === p.id ? 'Syncing…' : 'Sync Clover'}
+                        </button>
+                      )}
+                      <button onClick={() => handleDelete(p.id)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400">
+                        <Trash2 size={14} />
+                      </button>
+                    </>
                   )}
-                  {p.has_ordering && !p.clover_enabled && (
-                    <a href={`/api/clover-oauth?partner=${p.id}&hotel=${hotelId}`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-50 text-purple-600 hover:bg-purple-100">
-                      🔗 Connect Clover
-                    </a>
-                  )}
-                  {p.has_ordering && p.clover_enabled && p.clover_merchant_id && p.clover_access_token && (
-                    <button onClick={() => handleCloverSync(p)} disabled={syncing === p.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-100 text-purple-700 hover:bg-purple-200 disabled:opacity-50">
-                      {syncing === p.id ? 'Syncing…' : 'Sync Clover'}
-                    </button>
-                  )}
-                  <button onClick={() => handleDelete(p.id)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400">
-                    <Trash2 size={14} />
-                  </button>
                 </div>
               </div>
 
-              {expanded === p.id && (
+              {!isEditing && expanded === p.id && (
                 <div className="border-t border-gray-100 bg-gray-50 p-5 space-y-5">
 
                   {/* ── Tier A: Own delivery apps ── */}
@@ -2401,7 +3319,8 @@ function PartnersView({ hotelId }: { hotelId: string }) {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -2413,7 +3332,6 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
   const [codes, setCodes] = useState<QrCodeRow[]>([]);
   const [form, setForm] = useState({ label: '', location_type: 'room' });
   const [copied, setCopied] = useState<string | null>(null);
-  const [startRoom, setStartRoom] = useState(101);
 
   const loadCodes = useCallback(async () => {
     const data = await getQrCodes(hotelId);
@@ -2453,45 +3371,35 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6 shadow-sm">
-        <h3 className="font-bold text-[14px] mb-2">Batch Generate All Rooms</h3>
+        <h3 className="font-bold text-[14px] mb-2">Batch Generate from Room Database</h3>
         <p className="text-[12px] text-gray-400 mb-3">
-          If the hotel has room_count configured, generate all room QR codes at once.
+          Uses your actual room list from Room Management. Only rooms without QR codes are generated.
         </p>
         <div className="flex gap-3 mb-4">
-          <div className="flex-1">
-            <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Starting room number</label>
-            <input
-              type="number"
-              value={startRoom}
-              onChange={e => setStartRoom(parseInt(e.target.value) || 101)}
-              className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none"
-            />
-          </div>
           <div className="flex items-end">
             <button
               onClick={async () => {
-                const cfg = await getHotelConfig();
-                const roomCount = cfg?.roomCount || 0;
-                if (!roomCount) return alert('No room count configured. Set it in Hotel Settings first.');
+                const rooms = await getAllHotelRooms(hotelId);
+                if (!rooms || rooms.length === 0) return alert('No rooms in database. Upload room numbers in Room Management first.');
                 let count = 0;
                 let skipped = 0;
-                for (let i = 0; i < roomCount; i++) {
-                  const room = (startRoom + i).toString();
-                  const exists = codes.some(c => c.label === room);
+                for (const room of rooms) {
+                  const label = room.room_number;
+                  const exists = codes.some(c => c.label === label);
                   if (!exists) {
-                    await createQrCode(hotelId, room, 'room', getUrl(room));
+                    await createQrCode(hotelId, label, 'room', getUrl(label));
                     count++;
                   } else {
                     skipped++;
                   }
                 }
-                alert(`✅ Generated ${count} new QR codes (${skipped} already existed, skipped)`);
+                alert(`✅ Generated ${count} QR codes from ${rooms.length} rooms (${skipped} already existed, skipped)`);
                 loadCodes();
               }}
               className="px-5 py-3 rounded-xl text-white font-semibold text-[13px] whitespace-nowrap"
               style={{ backgroundColor: TEAL }}
             >
-              Generate All Room QR Codes
+              Generate from Room DB ({codes.filter(c => c.location_type === 'room').length} existing)
             </button>
           </div>
         </div>
@@ -2567,8 +3475,8 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
 
 /* ── Properties View ──────────────────────────────────────── */
 function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => void }) {
-  const [hotels, setHotels] = useState<{ id: string; slug: string; name: string }[]>([]);
-  const [form, setForm] = useState({ slug: '', name: '', adminEmail: '' });
+  const [hotels, setHotels] = useState<{ id: string; slug: string; name: string; brand: string }[]>([]);
+  const [form, setForm] = useState({ slug: '', name: '', adminEmail: '', propertyType: 'Hotel' });
   const [copied, setCopied] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -2584,7 +3492,7 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
     if (!form.slug || !form.name) return;
     setCreating(true);
     try {
-      const hotel = await createHotel({ slug: form.slug, name: form.name, adminEmail: form.adminEmail || undefined });
+      const hotel = await createHotel({ slug: form.slug, name: form.name, adminEmail: form.adminEmail || undefined, propertyType: form.propertyType });
       if (form.adminEmail && hotel) {
         const origin = window.location.origin;
         await fetch('/api/email', {
@@ -2602,7 +3510,7 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
           }),
         });
       }
-      setForm({ slug: '', name: '', adminEmail: '' });
+      setForm({ slug: '', name: '', adminEmail: '', propertyType: 'Hotel' });
       getAllHotels().then(setHotels);
     } catch (e: unknown) {
       const msg = (e instanceof Error ? e.message : '') || (typeof e === 'object' && e !== null && 'message' in e ? String((e as { message: unknown }).message) : '');
@@ -2622,16 +3530,31 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
     <div className="p-8">
       <div className="mb-6">
         <h1 className="text-[26px] font-extrabold text-gray-900">All Properties</h1>
-        <p className="text-[13px] text-gray-500 mt-0.5">{hotels.length} hotel{hotels.length !== 1 ? 's' : ''} on this platform.</p>
+        <p className="text-[13px] text-gray-500 mt-0.5">{hotels.length} propert{hotels.length !== 1 ? 'ies' : 'y'} on this platform.</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6 shadow-sm">
         <h3 className="font-bold text-[14px] mb-4">Create New Property</h3>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <Field label="Hotel Name *" value={form.name} onChange={v => setForm({ ...form, name: v })} placeholder="Miami Airport Hotel" />
+          <Field label="Property Name *" value={form.name} onChange={v => setForm({ ...form, name: v })} placeholder="Miami Airport Hotel" />
           <Field label="URL Slug *" value={form.slug} onChange={v => setForm({ ...form, slug: v.toLowerCase().replace(/\s+/g, '-') })} placeholder="miami-airport" />
           <div className="col-span-2">
-            <Field label="Admin Email (optional — for onboarding email)" value={form.adminEmail} onChange={v => setForm({ ...form, adminEmail: v })} placeholder="manager@hotel.com" />
+            <Field label="Admin Email (optional — for onboarding email)" value={form.adminEmail} onChange={v => setForm({ ...form, adminEmail: v })} placeholder="manager@property.com" />
+          </div>
+          <div className="col-start-1">
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Property Type</label>
+            <select
+              value={form.propertyType}
+              onChange={e => setForm({ ...form, propertyType: e.target.value })}
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-[13px] text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+              >
+              <option value="Hotel">Hotel</option>
+              <option value="Short-Term Rental">Short-Term Rental</option>
+              <option value="Motel">Motel</option>
+              <option value="Vacation Rental">Vacation Rental</option>
+              <option value="Boutique Stay">Boutique Stay</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
         </div>
         {form.slug && (
@@ -2650,14 +3573,20 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
           return (
             <div key={hotel.id} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
               <div className="flex items-start justify-between mb-4">
-                <div>
-                  <p className="font-extrabold text-[16px] text-gray-900">{hotel.name}</p>
-                  <p className="text-[12px] text-gray-400 font-mono mt-0.5">@{hotel.slug}</p>
+                <div className="flex items-center gap-2">
+                  <div>
+                    <p className="font-extrabold text-[16px] text-gray-900">{hotel.name}</p>
+                    <p className="text-[12px] text-gray-400 font-mono mt-0.5">@{hotel.slug}</p>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide shrink-0 mt-1"
+                    style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+                    {hotel.brand || 'Hotel'}
+                  </span>
                 </div>
                 <button onClick={() => onSwitchHotel(hotel.slug)}
                   className="px-3 py-1.5 rounded-lg text-[11px] font-bold shrink-0"
                   style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                  Manage this hotel
+                  Manage
                 </button>
               </div>
 
@@ -2723,9 +3652,7 @@ function Field({ label, value, onChange, placeholder }: {
     </div>
   );
 }
-
-/* ── Knowledge Base View ────────────────────────────────── */
-const KB_CATEGORIES = ['General', 'WiFi & Tech', 'Amenities', 'Transport', 'Food & Dining', 'Check-in / Check-out', 'Safety', 'Local Area'];
+const KB_CATEGORIES = ['General', 'WiFi & Tech', 'Amenities', 'Transport', 'Food & Dining', 'Check-in / Check-out', 'Safety', 'Local Area', 'Incidents'];
 
 function KnowledgeBaseView({ hotelId }: { hotelId: string }) {
   const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
@@ -2734,8 +3661,16 @@ function KnowledgeBaseView({ hotelId }: { hotelId: string }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState<string>('All');
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ category: 'General', question: '', answer: '', keywords: '' });
+  const [form, setForm] = useState({ category: 'General', question: '', answer: '', keywords: '', source_url: '' });
   const [saving, setSaving] = useState(false);
+
+  // URL import state
+  const [importUrl, setImportUrl] = useState('');
+  const [importingUrl, setImportingUrl] = useState(false);
+
+  // PDF upload state
+  const [uploadFileName, setUploadFileName] = useState('');
+  const [uploadingPdf, setUploadingPdf] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -2745,16 +3680,17 @@ function KnowledgeBaseView({ hotelId }: { hotelId: string }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const resetForm = () => { setForm({ category: 'General', question: '', answer: '', keywords: '' }); setEditingId(null); setShowForm(false); };
+  const resetForm = () => { setForm({ category: 'General', question: '', answer: '', keywords: '', source_url: '' }); setEditingId(null); setShowForm(false); };
 
   const handleSave = async () => {
     if (!form.question.trim() || !form.answer.trim()) return;
     setSaving(true);
     const keywords = form.keywords.split(',').map(k => k.trim()).filter(Boolean);
+    const sourceUrl = form.source_url.trim() || undefined;
     if (editingId) {
-      await updateKnowledgeEntry(editingId, { category: form.category, question: form.question.trim(), answer: form.answer.trim(), keywords });
+      await updateKnowledgeEntry(editingId, { category: form.category, question: form.question.trim(), answer: form.answer.trim(), keywords, source_url: sourceUrl });
     } else {
-      await createKnowledgeEntry({ hotel_id: hotelId, category: form.category, question: form.question.trim(), answer: form.answer.trim(), keywords });
+      await createKnowledgeEntry({ hotel_id: hotelId, category: form.category, question: form.question.trim(), answer: form.answer.trim(), keywords, source_url: sourceUrl });
     }
     await load();
     resetForm();
@@ -2762,7 +3698,7 @@ function KnowledgeBaseView({ hotelId }: { hotelId: string }) {
   };
 
   const handleEdit = (e: KnowledgeEntry) => {
-    setForm({ category: e.category, question: e.question, answer: e.answer, keywords: (e.keywords || []).join(', ') });
+    setForm({ category: e.category, question: e.question, answer: e.answer, keywords: (e.keywords || []).join(', '), source_url: e.source_url || '' });
     setEditingId(e.id);
     setShowForm(true);
   };
@@ -2776,6 +3712,81 @@ function KnowledgeBaseView({ hotelId }: { hotelId: string }) {
   const handleToggle = async (e: KnowledgeEntry) => {
     await updateKnowledgeEntry(e.id, { active: !e.active });
     await load();
+  };
+
+  // ── URL Import ──────────────────────────────────────────
+  const handleImportUrl = async () => {
+    const url = importUrl.trim();
+    if (!url) return;
+    if (!/^https?:\/\/.+/i.test(url)) { alert('Please enter a valid URL (starting with http:// or https://)'); return; }
+    setImportingUrl(true);
+    try {
+      const res = await fetch(url);
+      const html = await res.text();
+      // Extract <title> for the question
+      const titleMatch = html.match(/<title>([^<]*)<\/title>/i);
+      const title = titleMatch ? titleMatch[1].trim() : url;
+      // Try to extract body text for answer
+      let bodyText = '';
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      if (bodyMatch) {
+        bodyText = bodyMatch[1]
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .substring(0, 3000);
+      }
+      const answer = bodyText || 'Source URL — content could not be extracted.';
+      setForm({
+        category: 'General',
+        question: title,
+        answer,
+        keywords: '',
+        source_url: url,
+      });
+      setEditingId(null);
+      setShowForm(true);
+      setImportUrl('');
+    } catch {
+      alert('Failed to fetch URL. Check that the URL is accessible and try again.');
+    }
+    setImportingUrl(false);
+  };
+
+  // ── PDF Import ──────────────────────────────────────────
+  const handlePdfFile = async (file: File) => {
+    if (file.type !== 'application/pdf') { alert('Please upload a .pdf file.'); return; }
+    setUploadFileName(file.name);
+    setUploadingPdf(true);
+    try {
+      const pdfjs = await import('pdfjs-dist');
+      pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
+      const data = await file.arrayBuffer();
+      const pdf = await pdfjs.getDocument({ data }).promise;
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fullText += content.items.map((item: any) => (item as any).str).join(' ') + '\n';
+      }
+      const trimmed = fullText.trim().substring(0, 3000);
+      const topic = file.name.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ');
+      setForm({
+        category: 'General',
+        question: `From document: ${topic}`,
+        answer: trimmed || '(No extractable text found in PDF)',
+        keywords: '',
+        source_url: '',
+      });
+      setEditingId(null);
+      setShowForm(true);
+    } catch {
+      alert('Failed to parse PDF. The file may be corrupted or protected.');
+    }
+    setUploadingPdf(false);
   };
 
   const usedCategories = ['All', ...Array.from(new Set(entries.map(e => e.category)))];
@@ -2837,6 +3848,34 @@ function KnowledgeBaseView({ hotelId }: { hotelId: string }) {
                 className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[14px] outline-none" />
               <p className="text-[11px] text-gray-400 mt-1">Helps the chatbot match guest messages more accurately</p>
             </div>
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Source URL (optional)</label>
+              <input value={form.source_url} onChange={e => setForm(f => ({ ...f, source_url: e.target.value }))}
+                placeholder="https://example.com/page-with-info"
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[14px] outline-none" />
+              <p className="text-[11px] text-gray-400 mt-1">Where this information was sourced from</p>
+            </div>
+          </div>
+
+          {/* Quick Import Tools */}
+          <div className="flex items-center gap-3 pt-1 pb-2">
+            {/* Import from URL */}
+            <div className="flex items-center gap-2 flex-1">
+              <input value={importUrl} onChange={e => setImportUrl(e.target.value)}
+                placeholder="https://…"
+                className="flex-1 bg-gray-50 rounded-xl px-3 py-2 border border-gray-200 text-[13px] outline-none" />
+              <button onClick={handleImportUrl} disabled={importingUrl || !importUrl.trim()}
+                className="shrink-0 px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 font-bold text-[12px] disabled:opacity-40 hover:bg-indigo-100 transition-colors">
+                {importingUrl ? 'Fetching…' : 'Import URL'}
+              </button>
+            </div>
+            {/* Upload PDF */}
+            <label className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 text-amber-700 font-bold text-[12px] cursor-pointer hover:bg-amber-100 transition-colors">
+              <Upload size={14} />
+              {uploadingPdf ? 'Parsing…' : uploadFileName ? uploadFileName.replace(/^.{20}.*$/, m => m.substring(0,20)+'…') : 'Upload PDF'}
+              <input type="file" accept=".pdf,application/pdf" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handlePdfFile(f); e.target.value = ''; }} />
+            </label>
           </div>
           <div className="flex gap-2 mt-4">
             <button onClick={handleSave} disabled={saving || !form.question.trim() || !form.answer.trim()}
@@ -2906,6 +3945,13 @@ function KnowledgeBaseView({ hotelId }: { hotelId: string }) {
                             ))}
                           </div>
                         )}
+                        {entry.source_url && (
+                          <a href={entry.source_url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 mt-2 text-[12px] text-blue-600 hover:text-blue-800 hover:underline font-medium">
+                            <ExternalLink size={12} />
+                            {entry.source_url}
+                          </a>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button onClick={() => handleToggle(entry)} title={entry.active ? 'Deactivate' : 'Activate'}
@@ -2949,57 +3995,84 @@ function GuestsView({ hotelId }: { hotelId: string }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed'>('all');
 
-  const loadGuests = useCallback(() => {
-    // In a real implementation, this would fetch from a database
-    // For now, we check localStorage and also track requests to see active guests
-    const stored = localStorage.getItem('guestSession');
+  const loadGuests = useCallback(async () => {
     const guestList: GuestSessionData[] = [];
 
+    // Fetch from database (guests table)
+    try {
+      const dbGuests = await getGuestValidations(hotelId);
+      dbGuests.forEach(g => {
+        guestList.push({
+          name: g.name,
+          room: g.room,
+          checkout: '',
+          checkedIn: g.validatedAt,
+          validationStatus: 'confirmed',
+          validatedAt: g.validatedAt,
+          lastSeen: g.validatedAt,
+        });
+      });
+    } catch (err) {
+      console.error('Error loading guest validations from DB:', err);
+    }
+
+    // Also check localStorage for current session
+    const stored = localStorage.getItem('guestSession');
     if (stored) {
       try {
         const session = JSON.parse(stored);
-        guestList.push({
-          name: session.name,
-          room: session.room,
-          checkout: session.checkout,
-          checkedIn: session.checkedIn,
-          validationStatus: session.validationStatus || 'pending',
-          validatedAt: session.validatedAt,
-          lastSeen: new Date().toISOString(),
-        });
+        const existing = guestList.findIndex(g => g.name === session.name && g.room === session.room);
+        if (existing >= 0) {
+          // Merge — localStorage session may have a more recent validation status
+          if (session.validationStatus === 'confirmed') {
+            guestList[existing].validationStatus = 'confirmed';
+            guestList[existing].validatedAt = session.validatedAt || guestList[existing].validatedAt;
+          }
+        } else {
+          guestList.push({
+            name: session.name,
+            room: session.room,
+            checkout: session.checkout || '',
+            checkedIn: session.checkedIn || '',
+            validationStatus: session.validationStatus || 'pending',
+            validatedAt: session.validatedAt,
+            lastSeen: new Date().toISOString(),
+          });
+        }
       } catch (err) {
         console.error('Error parsing guest session:', err);
       }
     }
 
-    // Also get guests from recent requests (real-time data)
-    supabase
-      .from('requests')
-      .select('guest_name, room')
-      .eq('hotel_id', hotelId)
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(({ data }) => {
-        if (data) {
-          const seen = new Set(guestList.map(g => `${g.name}-${g.room}`));
-          data.forEach((r: { guest_name: string; room: string }) => {
-            const key = `${r.guest_name}-${r.room}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              guestList.push({
-                name: r.guest_name,
-                room: r.room,
-                checkout: '',
-                checkedIn: '',
-                validationStatus: 'pending',
-                lastSeen: new Date().toISOString(),
-              });
-            }
-          });
-          setGuests(guestList);
-          setLoading(false);
-        }
-      });
+    // Also get guests from recent requests
+    try {
+      const { data } = await supabase
+        .from('requests')
+        .select('guest_name, room')
+        .eq('hotel_id', hotelId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (data) {
+        data.forEach((r: { guest_name: string; room: string }) => {
+          const existing = guestList.findIndex(g => g.name === r.guest_name && g.room === r.room);
+          if (existing < 0) {
+            guestList.push({
+              name: r.guest_name,
+              room: r.room,
+              checkout: '',
+              checkedIn: '',
+              validationStatus: 'pending',
+              lastSeen: new Date().toISOString(),
+            });
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Error loading guests from requests:', err);
+    }
+
+    setGuests(guestList);
+    setLoading(false);
   }, [hotelId]);
 
   useEffect(() => {
@@ -3015,7 +4088,15 @@ function GuestsView({ hotelId }: { hotelId: string }) {
     };
   }, [loadGuests]);
 
-  const confirmGuest = (guest: GuestSessionData) => {
+  const confirmGuest = async (guest: GuestSessionData) => {
+    // Write to database so it persists across devices
+    if (hotelId) {
+      try {
+        await upsertGuestValidation(hotelId, guest.name, guest.room, new Date().toISOString());
+      } catch (err) {
+        console.error('Error writing guest validation to DB:', err);
+      }
+    }
     // Update localStorage if it's the current session
     const stored = localStorage.getItem('guestSession');
     if (stored) {
@@ -3107,7 +4188,11 @@ function GuestsView({ hotelId }: { hotelId: string }) {
           filteredGuests.map((guest, i) => (
             <div
               key={`${guest.name}-${guest.room}-${i}`}
-              className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm"
+              className={`bg-white rounded-xl border p-5 shadow-sm transition-all ${
+                guest.validationStatus === 'confirmed'
+                  ? 'border-gray-200'
+                  : 'border-l-4 border-l-amber-400 border-r border-t border-b border-amber-100 animate-pulse'
+              }`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -3176,7 +4261,73 @@ function RoomsView({ hotelId, hotelName }: { hotelId: string; hotelName: string 
   const [newRoomNum, setNewRoomNum] = useState('');
   const [newRoomType, setNewRoomType] = useState('');
   const [manualMode, setManualMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [editingRoom, setEditingRoom] = useState<string | null>(null);
+  const [editTypeVal, setEditTypeVal] = useState('');
   const dragRef = useRef<HTMLDivElement>(null);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === rooms.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(rooms.map(r => r.id)));
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} selected rooms?`)) return;
+    setSaving(true);
+    try {
+      const ids = Array.from(selectedIds);
+      for (const id of ids) {
+        await deleteRoom(id);
+      }
+      setMessage({ type: 'success', text: `Deleted ${selectedIds.size} rooms.` });
+      setSelectedIds(new Set());
+      await loadRooms();
+    } catch (e) {
+      setMessage({ type: 'error', text: `Error: ${e instanceof Error ? e.message : 'Failed'}` });
+    }
+    setSaving(false);
+  };
+
+  const handleBatchSetType = async () => {
+    if (selectedIds.size === 0) return;
+    const newType = prompt('Set room type for all selected rooms:', 'Standard');
+    if (!newType) return;
+    setSaving(true);
+    try {
+      await updateRoomTypeBatch(selectedIds, newType);
+      setMessage({ type: 'success', text: `Updated ${selectedIds.size} rooms to "${newType}".` });
+      setSelectedIds(new Set());
+      await loadRooms();
+    } catch (e) {
+      setMessage({ type: 'error', text: `Error: ${e instanceof Error ? e.message : 'Failed'}` });
+    }
+    setSaving(false);
+  };
+
+  const handleSaveEditType = async (roomId: string) => {
+    setSaving(true);
+    try {
+      await updateRoomType(roomId, editTypeVal);
+      setEditingRoom(null);
+      setEditTypeVal('');
+      await loadRooms();
+    } catch (e) {
+      setMessage({ type: 'error', text: `Error: ${e instanceof Error ? e.message : 'Failed'}` });
+    }
+    setSaving(false);
+  };
 
   const loadRooms = useCallback(async () => {
     setLoading(true);
@@ -3219,18 +4370,41 @@ function RoomsView({ hotelId, hotelName }: { hotelId: string; hotelName: string 
     const data = await file.arrayBuffer();
     const wb = XLSX.read(data, { type: 'array' });
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json<Record<string, string | number>>(sheet, { defval: '' });
+    const rows: (string | number)[][] = XLSX.utils.sheet_to_json(sheet, { defval: '', header: 1 });
 
-    const headers = Object.keys(rows[0] || {});
-    const roomCol = headers.find(h => /room|number|unit|apt/i.test(h)) || headers[0];
-    const typeCol = headers.find(h => /type|category|class|kind/i.test(h));
-    const floorCol = headers.find(h => /floor|level/i.test(h));
+    const results: { room_number: string; room_type: string; floor: number }[] = [];
 
-    return rows.map(row => ({
-      room_number: String(row[roomCol] || '').trim(),
-      room_type: typeCol ? String(row[typeCol] || '').trim() : '',
-      floor: floorCol ? Number(row[floorCol]) || 0 : 0,
-    })).filter(r => r.room_number);
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+
+      // Find header row(s) that contain "ROOM" or similar
+      const hasHeader = row.some(c => /room|number|unit|apt/i.test(String(c ?? '').trim()));
+      if (hasHeader) { continue; }
+
+      // Skip rows that look like labels (MONTH, DETAIL, NOTE, etc.)
+      const textCells = row.filter(c => String(c ?? '').trim().length > 0);
+      if (textCells.length === 0) continue;
+      const allNonNumeric = textCells.every(c => isNaN(Number(String(c).trim())));
+      if (allNonNumeric) continue;
+
+      // Scan every cell for 3-4 digit room numbers
+      for (const cell of row) {
+        const val = String(cell ?? '').trim();
+        if (!val || val.length < 2) continue;
+        // Match room numbers like 102, 201, 230, 105A etc. but not things like 2025 (pins)
+        const num = Number(val);
+        if (!isNaN(num) && num >= 50 && num <= 9999) {
+          const floor = num >= 100 ? Math.floor(num / 100) : 0;
+          // Deduplicate within this parse session
+          if (!results.some(r => r.room_number === String(num))) {
+            results.push({ room_number: String(num), room_type: '', floor });
+          }
+        }
+      }
+    }
+
+    return results.sort((a, b) => parseInt(a.room_number) - parseInt(b.room_number));
   };
 
   const handleFile = async (file: File) => {
@@ -3254,7 +4428,7 @@ function RoomsView({ hotelId, hotelName }: { hotelId: string; hotelName: string 
       } else if (ext === 'pdf') {
         try {
           const pdfjs = await import('pdfjs-dist');
-          pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+          pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
           const data = await file.arrayBuffer();
           const pdf = await pdfjs.getDocument({ data }).promise;
           let fullText = '';
@@ -3451,11 +4625,25 @@ function RoomsView({ hotelId, hotelName }: { hotelId: string; hotelName: string 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-[14px] font-bold text-gray-800">Existing Rooms ({rooms.length})</h3>
-          {rooms.length > 0 && (
+          <div className="flex items-center gap-2">
+            {(selectedIds.size > 0) && (
+              <>
+                <span className="text-[11px] text-gray-500">{selectedIds.size} selected</span>
+                <button onClick={handleBatchSetType} disabled={saving}
+                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg"
+                  style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+                  Set Type
+                </button>
+                <button onClick={handleBatchDelete} disabled={saving}
+                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg text-red-500 hover:bg-red-50">
+                  Delete Selected
+                </button>
+              </>
+            )}
             <button onClick={loadRooms} className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-teal-600">
               <RefreshCw size={12} /> Refresh
             </button>
-          )}
+          </div>
         </div>
         {rooms.length === 0 ? (
           <div className="p-8 text-center">
@@ -3468,22 +4656,50 @@ function RoomsView({ hotelId, hotelName }: { hotelId: string; hotelName: string 
             <table className="w-full text-[12px]">
               <thead className="bg-gray-50 text-gray-500 text-[11px] uppercase sticky top-0">
                 <tr>
+                  <th className="w-8 px-2 py-2">
+                    <input type="checkbox" checked={rooms.length > 0 && selectedIds.size === rooms.length}
+                      onChange={toggleSelectAll} className="accent-teal-500 cursor-pointer" />
+                  </th>
                   <th className="text-left px-4 py-2 font-semibold">Room #</th>
                   <th className="text-left px-4 py-2 font-semibold">Type</th>
                   <th className="text-left px-4 py-2 font-semibold">Floor</th>
-                  <th className="text-right px-4 py-2 font-semibold">Action</th>
+                  <th className="text-right px-4 py-2 font-semibold"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {rooms.map(room => (
-                  <tr key={room.id} className="hover:bg-gray-50">
+                  <tr key={room.id} className={`hover:bg-gray-50 ${selectedIds.has(room.id) ? 'bg-teal-50/30' : ''}`}>
+                    <td className="w-8 px-2 py-2">
+                      <input type="checkbox" checked={selectedIds.has(room.id)}
+                        onChange={() => toggleSelect(room.id)} className="accent-teal-500 cursor-pointer" />
+                    </td>
                     <td className="px-4 py-2 font-semibold text-gray-800">{room.room_number}</td>
-                    <td className="px-4 py-2 text-gray-500">{room.room_type || '&mdash;'}</td>
-                    <td className="px-4 py-2 text-gray-500">{room.floor || '&mdash;'}</td>
+                    <td className="px-4 py-2 text-gray-500">
+                      {editingRoom === room.id ? (
+                        <div className="flex items-center gap-1">
+                          <input type="text" value={editTypeVal}
+                            onChange={e => setEditTypeVal(e.target.value)}
+                            className="w-24 bg-gray-50 rounded px-2 py-1 text-[12px] border border-gray-200 outline-none"
+                            onKeyDown={e => { if (e.key === 'Enter') handleSaveEditType(room.id); if (e.key === 'Escape') setEditingRoom(null); }}
+                            autoFocus />
+                          <button onClick={() => handleSaveEditType(room.id)} className="text-teal-600 hover:text-teal-800"><Check size={13} /></button>
+                          <button onClick={() => setEditingRoom(null)} className="text-gray-400 hover:text-gray-600"><XIcon size={13} /></button>
+                        </div>
+                      ) : (
+                        <span>{room.room_type || '—'}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-gray-500">{room.floor || '—'}</td>
                     <td className="px-4 py-2 text-right">
-                      <button onClick={() => handleDeleteRoom(room.id)} className="text-red-400 hover:text-red-600 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button onClick={() => { setEditingRoom(room.id); setEditTypeVal(room.room_type || ''); }}
+                          className="text-gray-400 hover:text-teal-600 transition-colors">
+                          <Pencil size={13} />
+                        </button>
+                        <button onClick={() => handleDeleteRoom(room.id)} className="text-red-400 hover:text-red-600 transition-colors">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -3492,6 +4708,440 @@ function RoomsView({ hotelId, hotelName }: { hotelId: string; hotelName: string 
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ── Front Desk View ──────────────────────────────────── */
+function FrontDeskView({ hotelId, isAdmin, staff, hotelName }: {
+  hotelId: string; isAdmin: boolean;
+  staff: { id?: string; name: string; email?: string; role: string }[];
+  hotelName: string;
+}) {
+  const [tab, setTab] = useState<'recap' | 'checklists' | 'schedule' | 'assistant'>('recap');
+  const today = new Date().toISOString().split('T')[0];
+  const [recap, setRecap] = useState<{ requestsToday: number; completedToday: number; pendingNow: number; messagesToday: number; shuttleBookingsToday: number; avgResponseMin: number; staffOnDuty: number; checklistsCompleted: number; checklistsTotal: number } | null>(null);
+  const [checklists, setChecklists] = useState<Checklist[]>([]);
+  const [instances, setInstances] = useState<ChecklistInstance[]>([]);
+  const [showNewChecklist, setShowNewChecklist] = useState(false);
+  const [newCL, setNewCL] = useState({ name: '', items: '' });
+  const [addInstanceFor, setAddInstanceFor] = useState<string | null>(null);
+  const [instanceStaff, setInstanceStaff] = useState('');
+  const [schedules, setSchedules] = useState<StaffSchedule[]>([]);
+  const [showNewSchedule, setShowNewSchedule] = useState(false);
+  const [newSched, setNewSched] = useState({ staff_name: '', staff_id: '', shift_date: today, start_time: '09:00', end_time: '17:00', role: 'staff', notes: '' });
+  const [scheduleDate, setScheduleDate] = useState(today);
+  // Chatbot state
+  const [kbEntries, setKbEntries] = useState<KnowledgeEntry[]>([]);
+  const [chatQuery, setChatQuery] = useState('');
+  const [chatResults, setChatResults] = useState<KnowledgeEntry[]>([]);
+  // Shuttle overview state
+  const [todayShuttleSlots, setTodayShuttleSlots] = useState<ShuttleSlot[]>([]);
+  const [todayShuttleRoutes, setTodayShuttleRoutes] = useState<ShuttleRoute[]>([]);
+  // Recurring schedule form
+  const [showRecurringForm, setShowRecurringForm] = useState(false);
+  const [recurringForm, setRecurringForm] = useState({ route_id: '', start_time: '06:00', end_time: '22:00', interval_min: 60, days: [1,2,3,4,5,6,7], capacity: 8 });
+
+  useEffect(() => { loadData(); }, [hotelId, tab, scheduleDate]);
+  const loadData = async () => {
+    const [r, c, ci, s, kb, slots, routes] = await Promise.all([
+      getDailyRecap(hotelId), getChecklists(hotelId),
+      getChecklistInstances(hotelId, today), getStaffSchedules(hotelId, scheduleDate),
+      getAllKnowledgeBase(hotelId), getAllShuttleSlotsForHotel(hotelId),
+      getShuttleRoutes(hotelId),
+    ]);
+    setRecap(r); setChecklists(c); setInstances(ci); setSchedules(s);
+    setKbEntries(kb); setTodayShuttleSlots(slots); setTodayShuttleRoutes(routes);
+  };
+
+  const handleCreateChecklist = async () => {
+    if (!newCL.name.trim()) return;
+    const items = newCL.items.split('\n').filter(Boolean).map((label, i) => ({ id: `item-${i}`, label: label.trim() }));
+    await createChecklist(hotelId, newCL.name.trim(), items);
+    setNewCL({ name: '', items: '' }); setShowNewChecklist(false);
+    setChecklists(await getChecklists(hotelId));
+  };
+
+  const handleStartChecklist = async (checklistId: string) => {
+    await createChecklistInstance({ checklist_id: checklistId, hotel_id: hotelId, staff_name: instanceStaff || undefined });
+    setAddInstanceFor(null); setInstanceStaff('');
+    setInstances(await getChecklistInstances(hotelId, today));
+  };
+
+  const handleToggleCheckItem = async (instanceId: string, itemId: string, isChecked: boolean) => {
+    const inst = instances.find(i => i.id === instanceId);
+    if (!inst) return;
+    const checked = isChecked
+      ? inst.checked_items.filter(x => x.item_id !== itemId)
+      : [...inst.checked_items, { item_id: itemId, checked_at: new Date().toISOString() }];
+    const cl = checklists.find(c => c.id === inst.checklist_id);
+    const completed = checked.length === (cl?.items.length || 0);
+    await updateChecklistInstance(instanceId, { checked_items: checked, completed });
+    setInstances(await getChecklistInstances(hotelId, today));
+  };
+
+  const sendScheduleEmail = async (sched: StaffSchedule) => {
+    const m = staff.find(s => s.name === sched.staff_name);
+    if (!m?.email) return;
+    await fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'schedule_posted', data: { staffEmail: m.email, staffName: sched.staff_name, hotelName, shiftDate: sched.shift_date, startTime: sched.start_time, endTime: sched.end_time, role: sched.role } }) }).catch(() => {});
+  };
+
+  const handleCreateSchedule = async () => {
+    if (!newSched.staff_name.trim()) return;
+    const data = await createStaffSchedule({ hotel_id: hotelId, staff_name: newSched.staff_name.trim(), staff_id: newSched.staff_id || undefined, shift_date: newSched.shift_date, start_time: newSched.start_time, end_time: newSched.end_time, role: newSched.role, notes: newSched.notes || undefined });
+    if (data) sendScheduleEmail(data);
+    setShowNewSchedule(false);
+    setNewSched({ staff_name: '', staff_id: '', shift_date: today, start_time: '09:00', end_time: '17:00', role: 'staff', notes: '' });
+    setSchedules(await getStaffSchedules(hotelId, scheduleDate));
+  };
+
+  const handleDeleteSchedule = async (id: string) => { await deleteStaffSchedule(id); setSchedules(await getStaffSchedules(hotelId, scheduleDate)); };
+
+  const DAYS_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  const handleGenerateRecurring = async () => {
+    const r = recurringForm;
+    if (!r.route_id || !r.start_time || !r.end_time) return;
+    const [startH, startM] = r.start_time.split(':').map(Number);
+    const [endH, endM] = r.end_time.split(':').map(Number);
+    const startMin = startH * 60 + startM;
+    const endMin = endH * 60 + endM;
+    for (let m = startMin; m < endMin; m += r.interval_min) {
+      const hh = String(Math.floor(m / 60)).padStart(2, '0');
+      const mm = String(m % 60).padStart(2, '0');
+      await createShuttleSlot({
+        route_id: r.route_id,
+        departure_time: `${hh}:${mm}:00`,
+        days_of_week: r.days,
+        capacity: r.capacity,
+        date: undefined,
+        event_label: '',
+        override_price: undefined,
+      });
+    }
+    setShowRecurringForm(false);
+    const updatedSlots = await getAllShuttleSlotsForHotel(hotelId);
+    setTodayShuttleSlots(updatedSlots);
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-6"><h1 className="text-[26px] font-extrabold text-gray-900">Front Desk</h1></div>
+      <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar">
+        {[{key:'recap',label:"📊 Today's Recap"},{key:'checklists',label:'📝 Checklists'},{key:'schedule',label:'📅 Staff Schedule'},{key:'assistant',label:'🤖 Staff Assistant'}].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key as typeof tab)}
+            className={`shrink-0 px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${tab === t.key ? 'text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            style={tab === t.key ? { backgroundColor: TEAL } : {}}>{t.label}</button>
+        ))}
+      </div>
+
+      {tab === 'recap' && (
+        <div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+            {[{label:'Requests Today',count:recap?.requestsToday||0,color:'text-blue-600'},{label:'Completed',count:recap?.completedToday||0,color:'text-emerald-600'},{label:'Pending Now',count:recap?.pendingNow||0,color:'text-amber-600'},{label:'Avg Response',count:`${recap?.avgResponseMin||0}m`,color:'text-purple-600'}].map(s => (
+              <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"><p className="text-[11px] text-gray-400 uppercase font-bold">{s.label}</p><p className={`text-[28px] font-extrabold ${s.color}`}>{s.count}</p></div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6">
+            {[{label:'Guest Messages',count:recap?.messagesToday||0,icon:'💬',color:'text-violet-600'},{label:'Shuttle Bookings',count:recap?.shuttleBookingsToday||0,icon:'🚗',color:'text-teal-600'},{label:'Staff on Duty',count:recap?.staffOnDuty||0,icon:'👤',color:'text-gray-700'}].map(s => (
+              <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"><p className="text-[11px] text-gray-400 uppercase font-bold">{s.label}</p><p className={`text-[24px] font-extrabold ${s.color}`}>{s.icon} {s.count}</p></div>
+            ))}
+          </div>
+          {recap && recap.checklistsTotal > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+              <p className="text-[11px] text-gray-400 uppercase font-bold">Checklists Today</p>
+              <p className="text-[24px] font-extrabold text-gray-800">{recap.checklistsCompleted} / {recap.checklistsTotal} completed</p>
+              <div className="w-full bg-gray-100 rounded-full h-2 mt-2"><div className="h-2 rounded-full" style={{width:`${(recap.checklistsCompleted/recap.checklistsTotal)*100}%`,backgroundColor:TEAL}} /></div>
+            </div>
+          )}
+          {!recap && (<div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm"><p className="text-[13px] text-gray-500">{'Loading today\u2019s data...'}</p></div>)}
+
+          {/* Today's Shuttle Overview */}
+          <div className="mt-6">
+            <h2 className="text-[15px] font-extrabold text-gray-800 mb-3">Today&apos;s Shuttle Schedule</h2>
+            {(() => {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const todayDay = new Date().getDay() || 7; // 1=Mon ... 7=Sun
+              const todaySlots = todayShuttleSlots.filter(s =>
+                (s.date === todayStr) || (s.days_of_week?.includes(todayDay) && !s.date)
+              );
+              const byRoute: Record<string, ShuttleSlot[]> = {};
+              todaySlots.forEach(s => {
+                const k = s.route_name || 'Shuttle';
+                if (!byRoute[k]) byRoute[k] = [];
+                byRoute[k].push(s);
+              });
+              const entries = Object.entries(byRoute);
+              if (entries.length === 0) {
+                return <div className="bg-white rounded-xl border border-gray-200 p-6 text-center shadow-sm"><Bus size={28} className="text-gray-300 mx-auto mb-2" /><p className="text-[13px] text-gray-500">No shuttle runs scheduled today.</p></div>;
+              }
+              return entries.map(([name, routeSlots]) => (
+                <div key={name} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm mb-3">
+                  <div className="px-4 py-2 bg-gray-50 border-b border-gray-100"><p className="text-[13px] font-bold text-gray-700">{name}</p></div>
+                  <div className="divide-y divide-gray-50">
+                    {routeSlots.sort((a, b) => (a.departure_time || '').localeCompare(b.departure_time || '')).map(slot => (
+                      <div key={slot.id} className="px-4 py-2.5 flex items-center justify-between">
+                        <span className="text-[14px] font-bold text-gray-900">{slot.departure_time?.slice(0, 5)}</span>
+                        <span className="text-[12px] font-semibold text-teal-600">{slot.bookings_count || 0} booked{slot.capacity > 0 ? ` / ${slot.capacity}` : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+      )}
+
+      {tab === 'checklists' && (
+        <div>
+          {isAdmin && (
+            <div className="mb-6">
+              {!showNewChecklist ? (
+                <button onClick={() => setShowNewChecklist(true)} className="flex items-center gap-2 text-white px-4 py-2 rounded-xl text-[13px] font-bold hover:opacity-90" style={{backgroundColor:TEAL}}><Plus size={14} /> Create Checklist Template</button>
+              ) : (
+                <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                  <h3 className="text-[15px] font-bold text-gray-900 mb-3">New Checklist Template</h3>
+                  <div className="space-y-3">
+                    <input value={newCL.name} onChange={e => setNewCL({...newCL,name:e.target.value})} placeholder="Checklist name (e.g. 'AM Walkthrough')" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
+                    <div><p className="text-[11px] text-gray-400 mb-1 font-medium">Items (one per line)</p><textarea value={newCL.items} onChange={e => setNewCL({...newCL,items:e.target.value})} placeholder="Verify breakfast setup&#10;Inspect pool area&#10;Restock amenities" rows={4} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none resize-none" /></div>
+                  </div>
+                  <div className="flex gap-2 mt-4 justify-end">
+                    <button onClick={() => {setShowNewChecklist(false);setNewCL({name:'',items:''})}} className="px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">Cancel</button>
+                    <button onClick={handleCreateChecklist} disabled={!newCL.name.trim()} className="px-5 py-2 rounded-xl text-white text-[13px] font-bold disabled:opacity-40" style={{backgroundColor:TEAL}}>Create</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="space-y-4">
+            {checklists.length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm"><ClipboardList size={32} className="text-gray-300 mx-auto mb-2" /><p className="text-[13px] text-gray-500 mb-1">No checklist templates yet.</p>{isAdmin && <p className="text-[12px] text-gray-400">Create one above to get started.</p>}</div>
+            ) : checklists.map(cl => {
+              const activeInst = instances.find(i => i.checklist_id === cl.id && !i.completed);
+              const completedInst = instances.find(i => i.checklist_id === cl.id && i.completed);
+              return (
+                <div key={cl.id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-3"><h3 className="text-[15px] font-bold text-gray-900">{cl.name}</h3><span className="text-[11px] text-gray-400">{cl.items.length} items</span></div>
+                  {activeInst ? (
+                    <div>
+                      <p className="text-[12px] text-gray-500 mb-2">{activeInst.staff_name || 'Staff'} — in progress</p>
+                      <div className="space-y-1.5">{cl.items.map(item => {
+                        const checked = activeInst.checked_items.some(x => x.item_id === item.id);
+                        return (<label key={item.id} className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={checked} onChange={() => handleToggleCheckItem(activeInst.id, item.id, checked)} className="accent-teal-500 w-4 h-4" /><span className={`text-[13px] ${checked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{item.label}</span></label>);
+                      })}</div>
+                    </div>
+                  ) : completedInst ? (
+                    <div>
+                      <p className="text-[12px] text-emerald-600 font-semibold mb-2">✅ Completed by {completedInst.staff_name || 'Staff'}</p>
+                      <div className="space-y-1">{cl.items.map(item => (<div key={item.id} className="flex items-center gap-2"><span className="text-emerald-500">✓</span><span className="text-[13px] text-gray-400 line-through">{item.label}</span></div>))}</div>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-[12px] text-gray-400 mb-3">Not started today</p>
+                      {addInstanceFor === cl.id ? (
+                        <div className="flex gap-2"><input value={instanceStaff} onChange={e => setInstanceStaff(e.target.value)} placeholder="Your name" className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-200 outline-none" /><button onClick={() => handleStartChecklist(cl.id)} disabled={!instanceStaff.trim()} className="px-3 py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-40" style={{backgroundColor:TEAL}}>Start</button><button onClick={() => {setAddInstanceFor(null);setInstanceStaff('')}} className="px-3 py-2 rounded-lg text-gray-500 text-[12px] font-semibold bg-gray-100">Cancel</button></div>
+                      ) : (<button onClick={() => setAddInstanceFor(cl.id)} className="text-[12px] font-bold px-3 py-1.5 rounded-lg" style={{backgroundColor:`${TEAL}15`,color:TEAL}}>+ Start Checklist</button>)}
+                    </div>
+                  )}
+                  {isAdmin && (<div className="mt-3 pt-3 border-t border-gray-100 flex gap-2"><button onClick={() => deleteChecklist(cl.id).then(() => setChecklists(prev => prev.filter(c => c.id !== cl.id)))} className="text-[11px] text-red-500 hover:text-red-700 font-medium">Delete</button></div>)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab === 'schedule' && (
+        <div>
+          <div className="flex items-center gap-3 mb-6 flex-wrap">
+            <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200 px-4 py-2"><CalendarDays size={16} className="text-gray-400" /><input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="text-[14px] border-none outline-none bg-transparent" /></div>
+            {isAdmin && (<button onClick={() => setShowNewSchedule(true)} className="flex items-center gap-2 text-white px-4 py-2 rounded-xl text-[13px] font-bold hover:opacity-90" style={{backgroundColor:TEAL}}><Plus size={14} /> Post Schedule</button>)}
+            <button onClick={async () => setSchedules(await getStaffSchedules(hotelId, scheduleDate))} className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-xl text-[13px] font-semibold text-gray-600 hover:bg-gray-50"><RefreshCw size={14} /> Refresh</button>
+          </div>
+          {showNewSchedule && isAdmin && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm mb-6">
+              <h3 className="text-[15px] font-bold text-gray-900 mb-3">Post New Shift</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><label className="text-[11px] text-gray-400 mb-1 block font-medium">Staff Member</label><div className="flex gap-2"><input value={newSched.staff_name} onChange={e => {setNewSched({...newSched,staff_name:e.target.value});const match=staff.find(s=>s.name.toLowerCase()===e.target.value.toLowerCase());if(match)setNewSched(prev=>({...prev,staff_id:match.id||''}))}} list="staff-list" placeholder="Type name or pick from list" className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" /><datalist id="staff-list">{staff.map(s => <option key={s.id||s.name} value={s.name} />)}</datalist></div></div>
+                <div><label className="text-[11px] text-gray-400 mb-1 block font-medium">Date</label><input type="date" value={newSched.shift_date} onChange={e => setNewSched({...newSched,shift_date:e.target.value})} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" /></div>
+                <div><label className="text-[11px] text-gray-400 mb-1 block font-medium">Role</label><input value={newSched.role} onChange={e => setNewSched({...newSched,role:e.target.value})} placeholder="Front Desk / Housekeeping" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" /></div>
+                <div><label className="text-[11px] text-gray-400 mb-1 block font-medium">Start Time</label><input type="time" value={newSched.start_time} onChange={e => setNewSched({...newSched,start_time:e.target.value})} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" /></div>
+                <div><label className="text-[11px] text-gray-400 mb-1 block font-medium">End Time</label><input type="time" value={newSched.end_time} onChange={e => setNewSched({...newSched,end_time:e.target.value})} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" /></div>
+                <div className="col-span-2"><label className="text-[11px] text-gray-400 mb-1 block font-medium">Notes (optional)</label><input value={newSched.notes} onChange={e => setNewSched({...newSched,notes:e.target.value})} placeholder="e.g. Cover front desk + shuttle dispatch" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" /></div>
+              </div>
+              <div className="flex gap-2 mt-4 justify-end">
+                <button onClick={() => {setShowNewSchedule(false)}} className="px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">Cancel</button>
+                <button onClick={handleCreateSchedule} disabled={!newSched.staff_name.trim()} className="px-5 py-2 rounded-xl text-white text-[13px] font-bold disabled:opacity-40 flex items-center gap-1.5" style={{backgroundColor:TEAL}}><SendHorizontal size={14} /> Post & Send Email</button>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2 text-center">Staff with an email address will receive a notification.</p>
+            </div>
+          )}
+          {schedules.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm"><CalendarDays size={32} className="text-gray-300 mx-auto mb-2" /><p className="text-[13px] text-gray-500">No schedules for this date.</p>{isAdmin && <p className="text-[12px] text-gray-400 mt-1">Click &quot;Post Schedule&quot; to add shifts.</p>}</div>
+          ) : (
+            <div className="space-y-3">
+              {schedules.map(s => (
+                <div key={s.id} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+                  <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[14px] font-bold shrink-0" style={{backgroundColor:TEAL}}>{s.staff_name.charAt(0).toUpperCase()}</div><div><p className="text-[14px] font-bold text-gray-900">{s.staff_name}</p><p className="text-[12px] text-gray-500">{s.start_time.slice(0,5)} — {s.end_time.slice(0,5)}{s.role ? ` · ${s.role}` : ''}{s.notes ? <span className="ml-2 text-gray-400">· {s.notes}</span> : ''}</p></div></div>
+                  <div className="flex items-center gap-2"><span className="text-[11px] text-gray-400">{s.shift_date}</span>{isAdmin && <button onClick={() => handleDeleteSchedule(s.id)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Recurring Shuttle Schedule Generator */}
+      {tab === 'schedule' && isAdmin && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          {!showRecurringForm ? (
+            <button onClick={() => setShowRecurringForm(true)}
+              className="flex items-center gap-2 bg-teal-50 text-teal-700 px-4 py-2.5 rounded-xl text-[13px] font-bold hover:bg-teal-100 transition-colors">
+              <Plus size={14} /> Generate Recurring Shuttle Times
+            </button>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm mb-4">
+              <h3 className="text-[15px] font-bold text-gray-900 mb-3">Generate Recurring Times</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[11px] text-gray-400 mb-1 block font-medium">Route</label>
+                  <select value={recurringForm.route_id} onChange={e => setRecurringForm({...recurringForm, route_id: e.target.value})}
+                    className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
+                    <option value="">Select route...</option>
+                    {todayShuttleRoutes.map(r => (
+                      <option key={r.id} value={r.id}>{r.name} ({r.type}) {r.price > 0 ? `· $${r.price}` : '· Free'}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[11px] text-gray-400 mb-1 block font-medium">Start Time</label>
+                    <input type="time" value={recurringForm.start_time} onChange={e => setRecurringForm({...recurringForm, start_time: e.target.value})}
+                      className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-400 mb-1 block font-medium">End Time</label>
+                    <input type="time" value={recurringForm.end_time} onChange={e => setRecurringForm({...recurringForm, end_time: e.target.value})}
+                      className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-400 mb-1 block font-medium">Every</label>
+                    <select value={recurringForm.interval_min} onChange={e => setRecurringForm({...recurringForm, interval_min: parseInt(e.target.value)})}
+                      className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
+                      <option value={30}>30 min</option>
+                      <option value={60}>60 min</option>
+                      <option value={90}>90 min</option>
+                      <option value={120}>2 hr</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] text-gray-400 mb-1 block font-medium">Capacity per slot</label>
+                  <input type="number" min={1} max={99} value={recurringForm.capacity} onChange={e => setRecurringForm({...recurringForm, capacity: parseInt(e.target.value) || 8})}
+                    className="w-24 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+                </div>
+                <div>
+                  <label className="text-[11px] text-gray-400 mb-1 block font-medium">Days of Week</label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {DAYS_LABELS.map((d, i) => {
+                      const dayNum = i + 1;
+                      const active = recurringForm.days.includes(dayNum);
+                      return (
+                        <button key={d} onClick={() => setRecurringForm({
+                          ...recurringForm,
+                          days: active ? recurringForm.days.filter(x => x !== dayNum) : [...recurringForm.days, dayNum]
+                        })}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${active ? 'bg-teal-600 text-white' : 'bg-gray-200 text-gray-500'}`}>{d}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4 justify-end">
+                <button onClick={() => setShowRecurringForm(false)} className="px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600">Cancel</button>
+                <button onClick={handleGenerateRecurring} disabled={!recurringForm.route_id}
+                  className="px-5 py-2 rounded-xl text-white text-[13px] font-bold disabled:opacity-40" style={{backgroundColor: TEAL}}>Generate Times</button>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2 text-center">Creates timed slots matching the selected schedule, every day of the week selected.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Staff Assistant / Knowledge Base Chatbot */}
+      {tab === 'assistant' && (
+        <div>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between" style={{ backgroundColor: TEAL }}>
+              <div className="flex items-center gap-2">
+                <BookOpen size={16} className="text-white" />
+                <span className="text-[15px] font-bold text-white">Staff Assistant</span>
+              </div>
+            </div>
+            <div className="p-4 border-b border-gray-100">
+              <input
+                value={chatQuery}
+                onChange={e => {
+                  setChatQuery(e.target.value);
+                  if (!e.target.value.trim()) { setChatResults([]); return; }
+                  const q = e.target.value.toLowerCase();
+                  setChatResults(kbEntries.filter(entry =>
+                    entry.active && (entry.question.toLowerCase().includes(q) || entry.answer.toLowerCase().includes(q) || entry.keywords?.some(k => k.toLowerCase().includes(q)))
+                  ).slice(0, 10));
+                }}
+                placeholder="Ask anything about hotel policies..."
+                className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 outline-none placeholder-gray-400"
+              />
+              <p className="text-[11px] text-gray-400 mt-2">Powered by the Knowledge Base. Admin adds entries in the Knowledge Base tab.</p>
+            </div>
+            {chatResults.length === 0 && !chatQuery.trim() ? (
+              <div className="p-8 text-center">
+                <BookOpen size={32} className="text-gray-300 mx-auto mb-3" />
+                <p className="text-[14px] font-semibold text-gray-500">Ask the Staff Assistant</p>
+                <p className="text-[12px] text-gray-400 mt-1">Search the knowledge base for answers about check-in, breakfast, wifi, amenities...</p>
+                {kbEntries.length > 0 && (
+                  <p className="text-[11px] text-gray-300 mt-2">{kbEntries.filter(e => e.active).length} knowledge entries available</p>
+                )}
+              </div>
+            ) : chatResults.length === 0 && chatQuery.trim() ? (
+              <div className="p-8 text-center">
+                <MessageSquare size={28} className="text-gray-300 mx-auto mb-2" />
+                <p className="text-[13px] text-gray-500">No matching results found.</p>
+                <p className="text-[11px] text-gray-400 mt-1">Try different keywords or ask an admin to add this info to the Knowledge Base.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
+                {chatResults.map(entry => (
+                  <div key={entry.id} className="px-5 py-4">
+                    <p className="text-[13px] font-bold text-gray-900 mb-1">{entry.question}</p>
+                    <p className="text-[12px] text-gray-600 leading-relaxed">{entry.answer}</p>
+                    {entry.source_url && (
+                      <a href={entry.source_url} target="_blank" rel="noopener noreferrer"
+                        className="text-[11px] font-bold text-blue-600 hover:underline mt-1 inline-block">
+                        Source &rarr;
+                      </a>
+                    )}
+                    {entry.keywords && entry.keywords.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {entry.keywords.map((kw, i) => (
+                          <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">{kw}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <p className="text-[12px] text-amber-800">
+              <strong>Tip:</strong> Go to the <span className="font-semibold">Knowledge Base</span> tab to add or manage entries. The staff assistant searches all active entries by question, answer, and keywords.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

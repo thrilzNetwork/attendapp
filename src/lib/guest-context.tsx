@@ -39,6 +39,7 @@ export interface HotelConfig {
   managerName: string;
   welcomeLetter: string;
   teamPhotoUrl: string;
+  brandColor?: string;
 }
 
 const DEFAULT_CONFIG: HotelConfig = {
@@ -76,10 +77,10 @@ export function GuestProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<HotelConfig>(DEFAULT_CONFIG);
 
   useEffect(() => {
-    const raw = localStorage.getItem('guestSession');
-    if (raw) {
+    const stored = localStorage.getItem('guestSession');
+    if (stored) {
       try {
-        const parsed = JSON.parse(raw) as GuestSession;
+        const parsed = JSON.parse(stored);
         const checkout = new Date(parsed.checkout);
         const now = new Date();
         if (checkout >= now) {
@@ -105,6 +106,23 @@ export function GuestProvider({ children }: { children: ReactNode }) {
       } catch { /* ignore */ }
     }
     loadConfig(); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Listen for storage changes (triggered by staff confirming via another tab)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'guestSession') {
+        if (e.newValue) {
+          try {
+            const parsed = JSON.parse(e.newValue);
+            const checkout = new Date(parsed.checkout);
+            if (new Date() <= checkout) {
+              setGuest(parsed);
+            }
+          } catch { /* ignore */ }
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadConfig = async () => {

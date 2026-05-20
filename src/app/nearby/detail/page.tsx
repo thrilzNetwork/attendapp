@@ -37,7 +37,7 @@ function PartnerContent() {
 
   if (loading) return (
     <div className="h-screen flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-[#3A1A2D] border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: `${brandColor} transparent transparent transparent` }} />
     </div>
   );
 
@@ -145,7 +145,7 @@ function PartnerContent() {
         <Image src={partner.image_url || 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&fit=crop'} alt={partner.name} fill className="object-cover" sizes="100vw" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <button onClick={() => router.back()} className="absolute top-4 left-4 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-          <ArrowLeft size={18} className="text-[#3A1A2D]" />
+          <ArrowLeft size={18} style={{ color: brandColor }} />
         </button>
         <div className="absolute bottom-4 left-5 right-5">
           <h1 className="text-xl font-extrabold text-white">{partner.name}</h1>
@@ -224,7 +224,7 @@ function PartnerContent() {
                       <div className="flex-1 min-w-0">
                         <div className="font-bold text-sm text-gray-900 truncate">{item.name}</div>
                         {item.description && <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.description}</div>}
-                        <div className="text-sm font-extrabold text-[#3A1A2D] mt-1">${Number(item.price).toFixed(2)}</div>
+                        <div className="text-sm font-extrabold mt-1" style={{ color: brandColor }}>${Number(item.price).toFixed(2)}</div>
                       </div>
                       <div className="flex items-center gap-2 ml-3">
                         <button onClick={() => setCart(c => ({ ...c, [item.id]: Math.max((c[item.id] || 0) - 1, 0) }))}
@@ -233,7 +233,8 @@ function PartnerContent() {
                         </button>
                         <span className="w-4 text-center text-sm font-bold">{cart[item.id] || 0}</span>
                         <button onClick={() => setCart(c => ({ ...c, [item.id]: (c[item.id] || 0) + 1 }))}
-                          className="w-7 h-7 rounded-full bg-[#3A1A2D] text-white flex items-center justify-center active:scale-90">
+                          className="w-7 h-7 rounded-full text-white flex items-center justify-center active:scale-90"
+                          style={{ backgroundColor: brandColor }}>
                           <Plus size={14} />
                         </button>
                       </div>
@@ -243,7 +244,8 @@ function PartnerContent() {
                   {cartItems.length > 0 && (
                     <div className="pt-2 pb-4">
                       <button onClick={placeOrder} disabled={ordering}
-                        className="w-full bg-[#3A1A2D] text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-between px-5 active:scale-[0.97] transition-transform disabled:opacity-60">
+                        className="w-full text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-between px-5 active:scale-[0.97] transition-transform disabled:opacity-60"
+                        style={{ backgroundColor: brandColor }}>
                         <div className="flex items-center gap-2">
                           <ShoppingBag size={18} />
                           <span className="text-sm">{cartItems.reduce((s, i) => s + i.qty, 0)} items</span>
@@ -295,7 +297,7 @@ export default function NearbyDetailPage() {
   return (
     <Suspense fallback={
       <div className="h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#3A1A2D] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
       </div>
     }>
       <PartnerContent />

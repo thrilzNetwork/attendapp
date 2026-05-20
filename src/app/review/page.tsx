@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Star, CheckCircle, ExternalLink } from 'lucide-react';
 import { getHotelConfig } from '@/lib/supabase';
@@ -12,6 +12,13 @@ export default function ReviewPage() {
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
   const [feedback, setFeedback] = useState('');
+  const [brandColor, setBrandColor] = useState('#6B1D3C');
+
+  useEffect(() => {
+    getHotelConfig().then(cfg => {
+      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
+    });
+  }, []);
 
   const handleStarClick = (val: number) => {
     setRating(val);
@@ -50,7 +57,8 @@ export default function ReviewPage() {
   };
 
   const labels = ['','Very Dissatisfied','Dissatisfied','Neutral','Satisfied','Very Satisfied'];
-  const labelColors = ['','text-red-500','text-red-400','text-amber-400','text-amber-400','text-[#6B1D3C]'];
+  const labelColors = ['','text-red-500','text-red-400','text-amber-400','text-amber-400',''];
+  const getLabelStyle = (val: number) => val === 5 ? { color: brandColor } : {};
 
   return (
     <div className="h-dvh w-full bg-[#F4F4F5] flex flex-col overflow-hidden">
@@ -75,7 +83,7 @@ export default function ReviewPage() {
                 ))}
               </div>
 
-              {rating > 0 && <p className={`text-[13px] font-semibold ${labelColors[rating]}`}>{labels[rating]}</p>}
+              {rating > 0 && <p className={`text-[13px] font-semibold ${labelColors[rating]}`} style={getLabelStyle(rating)}>{labels[rating]}</p>}
             </div>
           )}
 
@@ -98,7 +106,7 @@ export default function ReviewPage() {
               <button
                 onClick={handleSubmitFeedback}
                 className="w-full py-3.5 rounded-[14px] text-white font-bold text-[15px] active:scale-[0.98]"
-                style={{ backgroundColor: '#6B1D3C' }}
+                style={{ backgroundColor: brandColor }}
               >
                 Submit Feedback to Manager
               </button>
@@ -124,8 +132,8 @@ export default function ReviewPage() {
                     onClick={()=>openReview(platform.url)}
                     className="w-full bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100 active:scale-[0.98]"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-[#6B1D3C]/10 flex items-center justify-center shrink-0">
-                      <span className="text-[#6B1D3C] text-[14px] font-bold">{platform.icon}</span>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${brandColor}10` }}>
+                      <span className="text-[14px] font-bold" style={{ color: brandColor }}>{platform.icon}</span>
                     </div>
                     <span className="flex-1 text-left text-[14px] font-bold text-gray-800">{platform.label}</span>
                     <ExternalLink size={16} className="text-gray-400" />
@@ -137,8 +145,8 @@ export default function ReviewPage() {
 
           {step === 'done' && rating <= 2 && (
             <div className="py-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-[#6B1D3C]/10 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle size={32} className="text-[#6B1D3C]" />
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: `${brandColor}10` }}>
+                <CheckCircle size={32} style={{ color: brandColor }} />
               </div>
               <p className="text-[22px] font-bold text-black mb-2">Thank you</p>
               <p className="text-[13px] text-gray-400 mb-6">Your feedback has been sent to management.</p>

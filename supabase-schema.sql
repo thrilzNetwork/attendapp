@@ -16,11 +16,25 @@ create table hotels (
 -- Guest requests
 create table requests (
   id uuid default gen_random_uuid() primary key,
+  hotel_id uuid references hotels(id) on delete cascade,
   guest_name text not null,
   room text not null,
-  type text not null,  -- 'housekeeping', 'towels', 'maintenance', etc.
+  type text not null,  -- 'check-in', 'housekeeping', 'towels', 'maintenance', etc.
   details text default '',
   status text default 'pending',  -- 'pending', 'in_progress', 'done'
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Guest check-ins (one row per guest session)
+create table guests (
+  id uuid default gen_random_uuid() primary key,
+  hotel_id uuid references hotels(id) on delete cascade not null,
+  name text not null,
+  room text not null,
+  checkout date not null,
+  checked_in_at timestamptz default now(),
+  status text default 'active',  -- 'active', 'checked_out'
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -28,6 +42,7 @@ create table requests (
 -- Staff accounts (created by admin)
 create table staff_accounts (
   id uuid default gen_random_uuid() primary key,
+  hotel_id uuid references hotels(id) on delete cascade,
   name text not null,
   role text default 'staff',  -- 'staff', 'manager', 'admin'
   pin_code text not null,  -- 4-6 digit PIN for login
@@ -65,6 +80,7 @@ create policy "Anyone can delete hotel rooms" on hotel_rooms for delete using (t
 -- RLS policies
 alter table hotels enable row level security;
 alter table requests enable row level security;
+alter table guests enable row level security;
 alter table staff_accounts enable row level security;
 alter table restaurant_menu_items enable row level security;
 
@@ -75,6 +91,11 @@ create policy "Anyone can read hotels" on hotels for select using (true);
 create policy "Anyone can insert requests" on requests for insert with check (true);
 create policy "Anyone can read requests" on requests for select using (true);
 create policy "Anyone can update requests" on requests for update using (true);
+
+-- Guests table RLS
+create policy "Anyone can insert guests" on guests for insert with check (true);
+create policy "Anyone can read guests" on guests for select using (true);
+create policy "Anyone can update guests" on guests for update using (true);
 
 -- Staff accounts: need to verify PIN
 -- We'll read staff accounts from the admin/owner

@@ -27,35 +27,30 @@ function PartnerContent() {
   const [pinError, setPinError] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
   const [partnerName, setPartnerName] = useState('');
+  const [hotelId, setHotelId] = useState<string | null>(null);
   const [requests, setRequests] = useState<Request[]>([]);
 
   const reload = useCallback(async () => {
     if (!partnerId) return;
-    // Fetch this partner's food orders
-    const { data } = await supabase
+    // Fetch this partner's food orders — filtered to the partner's hotel
+    let query = supabase
       .from('requests')
       .select('*')
       .eq('type', 'Food Order')
       .order('created_at', { ascending: false });
-
+    if (hotelId) {
+      query = query.eq('hotel_id', hotelId);
+    }
+    const { data } = await query;
     if (data) setRequests(data);
-
-    // Also get partner info for header
-    const { data: partner } = await supabase
-      .from('partners')
-      .select('name')
-      .eq('id', partnerId)
-      .single();
-
-    if (partner) setPartnerName(partner.name);
-  }, [partnerId]);
+  }, [partnerId, hotelId]);
 
   useEffect(() => {
     if (!partnerId || !authenticated) return;
     reload();
-    const ch = subscribeToRequests(() => reload());
+    const ch = subscribeToRequests(hotelId, () => reload());
     return () => { supabase.removeChannel(ch); };
-  }, [partnerId, authenticated, reload]);
+  }, [partnerId, authenticated, reload, hotelId]);
 
   const handleLogin = async () => {
     setPinError('');
@@ -75,6 +70,7 @@ function PartnerContent() {
     const restaurantPin = data.pin_code || '2025';
     if (pin === restaurantPin) {
       setPartnerName(data.name);
+      setHotelId(data.hotel_id || null);
       setAuthenticated(true);
     } else {
       setPinError('Incorrect PIN. Try again.');
@@ -139,7 +135,7 @@ function PartnerContent() {
             <RefreshCw size={14} /> Refresh
           </button>
           <button
-            onClick={() => { setAuthenticated(false); setPin(''); }}
+            onClick={() => { setAuthenticated(false); setPin(''); setHotelId(null); }}
             className="flex items-center gap-1.5 text-[12px] text-gray-500 hover:text-red-500 transition-colors"
           >
             <LogOut size={14} /> Sign Out

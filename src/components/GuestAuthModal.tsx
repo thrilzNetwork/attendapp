@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { X, User, DoorOpen, Lock, Search } from 'lucide-react';
-import { getHotelConfig, getHotelRooms, HotelRoom } from '@/lib/supabase';
+import { getHotelConfig, getHotelRooms, insertRequest, HotelRoom } from '@/lib/supabase';
 import { useGuest } from '@/lib/guest-context';
 
 interface Props {
@@ -135,8 +135,22 @@ export default function GuestAuthModal({ open, onClose, onSuccess, isValidationC
     // Use the context login function which sets validationStatus to 'pending'
     login(guestName, guestRoom, checkout);
 
-    // Fire check-in notification to hotel staff (non-blocking)
+    // Insert a check-in request so it appears in Live Orders on staff dashboard
     const hotelSlug = localStorage.getItem('attenda_hotel_slug');
+    if (hotelSlug) {
+      getHotelConfig(hotelSlug).then((hotel) => {
+        if (!hotel?.id) return;
+        insertRequest({
+          guestName,
+          room: guestRoom,
+          type: 'check-in',
+          details: 'Guest checked in',
+          hotelId: hotel.id,
+        }).catch((err) => console.error('Failed to insert check-in request:', err));
+      }).catch(() => {});
+    }
+
+    // Fire check-in notification to hotel staff (non-blocking)
     if (hotelSlug) {
       getHotelConfig(hotelSlug).then((hotel) => {
         if (!hotel) return;
