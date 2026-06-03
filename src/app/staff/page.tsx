@@ -5,10 +5,11 @@ import Image from 'next/image';
 import {
   Bell, MessageSquare, Bus, Settings, Users,
   LogOut, RefreshCw, Plus, Trash2, Eye, EyeOff, Save,
-  Wifi, Hotel as HotelIcon, ExternalLink, ImageIcon, type LucideIcon,
+  Hotel as HotelIcon, ExternalLink, type LucideIcon,
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
-  UtensilsCrossed, UserPlus,  BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
+  UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
+  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon,
 } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
@@ -27,21 +28,29 @@ import {
   getAllKnowledgeBase, createKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry, KnowledgeEntry,
   getAllHotelRooms, bulkInsertRooms, deleteRoom, createRoom, updateRoomType, updateRoomTypeBatch, HotelRoom,
   upsertGuestValidation, getGuestValidations,
-  // Front Desk Ops
   getChecklists, createChecklist, deleteChecklist, Checklist,
   getChecklistInstances, createChecklistInstance, updateChecklistInstance, ChecklistInstance,
   getStaffSchedules, createStaffSchedule, deleteStaffSchedule, StaffSchedule,
   getDailyRecap,
+  getHotelOpsTools, getAllOpsTools,
+  getLearningDocs, getHrDocs,
 } from '@/lib/supabase';
+import type { OpsTool } from '@/lib/supabase';
+import CallAroundView from '@/components/ops-tools/CallAroundView';
+import DailyLogsView from '@/components/ops-tools/DailyLogsView';
+import NoShowsView from '@/components/ops-tools/NoShowsView';
+import RoomMovesView from '@/components/ops-tools/RoomMovesView';
+import BankCountView from '@/components/ops-tools/BankCountView';
 
 /* ── Types ─────────────────────────────────────────────── */
-type Role = 'admin' | 'staff' | 'superadmin' | 'vendor';
+type Role = 'admin' | 'staff' | 'superadmin' | 'vendor' | 'manager';
 type NavTab =
   | 'orders' | 'messages' | 'shuttle'
   | 'hotel' | 'staff_mgmt'
   | 'partners' | 'qrcodes' | 'properties'
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
-  | 'frontdesk';
+  | 'frontdesk' | 'dailybrief' | 'property_info'
+  | 'schedules' | 'checklists_tab' | 'learning' | 'hr';
 
 interface Request {
   id: string;
@@ -74,12 +83,27 @@ const ADMIN_PIN = '2025';
 const SUPERADMIN_PIN = '9999';
 const TEAL = '#0D9488';
 
+const DEPARTMENTS = [
+  { key: 'management',   label: 'Management',   icon: '👔' },
+  { key: 'front_desk',   label: 'Front Desk',   icon: '🛎️' },
+  { key: 'housekeeping', label: 'Housekeeping', icon: '🧹' },
+  { key: 'maintenance',  label: 'Maintenance',  icon: '🔧' },
+  { key: 'security',     label: 'Security',     icon: '🛡️' },
+  { key: 'drivers',      label: 'Drivers',      icon: '🚐' },
+] as const;
+type DepartmentKey = typeof DEPARTMENTS[number]['key'];
+
 const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[] }[] = [
-  { tab: 'orders',          label: 'Live Orders',       icon: Bell,            roles: ['admin', 'staff', 'superadmin'] },
-  { tab: 'messages',        label: 'Guest Messages',     icon: MessageSquare,   roles: ['admin', 'staff', 'superadmin'] },
-  { tab: 'shuttle',         label: 'Shuttle Schedule',   icon: Bus,             roles: ['admin', 'staff', 'superadmin'] },
-  { tab: 'guests',          label: 'Guest Check-ins',    icon: Users,           roles: ['admin', 'staff', 'superadmin'] },
-  { tab: 'frontdesk',       label: 'Front Desk',         icon: ClipboardList,   roles: ['admin', 'staff', 'superadmin'] },
+  { tab: 'dailybrief',      label: 'Dashboard',         icon: BarChart3,       roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'orders',          label: 'Requests',           icon: Bell,            roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'messages',        label: 'Messages',           icon: MessageSquare,   roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'shuttle',         label: 'Shuttle',            icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'schedules',       label: 'Schedules',          icon: Clock,           roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'checklists_tab',  label: 'Checklists',         icon: ClipboardCheck,  roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'learning',        label: 'Learning',           icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'hr',              label: 'H/R',                icon: Briefcase,       roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'frontdesk',       label: 'Front Desk',         icon: ClipboardList,   roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'property_info',   label: 'Property Info',      icon: HotelIcon,       roles: ['admin', 'staff', 'superadmin', 'manager'] },
   { tab: 'vendor_manifest', label: 'Vendor Dashboard',   icon: Users,           roles: ['vendor'] },
   { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'] },
   { tab: 'staff_mgmt',      label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'] },
@@ -110,6 +134,9 @@ export default function Dashboard() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [config, setConfig] = useState<HotelConfig | null>(null);
   const [staff, setStaff] = useState<StaffAccount[]>([]);
+  // Impersonation
+  const [impersonatingUser, setImpersonatingUser] = useState<{ name: string; role: Role } | null>(null);
+  const [showImpersonatePicker, setShowImpersonatePicker] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -385,13 +412,58 @@ export default function Dashboard() {
     );
   }
 
+  /* ── Impersonation Picker (superadmin only) ─────── */
+  if (showImpersonatePicker) {
+    const nonSuper = staff.filter(s => s.role !== 'superadmin' && s.role !== 'vendor');
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4">
+        <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-xl">
+          <h2 className="text-[15px] font-bold mb-1">View as Staff Member</h2>
+          <p className="text-[12px] text-gray-400 mb-4">Pick a staff member to see exactly what they see</p>
+          {nonSuper.length === 0 ? (
+            <p className="text-[13px] text-gray-400 text-center py-6">No staff accounts found. Add some in Staff Management first.</p>
+          ) : (
+            <div className="space-y-1 max-h-[350px] overflow-y-auto">
+              {nonSuper.map(st => (
+                <button key={st.id || st.name}
+                  onClick={() => {
+                    setImpersonatingUser({ name: st.name, role: st.role === 'admin' || st.role === 'manager' ? 'admin' : 'staff' });
+                    setShowImpersonatePicker(false);
+                    setTab('dailybrief');
+                  }}
+                  className="w-full text-left flex items-center justify-between bg-gray-50 hover:bg-gray-100 rounded-xl px-4 py-3 transition-colors"
+                >
+                  <div>
+                    <p className="text-[14px] font-semibold text-gray-900">{st.name}</p>
+                    <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 ${
+                      st.role === 'admin' || st.role === 'manager' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {st.role === 'admin' || st.role === 'manager' ? 'Admin' : 'Staff'}
+                    </span>
+                  </div>
+                  <Eye size={16} className="text-gray-400" />
+                </button>
+              ))}
+            </div>
+          )}
+          <button onClick={() => setShowImpersonatePicker(false)}
+            className="w-full mt-3 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-semibold text-[12px] hover:bg-gray-200">
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   /* ── Dashboard ────────────────────────────────────── */
   const s = session!;
-  const visibleNav = NAV.filter(n => n.roles.includes(s.role));
+  // Impersonation override — superadmin can view as staff
+  const effectiveRole: Role = impersonatingUser?.role || s.role;
+  const visibleNav = NAV.filter(n => n.roles.includes(effectiveRole));
   const pendingCount = requests.filter(r => r.status === 'pending').length;
   const isAdmin = s.role === 'admin' || s.role === 'superadmin';
   // Vendors land on their manifest tab
-  const effectiveTab = (s.role === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab;
+  const effectiveTab = (effectiveRole === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab;
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row">
@@ -470,13 +542,30 @@ export default function Dashboard() {
         <div className="px-5 py-3 border-t border-gray-200/60">
           <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Logged in as</p>
           <p className="text-[14px] font-semibold text-gray-900">{s.name}</p>
-          <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 ${
-            s.role === 'superadmin' ? 'bg-purple-100 text-purple-700' :
-            s.role === 'admin' ? 'bg-teal-100 text-teal-700' :
-            s.role === 'vendor' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
-          }`}>
-            {s.role === 'superadmin' ? 'Super Admin' : s.role === 'admin' ? 'Admin' : s.role === 'vendor' ? `Vendor · ${s.vendorType || ''}` : 'Staff'}
-          </span>
+          {impersonatingUser ? (
+            <>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Impersonating</span>
+                <span className="text-[11px] text-gray-500">{impersonatingUser.name}</span>
+              </div>
+              <button onClick={() => setImpersonatingUser(null)} className="mt-1 text-[11px] font-semibold text-red-500 hover:text-red-700 transition-colors">
+                Stop Impersonating
+              </button>
+            </>
+          ) : (
+            <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 ${
+              s.role === 'superadmin' ? 'bg-purple-100 text-purple-700' :
+              s.role === 'admin' ? 'bg-teal-100 text-teal-700' :
+              s.role === 'vendor' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+            }`}>
+              {s.role === 'superadmin' ? 'Super Admin' : s.role === 'admin' ? 'Admin' : s.role === 'vendor' ? `Vendor · ${s.vendorType || ''}` : 'Staff'}
+            </span>
+          )}
+          {s.role === 'superadmin' && !impersonatingUser && (
+            <button onClick={() => setShowImpersonatePicker(true)} className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-purple-600 hover:text-purple-800 transition-colors">
+              <Eye size={12} /> View as Staff
+            </button>
+          )}
         </div>
 
         <nav className="px-3 py-3 flex-1">
@@ -512,6 +601,24 @@ export default function Dashboard() {
 
       {/* ── Main Content ────────────────────────────── */}
       <main className="flex-1 min-w-0 bg-[#FAFAFA]">
+        {effectiveTab === 'dailybrief' && config?.id && (
+          <DailyBriefView hotelId={config.id} hotelName={config.name} config={config} sessionName={session?.name} />
+        )}
+        {effectiveTab === 'property_info' && config && (
+          <PropertyInfoView config={config} />
+        )}
+        {effectiveTab === 'schedules' && config?.id && (
+          <SchedulesView hotelId={config.id} isAdmin={isAdmin} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department }))} />
+        )}
+        {effectiveTab === 'checklists_tab' && config?.id && (
+          <ChecklistsTabView hotelId={config.id} isAdmin={isAdmin} />
+        )}
+        {effectiveTab === 'learning' && config?.id && (
+          <LearningView hotelId={config.id} />
+        )}
+        {effectiveTab === 'hr' && config?.id && (
+          <HRView hotelId={config.id} />
+        )}
         {effectiveTab === 'orders' && (
           <OrdersView
             requests={requests}
@@ -562,7 +669,7 @@ export default function Dashboard() {
           <GuestsView hotelId={config.id} />
         )}
         {effectiveTab === 'frontdesk' && config?.id && (
-          <FrontDeskView hotelId={config.id} isAdmin={isAdmin} staff={staff.map(s => ({ id: s.id, name: s.name, email: s.email, role: s.role }))} hotelName={config.name} />
+          <FrontDeskView hotelId={config.id} isAdmin={isAdmin} staff={staff.map(s => ({ id: s.id, name: s.name, email: s.email, role: s.role, department: s.department }))} hotelName={config.name} config={config} />
         )}
       </main>
     </div>
@@ -2675,6 +2782,25 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
           </div>
         </Section>
 
+        <Section title="GM Daily Notes" Icon={CalendarDays}>
+          <p className="text-[11px] text-gray-400 -mt-1">
+            Write the daily morning brief here. Staff see it on the Daily Brief tab. Update this every morning.
+          </p>
+          <textarea
+            value={form.gmNotes}
+            onChange={e => setForm({ ...form, gmNotes: e.target.value })}
+            rows={8}
+            className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none font-mono"
+            placeholder={`🏨 TODAY'S BRIEF — ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+
+• VIP arrivals/checkouts
+• Maintenance issues
+• Staffing notes
+• Special events today
+• Safety reminders`}
+          />
+        </Section>
+
         <Section title="Email Notifications" Icon={Bell}>
           <p className="text-[11px] text-gray-400 -mt-1">
             Receive an email whenever a guest submits a request or sends a message.
@@ -4713,12 +4839,14 @@ function RoomsView({ hotelId, hotelName }: { hotelId: string; hotelName: string 
 }
 
 /* ── Front Desk View ──────────────────────────────────── */
-function FrontDeskView({ hotelId, isAdmin, staff, hotelName }: {
+function FrontDeskView({ hotelId, isAdmin, staff, hotelName, config }: {
   hotelId: string; isAdmin: boolean;
-  staff: { id?: string; name: string; email?: string; role: string }[];
+  staff: { id?: string; name: string; email?: string; role: string; department?: string }[];
   hotelName: string;
+  config: HotelConfig;
 }) {
-  const [tab, setTab] = useState<'recap' | 'checklists' | 'schedule' | 'assistant'>('recap');
+  const [enabledTools, setEnabledTools] = useState<{ tool: OpsTool; enabled: boolean }[]>([]);
+  const [tab, setTab] = useState<string>('recap');
   const today = new Date().toISOString().split('T')[0];
   const [recap, setRecap] = useState<{ requestsToday: number; completedToday: number; pendingNow: number; messagesToday: number; shuttleBookingsToday: number; avgResponseMin: number; staffOnDuty: number; checklistsCompleted: number; checklistsTotal: number } | null>(null);
   const [checklists, setChecklists] = useState<Checklist[]>([]);
@@ -4741,6 +4869,26 @@ function FrontDeskView({ hotelId, isAdmin, staff, hotelName }: {
   // Recurring schedule form
   const [showRecurringForm, setShowRecurringForm] = useState(false);
   const [recurringForm, setRecurringForm] = useState({ route_id: '', start_time: '06:00', end_time: '22:00', interval_min: 60, days: [1,2,3,4,5,6,7], capacity: 8 });
+
+  // Load enabled ops tools from DB
+  useEffect(() => {
+    (async () => {
+      try {
+        const [tools, toggles] = await Promise.all([getAllOpsTools(), getHotelOpsTools(hotelId)]);
+        const toggleMap = new Map(toggles.map(t => [t.tool_key, t.enabled]));
+        const enabled = tools.filter(t => toggleMap.get(t.key) !== false).map(t => ({ tool: t, enabled: toggleMap.get(t.key) ?? true }));
+        setEnabledTools(enabled);
+      } catch {
+        // If tables don't exist yet, fall back to default set
+        setEnabledTools([
+          { tool: { key: 'recap', name: 'Daily Recap', icon: 'BarChart3', category: 'front_desk', description: '', is_built_in: true, id: '' }, enabled: true },
+          { tool: { key: 'checklists', name: 'Checklists', icon: 'ClipboardList', category: 'front_desk', description: '', is_built_in: true, id: '' }, enabled: true },
+          { tool: { key: 'schedule', name: 'Staff Schedule', icon: 'CalendarDays', category: 'front_desk', description: '', is_built_in: true, id: '' }, enabled: true },
+          { tool: { key: 'assistant', name: 'Staff Assistant', icon: 'Bot', category: 'front_desk', description: '', is_built_in: true, id: '' }, enabled: true },
+        ]);
+      }
+    })();
+  }, [hotelId]);
 
   useEffect(() => { loadData(); }, [hotelId, tab, scheduleDate]);
   const loadData = async () => {
@@ -4824,15 +4972,83 @@ function FrontDeskView({ hotelId, isAdmin, staff, hotelName }: {
     setTodayShuttleSlots(updatedSlots);
   };
 
+  const renderShuttleOverview = () => {
+    if (!config.hasFreeShuttle) {
+      return (
+        <div className="bg-gray-50 rounded-2xl p-5 text-center border border-gray-100">
+          <Bus size={24} className="text-gray-300 mx-auto mb-2" />
+          <p className="text-[13px] text-gray-500">This property does not offer a free shuttle.</p>
+        </div>
+      );
+    }
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayDay = new Date().getDay() || 7; // 1=Mon ... 7=Sun
+    const todaySlots = todayShuttleSlots.filter(s =>
+      (s.date === todayStr) || (s.days_of_week?.includes(todayDay) && !s.date)
+    );
+    const byRoute: Record<string, ShuttleSlot[]> = {};
+    todaySlots.forEach(s => {
+      const k = s.route_name || 'Shuttle';
+      if (!byRoute[k]) byRoute[k] = [];
+      byRoute[k].push(s);
+    });
+    const entries = Object.entries(byRoute);
+    if (entries.length === 0) {
+      return (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center shadow-sm">
+          <Bus size={28} className="text-gray-300 mx-auto mb-2" />
+          <p className="text-[13px] text-gray-500">No shuttle runs scheduled today.</p>
+        </div>
+      );
+    }
+    return (
+      <>
+        {entries.map(([name, routeSlots]) => (
+          <div key={name} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm mb-3">
+            <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+              <p className="text-[13px] font-bold text-gray-700">{name}</p>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {routeSlots.sort((a, b) => (a.departure_time || '').localeCompare(b.departure_time || '')).map(slot => (
+                <div key={slot.id} className="px-4 py-2.5 flex items-center justify-between">
+                  <span className="text-[14px] font-bold text-gray-900">{slot.departure_time?.slice(0, 5)}</span>
+                  <span className="text-[12px] font-semibold text-teal-600">{slot.bookings_count || 0} booked{slot.capacity > 0 ? ` / ${slot.capacity}` : ''}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </>
+    );
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6"><h1 className="text-[26px] font-extrabold text-gray-900">Front Desk</h1></div>
       <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar">
-        {[{key:'recap',label:"📊 Today's Recap"},{key:'checklists',label:'📝 Checklists'},{key:'schedule',label:'📅 Staff Schedule'},{key:'assistant',label:'🤖 Staff Assistant'}].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key as typeof tab)}
-            className={`shrink-0 px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${tab === t.key ? 'text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-            style={tab === t.key ? { backgroundColor: TEAL } : {}}>{t.label}</button>
-        ))}
+        {(() => {
+          const tabConfig: Record<string, {label: string}> = {
+            'recap': {label:"📊 Daily Recap"},
+            'checklists': {label:"📝 Checklists"},
+            'schedule': {label:"📅 Staff Schedule"},
+            'assistant': {label:"🤖 Staff Assistant"},
+            'call-around': {label:"📞 Call Around"},
+            'daily-logs': {label:"📋 Daily Logs"},
+            'no-shows': {label:"🚫 No Shows"},
+            'room-moves': {label:"🔄 Room Moves"},
+            'bank-count': {label:"💰 Bank Count"},
+          };
+          const visible = enabledTools.filter(t => t.enabled).map(t => t.tool.key);
+          return visible.map(key => {
+            const cfg = tabConfig[key];
+            if (!cfg) return null;
+            return (
+              <button key={key} onClick={() => setTab(key)}
+                className={`shrink-0 px-4 py-2 rounded-full text-[13px] font-semibold transition-colors ${tab === key ? 'text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                style={tab === key ? { backgroundColor: TEAL } : {}}>{cfg.label}</button>
+            );
+          });
+        })()}
       </div>
 
       {tab === 'recap' && (
@@ -4856,39 +5072,17 @@ function FrontDeskView({ hotelId, isAdmin, staff, hotelName }: {
           )}
           {!recap && (<div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm"><p className="text-[13px] text-gray-500">{'Loading today\u2019s data...'}</p></div>)}
 
-          {/* Today's Shuttle Overview */}
+          {/* Today's Shuttle Overview — only if hotel has free shuttle enabled */}
           <div className="mt-6">
-            <h2 className="text-[15px] font-extrabold text-gray-800 mb-3">Today&apos;s Shuttle Schedule</h2>
-            {(() => {
-              const todayStr = new Date().toISOString().split('T')[0];
-              const todayDay = new Date().getDay() || 7; // 1=Mon ... 7=Sun
-              const todaySlots = todayShuttleSlots.filter(s =>
-                (s.date === todayStr) || (s.days_of_week?.includes(todayDay) && !s.date)
-              );
-              const byRoute: Record<string, ShuttleSlot[]> = {};
-              todaySlots.forEach(s => {
-                const k = s.route_name || 'Shuttle';
-                if (!byRoute[k]) byRoute[k] = [];
-                byRoute[k].push(s);
-              });
-              const entries = Object.entries(byRoute);
-              if (entries.length === 0) {
-                return <div className="bg-white rounded-xl border border-gray-200 p-6 text-center shadow-sm"><Bus size={28} className="text-gray-300 mx-auto mb-2" /><p className="text-[13px] text-gray-500">No shuttle runs scheduled today.</p></div>;
-              }
-              return entries.map(([name, routeSlots]) => (
-                <div key={name} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm mb-3">
-                  <div className="px-4 py-2 bg-gray-50 border-b border-gray-100"><p className="text-[13px] font-bold text-gray-700">{name}</p></div>
-                  <div className="divide-y divide-gray-50">
-                    {routeSlots.sort((a, b) => (a.departure_time || '').localeCompare(b.departure_time || '')).map(slot => (
-                      <div key={slot.id} className="px-4 py-2.5 flex items-center justify-between">
-                        <span className="text-[14px] font-bold text-gray-900">{slot.departure_time?.slice(0, 5)}</span>
-                        <span className="text-[12px] font-semibold text-teal-600">{slot.bookings_count || 0} booked{slot.capacity > 0 ? ` / ${slot.capacity}` : ''}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ));
-            })()}
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[15px] font-extrabold text-gray-800">Today&apos;s Shuttle Schedule</h2>
+              {config.hasFreeShuttle && config.shuttleStartTime && config.shuttleEndTime && (
+                <span className="text-[11px] font-semibold text-gray-500">
+                  Runs {config.shuttleStartTime.slice(0,5)}–{config.shuttleEndTime.slice(0,5)}
+                </span>
+              )}
+            </div>
+            {renderShuttleOverview()}
           </div>
         </div>
       )}
@@ -5142,6 +5336,722 @@ function FrontDeskView({ hotelId, isAdmin, staff, hotelName }: {
           </div>
         </div>
       )}
+
+      {/* ── New ops tool renderings ─────────────────────── */}
+      {tab === 'call-around' && <CallAroundView hotelId={hotelId} />}
+      {tab === 'daily-logs' && <DailyLogsView hotelId={hotelId} />}
+      {tab === 'no-shows' && <NoShowsView hotelId={hotelId} />}
+      {tab === 'room-moves' && <RoomMovesView hotelId={hotelId} />}
+      {tab === 'bank-count' && <BankCountView hotelId={hotelId} />}
     </div>
   );
 }
+
+/* ── Daily Brief View (staff-facing) ──────────────────── */
+function DailyBriefView({ hotelId, hotelName, config, sessionName }: { hotelId: string; hotelName: string; config: HotelConfig; sessionName?: string }) {
+  const [recap, setRecap] = useState<{
+    requestsToday: number; completedToday: number; pendingNow: number;
+    messagesToday: number; shuttleBookingsToday: number;
+    avgResponseMin: number; staffOnDuty: number;
+    checklistsCompleted: number; checklistsTotal: number;
+  } | null>(null);
+  const [todayShuttleSlots, setTodayShuttleSlots] = useState<ShuttleSlot[]>([]);
+  const [todayShuttleRoutes, setTodayShuttleRoutes] = useState<ShuttleRoute[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const [r, slots, routes] = await Promise.all([
+        getDailyRecap(hotelId),
+        getAllShuttleSlotsForHotel(hotelId),
+        getShuttleRoutes(hotelId),
+      ]);
+      setRecap(r);
+      setTodayShuttleSlots(slots);
+      setTodayShuttleRoutes(routes);
+    })();
+  }, [hotelId]);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayDay = new Date().getDay() || 7;
+  const daySlots = todayShuttleSlots.filter(s =>
+    (s.date === todayStr) || (s.days_of_week?.includes(todayDay) && !s.date)
+  );
+
+  return (
+    <div className="p-4 md:p-8 max-w-3xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-[22px] font-extrabold text-gray-900">Good morning, {sessionName || config.managerName || 'team'} ☀️</h1>
+        <p className="text-[13px] text-gray-500 mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · {hotelName}</p>
+      </div>
+
+      {/* GM Notes / Daily Brief */}
+      {config.gmNotes ? (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <CalendarDays size={16} style={{ color: TEAL }} />
+            <h2 className="text-[15px] font-bold text-gray-900">Today&apos;s Brief</h2>
+          </div>
+          <div className="text-[13px] text-gray-700 whitespace-pre-wrap leading-relaxed">{config.gmNotes}</div>
+        </div>
+      ) : (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-5">
+          <p className="text-[13px] text-amber-800 font-medium">No daily brief yet. The GM/Manager can add notes in Property Settings.</p>
+        </div>
+      )}
+
+      {/* Stats Cards */}
+      {recap && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
+            <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.pendingNow}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Completed Today</p>
+            <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.completedToday}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Requests Today</p>
+            <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.requestsToday}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Avg Response</p>
+            <p className="text-[20px] font-extrabold text-gray-900 mt-1">{recap.avgResponseMin}<span className="text-[12px] font-normal text-gray-400"> min</span></p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Staff on Duty</p>
+            <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.staffOnDuty}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Shuttle Bookings</p>
+            <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.shuttleBookingsToday}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Checklists Progress */}
+      {recap && recap.checklistsTotal > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-5 shadow-sm">
+          <h3 className="text-[13px] font-bold text-gray-900 mb-2">Today&apos;s Checklists</h3>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 bg-gray-100 rounded-full h-2.5">
+              <div className="h-2.5 rounded-full transition-all" style={{width:`${(recap.checklistsCompleted/recap.checklistsTotal)*100}%`, backgroundColor: TEAL}} />
+            </div>
+            <span className="text-[13px] font-bold text-gray-700">{recap.checklistsCompleted}/{recap.checklistsTotal}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Today's Shuttle */}
+      {daySlots.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <h3 className="text-[13px] font-bold text-gray-900 mb-3">Today&apos;s Shuttle Schedule</h3>
+          <div className="space-y-2">
+            {(() => {
+              const routeMap = new Map(todayShuttleRoutes.map(r => [r.id, r.name]));
+              const grouped: Record<string, ShuttleSlot[]> = {};
+              daySlots.forEach(s => {
+                const key = routeMap.get(s.route_id) || 'Shuttle';
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(s);
+              });
+              return Object.entries(grouped).map(([routeName, slots]) => (
+                <div key={routeName}>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase mb-1">{routeName}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {slots.sort((a, b) => a.departure_time.localeCompare(b.departure_time)).map(s => (
+                      <span key={s.id} className="text-[11px] bg-gray-100 text-gray-600 font-medium px-2 py-1 rounded-lg">
+                        {s.departure_time.slice(0, 5)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Property Info View (staff-facing) ───────────────── */
+function PropertyInfoView({ config }: { config: HotelConfig }) {
+  const items = [
+    { label: 'Property Name', value: config.name, icon: HotelIcon },
+    { label: 'Manager', value: config.managerName, icon: Users },
+    { label: 'Address', value: config.address, icon: MapPin },
+    { label: 'Front Desk Phone', value: config.frontDeskPhone, icon: Phone },
+    { label: 'WiFi Network', value: config.wifiName, icon: Wifi },
+    { label: 'WiFi Password', value: config.wifiPassword, icon: Lock },
+    { label: 'Website', value: config.websiteUrl, icon: ExternalLink, link: true },
+  ].filter(i => i.value);
+
+  return (
+    <div className="p-4 md:p-8 max-w-2xl mx-auto">
+      <h1 className="text-[22px] font-extrabold text-gray-900 mb-1">Property Info</h1>
+      <p className="text-[13px] text-gray-500 mb-6">Quick reference for {config.name}</p>
+      <div className="space-y-3">
+        {items.map((item, i) => (
+          <div key={i} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${TEAL}15` }}>
+              <item.icon size={18} style={{ color: TEAL }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{item.label}</p>
+              {item.link ? (
+                <a href={item.value} target="_blank" rel="noopener noreferrer" className="text-[14px] font-semibold text-blue-600 hover:underline break-all">{item.value}</a>
+              ) : (
+                <p className="text-[14px] font-semibold text-gray-900 break-all">{item.value}</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Schedules View ──────────────────────────────────── */
+function SchedulesView({ hotelId, isAdmin, staffList }: { hotelId: string; isAdmin: boolean; staffList: { id?: string; name: string; role?: string; department?: string }[] }) {
+  const [schedules, setSchedules] = useState<StaffSchedule[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [showRequest, setShowRequest] = useState(false);
+  const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [form, setForm] = useState({ staff_name: '', staff_id: '', role: 'front desk', department: 'front_desk' as DepartmentKey, shift_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '17:00', notes: '' });
+  const [reqForm, setReqForm] = useState({ staff_name: '', department: 'front_desk' as DepartmentKey, shift_date: new Date().toISOString().split('T')[0], details: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    const data = await getStaffSchedules(hotelId);
+    setSchedules(data || []);
+  };
+  useEffect(() => { load(); }, [hotelId]);
+
+  const create = async () => {
+    if (!form.staff_name.trim()) return;
+    setSubmitting(true); setError(null);
+    const { error: err } = await supabase.from('staff_schedules').insert({
+      hotel_id: hotelId,
+      staff_name: form.staff_name.trim(),
+      staff_id: form.staff_id || undefined,
+      shift_date: form.shift_date,
+      start_time: form.start_time,
+      end_time: form.end_time,
+      role: form.role,
+      department: form.department,
+      notes: form.notes || undefined,
+    });
+    if (err) { setError(err.message); setSubmitting(false); return; }
+    setShowForm(false);
+    setForm({ staff_name: '', staff_id: '', role: 'front desk', department: 'front_desk', shift_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '17:00', notes: '' });
+    await load();
+    setSubmitting(false);
+  };
+
+  const requestChange = async () => {
+    if (!reqForm.details.trim()) { setError('Tell us what change you need.'); return; }
+    setSubmitting(true); setError(null);
+    const deptLabel = DEPARTMENTS.find(d => d.key === reqForm.department)?.label || reqForm.department;
+    const { error: err } = await supabase.from('requests').insert({
+      hotel_id: hotelId,
+      type: 'schedule_change_request',
+      details: `[${deptLabel} · ${reqForm.shift_date}] ${reqForm.details}${reqForm.staff_name ? ` (for ${reqForm.staff_name})` : ''}`,
+      status: 'pending',
+      assigned_to: null,
+      guest_name: reqForm.staff_name || 'Staff',
+      room: 'staff',
+    });
+    if (err) { setError(err.message); setSubmitting(false); return; }
+    setShowRequest(false);
+    setReqForm({ staff_name: '', department: 'front_desk', shift_date: new Date().toISOString().split('T')[0], details: '' });
+    setSubmitting(false);
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm('Delete this schedule entry?')) return;
+    await deleteStaffSchedule(id);
+    load();
+  };
+
+  // Group schedules by department for the chosen date
+  const byDept: Record<string, StaffSchedule[]> = {};
+  schedules.filter(s => s.shift_date === filterDate).forEach(s => {
+    const k = s.department || 'front_desk';
+    (byDept[k] = byDept[k] || []).push(s);
+  });
+
+  // Roll-up headcount per department for the date (from staff_list, since not every
+  // department has a schedule that day)
+  const deptHeadcount: Record<string, number> = {};
+  staffList.forEach(s => {
+    const k = s.department || 'front_desk';
+    deptHeadcount[k] = (deptHeadcount[k] || 0) + 1;
+  });
+
+  return (
+    <div className="p-4 md:p-8 max-w-2xl mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-[22px] font-extrabold text-gray-900">Staff Schedules</h1>
+          <p className="text-[13px] text-gray-500">Departments and shift times</p>
+        </div>
+        {isAdmin ? (
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
+            <Plus size={14} /> Add
+          </button>
+        ) : (
+          <button onClick={() => setShowRequest(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
+            <SendHorizontal size={14} /> Request Change
+          </button>
+        )}
+      </div>
+
+      {/* Date filter */}
+      <div className="flex items-center gap-2 mb-5">
+        <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="bg-white rounded-xl px-3 py-2 text-[13px] border border-gray-200 shadow-sm" />
+        <button onClick={() => setFilterDate(new Date().toISOString().split('T')[0])} className="text-[12px] font-semibold text-gray-500 px-3 py-2 rounded-xl hover:bg-gray-100">Today</button>
+      </div>
+
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] rounded-xl px-4 py-3 mb-4">{error}</div>}
+
+      {/* Department sections */}
+      <div className="space-y-4">
+        {DEPARTMENTS.map(dept => {
+          const entries = byDept[dept.key] || [];
+          const onDuty = entries.length;
+          const headcount = deptHeadcount[dept.key] || 0;
+          return (
+            <div key={dept.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-[18px]">{dept.icon}</span>
+                  <p className="text-[14px] font-bold text-gray-900">{dept.label}</p>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] font-semibold">
+                  <span className="text-gray-500">{headcount} on staff</span>
+                  <span className="text-gray-300">·</span>
+                  <span style={{ color: TEAL }}>{onDuty} on shift today</span>
+                </div>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {entries.length === 0 ? (
+                  <p className="text-[12px] text-gray-400 px-4 py-4">No shifts scheduled for this department on {filterDate}.</p>
+                ) : (
+                  entries.map(s => (
+                    <div key={s.id} className="px-4 py-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-[14px] font-semibold text-gray-900">{s.staff_name}</p>
+                        <p className="text-[11px] text-gray-500">{s.start_time?.slice(0, 5)} – {s.end_time?.slice(0, 5)} · {s.role}{s.notes ? ` · ${s.notes}` : ''}</p>
+                      </div>
+                      {isAdmin && (
+                        <button onClick={() => remove(s.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Admin: add schedule modal */}
+      {showForm && isAdmin && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowForm(false)}>
+          <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[15px] font-bold">New Schedule Entry</h2>
+              <button onClick={() => setShowForm(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
+            </div>
+            <div className="space-y-3">
+              <select value={form.staff_id} onChange={e => { const s = staffList.find(x => x.id === e.target.value); setForm(p => ({ ...p, staff_id: e.target.value, staff_name: s?.name || p.staff_name, department: (s?.department as DepartmentKey) || p.department })); }} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100">
+                <option value="">Select staff…</option>
+                {staffList.map(s => <option key={s.id} value={s.id}>{s.name}{s.department ? ` · ${DEPARTMENTS.find(d => d.key === s.department)?.label || s.department}` : ''}</option>)}
+              </select>
+              <select value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value as DepartmentKey }))} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100">
+                {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
+              </select>
+              <input value={form.shift_date} onChange={e => setForm(p => ({ ...p, shift_date: e.target.value }))} type="date" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <div className="flex gap-2">
+                <input value={form.start_time} onChange={e => setForm(p => ({ ...p, start_time: e.target.value }))} type="time" className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+                <input value={form.end_time} onChange={e => setForm(p => ({ ...p, end_time: e.target.value }))} type="time" className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              </div>
+              <input value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} placeholder="Position (e.g. Lead, Server)" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Notes (optional)" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <div className="flex gap-2 pt-1">
+                <button onClick={create} disabled={submitting} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{submitting ? 'Saving…' : 'Save'}</button>
+                <button onClick={() => setShowForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Staff: request change modal */}
+      {showRequest && !isAdmin && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowRequest(false)}>
+          <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[15px] font-bold">Request Schedule Change</h2>
+              <button onClick={() => setShowRequest(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
+            </div>
+            <p className="text-[12px] text-gray-500 mb-4">Your manager will see this in the Requests queue. Schedules are managed by admin/manager — staff submit requests here.</p>
+            <div className="space-y-3">
+              <input value={reqForm.staff_name} onChange={e => setReqForm(p => ({ ...p, staff_name: e.target.value }))} placeholder="Your name" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <select value={reqForm.department} onChange={e => setReqForm(p => ({ ...p, department: e.target.value as DepartmentKey }))} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100">
+                {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
+              </select>
+              <input value={reqForm.shift_date} onChange={e => setReqForm(p => ({ ...p, shift_date: e.target.value }))} type="date" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <textarea value={reqForm.details} onChange={e => setReqForm(p => ({ ...p, details: e.target.value }))} rows={3} placeholder="What change do you need? (swap, day off, cover, etc.)" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <div className="flex gap-2 pt-1">
+                <button onClick={requestChange} disabled={submitting} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{submitting ? 'Sending…' : 'Send Request'}</button>
+                <button onClick={() => setShowRequest(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Checklists Tab View ─────────────────────────────── */
+function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
+  const [templates, setTemplates] = useState<Checklist[]>([]);
+  const [instances, setInstances] = useState<ChecklistInstance[]>([]);
+  const [showNew, setShowNew] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newDept, setNewDept] = useState<DepartmentKey>('front_desk');
+  const [openDept, setOpenDept] = useState<DepartmentKey | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = async () => {
+    const [t, i] = await Promise.all([getChecklists(hotelId), getChecklistInstances(hotelId)]);
+    setTemplates(t || []);
+    setInstances(i || []);
+  };
+  useEffect(() => { load(); }, [hotelId]);
+
+  const today = new Date().toISOString().split('T')[0];
+
+  const create = async () => {
+    if (!newName.trim()) return;
+    setSubmitting(true); setError(null);
+    const { error: err } = await supabase.from('staff_checklists').insert({
+      hotel_id: hotelId,
+      name: newName.trim(),
+      items: [],
+      department: newDept,
+      is_active: true,
+      assigned_role: 'staff',
+    });
+    if (err) { setError(err.message); setSubmitting(false); return; }
+    setNewName(''); setNewDept('front_desk'); setShowNew(false);
+    await load();
+    setSubmitting(false);
+  };
+
+  const startInstance = async (templateId: string) => {
+    setSubmitting(true); setError(null);
+    const { error: err } = await supabase.from('staff_checklist_instances').insert({
+      checklist_id: templateId,
+      hotel_id: hotelId,
+      staff_name: sessionStorage.getItem('attenda_session_name') || 'Staff',
+      shift_date: today,
+      checked_items: [],
+      completed: false,
+    });
+    if (err) { setError(err.message); setSubmitting(false); return; }
+    await load();
+    setSubmitting(false);
+  };
+
+  const toggleItem = async (instanceId: string, itemId: string, currentlyChecked: boolean) => {
+    const inst = instances.find(i => i.id === instanceId);
+    if (!inst) return;
+    const newChecked = currentlyChecked
+      ? inst.checked_items.filter(x => x.item_id !== itemId)
+      : [...inst.checked_items, { item_id: itemId, checked_at: new Date().toISOString() }];
+    const tpl = templates.find(t => t.id === inst.checklist_id);
+    const completed = newChecked.length === (tpl?.items.length || 0);
+    await supabase.from('staff_checklist_instances').update({
+      checked_items: newChecked,
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+    }).eq('id', instanceId);
+    await load();
+  };
+
+  const removeTemplate = async (id: string) => {
+    if (!confirm('Delete this checklist template?')) return;
+    await deleteChecklist(id);
+    load();
+  };
+
+  // Build a map of templates by department
+  const templatesByDept: Record<string, Checklist[]> = {};
+  templates.filter(t => t.is_active !== false).forEach(t => {
+    const k = t.department || 'front_desk';
+    (templatesByDept[k] = templatesByDept[k] || []).push(t);
+  });
+
+  // Today's instance per template (most recent if multiple)
+  const todaysInstanceFor = (templateId: string) =>
+    instances
+      .filter(i => i.checklist_id === templateId && i.shift_date === today)
+      .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0];
+
+  return (
+    <div className="p-4 md:p-8 max-w-2xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-[22px] font-extrabold text-gray-900">Checklists</h1>
+          <p className="text-[13px] text-gray-500">Today&apos;s tasks by department</p>
+        </div>
+        {isAdmin && (
+          <button onClick={() => setShowNew(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
+            <Plus size={14} /> New
+          </button>
+        )}
+      </div>
+
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] rounded-xl px-4 py-3 mb-4">{error}</div>}
+
+      {/* Department sections — click to expand and see today's checklist */}
+      <div className="space-y-3">
+        {DEPARTMENTS.map(dept => {
+          const deptTemplates = templatesByDept[dept.key] || [];
+          const open = openDept === dept.key;
+          return (
+            <div key={dept.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <button
+                onClick={() => setOpenDept(open ? null : dept.key)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-[20px]">{dept.icon}</span>
+                  <div className="text-left">
+                    <p className="text-[14px] font-bold text-gray-900">{dept.label}</p>
+                    <p className="text-[11px] text-gray-500">
+                      {deptTemplates.length} checklist{deptTemplates.length === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                </div>
+                <ChevronDown size={18} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+              </button>
+
+              {open && (
+                <div className="border-t border-gray-100 divide-y divide-gray-100">
+                  {deptTemplates.length === 0 ? (
+                    <p className="text-[12px] text-gray-400 px-4 py-4">No checklists for {dept.label} yet. {isAdmin ? 'Create one above.' : 'Ask your manager to add one.'}</p>
+                  ) : (
+                    deptTemplates.map(tpl => {
+                      const inst = todaysInstanceFor(tpl.id);
+                      const totalItems = tpl.items?.length || 0;
+                      const doneCount = inst?.checked_items.length || 0;
+                      return (
+                        <div key={tpl.id} className="px-4 py-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <p className="text-[14px] font-semibold text-gray-900">{tpl.name}</p>
+                              <p className="text-[11px] text-gray-500">
+                                {totalItems} item{totalItems === 1 ? '' : 's'}
+                                {inst ? ` · ${doneCount}/${totalItems} done` : ' · not started'}
+                              </p>
+                            </div>
+                            {isAdmin ? (
+                              <button onClick={() => removeTemplate(tpl.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
+                                <Trash2 size={14} />
+                              </button>
+                            ) : !inst && totalItems > 0 ? (
+                              <button onClick={() => startInstance(tpl.id)} disabled={submitting} className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                                Start
+                              </button>
+                            ) : inst?.completed ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Done</span>
+                            ) : inst ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">In Progress</span>
+                            ) : null}
+                          </div>
+
+                          {/* Progress bar */}
+                          {inst && totalItems > 0 && (
+                            <div className="bg-gray-100 rounded-full h-1.5 mb-3">
+                              <div className="h-1.5 rounded-full transition-all" style={{ width: `${(doneCount / totalItems) * 100}%`, backgroundColor: TEAL }} />
+                            </div>
+                          )}
+
+                          {/* Items — only show for staff once they start the checklist, or for admin always */}
+                          {(inst || isAdmin) && totalItems > 0 && (
+                            <div className="space-y-1">
+                              {tpl.items.map(item => {
+                                const isChecked = !!inst?.checked_items.find(x => x.item_id === item.id);
+                                return (
+                                  <label key={item.id} className="flex items-center gap-2.5 py-1.5 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => inst && toggleItem(inst.id, item.id, isChecked)}
+                                      disabled={!inst || submitting}
+                                      className="w-4 h-4 rounded border-gray-300 cursor-pointer"
+                                      style={{ accentColor: TEAL }}
+                                    />
+                                    <span className={`text-[13px] ${isChecked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                                      {item.label}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Admin: no-instance preview of items */}
+                          {!inst && isAdmin && totalItems > 0 && (
+                            <p className="text-[11px] text-gray-400 mt-1">Staff will start and check these off as they work.</p>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Admin: new checklist template modal */}
+      {showNew && isAdmin && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowNew(false)}>
+          <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[15px] font-bold">New Checklist Template</h2>
+              <button onClick={() => setShowNew(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
+            </div>
+            <p className="text-[12px] text-gray-500 mb-4">Name the checklist and pick a department. Add items next (one per line).</p>
+            <div className="space-y-3">
+              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Morning Room Check" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" autoFocus />
+              <select value={newDept} onChange={e => setNewDept(e.target.value as DepartmentKey)} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100">
+                {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
+              </select>
+              <div className="flex gap-2 pt-1">
+                <button onClick={create} disabled={submitting} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{submitting ? 'Saving…' : 'Create'}</button>
+                <button onClick={() => setShowNew(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Learning View ───────────────────────────────────── */
+function LearningView({ hotelId }: { hotelId: string }) {
+  const [docs, setDocs] = useState<(KnowledgeEntry)[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const data = await getLearningDocs(hotelId);
+      setDocs(data || []);
+      setLoading(false);
+    })();
+  }, [hotelId]);
+
+  if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
+
+  return (
+    <div className="p-4 md:p-8 max-w-2xl mx-auto">
+      <h1 className="text-[22px] font-extrabold text-gray-900 mb-1">Learning</h1>
+      <p className="text-[13px] text-gray-500 mb-6">Training materials &amp; guides</p>
+
+      {docs.length === 0 ? (
+        <div className="bg-gray-50 rounded-2xl p-8 text-center">
+          <GraduationCap size={32} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-[14px] text-gray-500 font-medium">No learning materials yet</p>
+          <p className="text-[12px] text-gray-400 mt-1">Admins can add docs from the Knowledge Base.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {docs.map(d => (
+            <div key={d.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+              <p className="text-[14px] font-bold text-gray-900">{d.question}</p>
+              {d.answer && <p className="text-[12px] text-gray-500 mt-1 line-clamp-2">{d.answer}</p>}
+              {d.source_url && (
+                <a href={d.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline mt-2">
+                  <ExternalLink size={11} /> Open
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── HR View ─────────────────────────────────────────── */
+function HRView({ hotelId }: { hotelId: string }) {
+  const [docs, setDocs] = useState<(KnowledgeEntry)[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const data = await getHrDocs(hotelId);
+      setDocs(data || []);
+      setLoading(false);
+    })();
+  }, [hotelId]);
+
+  if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
+
+  return (
+    <div className="p-4 md:p-8 max-w-2xl mx-auto">
+      <h1 className="text-[22px] font-extrabold text-gray-900 mb-1">HR Documents</h1>
+      <p className="text-[13px] text-gray-500 mb-6">Policies, forms, and employee info</p>
+
+      {docs.length === 0 ? (
+        <div className="bg-gray-50 rounded-2xl p-8 text-center">
+          <Briefcase size={32} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-[14px] text-gray-500 font-medium">No HR documents yet</p>
+          <p className="text-[12px] text-gray-400 mt-1">Admins can add HR docs from the Knowledge Base.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {docs.map(d => (
+            <div key={d.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+              <p className="text-[14px] font-bold text-gray-900">{d.question}</p>
+              {d.answer && <p className="text-[12px] text-gray-500 mt-1 line-clamp-3">{d.answer}</p>}
+              {d.source_url && (
+                <a href={d.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline mt-2">
+                  <ExternalLink size={11} /> Open document
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Inline helpers for SVG icons not in lucide
+const MapPin = ({ size, style }: { size: number; style?: React.CSSProperties }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
+  </svg>
+);
+const Phone = ({ size, style }: { size: number; style?: React.CSSProperties }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+  </svg>
+);

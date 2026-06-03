@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, getAllHotels, createHotel, deleteHotel, toggleHotelActive, toggleCloverForPartner } from '@/lib/supabase';
-import { Building2, Copy, Check, LogOut, Globe, Eye, EyeOff, Lock, Trash2, RefreshCw, ChevronDown, ChevronUp, Power, PowerOff, Settings } from 'lucide-react';
+import { supabase, getAllHotels, createHotel, deleteHotel, toggleHotelActive, toggleCloverForPartner, getAllOpsTools, createOpsTool, deleteOpsTool, getHotelOpsTools, setHotelOpsTool } from '@/lib/supabase';
+import type { OpsTool } from '@/lib/supabase';
+import { Building2, Copy, Check, LogOut, Globe, Eye, EyeOff, Lock, Trash2, RefreshCw, ChevronDown, ChevronUp, Power, PowerOff, Settings, Plus } from 'lucide-react';
 
 const TEAL = '#0D9488';
 
 type Mode = 'checking' | 'signup' | 'login' | 'confirm' | 'dashboard' | 'unauthorized';
+type SuperTab = 'properties' | 'ops-tools';
 
 export default function SuperAdminPage() {
   const [mode, setMode] = useState<Mode>('checking');
@@ -26,6 +28,15 @@ export default function SuperAdminPage() {
   const [lookupStatus, setLookupStatus] = useState('');
   const [scrapeLoading, setScrapeLoading] = useState(false);
   const [syncingHotel, setSyncingHotel] = useState<string | null>(null);
+  const [superTab, setSuperTab] = useState<SuperTab>('properties');
+
+  // Ops Tools state
+  const [allOpsTools, setAllOpsTools] = useState<OpsTool[]>([]);
+  const [showNewTool, setShowNewTool] = useState(false);
+  const [newTool, setNewTool] = useState({ name: '', key: '', icon: 'Tool', description: '', category: 'front_desk' });
+  // Per-hotel tool management
+  const [selectedHotelTools, setSelectedHotelTools] = useState<string | null>(null);
+  const [hotelToolToggles, setHotelToolToggles] = useState<Record<string, boolean>>({});
 interface HotelHealth {
   id: string;
   slug: string;
@@ -409,11 +420,24 @@ interface PlatformHealth {
             <p className="text-[11px] text-gray-400">{user?.email} · Super Admin</p>
           </div>
         </div>
-        <button onClick={handleSignOut} className="flex items-center gap-2 text-[13px] text-gray-500 hover:text-red-500 transition-colors">
-          <LogOut size={14} /> Sign Out
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+            <button onClick={() => setSuperTab('properties')}
+              className={`px-3 py-1.5 rounded-md text-[12px] font-bold transition-colors ${superTab === 'properties' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              Properties
+            </button>
+            <button onClick={async () => { setSuperTab('ops-tools'); if (allOpsTools.length === 0) setAllOpsTools(await getAllOpsTools()); }}
+              className={`px-3 py-1.5 rounded-md text-[12px] font-bold transition-colors ${superTab === 'ops-tools' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              Ops Tools
+            </button>
+          </div>
+          <button onClick={handleSignOut} className="flex items-center gap-2 text-[13px] text-gray-500 hover:text-red-500 transition-colors">
+            <LogOut size={14} /> Sign Out
+          </button>
+        </div>
       </div>
 
+      {superTab === 'properties' ? (
       <div className="max-w-3xl mx-auto px-8 py-8">
         {/* Platform Health Stats */}
         <div className="grid grid-cols-5 gap-3 mb-6">
@@ -827,6 +851,167 @@ interface PlatformHealth {
           )}
         </div>
       </div>
+      ) : (
+        <div className="max-w-5xl mx-auto px-8 py-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-[18px] font-extrabold text-gray-900">Ops Tools Catalog ({allOpsTools.length})</h2>
+            <div className="flex gap-2">
+              <button onClick={async () => setAllOpsTools(await getAllOpsTools())} className="flex items-center gap-1 text-[12px] text-gray-400 hover:text-teal-600 transition-colors">
+                <RefreshCw size={12} /> Refresh
+              </button>
+              <button onClick={() => setShowNewTool(true)} className="flex items-center gap-1 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold hover:opacity-90" style={{backgroundColor:TEAL}}>
+                <Plus size={12} /> New Tool
+              </button>
+            </div>
+          </div>
+
+          {/* Create custom tool */}
+          {showNewTool && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6 shadow-sm">
+              <h3 className="font-extrabold text-[15px] mb-1">+ Create Custom Ops Tool</h3>
+              <p className="text-[12px] text-gray-400 mb-4">Create a new ops tool that can be enabled per hotel.</p>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Name *</label>
+                  <input value={newTool.name} onChange={e => setNewTool({...newTool, name: e.target.value})}
+                    placeholder="e.g. Parking Collection" className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 outline-none" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Key *</label>
+                  <input value={newTool.key} onChange={e => setNewTool({...newTool, key: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')})}
+                    placeholder="parking-collection" className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 outline-none font-mono" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Icon (Lucide)</label>
+                  <input value={newTool.icon} onChange={e => setNewTool({...newTool, icon: e.target.value})}
+                    placeholder="DollarSign" className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 outline-none" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Category</label>
+                  <select value={newTool.category} onChange={e => setNewTool({...newTool, category: e.target.value})}
+                    className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 outline-none">
+                    <option value="front_desk">Front Desk</option>
+                    <option value="guest_ops">Guest Ops</option>
+                    <option value="shuttle">Shuttle</option>
+                    <option value="admin_ops">Admin Ops</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Description</label>
+                  <textarea value={newTool.description} onChange={e => setNewTool({...newTool, description: e.target.value})}
+                    rows={2} className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 outline-none resize-none" />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => { setShowNewTool(false); setNewTool({ name: '', key: '', icon: 'Tool', description: '', category: 'front_desk' }); }}
+                  className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-gray-100 text-gray-600">Cancel</button>
+                <button onClick={async () => {
+                  if (!newTool.name || !newTool.key) return;
+                  await createOpsTool(newTool);
+                  setShowNewTool(false);
+                  setNewTool({ name: '', key: '', icon: 'Tool', description: '', category: 'front_desk' });
+                  setAllOpsTools(await getAllOpsTools());
+                }} disabled={!newTool.name || !newTool.key}
+                  className="px-5 py-2 rounded-xl text-white text-[12px] font-bold disabled:opacity-40" style={{backgroundColor:TEAL}}>Create Tool</button>
+              </div>
+            </div>
+          )}
+
+          {/* Tools grouped by category */}
+          {(() => {
+            const groups: Record<string, OpsTool[]> = {};
+            allOpsTools.forEach(t => {
+              if (!groups[t.category]) groups[t.category] = [];
+              groups[t.category].push(t);
+            });
+            const CATEGORY_LABELS: Record<string, string> = { front_desk: 'Front Desk', guest_ops: 'Guest Ops', shuttle: 'Shuttle', admin_ops: 'Admin Ops' };
+            return Object.entries(groups).map(([cat, tools]) => (
+              <div key={cat} className="mb-6">
+                <h3 className="text-[14px] font-extrabold text-gray-800 mb-3 uppercase tracking-wider">{CATEGORY_LABELS[cat] || cat}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {tools.sort((a, b) => a.name.localeCompare(b.name)).map(tool => (
+                    <div key={tool.id} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h4 className="text-[14px] font-bold text-gray-900">{tool.name}</h4>
+                          <p className="text-[11px] text-gray-400 font-mono">@{tool.key}</p>
+                        </div>
+                        {tool.is_built_in ? (
+                          <span className="bg-teal-50 text-teal-600 text-[9px] font-bold px-2 py-0.5 rounded-full">Built-in</span>
+                        ) : (
+                          <div className="flex gap-1">
+                            <button onClick={async () => {
+                              await deleteOpsTool(tool.id);
+                              setAllOpsTools(await getAllOpsTools());
+                            }} className="text-red-400 hover:text-red-600"><Trash2 size={13} /></button>
+                          </div>
+                        )}
+                      </div>
+                      {tool.description && <p className="text-[11px] text-gray-500 mb-2">{tool.description}</p>}
+                      {/* Per-hotel toggles */}
+                      <div className="mt-2 pt-2 border-t border-gray-100">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {selectedHotelTools === tool.id ? (
+                            <div className="w-full">
+                              <p className="text-[10px] text-gray-400 mb-1 font-medium">Enable for:</p>
+                              <div className="max-h-[200px] overflow-y-auto space-y-1">
+                                {(health?.hotels || hotels).map(h => {
+                                  const hotelId = typeof h === 'string' ? h : (h as {id: string; name: string}).id;
+                                  const hotelName = typeof h === 'string' ? h : (h as {id: string; name: string}).name;
+                                  const isOn = hotelToolToggles[`${hotelId}:${tool.key}`] ?? true;
+                                  return (
+                                    <label key={hotelId} className="flex items-center gap-2 cursor-pointer text-[12px]">
+                                      <input type="checkbox" checked={isOn} onChange={() => {
+                                        setHotelToolToggles(prev => ({...prev, [`${hotelId}:${tool.key}`]: !isOn}));
+                                      }} className="accent-teal-500 w-3.5 h-3.5" />
+                                      {hotelName}
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                              <div className="flex gap-1 mt-2">
+                                <button onClick={async () => {
+                                  // Apply toggles
+                                  for (const [key, enabled] of Object.entries(hotelToolToggles)) {
+                                    if (key.endsWith(`:${tool.key}`)) {
+                                      const hid = key.split(':')[0];
+                                      await setHotelOpsTool(hid, tool.key, enabled);
+                                    }
+                                  }
+                                  setSelectedHotelTools(null);
+                                }} className="text-[10px] px-2 py-1 rounded bg-teal-50 text-teal-700 font-bold">Save</button>
+                                <button onClick={() => setSelectedHotelTools(null)} className="text-[10px] px-2 py-1 rounded bg-gray-100 text-gray-600">Close</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button onClick={async () => {
+                              // Load current toggles for this tool across all hotels
+                              const toggles: Record<string, boolean> = {};
+                              const allHotels = health?.hotels || hotels;
+                              for (const h of allHotels) {
+                                const hid = (h as {id: string}).id;
+                                try {
+                                  const tools = await getHotelOpsTools(hid);
+                                  const t = tools.find(t => t.tool_key === tool.key);
+                                  toggles[`${hid}:${tool.key}`] = t ? t.enabled : true;
+                                } catch { toggles[`${hid}:${tool.key}`] = true; }
+                              }
+                              setHotelToolToggles(toggles);
+                              setSelectedHotelTools(tool.id);
+                            }} className="text-[10px] font-bold text-gray-500 hover:text-teal-600">
+                              <Settings size={11} className="inline mr-1" /> Per-Hotel Settings
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
+      )}
     </div>
   );
 }
