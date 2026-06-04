@@ -296,7 +296,6 @@ function AttendaLandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const caseStudyRef = useRef<HTMLDivElement>(null);
-  const demoRef = useRef<HTMLDivElement>(null);
   const enrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -322,7 +321,6 @@ function AttendaLandingPage() {
           </a>
           <div className="hidden md:flex items-center gap-7">
             <button onClick={() => scrollTo(caseStudyRef)} className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Case study</button>
-            <button onClick={() => scrollTo(demoRef)} className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Product</button>
             <a href="/staff" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Staff Login</a>
             <button onClick={() => scrollTo(enrollRef)}
               className="px-5 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all active:scale-[0.97] shadow-sm"
@@ -335,21 +333,19 @@ function AttendaLandingPage() {
         </div>
       </nav>
 
-      {/* ═══ HERO — Revenue-led ═══ */}
-      <section className="relative pt-12 pb-12 md:pt-20 md:pb-16 px-5">
+      {/* ═══ HERO — $16.4K case study outcome ═══ */}
+      <section className="relative pt-16 pb-8 md:pt-24 md:pb-12 px-5">
         <div className="max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 mb-6">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[11px] font-bold text-gray-700 tracking-wide uppercase">For limited-service hotels · airport · cruise port · boutique</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 mb-5">
+            <span className="text-[11px] font-bold text-gray-700 tracking-wide uppercase">42-room boutique · PortMiami · 90 days</span>
           </div>
-          <h1 className="text-[40px] md:text-[60px] leading-[1.05] font-black tracking-tight text-gray-900 mb-6">
-            The operating system for<br />
-            <span style={{ color: TEAL }}>independent hotels that can&apos;t afford to miss a request.</span>
+          <h1 className="text-[48px] md:text-[72px] leading-[1.0] font-black tracking-tight text-gray-900 mb-3">
+            <span style={{ color: TEAL }}>$16.4K</span> in 90 days.
           </h1>
-          <p className="text-[18px] md:text-[20px] text-gray-600 max-w-2xl mx-auto mb-8 leading-relaxed">
-            Attenda turns every QR-scan in the room into a tracked, billed, reviewed service job — and routes every happy guest to your Google review before the unhappy ones hit TripAdvisor. One platform. Front desk, housekeeping, shuttle, room service, vendors, sentiment, reviews. Live in 11 days.
+          <p className="text-[18px] md:text-[22px] text-gray-600 max-w-xl mx-auto mb-8 leading-snug">
+            From a 42-room near PortMiami. No PMS rip-out. Zero guest apps.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
             <button onClick={() => scrollTo(enrollRef)}
               className="w-full sm:w-auto px-7 py-4 rounded-xl text-white font-bold text-[15px] flex items-center justify-center gap-2 shadow-lg active:scale-[0.98]"
               style={{ backgroundColor: TEAL }}>
@@ -357,82 +353,23 @@ function AttendaLandingPage() {
             </button>
             <button onClick={() => scrollTo(caseStudyRef)}
               className="w-full sm:w-auto px-7 py-4 rounded-xl bg-gray-100 text-gray-900 font-bold text-[15px] hover:bg-gray-200 transition-colors">
-              See the case study ↓
+              Read the case study ↓
             </button>
           </div>
 
-          {/* Outcome strip under hero CTAs */}
-          <div className="grid grid-cols-3 max-w-2xl mx-auto gap-2 text-center">
-            <div>
-              <div className="text-[24px] md:text-[28px] font-black text-gray-900 leading-none">$16.4K</div>
-              <div className="text-[10px] md:text-[11px] text-gray-500 uppercase tracking-wider font-semibold mt-1">Captured in 90 days</div>
-            </div>
-            <div className="border-x border-gray-200">
-              <div className="text-[24px] md:text-[28px] font-black text-gray-900 leading-none">7.8 → 9.1</div>
-              <div className="text-[10px] md:text-[11px] text-gray-500 uppercase tracking-wider font-semibold mt-1">Guest score lift</div>
-            </div>
-            <div>
-              <div className="text-[24px] md:text-[28px] font-black text-gray-900 leading-none">38</div>
-              <div className="text-[10px] md:text-[11px] text-gray-500 uppercase tracking-wider font-semibold mt-1">Reviews recovered</div>
-            </div>
+          {/* 4 KPI tiles */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
+            <KpiTile value="$16,420" label="Incremental revenue captured" sub="amenities, shuttle, room service" />
+            <KpiTile value="7.8 → 9.1" label="Guest sentiment score" sub="checkout-time pulse weighted by tone" />
+            <KpiTile value="38" label="Reviews recovered" sub="happy guests routed pre-checkout" />
+            <KpiTile value="0" label="Phone tag" sub="one thread replaces 4+ calls per shift" />
           </div>
         </div>
       </section>
 
-      {/* ═══ THE BLEED — What hotels lose today ═══ */}
-      <section className="py-20 px-5 bg-gray-50">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <div className="text-[12px] font-bold tracking-widest uppercase text-gray-500 mb-3">The bleed</div>
-            <h2 className="text-[32px] md:text-[44px] font-black tracking-tight text-gray-900 mb-4">
-              Three ways your hotel is losing money every month
-            </h2>
-            <p className="text-[16px] text-gray-600 max-w-2xl mx-auto">
-              It&apos;s not your team. It&apos;s the fact that the front desk is the only channel — and they can&apos;t be on the phone and at the desk at the same time.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <BleedCard
-              big="$16K+/mo"
-              title="Missed in-room revenue"
-              body="Amenity refills, late checkouts, room service, paid shuttle runs — the guest would have paid, but they gave up after 4 rings and 1 voicemail."
-            />
-            <BleedCard
-              big="73%"
-              title="Complaints that never reach the GM"
-              body="A guest is annoyed at breakfast. By check-out they&apos;re in an Uber. You find out three weeks later via a 1-star review you can&apos;t respond to without sounding defensive."
-            />
-            <BleedCard
-              big="$30K+"
-              title="Cost of one bad public review"
-              body="A single sub-3-star on Google drops OTA ranking for 90+ days. For a 40-room property near a cruise port, that&apos;s roughly 200 lost room nights a year."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ CASE STUDY — The hero of the page ═══ */}
-      <section ref={caseStudyRef} className="py-20 px-5">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="text-[12px] font-bold tracking-widest uppercase text-gray-500 mb-3">Case study · 90-day pilot</div>
-            <h2 className="text-[32px] md:text-[44px] font-black tracking-tight text-gray-900 mb-4">
-              A 42-room boutique near PortMiami
-            </h2>
-            <p className="text-[16px] text-gray-600 max-w-2xl mx-auto">
-              Limited-service. Heavy on cruise-port and airport overnight stays. Two staff on the desk at peak. Before Attenda, &ldquo;the phone tag with housekeeping&rdquo; was the #1 reason the GM couldn&apos;t grow.
-            </p>
-          </div>
-
-          {/* The 4 KPI tiles */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-            <KpiTile value="$16,420" label="Incremental revenue captured" sub="amenities, shuttle, room service, late checkouts" />
-            <KpiTile value="7.8 → 9.1" label="Guest sentiment score" sub="from checkout-time pulse, weighted by message tone" />
-            <KpiTile value="38" label="Reviews recovered to Google" sub="happy guests routed pre-checkout" />
-            <KpiTile value="0" label="Phone tag · desk ↔ housekeeping" sub="one thread per room replaces 4+ calls per shift" />
-          </div>
-
-          {/* The story */}
+      {/* ═══ CASE STUDY — The story ═══ */}
+      <section ref={caseStudyRef} className="py-20 px-5 bg-gray-50">
+        <div className="max-w-5xl mx-auto">
           <div className="bg-white border border-gray-200 rounded-3xl p-6 md:p-10">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
               <div>
@@ -442,22 +379,21 @@ function AttendaLandingPage() {
                   The property&apos;s existing PMS stayed. Attenda layered on top: QR codes in every room, a staff PIN app on three iPads, and a vendor portal link sent to their laundry and shuttle partners. Front desk trained in 90 minutes.
                 </p>
                 <p className="text-[15px] text-gray-600 leading-relaxed">
-                  By day 11, every room request — &ldquo;extra towels&rdquo;, &ldquo;airport at 5am&rdquo;, &ldquo;can I check out at 2?&rdquo; — was a tracked job with an owner, an SLA, and a closed-loop.
+                  By day 11, every room request was a tracked job with an owner, an SLA, and a closed-loop.
                 </p>
               </div>
               <div>
                 <div className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-2">The 90-day result</div>
                 <h3 className="text-[22px] font-black text-gray-900 mb-3">The front desk started upselling without trying.</h3>
                 <p className="text-[15px] text-gray-600 leading-relaxed mb-4">
-                  1,247 paid service jobs captured in the first quarter — things that used to go to voicemail, &ldquo;figure it out at the desk&rdquo;, or just quietly not happen. The shuttle alone, after Attenda routed every request through one calendar, generated $3,180 in previously-walked revenue.
+                  1,247 paid service jobs captured — things that used to go to voicemail or quietly not happen. The shuttle alone generated $3,180 in previously-walked revenue. 38 five-star reviews recovered. Zero 1-stars in the pilot window.
                 </p>
                 <p className="text-[15px] text-gray-600 leading-relaxed">
-                  At checkout, every satisfied guest got a 1-tap link to Google Reviews. The 8% who weren&apos;t satisfied got a personal text from the GM while still on property. 38 five-stars recovered. Zero 1-stars posted in the pilot window.
+                  At checkout, every satisfied guest got a 1-tap link to Google Reviews. Unhappy guests got a personal text from the GM while still on property.
                 </p>
               </div>
             </div>
 
-            {/* The pull quote */}
             <div className="mt-10 pt-10 border-t border-gray-200">
               <blockquote className="text-[22px] md:text-[26px] font-black text-gray-900 leading-snug tracking-tight max-w-3xl mx-auto text-center">
                 &ldquo;We didn&apos;t realize how much revenue was sitting in the room until we stopped leaving it there.&rdquo;
@@ -470,162 +406,30 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* ═══ SENTIMENT + REVIEWS — The differentiator ═══ */}
-      <section className="py-20 px-5 bg-gray-900 text-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="text-[12px] font-bold tracking-widest uppercase text-gray-400 mb-3">Sentiment & reviews</div>
-            <h2 className="text-[32px] md:text-[44px] font-black tracking-tight text-white mb-4">
-              Find out about the bad review<br />before your guest posts it.
-            </h2>
-            <p className="text-[16px] text-gray-400 max-w-2xl mx-auto">
-              Attenda scores every message. A happy guest at checkout gets a 1-tap link to your Google page. A guest who dropped below 7 on the sentiment scale gets a personal DM from you while they&apos;re still on property.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Before card */}
-            <div className="bg-gray-800/60 border border-gray-700 rounded-2xl p-6">
-              <div className="text-[11px] font-bold tracking-widest uppercase text-red-400 mb-3">Before Attenda</div>
-              <h3 className="text-[20px] font-black text-white mb-4">Black-box. Black-mail.</h3>
-              <ul className="space-y-3 text-[14px] text-gray-300">
-                <li className="flex gap-3"><span className="text-red-400 font-bold">×</span> Guest leaves, you find out 3 weeks later via 1-star on Google.</li>
-                <li className="flex gap-3"><span className="text-red-400 font-bold">×</span> Score tanks. OTA ranking drops. Revenue impact invisible.</li>
-                <li className="flex gap-3"><span className="text-red-400 font-bold">×</span> Happy guests walk out without ever writing a review.</li>
-                <li className="flex gap-3"><span className="text-red-400 font-bold">×</span> Staff doesn&apos;t know who&apos;s unhappy until the survey comes back.</li>
-              </ul>
-            </div>
-
-            {/* After card */}
-            <div className="rounded-2xl p-6 border-2" style={{ backgroundColor: TEAL, borderColor: TEAL }}>
-              <div className="text-[11px] font-bold tracking-widest uppercase text-white/80 mb-3">After Attenda</div>
-              <h3 className="text-[20px] font-black text-white mb-4">Live pulse. Recovery queue.</h3>
-              <ul className="space-y-3 text-[14px] text-white/95">
-                <li className="flex gap-3"><span className="font-bold">✓</span> Every message scored in real time. Weekly leak report.</li>
-                <li className="flex gap-3"><span className="font-bold">✓</span> Happy guest → 1-tap Google / TripAdvisor link at checkout.</li>
-                <li className="flex gap-3"><span className="font-bold">✓</span> Unhappy guest → routed to GM, not the internet. Recovery in your inbox.</li>
-                <li className="flex gap-3"><span className="font-bold">✓</span> Net Promoter Score trend, per property, per month, in your dashboard.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ WHAT ATTENDA DOES — 4 capabilities ═══ */}
-      <section ref={demoRef} className="py-20 px-5">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="text-[32px] md:text-[44px] font-black tracking-tight text-gray-900 mb-4">
-              What Attenda actually does
-            </h2>
-            <p className="text-[16px] text-gray-600 max-w-2xl mx-auto">
-              Four capabilities. One platform. Replaces the four tools you&apos;re duct-taping today.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <CapabilityCard
-              number="01"
-              title="Capture"
-              tagline="Turn every request into a tracked, billed job."
-              bullets={[
-                'Amenity refills, late checkouts, room service, paid shuttle',
-                'Auto-routes to the right staff or vendor — no dispatcher needed',
-                'Every job has an owner, an SLA, and a paper trail',
-              ]}
-            />
-            <CapabilityCard
-              number="02"
-              title="Connect"
-              tagline="One thread. Three roles. Zero phone tag."
-              bullets={[
-                'Guest ↔ staff ↔ vendor on the same conversation',
-                'Staff quick-log from a phone, no app install required',
-                'Vendor portal — they see open jobs, accept, update status',
-              ]}
-            />
-            <CapabilityCard
-              number="03"
-              title="Convert"
-              tagline="Turn every checkout into a marketing win."
-              bullets={[
-                'Satisfied guest gets a 1-tap review link pre-checkout',
-                'Unhappy guest gets a personal DM from the GM while on property',
-                'Direct booking nudges for guests who came back twice',
-              ]}
-            />
-            <CapabilityCard
-              number="04"
-              title="Coach"
-              tagline="Know your leaks before the survey tells you."
-              bullets={[
-                'Sentiment scored on every message, weighted by tone',
-                'Weekly leak report — "$X you missed this week"',
-                'Per-property NPS trend, SLA breaches, recovery queue',
-              ]}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ PRODUCT PREVIEW — 4 screens ═══ */}
-      <section className="py-20 px-5 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="text-[32px] md:text-[44px] font-black tracking-tight text-gray-900 mb-4">
-              One platform. Four screens. Zero friction.
-            </h2>
-            <p className="text-[16px] text-gray-600 max-w-xl mx-auto">
-              Every side of the conversation, in the pocket or on the wall.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <MockupCard
-              imageSrc="/mockups/guest-phone.png"
-              imageAlt="Guest phone showing concierge chat"
-              label="Guest in their room"
-              tagline="Scan. Talk. Done."
-            />
-            <MockupCard
-              imageSrc="/mockups/staff-phone.png"
-              imageAlt="Staff phone showing quick-log checklist"
-              label="Staff on the floor"
-              tagline="Log in 3 seconds."
-            />
-            <AdminMockupCard />
-            <QrMockupCard />
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ HOW IT FLOWS ═══ */}
+      {/* ═══ HOW IT WORKS — Room 204 flow ═══ */}
       <section className="py-20 px-5">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="text-[32px] md:text-[44px] font-black tracking-tight text-gray-900 mb-4">
-              How a request actually flows
-            </h2>
-            <p className="text-[16px] text-gray-600">One thread. Three roles. Zero phone tag.</p>
+          <div className="text-center mb-10">
+            <h2 className="text-[32px] md:text-[40px] font-black tracking-tight text-gray-900">How it works</h2>
           </div>
-
           <FlowExample />
         </div>
       </section>
 
-      {/* ═══ STATS ═══ */}
-      <section className="py-16 px-5 bg-gray-50">
+      {/* ═══ STATS STRIP ═══ */}
+      <section className="py-16 px-5 bg-gray-900 text-white">
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
           <div>
             <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>73%</div>
-            <div className="text-[14px] text-gray-600 uppercase tracking-wider font-semibold">Faster guest response time</div>
+            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Faster guest response time</div>
           </div>
           <div>
             <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>4→1</div>
-            <div className="text-[14px] text-gray-600 uppercase tracking-wider font-semibold">Tools replaced (PMS + chat + vendor + QR)</div>
+            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Tools replaced (PMS + chat + vendor + QR)</div>
           </div>
           <div>
             <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>0</div>
-            <div className="text-[14px] text-gray-600 uppercase tracking-wider font-semibold">Apps for guests to download</div>
+            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Apps for guests to download</div>
           </div>
         </div>
       </section>
@@ -713,125 +517,7 @@ function AttendaLandingPage() {
   );
 }
 
-/* ──────────────────────────────────────────────────────────── */
-/*  4 mockup cards                                              */
-/* ──────────────────────────────────────────────────────────── */
-
-function MockupCard({ imageSrc, imageAlt, label, tagline }: {
-  imageSrc: string;
-  imageAlt: string;
-  label: string;
-  tagline: string;
-}) {
-  return (
-    <div className="group bg-white rounded-3xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-all hover:shadow-xl">
-      <div className="aspect-[3/4] relative bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-        <Image
-          src={imageSrc}
-          alt={imageAlt}
-          fill
-          className="object-cover group-hover:scale-105 transition-transform duration-500"
-          sizes="(max-width: 768px) 100vw, 25vw"
-        />
-      </div>
-      <div className="p-5">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">{label}</div>
-        <div className="text-[18px] font-black text-gray-900 tracking-tight">{tagline}</div>
-      </div>
-    </div>
-  );
-}
-
-function AdminMockupCard() {
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const shifts: { [k: number]: { [k: number]: string } } = {
-    0: { 1: 'Maria', 2: 'Maria' },
-    1: { 1: 'Maria', 2: 'Alex', 3: 'Alex' },
-    2: { 0: 'Alex', 1: 'Alex', 2: 'Sofia' },
-    3: { 1: 'Sofia', 2: 'Sofia' },
-    4: { 1: 'Alex', 2: 'Alex', 3: 'Maria' },
-    5: { 0: 'Maria', 1: 'Maria', 2: 'Maria', 3: 'Sofia' },
-    6: { 1: 'Sofia', 2: 'Sofia' },
-  };
-  const colorMap: { [k: string]: string } = {
-    Maria: '#0D9488',
-    Alex: '#7c3aed',
-    Sofia: '#f59e0b',
-  };
-  return (
-    <div className="group bg-white rounded-3xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-all hover:shadow-xl">
-      <div className="aspect-[3/4] relative bg-gradient-to-br from-gray-900 to-gray-800 p-4 overflow-hidden">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Admin · Schedule</div>
-          <div className="text-[9px] text-gray-500">Week of May 30</div>
-        </div>
-        <div className="grid grid-cols-7 gap-1 mb-1">
-          {days.map(d => (
-            <div key={d} className="text-center text-[8px] font-bold text-gray-400 uppercase">{d}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((_, dayIdx) => (
-            <div key={dayIdx} className="space-y-1">
-              {[0, 1, 2, 3].map(row => {
-                const name = shifts[dayIdx]?.[row];
-                return (
-                  <div
-                    key={row}
-                    className="rounded text-[8px] font-bold text-white text-center py-1"
-                    style={{ backgroundColor: name ? colorMap[name] : '#1f2937', opacity: name ? 1 : 0.3 }}
-                  >
-                    {name || '—'}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-        <div className="absolute bottom-4 left-4 right-4 bg-gray-800/80 backdrop-blur rounded-lg p-2 flex items-center justify-between">
-          <div className="text-[9px] text-gray-300">
-            <span className="font-bold text-white">3</span> open shifts
-          </div>
-          <div className="text-[9px] px-2 py-0.5 rounded text-white font-bold" style={{ backgroundColor: TEAL }}>
-            Auto-fill
-          </div>
-        </div>
-      </div>
-      <div className="p-5">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Admin at the desk</div>
-        <div className="text-[18px] font-black text-gray-900 tracking-tight">Schedule a week in 60s.</div>
-      </div>
-    </div>
-  );
-}
-
-function QrMockupCard() {
-  return (
-    <div className="group bg-white rounded-3xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-all hover:shadow-xl">
-      <div className="aspect-[3/4] relative bg-gradient-to-br from-amber-50 to-orange-50 p-6 flex flex-col items-center justify-center">
-        <div className="bg-white rounded-2xl p-4 shadow-lg border-4 border-gray-900">
-          <div className="w-32 h-32 grid grid-cols-7 grid-rows-7 gap-px">
-            {Array.from({ length: 49 }).map((_, i) => {
-              // pseudo-random pattern
-              const filled = [0, 1, 2, 6, 7, 8, 13, 14, 18, 21, 24, 25, 28, 32, 35, 39, 40, 42, 45, 48].includes(i);
-              return <div key={i} className={filled ? 'bg-gray-900' : 'bg-white'} />;
-            })}
-          </div>
-        </div>
-        <div className="mt-4 text-center">
-          <div className="text-[11px] font-black text-gray-900 uppercase tracking-widest">Scan me</div>
-          <div className="text-[10px] text-gray-600 mt-0.5">Your room&apos;s digital directory</div>
-        </div>
-      </div>
-      <div className="p-5">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">In every room</div>
-        <div className="text-[18px] font-black text-gray-900 tracking-tight">Tap once. Routed.</div>
-      </div>
-    </div>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────── */
+/* ── Flow example (Room 204 pillows) ──────────────────────────── */
 /*  Flow example (Room 204 pillows)                            */
 /* ──────────────────────────────────────────────────────────── */
 
@@ -1043,20 +729,8 @@ function ValidationSuccessModal({ open, onClose, brandColor }: { open: boolean; 
 }
 
 /* ──────────────────────────────────────────────────────────── */
-/*  Landing components — Bleed / KPI / Capability               */
+/*  Landing components — KPI tile                               */
 /* ──────────────────────────────────────────────────────────── */
-
-function BleedCard({ big, title, body }: { big: string; title: string; body: string }) {
-  return (
-    <div className="bg-white rounded-2xl p-7 border border-gray-200">
-      <div className="text-[44px] md:text-[52px] font-black leading-none mb-3 tracking-tight" style={{ color: TEAL }}>
-        {big}
-      </div>
-      <div className="text-[17px] font-black text-gray-900 mb-2">{title}</div>
-      <p className="text-[14px] text-gray-600 leading-relaxed">{body}</p>
-    </div>
-  );
-}
 
 function KpiTile({ value, label, sub }: { value: string; label: string; sub: string }) {
   return (
@@ -1066,34 +740,6 @@ function KpiTile({ value, label, sub }: { value: string; label: string; sub: str
       </div>
       <div className="text-[13px] font-bold text-gray-900 mb-1">{label}</div>
       <div className="text-[11px] text-gray-500 leading-snug">{sub}</div>
-    </div>
-  );
-}
-
-function CapabilityCard({ number, title, tagline, bullets }: {
-  number: string;
-  title: string;
-  tagline: string;
-  bullets: string[];
-}) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-7 hover:border-gray-300 transition-colors">
-      <div className="flex items-start justify-between mb-4">
-        <div className="text-[13px] font-black tracking-widest text-gray-400">{number}</div>
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${TEAL}15` }}>
-          <CheckCircle size={20} style={{ color: TEAL }} />
-        </div>
-      </div>
-      <h3 className="text-[24px] font-black text-gray-900 mb-2 tracking-tight">{title}</h3>
-      <p className="text-[14px] text-gray-600 mb-5 font-medium">{tagline}</p>
-      <ul className="space-y-2.5">
-        {bullets.map((b, i) => (
-          <li key={i} className="flex gap-2.5 text-[14px] text-gray-700 leading-snug">
-            <span className="font-bold mt-0.5" style={{ color: TEAL }}>✓</span>
-            <span>{b}</span>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
