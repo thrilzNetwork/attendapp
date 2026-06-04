@@ -150,7 +150,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
 /* ── Main Component ───────────────────────────────────── */
 export default function Dashboard() {
   const [session, setSession] = useState<Session | null>(null);
-  const [tab, setTab] = useState<NavTab>('orders');
+  const [tab, setTab] = useState<NavTab>('dailybrief');
   // Auth state
   const [authMode, setAuthMode] = useState<'email' | 'pin' | 'authenticated'>('pin');
   const [email, setEmail] = useState('');
@@ -663,23 +663,23 @@ export default function Dashboard() {
 
       {/* ── Main Content ────────────────────────────── */}
       <main className="flex-1 min-w-0 bg-[#FAFAFA]">
-        {effectiveTab === 'dailybrief' && config?.id && (
-          <DailyBriefView hotelId={config.id} hotelName={config.name} config={config} sessionName={session?.name || ''} department={session?.department} isAdmin={isAdmin} />
+        {effectiveTab === 'dailybrief' && (
+          <DailyBriefView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} config={config} sessionName={session?.name || ''} department={session?.department} isAdmin={isAdmin} />
         )}
         {effectiveTab === 'property_info' && config && (
           <PropertyInfoView config={config} />
         )}
-        {effectiveTab === 'schedules' && config?.id && (
-          <SchedulesView hotelId={config.id} isAdmin={isAdmin} weekStartsOn={config.weekStartsOn || 'Sunday'} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department }))} />
+        {effectiveTab === 'schedules' && (
+          <SchedulesView hotelId={config?.id || ''} isAdmin={isAdmin} weekStartsOn={config?.weekStartsOn || 'Sunday'} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department }))} />
         )}
-        {effectiveTab === 'checklists_tab' && config?.id && (
-          <ChecklistsTabView hotelId={config.id} isAdmin={isAdmin} />
+        {effectiveTab === 'checklists_tab' && (
+          <ChecklistsTabView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
-        {effectiveTab === 'kpis' && config?.id && (
-          <KpisView hotelId={config.id} isAdmin={isAdmin} userId="" userName={session?.name || 'Staff'} />
+        {effectiveTab === 'kpis' && (
+          <KpisView hotelId={config?.id || ''} isAdmin={isAdmin} userId="" userName={session?.name || 'Staff'} />
         )}
-        {effectiveTab === 'learning_hr' && config?.id && (
-          <LearningHRView hotelId={config.id} />
+        {effectiveTab === 'learning_hr' && (
+          <LearningHRView hotelId={config?.id || ''} />
         )}
         {effectiveTab === 'orders' && (
           <OrdersView
@@ -690,15 +690,17 @@ export default function Dashboard() {
             onRefresh={() => reload(s.role)}
           />
         )}
-        {effectiveTab === 'messages' && config?.id && <MessagesView messages={messages} hotelId={config.id} />}
-        {effectiveTab === 'shuttle' && config?.id && (
-          <ShuttleView hotelId={config.id} isAdmin={isAdmin} />
+        {effectiveTab === 'messages' && (
+          <MessagesView messages={messages} hotelId={config?.id || ''} />
         )}
-        {effectiveTab === 'shuttle_schedule' && config?.id && (
-          <ShuttleScheduleView hotelId={config.id} isAdmin={isAdmin} />
+        {effectiveTab === 'shuttle' && (
+          <ShuttleView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
-        {effectiveTab === 'vendor_manifest' && config?.id && (
-          <VendorDashboard hotelId={config.id} vendorType={s.vendorType || 'shuttle'} vendorName={s.name} />
+        {effectiveTab === 'shuttle_schedule' && (
+          <ShuttleScheduleView hotelId={config?.id || ''} isAdmin={isAdmin} />
+        )}
+        {effectiveTab === 'vendor_manifest' && (
+          <VendorDashboard hotelId={config?.id || ''} vendorType={s.vendorType || 'shuttle'} vendorName={s.name} />
         )}
         {effectiveTab === 'hotel' && isAdmin && config && (
           <HotelSettingsView
@@ -706,20 +708,20 @@ export default function Dashboard() {
             onSaved={async () => { const c = await getHotelConfig(); if (c) setConfig(c); }}
           />
         )}
-        {effectiveTab === 'staff_mgmt' && isAdmin && config?.id && (
-          <StaffView hotelId={config.id} hotelName={config.name} hotelSlug={config.slug} staff={staff} onRefresh={async () => setStaff(await getStaffAccountsForHotel(config.id!))} />
+        {effectiveTab === 'staff_mgmt' && isAdmin && (
+          <StaffView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} hotelSlug={config?.slug || ''} staff={staff} onRefresh={async () => setStaff(await getStaffAccountsForHotel(config?.id || ''))} />
         )}
-        {effectiveTab === 'partners' && isAdmin && config?.id && (
-          <PartnersView hotelId={config.id} />
+        {effectiveTab === 'partners' && isAdmin && (
+          <PartnersView hotelId={config?.id || ''} />
         )}
-        {effectiveTab === 'qrcodes' && isAdmin && config?.id && config?.slug && (
-          <QrCodesView hotelId={config.id} hotelSlug={config.slug} />
+        {effectiveTab === 'qrcodes' && isAdmin && (
+          <QrCodesView hotelId={config?.id || ''} hotelSlug={config?.slug || ''} />
         )}
-        {effectiveTab === 'knowledge' && config?.id && (
-          <IncidentKBView hotelId={config.id} isAdmin={isAdmin} userName={s.name} />
+        {effectiveTab === 'knowledge' && (
+          <IncidentKBView hotelId={config?.id || ''} isAdmin={isAdmin} userName={s.name} />
         )}
-        {effectiveTab === 'rooms' && isAdmin && config?.id && config?.slug && (
-          <RoomsView hotelId={config.id} hotelName={config.name} />
+        {effectiveTab === 'rooms' && isAdmin && (
+          <RoomsView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} />
         )}
         {effectiveTab === 'properties' && s.role === 'superadmin' && (
           <PropertiesView
@@ -730,8 +732,8 @@ export default function Dashboard() {
             }}
           />
         )}
-        {effectiveTab === 'guests' && config?.id && (
-          <GuestsView hotelId={config.id} />
+        {effectiveTab === 'guests' && (
+          <GuestsView hotelId={config?.id || ''} />
         )}
       </main>
     </div>
@@ -5553,7 +5555,7 @@ function FrontDeskView({ hotelId, isAdmin, staff, hotelName, config }: {
 }
 
 /* ── Daily Brief View (staff-facing) ──────────────────── */
-function DailyBriefView({ hotelId, hotelName, config, sessionName, department, isAdmin }: { hotelId: string; hotelName: string; config: HotelConfig; sessionName: string; department?: string; isAdmin: boolean }) {
+function DailyBriefView({ hotelId, hotelName, config, sessionName, department, isAdmin }: { hotelId: string; hotelName: string; config: HotelConfig | null; sessionName: string; department?: string; isAdmin: boolean }) {
   const [recap, setRecap] = useState<{
     requestsToday: number; completedToday: number; pendingNow: number;
     messagesToday: number; shuttleBookingsToday: number;
@@ -5626,11 +5628,26 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName, department, i
     setChecklistInstances(updated || []);
   };
 
-  // Filter checklists by department: staff see their dept, admin/managers see all
+  // Filter checklists by department + title match: staff see their dept, admin/managers see all
+  // Checks both the `department` field AND the checklist name for department keywords
   const myDept = department || '';
+  const deptLabel = DEPARTMENTS.find(d => d.key === myDept)?.label || '';
+  const deptKeywords = [myDept, deptLabel.toLowerCase(), ...deptLabel.split(' ').map(w => w.toLowerCase())].filter(Boolean);
   const relevantTemplates = isAdmin || !myDept
     ? checklistTemplates
-    : checklistTemplates.filter(t => t.department === myDept || !t.department);
+    : checklistTemplates.filter(t => {
+        // Exact department match
+        if (t.department === myDept) return true;
+        // Match by name/title containing department keywords
+        const nameLower = (t.name || '').toLowerCase();
+        if (deptKeywords.some(kw => nameLower.includes(kw))) return true;
+        // Match by assigned_role
+        const roleLower = (t.assigned_role || '').toLowerCase();
+        if (deptKeywords.some(kw => roleLower.includes(kw))) return true;
+        // Show unassigned checklists to everyone
+        if (!t.department && !t.assigned_role) return true;
+        return false;
+      });
 
   const todayDay = new Date().getDay() || 7;
   const daySlots = todayShuttleSlots.filter(s =>
@@ -5663,7 +5680,7 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName, department, i
       {/* ── Header Row ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-[22px] font-extrabold text-gray-900">Good morning, {sessionName || config.managerName || 'team'} ☀️</h1>
+          <h1 className="text-[22px] font-extrabold text-gray-900">Good morning, {sessionName || config?.managerName || 'team'} ☀️</h1>
           <p className="text-[13px] text-gray-500 mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · {hotelName}</p>
         </div>
         <div className="hidden md:flex items-center gap-2">
@@ -5673,13 +5690,13 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName, department, i
       </div>
 
       {/* ── Today's Brief / GM Notes ── */}
-      {config.gmNotes ? (
+      {config?.gmNotes ? (
         <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-5 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
             <CalendarDays size={16} style={{ color: TEAL }} />
             <h2 className="text-[15px] font-bold text-gray-900">Today&apos;s Brief</h2>
           </div>
-          <div className="text-[13px] text-gray-700 whitespace-pre-wrap leading-relaxed">{config.gmNotes}</div>
+          <div className="text-[13px] text-gray-700 whitespace-pre-wrap leading-relaxed">{config?.gmNotes}</div>
         </div>
       ) : (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-5">

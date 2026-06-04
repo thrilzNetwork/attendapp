@@ -288,7 +288,7 @@ const TEAL = '#0D9488';
 
 function AttendaLandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [activeModule, setActiveModule] = useState<number | null>(0); // Default to first module demo open
+  const [activeRole, setActiveRole] = useState<'guest' | 'staff' | 'gm' | 'partner'>('guest');
   const [scrolled, setScrolled] = useState(false);
   const enrollRef = useRef<HTMLDivElement>(null);
 
@@ -373,103 +373,289 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* MODULES — Interactive: click a card to see a mini-demo of the feature */}
-      <section id="modules" className="py-16 md:py-20 px-5">
+      {/* APP BY ROLE — Role-based product showcase replacing the 6-module grid */}
+      <section id="modules" className="py-16 md:py-24 px-5">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
-              Comprehensive Operations Software
+              One Platform · Four Perspectives
             </h2>
-            <h3 className="text-[32px] md:text-[42px] font-black tracking-tight text-gray-900 mb-4">
-              Six modules. One thread. Every role covered.
+            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
+              Built for every role<br className="hidden md:block" />
+              <span style={{ color: TEAL }}>in your property.</span>
             </h3>
             <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              Tap any module to see how it works — no slide deck, no demo-gate, just the feature in motion.
+              Tap any role to see Attenda from their perspective — no slide deck, no gate, just the actual screens they use every shift.
             </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            {[
-              { icon: <ChatIcon />, name: 'Guest Requests' },
-              { icon: <BellIcon />, name: 'Staff Task Log' },
-              { icon: <TruckIcon />, name: 'Vendor Portal' },
-              { icon: <ChartIcon />, name: 'GM Dashboard' },
-              { icon: <BookIcon />, name: 'Knowledge Base' },
-              { icon: <BusIcon />, name: 'Shuttle & Transport' },
-            ].map((m, i) => (
+
+          {/* Role tabs */}
+          <div className="flex items-center justify-center gap-2 mb-10 flex-wrap">
+            {([
+              { key: 'guest', label: '🧳 Guest', desc: 'in the room' },
+              { key: 'staff', label: '🛎️ Staff', desc: 'on shift' },
+              { key: 'gm', label: '👔 GM', desc: 'on the dashboard' },
+              { key: 'partner', label: '🚚 Partner', desc: 'on delivery' },
+            ] as const).map(r => (
               <button
-                key={i}
-                onClick={() => setActiveModule(activeModule === i ? null : i)}
-                className={`text-left bg-white border-2 rounded-xl p-3 transition-all ${
-                  activeModule === i
-                    ? 'shadow-lg scale-[1.02]'
-                    : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                key={r.key}
+                onClick={() => setActiveRole(r.key)}
+                className={`px-5 py-3 rounded-xl text-[14px] font-bold transition-all border-2 ${
+                  activeRole === r.key
+                    ? 'shadow-md scale-[1.02]'
+                    : 'border-gray-200 bg-white hover:border-gray-300 text-gray-600'
                 }`}
-                style={activeModule === i ? { borderColor: TEAL } : {}}
+                style={activeRole === r.key ? { borderColor: TEAL, backgroundColor: `${TEAL}08` } : {}}
               >
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: TEAL }}>
-                  <div className="text-white">{m.icon}</div>
-                </div>
-                <h4 className="text-[13px] font-black text-gray-900 leading-tight">{m.name}</h4>
-                <div className="text-[10px] font-semibold mt-1 flex items-center gap-1" style={{ color: activeModule === i ? TEAL : '#9CA3AF' }}>
-                  {activeModule === i ? '● Showing demo' : 'Tap to preview →'}
-                </div>
+                {r.label}
+                <span className="text-[11px] font-normal text-gray-400 ml-1">{r.desc}</span>
               </button>
             ))}
           </div>
 
-          {/* Active module demo panel */}
-          {activeModule !== null && (
-            <div className="bg-gradient-to-br from-gray-50 to-white border-2 rounded-2xl p-6 md:p-8 shadow-xl" style={{ borderColor: TEAL }}>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                {/* Left: description */}
-                <div>
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase mb-3" style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+          {/* Guest Panel */}
+          {activeRole === 'guest' && (
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+                {/* Left: the QR code story */}
+                <div className="p-8 md:p-10 flex flex-col justify-center border-b md:border-b-0 md:border-r border-gray-200">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4" style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
                     <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: TEAL }} />
-                    Module {activeModule + 1} of 6
+                    The guest experience
                   </div>
-                  <h4 className="text-[26px] md:text-[32px] font-black text-gray-900 mb-2 leading-tight">
-                    {[
-                      'Guests chat. The room responds.',
-                      'PIN in. Accept. Done.',
-                      'Vendors get a portal, not a phone call.',
-                      'One screen. Total visibility.',
-                      'When it breaks, write it down.',
-                      'Shuttle runs, synced to cruise arrivals.',
-                    ][activeModule]}
+                  <h4 className="text-[26px] md:text-[32px] font-black text-gray-900 mb-3 leading-tight">
+                    It starts with a QR code in the room.
                   </h4>
-                  <p className="text-[15px] text-gray-600 leading-relaxed mb-5">
-                    {[
-                      'Guests scan a QR code in the room, tap what they need, and chat in real time. No app to download, no login to remember. The front desk sees the request the moment it lands.',
-                      'Housekeeping, front desk, and maintenance open one screen, tap to accept, tap to mark done. Every job is timestamped and tied to a room, a guest, and a shift.',
-                      'Linen, food, shuttle, maintenance — every vendor gets a portal link. They see open jobs, accept, and close. Invoices generate automatically. No more phone tag.',
-                      'Real-time status across all rooms, all staff, all jobs, all vendors. The GM opens one screen at 7am and knows exactly what happened overnight — and what needs to happen today.',
-                      'When something goes wrong, the fix gets written down once. New staff onboard in days, not weeks. Repeat incidents drop. The playbook grows with the property.',
-                      'Schedule shuttle runs, sync with cruise ship arrivals, let guests book seats from the room. Walked revenue becomes captured revenue.',
-                    ][activeModule]}
-                  </p>
-                  <div className="flex items-center gap-4 text-[12px] text-gray-500">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                      <span>Live demo · No signup</span>
+                  <div className="space-y-4 mb-6">
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>1</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">Guest scans the code</p>
+                        <p className="text-[13px] text-gray-600">No app to download. Opens in their camera or browser. Name and room are pre-filled.</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: TEAL }} />
-                      <span>Resets every 8 seconds</span>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>2</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">Orders towels, food, or shuttle</p>
+                        <p className="text-[13px] text-gray-600">Real-time chat. No phone tag. The front desk sees every request the moment it lands.</p>
+                      </div>
                     </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>3</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">Browses nearby, reviews restaurant</p>
+                        <p className="text-[13px] text-gray-600">Transport schedules, local attractions, in-room dining menus — all from the same QR code.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[12px] text-gray-500">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span>Zero apps for the guest</span>
                   </div>
                 </div>
-                {/* Right: mini-demo */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                  {activeModule === 0 && <GuestRequestsDemo />}
-                  {activeModule === 1 && <StaffTaskLogDemo />}
-                  {activeModule === 2 && <VendorPortalDemo />}
-                  {activeModule === 3 && <GmDashboardDemo />}
-                  {activeModule === 4 && <KnowledgeBaseDemo />}
-                  {activeModule === 5 && <ShuttleDemo />}
+                {/* Right: guest phone mockup */}
+                <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
+                  <PhoneGuestMockup />
                 </div>
               </div>
             </div>
           )}
+
+          {/* Staff Panel */}
+          {activeRole === 'staff' && (
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+                <div className="p-8 md:p-10 flex flex-col justify-center border-b md:border-b-0 md:border-r border-gray-200">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4" style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: TEAL }} />
+                    The staff experience
+                  </div>
+                  <h4 className="text-[26px] md:text-[32px] font-black text-gray-900 mb-3 leading-tight">
+                    One dashboard. Every tool.
+                  </h4>
+                  <div className="space-y-4 mb-6">
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">Dashboard with live stats</p>
+                        <p className="text-[13px] text-gray-600">Pending requests, staff on duty, avg response time, today&apos;s activity — at a glance.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">Checklists inline</p>
+                        <p className="text-[13px] text-gray-600">Start a housekeeping or maintenance checklist right from the Dashboard. Check items off as you go.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">Schedules with day-off requests</p>
+                        <p className="text-[13px] text-gray-600">Weekly schedule grid, color-coded by department. Staff request days off in-app.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">Guest requests + staff chat</p>
+                        <p className="text-[13px] text-gray-600">Accept, assign, mark done. Staff channel for internal coordination.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[12px] text-gray-500">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span>PIN login · Department-filtered views</span>
+                  </div>
+                </div>
+                <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
+                  <StaffDashboardMockup />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* GM Panel */}
+          {activeRole === 'gm' && (
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+                <div className="p-8 md:p-10 flex flex-col justify-center border-b md:border-b-0 md:border-r border-gray-200">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4" style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: TEAL }} />
+                    The GM experience
+                  </div>
+                  <h4 className="text-[26px] md:text-[32px] font-black text-gray-900 mb-3 leading-tight">
+                    Total visibility. One screen.
+                  </h4>
+                  <div className="space-y-4 mb-6">
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">KPI dashboards with trend tracking</p>
+                        <p className="text-[13px] text-gray-600">RevPAR, occupancy, response times, revenue per channel — all updated in real time.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">Revenue attribution</p>
+                        <p className="text-[13px] text-gray-600">See exactly what revenue came through Attenda — shuttle bookings, in-room dining, late checkout fees.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">Staff & schedule management</p>
+                        <p className="text-[13px] text-gray-600">Approve PTO, manage shifts, view department coverage — all from the same platform.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">Daily brief & property settings</p>
+                        <p className="text-[13px] text-gray-600">Post GM notes for the whole team. Manage shuttle grid, QR codes, room types, and brand settings.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[12px] text-gray-500">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span>Real-time · Every shift · Every dollar</span>
+                  </div>
+                </div>
+                <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
+                  <GmDashboardMockup />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Partner Panel */}
+          {activeRole === 'partner' && (
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+                <div className="p-8 md:p-10 flex flex-col justify-center border-b md:border-b-0 md:border-r border-gray-200">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4" style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: TEAL }} />
+                    The partner experience
+                  </div>
+                  <h4 className="text-[26px] md:text-[32px] font-black text-gray-900 mb-3 leading-tight">
+                    A portal, not a phone call.
+                  </h4>
+                  <div className="space-y-4 mb-6">
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">See open jobs at a glance</p>
+                        <p className="text-[13px] text-gray-600">Linen delivery? Shuttle run? Maintenance request? Partners see exactly what needs doing.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">Accept, update, close</p>
+                        <p className="text-[13px] text-gray-600">Tap to accept. Tap to mark delivered. Every update is visible to staff and GM in real time.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
+                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">Restaurant menu management</p>
+                        <p className="text-[13px] text-gray-600">Partners with in-house restaurants can manage menus, receive in-room dining orders, and update availability.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[12px] text-gray-500">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span>No more phone tag · Auto-invoice</span>
+                  </div>
+                </div>
+                <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
+                  <PartnerPortalMockup />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bottom CTA */}
+          <div className="text-center mt-10">
+            <a
+              href="#demo"
+              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-[15px] shadow-md transition-all hover:shadow-lg active:scale-[0.98]"
+              style={{ backgroundColor: '#15b79e', color: '#000' }}
+            >
+              See it on your property <ArrowRight size={16} />
+            </a>
+            <div className="mt-3 text-[12px] text-gray-500">15-min call · No slide deck · No commitment</div>
+          </div>
         </div>
       </section>
 
@@ -776,7 +962,7 @@ function AttendaLandingPage() {
             Real questions from real GMs
           </h3>
           {[
-            { q: 'What modules does Attenda include?', a: 'Six: Guest Requests, Staff Task Log, Vendor Portal, GM Dashboard, Knowledge Base, and Shuttle & Transport. All connected on one thread.' },
+            { q: 'What does Attenda include?', a: 'Guest experience (QR code check-in, chat, requests), Staff dashboard with checklists and schedules, GM KPIs and revenue tracking, Partner portal for vendors and restaurants — all connected on one thread.' },
             { q: 'Does the guest need to download an app?', a: 'No. They scan a QR code in the room — opens a mobile web app in their browser.' },
             { q: 'How are vendors onboarded?', a: 'Each vendor gets a lightweight web portal link. They see open jobs, accept, and update status.' },
             { q: 'What about my existing PMS?', a: 'Attenda runs alongside your current PMS from day one. No rip-and-replace.' },
@@ -813,7 +999,7 @@ function AttendaLandingPage() {
               See Attenda on your property
             </h3>
             <p className="text-[16px] text-gray-600">
-              Three fields. We&apos;ll walk you through how the six modules connect — for your rooms, your team, your vendors.
+              Three fields. We&apos;ll show you Attenda from every role — guest, staff, GM, partner — on your property.
             </p>
           </div>
           <EnrollForm />
@@ -1617,441 +1803,290 @@ function KpiTileDark({ value, label }: { value: string; label: string }) {
   );
 }
 
-/* ── Module icons (inline SVG) ───────────────────────────────── */
+/* ── Role-based Mockups ───────────────────────────────────── */
 
-function ChatIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-  );
-}
-
-function BellIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </svg>
-  );
-}
-
-function TruckIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1" y="3" width="15" height="13" />
-      <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
-      <circle cx="5.5" cy="18.5" r="2.5" />
-      <circle cx="18.5" cy="18.5" r="2.5" />
-    </svg>
-  );
-}
-
-function ChartIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="20" x2="12" y2="10" />
-      <line x1="18" y1="20" x2="18" y2="4" />
-      <line x1="6" y1="20" x2="6" y2="16" />
-    </svg>
-  );
-}
-
-function BookIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-    </svg>
-  );
-}
-
-function BusIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 6v6" />
-      <path d="M16 6v6" />
-      <path d="M2 12h20" />
-      <path d="M18 18h2a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2" />
-      <circle cx="7" cy="18" r="2" />
-      <circle cx="17" cy="18" r="2" />
-    </svg>
-  );
-}
-
-/* ── Module mini-demos (interactive feature previews) ─────── */
-
-function GuestRequestsDemo() {
-  const [step, setStep] = useState(0);
+/* PhoneGuestMockup — Phone frame showing a QR code + guest chat */
+function PhoneGuestMockup() {
+  const [qrOrApp, setQrOrApp] = useState(true);
   useEffect(() => {
-    const t = setInterval(() => setStep(s => (s + 1) % 6), 1400);
+    const t = setInterval(() => setQrOrApp(v => !v), 3000);
     return () => clearInterval(t);
   }, []);
+
   return (
-    <div className="p-4 h-[320px] flex flex-col" style={{ backgroundColor: '#F4F4F5' }}>
-      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Guest /message flow</div>
-      <div className="flex-1 space-y-2 overflow-hidden">
-        <div className={`flex justify-start transition-all duration-500 ${step >= 0 ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-white border border-gray-100 px-3 py-2 text-[11px] text-gray-800 shadow-sm">
-            Hello! How can I assist you today?
-          </div>
-        </div>
-        <div className={`flex justify-end transition-all duration-500 ${step >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-          <div className="max-w-[70%] rounded-2xl rounded-br-md px-3 py-2 text-[11px] text-white" style={{ backgroundColor: TEAL }}>
-            Request Towels
-          </div>
-        </div>
-        <div className={`flex justify-start transition-all duration-500 ${step >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-          <div className="max-w-[88%] rounded-2xl rounded-bl-md bg-white border border-gray-100 px-3 py-2 shadow-sm">
-            <p className="text-[10px] text-gray-800 mb-1.5">I can send a towel request to housekeeping. Shall I?</p>
-            <div className="flex gap-1.5">
-              <div className="flex-1 py-1 rounded text-white text-[9px] font-bold text-center" style={{ backgroundColor: TEAL }}>Yes, send</div>
-              <div className="flex-1 py-1 rounded bg-gray-100 text-gray-700 text-[9px] font-bold text-center">No</div>
+    <div className="relative mx-auto w-[200px]">
+      {/* Phone frame */}
+      <div className="bg-black rounded-[28px] p-2 shadow-xl">
+        <div className="bg-white rounded-[24px] overflow-hidden">
+          {qrOrApp ? (
+            /* QR code screen */
+            <div className="h-[400px] flex flex-col items-center justify-center p-6 bg-white">
+              <div className="w-32 h-32 mb-4 relative">
+                {/* QR code pattern */}
+                <div className="absolute inset-0 border-4 border-black rounded-sm" />
+                <div className="absolute top-2 left-2 w-8 h-8 border-t-4 border-l-4 border-black" />
+                <div className="absolute top-2 right-2 w-8 h-8 border-t-4 border-r-4 border-black" />
+                <div className="absolute bottom-2 left-2 w-8 h-8 border-b-4 border-l-4 border-black" />
+                <div className="absolute bottom-2 right-2 w-8 h-8 border-b-4 border-r-4 border-black" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-4 h-4 rounded-sm bg-black" />
+                </div>
+                <div className="absolute top-[40%] left-[25%] w-2 h-2 bg-black rounded-sm" />
+                <div className="absolute top-[60%] left-[55%] w-3 h-3 bg-black rounded-sm" />
+                <div className="absolute top-[30%] left-[65%] w-2 h-2 bg-black rounded-sm" />
+                <div className="absolute top-[70%] left-[35%] w-2 h-2 bg-black rounded-sm" />
+              </div>
+              <p className="text-[14px] font-black text-gray-900">Room 204</p>
+              <p className="text-[10px] text-gray-500">Scan to open · No app needed</p>
             </div>
-          </div>
-        </div>
-        <div className={`flex justify-end transition-all duration-500 ${step >= 3 ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="max-w-[70%] rounded-2xl rounded-br-md px-3 py-2 text-[11px] text-white" style={{ backgroundColor: TEAL }}>
-            Yes, please
-          </div>
-        </div>
-        <div className={`flex justify-start transition-all duration-500 ${step >= 4 ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
-          <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-white border border-green-200 px-3 py-2 text-[11px] shadow-sm">
-            <div className="flex items-center gap-1 mb-0.5">
-              <div className="w-3 h-3 rounded-full bg-green-500 flex items-center justify-center text-white text-[8px] font-bold">✓</div>
-              <span className="text-[9px] font-bold text-green-700">Request sent</span>
+          ) : (
+            /* Chat app screen */
+            <div className="h-[400px] flex flex-col">
+              <div className="bg-teal-600 px-4 py-3 flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-white/30 flex items-center justify-center text-white text-[8px] font-bold">A</div>
+                <div className="text-white text-[12px] font-bold flex-1">Attenda</div>
+              </div>
+              <div className="flex-1 bg-gray-50 p-3 space-y-2 overflow-hidden">
+                <div className="flex justify-start">
+                  <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-3 py-2 text-[10px] max-w-[75%] shadow-sm">
+                    Welcome! How can I help?
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <div className="bg-teal-600 rounded-2xl rounded-br-md px-3 py-2 text-[10px] text-white max-w-[70%]">
+                    Request towels please
+                  </div>
+                </div>
+                <div className="flex justify-start">
+                  <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-3 py-2 shadow-sm">
+                    <p className="text-[10px] mb-1">I&apos;ll send a towel request. Confirm?</p>
+                    <div className="flex gap-1">
+                      <div className="flex-1 text-center py-1 rounded bg-teal-600 text-white text-[8px] font-bold">Send</div>
+                      <div className="flex-1 text-center py-1 rounded bg-gray-200 text-gray-700 text-[8px] font-bold">Cancel</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <div className="bg-teal-600 rounded-2xl rounded-br-md px-3 py-2 text-[10px] text-white max-w-[60%]">
+                    Yes, send
+                  </div>
+                </div>
+                <div className="flex justify-start">
+                  <div className="bg-green-50 border border-green-200 rounded-2xl rounded-bl-md px-3 py-2 text-[10px]">
+                    <span className="font-bold text-green-700">✓ Request sent</span>
+                    <span className="text-gray-500"> · ETA 7m</span>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-gray-200 px-3 py-2 flex items-center gap-2">
+                <div className="flex-1 h-7 rounded-full bg-gray-100 border border-gray-200" />
+                <div className="w-7 h-7 rounded-full bg-teal-600 flex items-center justify-center">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                </div>
+              </div>
             </div>
-            <span className="text-[10px] text-gray-700">Front desk notified · ETA 7m</span>
-          </div>
+          )}
         </div>
-        {step >= 5 && (
-          <div className="text-center text-[10px] text-gray-500 pt-1">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-gray-200">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> 2,847 requests this week
-            </span>
-          </div>
-        )}
+      </div>
+      {/* Badge */}
+      <div className="absolute -top-2 -right-2 bg-teal-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full shadow-md">
+        QR → Chat
       </div>
     </div>
   );
 }
 
-function StaffTaskLogDemo() {
-  const [step, setStep] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setStep(s => (s + 1) % 5), 1600);
-    return () => clearInterval(t);
-  }, []);
+/* StaffDashboardMockup — Browser frame showing staff dashboard with checklists */
+function StaffDashboardMockup() {
   return (
-    <div className="p-4 h-[320px] flex flex-col">
-      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Staff /staff Orders</div>
-      <div className="space-y-2 flex-1">
-        {[
-          { room: '204', type: 'Towels', status: 'pending', visible: step >= 0 },
-          { room: '318', type: 'Pillows', status: 'progress', visible: step >= 1 || true },
-          { room: '412', type: 'A/C fix', status: 'progress', visible: true },
-        ].map((req, i) => (
-          <div key={i} className={`bg-white border ${req.status === 'progress' ? 'border-blue-200' : 'border-amber-200'} rounded-lg p-2.5 shadow-sm transition-all duration-500 ${req.visible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[12px] font-bold text-gray-900">Room {req.room} · {req.type}</div>
-                <div className="text-[10px] text-gray-500 mt-0.5">
-                  {req.status === 'progress' ? `Assigned: Maria · ${(i*2)+3}m elapsed` : `Unassigned · ${(i+1)*2}m ago`}
-                </div>
-              </div>
-              <div className={`px-2 py-0.5 rounded text-[9px] font-bold ${req.status === 'progress' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
-                {req.status === 'progress' ? 'In progress' : 'Pending'}
-              </div>
-            </div>
-            {req.status === 'progress' && (
-              <div className="mt-2 flex items-center gap-1.5">
-                <div className="text-[9px] text-gray-500">Resolve in:</div>
-                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${60 + i*15}%` }} />
-                </div>
-                <div className="text-[9px] text-gray-700 font-bold">{7-i*2}m</div>
-              </div>
-            )}
-          </div>
-        ))}
-        {step >= 3 && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-2.5 flex items-center gap-2 animate-pulse">
-            <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px] font-bold">✓</div>
-            <div className="text-[11px] font-bold text-green-800">Room 204 · Towels · Marked done</div>
-          </div>
-        )}
-        {step >= 4 && (
-          <div className="text-center text-[10px] text-gray-500">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-gray-200">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Avg resolution: 7m 14s
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function VendorPortalDemo() {
-  const [step, setStep] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setStep(s => (s + 1) % 5), 1500);
-    return () => clearInterval(t);
-  }, []);
-  const jobs = [
-    { vendor: 'Linen Co.', item: '50 bath towels', qty: 'x50', status: step >= 1 ? 'in-progress' : 'open', value: 120 },
-    { vendor: 'Sundries Inc.', item: 'Coffee pods', qty: 'x200', status: 'open', value: 85 },
-    { vendor: 'Maintenance Pro', item: 'HVAC filter', qty: 'x4', status: 'open', value: 240 },
-  ];
-  return (
-    <div className="p-4 h-[320px] flex flex-col">
-      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Vendor /portal dashboard</div>
-      <div className="flex items-center gap-1.5 mb-2 text-[10px] text-gray-600">
-        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-        3 open jobs · $445 total
-      </div>
-      <div className="space-y-1.5 flex-1">
-        {jobs.map((job, i) => (
-          <div key={i} className={`border rounded-lg p-2.5 transition-all duration-500 ${
-            job.status === 'in-progress' ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[12px] font-bold text-gray-900">{job.vendor}</div>
-                <div className="text-[10px] text-gray-500 mt-0.5">{job.item} · {job.qty}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-[13px] font-black text-gray-900">${job.value}</div>
-                <div className={`text-[9px] font-bold mt-0.5 ${
-                  job.status === 'in-progress' ? 'text-blue-600' : 'text-amber-600'
-                }`}>
-                  {job.status === 'in-progress' ? '● In progress' : '○ Open'}
-                </div>
-              </div>
-            </div>
-            {job.status === 'in-progress' && (
-              <div className="mt-2 text-[10px] text-blue-700 flex items-center gap-1.5">
-                <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
-                Vendor accepted · ETA 30m · Invoice auto-drafting
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      {step >= 3 && (
-        <div className="mt-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-2.5 text-[10px] flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[9px] font-bold">✓</div>
-            <span className="font-bold text-green-800">Invoice #1284 generated</span>
-          </div>
-          <span className="text-green-700 font-mono">$120.00</span>
+    <div className="w-full max-w-[320px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+      {/* Browser chrome */}
+      <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-full bg-red-400" />
+          <div className="w-2 h-2 rounded-full bg-yellow-400" />
+          <div className="w-2 h-2 rounded-full bg-green-400" />
         </div>
-      )}
+        <div className="flex-1 h-5 bg-white rounded border border-gray-200 flex items-center px-2 text-[8px] text-gray-500 font-semibold">
+          attenda.app/staff
+        </div>
+      </div>
+      {/* App header */}
+      <div className="bg-teal-600 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <div className="w-6 h-6 rounded-md bg-white/20 flex items-center justify-center text-white text-[10px] font-black">A</div>
+          <span className="text-white text-[13px] font-bold">Dashboard</span>
+        </div>
+        <div className="text-white/70 text-[10px]">👤 Staff</div>
+      </div>
+      {/* Content */}
+      <div className="p-4 space-y-3">
+        {/* Quick stats */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: 'Pending', value: '2' },
+            { label: 'Active', value: '1' },
+            { label: 'Done', value: '14' },
+          ].map((s, i) => (
+            <div key={i} className="bg-gray-50 rounded-lg p-2 text-center">
+              <div className="text-[18px] font-black text-gray-900">{s.value}</div>
+              <div className="text-[9px] text-gray-500 font-bold uppercase">{s.label}</div>
+            </div>
+          ))}
+        </div>
+        {/* Checklist card */}
+        <div className="border border-gray-200 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[12px] font-bold text-gray-900">🧹 Housekeeping</span>
+            <span className="text-[9px] text-gray-500">3/5 done</span>
+          </div>
+          <div className="bg-gray-100 rounded-full h-1.5 mb-2">
+            <div className="h-1.5 rounded-full bg-teal-600" style={{ width: '60%' }} />
+          </div>
+          <div className="space-y-1">
+            {[
+              { label: 'Restock mini bar', done: true },
+              { label: 'Change linens', done: true },
+              { label: 'Vacuum floor', done: true },
+              { label: 'Wipe surfaces', done: false },
+              { label: 'Check amenities', done: false },
+            ].map((item, i) => (
+              <label key={i} className="flex items-center gap-2 py-0.5">
+                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${item.done ? 'bg-teal-600 border-teal-600' : 'border-gray-300'}`}>
+                  {item.done && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+                <span className={`text-[10px] ${item.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{item.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        {/* Next shift info */}
+        <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2.5">
+          <div>
+            <div className="text-[10px] font-bold text-gray-900">Next shift: 2pm</div>
+            <div className="text-[9px] text-gray-500">Front Desk · Room 312 checkout</div>
+          </div>
+          <div className="text-[8px] font-bold px-2 py-1 bg-amber-100 text-amber-800 rounded-full">View schedules</div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function GmDashboardDemo() {
-  const [step, setStep] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setStep(s => (s + 1) % 5), 1300);
-    return () => clearInterval(t);
-  }, []);
-  const occupancy = [0.85, 0.92, 0.78, 0.95, 0.88, 0.72, 0.45];
-  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+/* GmDashboardMockup — Browser frame showing KPI dashboard */
+function GmDashboardMockup() {
   return (
-    <div className="p-4 h-[320px] flex flex-col">
-      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">GM Dashboard · Live</div>
-      <div className="grid grid-cols-3 gap-1.5 mb-2">
-        {[
-          { label: 'Occupancy', value: '87%', color: TEAL },
-          { label: 'Open', value: '3', color: '#F59E0B' },
-          { label: 'In progress', value: '5', color: '#3B82F6' },
-        ].map((kpi, i) => (
-          <div key={i} className="bg-gray-50 rounded p-2">
-            <div className="text-[9px] text-gray-500 uppercase font-bold tracking-wide">{kpi.label}</div>
-            <div className="text-[16px] font-black" style={{ color: kpi.color }}>{kpi.value}</div>
-          </div>
-        ))}
+    <div className="w-full max-w-[320px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-full bg-red-400" />
+          <div className="w-2 h-2 rounded-full bg-yellow-400" />
+          <div className="w-2 h-2 rounded-full bg-green-400" />
+        </div>
+        <div className="flex-1 h-5 bg-white rounded border border-gray-200 flex items-center px-2 text-[8px] text-gray-500 font-semibold">
+          gm.attenda.app
+        </div>
       </div>
-      <div className="bg-gray-50 rounded p-2 mb-2">
-        <div className="text-[9px] text-gray-500 uppercase font-bold mb-1.5">This week</div>
-        <div className="grid grid-cols-7 gap-1 h-12">
-          {occupancy.map((v, i) => (
-            <div key={i} className="flex flex-col items-center justify-end">
-              <div
-                className="w-full rounded-sm transition-all duration-1000"
-                style={{ height: `${v * 100}%`, backgroundColor: TEAL, opacity: 0.8 }}
-              />
-              <div className="text-[8px] font-bold text-gray-500 mt-0.5">{days[i]}</div>
+      <div className="p-4 space-y-3">
+        {/* KPI row */}
+        <div className="grid grid-cols-4 gap-1.5">
+          {[
+            { label: 'RevPAR', value: '$142', color: '#0D9488' },
+            { label: 'Occ', value: '87%', color: '#3B82F6' },
+            { label: 'Resp', value: '7m', color: '#8B5CF6' },
+            { label: 'Rev', value: '$16K', color: '#F59E0B' },
+          ].map((kpi, i) => (
+            <div key={i} className="bg-gray-50 rounded-lg p-2 text-center">
+              <div className="text-[16px] font-black" style={{ color: kpi.color }}>{kpi.value}</div>
+              <div className="text-[7px] text-gray-500 font-bold uppercase tracking-wider">{kpi.label}</div>
+            </div>
+          ))}
+        </div>
+        {/* Revenue chart */}
+        <div className="bg-gray-50 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold text-gray-900">Revenue · 4 months</span>
+            <span className="text-[8px] text-gray-500">Feb → May</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2 h-12 items-end">
+            {[45, 62, 78, 100].map((v, i) => (
+              <div key={i} className="flex flex-col items-center justify-end">
+                <div
+                  className="w-full rounded-sm transition-all"
+                  style={{ height: `${v}%`, backgroundColor: '#0D9488', opacity: 0.5 + i * 0.15 }}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-4 gap-2 mt-1">
+            {['Feb', 'Mar', 'Apr', 'May'].map((m, i) => (
+              <div key={i} className="text-[7px] font-bold text-gray-500 text-center">{m}</div>
+            ))}
+          </div>
+        </div>
+        {/* Live feed */}
+        <div className="space-y-1.5">
+          <div className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-1">Live feed</div>
+          {[
+            { text: 'Room 204 towels delivered', time: '12s', color: 'bg-green-500' },
+            { text: 'Shuttle booked 9:30 AM', time: '2m', color: 'bg-blue-500' },
+            { text: 'Vendor: Linen Co. accepted', time: '4m', color: 'bg-purple-500' },
+          ].map((item, i) => (
+            <div key={i} className="flex items-center gap-1.5 text-[10px]">
+              <div className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
+              <span className="text-gray-700 flex-1">{item.text}</span>
+              <span className="text-gray-400">{item.time}</span>
             </div>
           ))}
         </div>
       </div>
-      <div className="bg-white border border-gray-200 rounded p-2 flex-1 overflow-hidden">
-        <div className="text-[9px] text-gray-500 uppercase font-bold mb-1.5">Live activity</div>
-        <div className="space-y-1">
-          <div className={`flex items-center gap-1.5 text-[10px] transition-all duration-500 ${step >= 0 ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            <span className="text-gray-700">Room 204 ready</span>
-            <span className="text-gray-400 ml-auto">12s</span>
-          </div>
-          <div className={`flex items-center gap-1.5 text-[10px] transition-all duration-500 ${step >= 1 ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            <span className="text-gray-700">Vendor: Linen accepted</span>
-            <span className="text-gray-400 ml-auto">28s</span>
-          </div>
-          <div className={`flex items-center gap-1.5 text-[10px] transition-all duration-500 ${step >= 2 ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            <span className="text-gray-700">New: Room 412 A/C</span>
-            <span className="text-gray-400 ml-auto">1m</span>
-          </div>
-          <div className={`flex items-center gap-1.5 text-[10px] transition-all duration-500 ${step >= 3 ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-            <span className="text-gray-700">Shuttle booked 9:30</span>
-            <span className="text-gray-400 ml-auto">2m</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
 
-function KnowledgeBaseDemo() {
-  const [step, setStep] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setStep(s => (s + 1) % 5), 1600);
-    return () => clearInterval(t);
-  }, []);
-  const query = step >= 1 ? 'AC not cooling' : '';
-  const results = [
-    { title: 'AC not cooling — first response', uses: 4, steps: 3, visible: step >= 2 },
-    { title: 'AC making noise — diagnostic', uses: 2, steps: 4, visible: step >= 3 },
-    { title: 'AC leaking water — emergency', uses: 1, steps: 5, visible: step >= 3 },
-  ];
+/* PartnerPortalMockup — Browser frame showing vendor portal */
+function PartnerPortalMockup() {
   return (
-    <div className="p-4 h-[320px] flex flex-col">
-      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Knowledge Base /search</div>
-      <div className="relative mb-2">
-        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+    <div className="w-full max-w-[320px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-full bg-red-400" />
+          <div className="w-2 h-2 rounded-full bg-yellow-400" />
+          <div className="w-2 h-2 rounded-full bg-green-400" />
         </div>
-        <div className="w-full bg-white border-2 rounded-lg pl-8 pr-3 py-2 text-[12px] border-gray-200 min-h-[36px] flex items-center">
-          <span className="text-gray-900 font-mono">{query}</span>
-          {query && <span className="inline-block w-0.5 h-3.5 ml-0.5 bg-gray-900 animate-pulse" />}
+        <div className="flex-1 h-5 bg-white rounded border border-gray-200 flex items-center px-2 text-[8px] text-gray-500 font-semibold">
+          vendor.attenda.app
         </div>
       </div>
-      <div className="space-y-1.5 flex-1 overflow-hidden">
-        {results.filter(r => r.visible).map((r, i) => (
-          <div key={i} className={`border rounded-lg p-2.5 transition-all duration-500 ${
-            step >= 4 && i === 0
-              ? 'bg-white border-2 shadow-md'
-              : 'bg-white border-gray-200'
-          }`}
-          style={step >= 4 && i === 0 ? { borderColor: TEAL } : {}}>
-            <div className="flex items-start justify-between mb-1">
-              <div className="text-[12px] font-bold text-gray-900 leading-tight">{r.title}</div>
-              <div className="text-[9px] text-gray-500 ml-2 shrink-0">{r.uses}× used</div>
-            </div>
-            {step >= 4 && i === 0 ? (
-              <div className="mt-2 space-y-1">
-                <div className="text-[10px] font-bold text-gray-700">Steps:</div>
-                <div className="text-[10px] text-gray-600 space-y-0.5">
-                  <div>1. Check filter — clean if dirty</div>
-                  <div>2. Reset breaker at thermostat</div>
-                  <div>3. Call HVAC if still failing</div>
+      <div className="p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[12px] font-bold text-gray-900">🍞 Linen Co.</span>
+          <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">3 open</span>
+        </div>
+        <div className="space-y-1.5">
+          {[
+            { item: '50 bath towels', value: '$120', status: 'In Progress' },
+            { item: '100 hand towels', value: '$85', status: 'Open' },
+            { item: '30 face cloths', value: '$45', status: 'Open' },
+          ].map((job, i) => (
+            <div key={i} className={`border rounded-lg p-2.5 ${job.status === 'In Progress' ? 'border-blue-200 bg-blue-50' : 'border-gray-200'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-bold text-gray-900">{job.item}</div>
+                  <div className="text-[8px] text-gray-500 mt-0.5">{job.status === 'In Progress' ? '● In progress' : '○ Open'}</div>
                 </div>
+                <div className="text-[12px] font-black text-gray-900">{job.value}</div>
               </div>
-            ) : (
-              <div className="text-[10px] text-gray-500">{r.steps} steps · last used 2d ago</div>
-            )}
-          </div>
-        ))}
-        {step === 0 && (
-          <div className="text-center text-[10px] text-gray-400 italic py-4">
-            Try searching: &ldquo;AC not cooling&rdquo;, &ldquo;leaky faucet&rdquo;, &ldquo;key not working&rdquo;
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
+        <div className="text-center text-[8px] text-gray-500 pt-2 border-t border-gray-100">
+          Auto-invoice · No phone tag
+        </div>
       </div>
     </div>
   );
 }
-
-function ShuttleDemo() {
-  const [step, setStep] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setStep(s => (s + 1) % 6), 1300);
-    return () => clearInterval(t);
-  }, []);
-  const slots = [
-    { time: '8:00', capacity: 5, booked: 2 },
-    { time: '9:00', capacity: 5, booked: 4 },
-    { time: '9:30', capacity: 5, booked: step >= 2 ? 4 : 1 },
-    { time: '10:00', capacity: 5, booked: 3 },
-    { time: '10:30', capacity: 5, booked: 1 },
-    { time: '11:00', capacity: 5, booked: 2 },
-  ];
-  return (
-    <div className="p-4 h-[320px] flex flex-col">
-      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Shuttle /transport</div>
-      {step >= 1 && (
-        <div className={`mb-2 px-2.5 py-1.5 rounded-lg flex items-center gap-2 text-[10px] font-bold transition-all duration-500 ${
-          step >= 1 ? 'opacity-100' : 'opacity-0'
-        }`} style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-          <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: TEAL }} />
-          🚢 Symphony of the Seas · arriving 10:30
-        </div>
-      )}
-      <div className="text-[10px] text-gray-500 mb-1.5">Tomorrow · Wed May 28</div>
-      <div className="grid grid-cols-3 gap-1.5 flex-1">
-        {slots.map((slot, i) => {
-          const isHot = slot.time === '9:30' || slot.time === '10:00';
-          const isFull = slot.booked >= slot.capacity;
-          return (
-            <div key={i} className={`border rounded-lg p-2 transition-all duration-500 ${
-              isHot && step >= 2 ? 'border-2 shadow-md' : 'border-gray-200'
-            }`}
-            style={isHot && step >= 2 ? { borderColor: TEAL, backgroundColor: `${TEAL}08` } : {}}>
-              <div className="text-[11px] font-black text-gray-900">{slot.time}</div>
-              <div className="text-[9px] text-gray-500 mt-0.5">PortMiami → Hotel</div>
-              <div className="mt-1.5 flex items-center gap-1">
-                <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full transition-all duration-700"
-                    style={{
-                      width: `${(slot.booked / slot.capacity) * 100}%`,
-                      backgroundColor: isFull ? '#EF4444' : slot.booked >= 4 ? '#F59E0B' : TEAL,
-                    }}
-                  />
-                </div>
-                <div className={`text-[9px] font-bold ${
-                  isFull ? 'text-red-600' : slot.booked >= 4 ? 'text-amber-600' : 'text-gray-600'
-                }`}>
-                  {slot.booked}/{slot.capacity}
-                </div>
-              </div>
-              {isHot && step >= 2 && (
-                <div className="text-[8px] mt-1 font-bold" style={{ color: TEAL }}>
-                  +{step >= 2 ? '3 booked' : ''}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {step >= 4 && (
-        <div className="mt-2 text-center text-[10px] text-gray-500">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-gray-200">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> 14 bookings today · $210 captured
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ── Enroll Form ────────────────────────────────────────────── */
 function EnrollForm() {
   const [form, setForm] = useState({ propertyName: '', contactName: '', email: '', phone: '', rooms: '', message: '' });
