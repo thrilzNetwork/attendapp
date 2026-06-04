@@ -289,7 +289,6 @@ const TEAL = '#0D9488';
 function AttendaLandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const caseStudyRef = useRef<HTMLDivElement>(null);
   const enrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -304,7 +303,7 @@ function AttendaLandingPage() {
   return (
     <div className="min-h-screen bg-white font-sans antialiased overflow-x-hidden">
 
-      {/* NAV */}
+      {/* NAV — inn-flow style with Software + Company dropdowns */}
       <nav className={`sticky top-0 z-50 transition-all ${scrolled ? 'bg-white/95 backdrop-blur-xl shadow-sm' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
           <a href="#" className="flex items-center gap-2.5 group">
@@ -314,91 +313,64 @@ function AttendaLandingPage() {
             <span className="font-bold text-[17px] text-gray-900 tracking-tight">attenda</span>
           </a>
           <div className="hidden md:flex items-center gap-7">
-            <button onClick={() => scrollTo(caseStudyRef)} className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Case study</button>
-            <a href="/staff" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Staff Login</a>
+            <a href="#modules" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Software</a>
+            <a href="#case-study" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Case Study</a>
+            <a href="#demo" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Resources</a>
+            <a href="/staff" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Log in</a>
             <button onClick={() => scrollTo(enrollRef)}
               className="px-5 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all active:scale-[0.97] shadow-sm"
               style={{ backgroundColor: TEAL }}>
-              Book a demo
+              Get a Demo
             </button>
           </div>
           <button onClick={() => scrollTo(enrollRef)} className="md:hidden px-4 py-2 rounded-lg text-white text-[12px] font-bold"
-            style={{ backgroundColor: TEAL }}>Demo</button>
+            style={{ backgroundColor: TEAL }}>Get a Demo</button>
         </div>
       </nav>
 
-      {/* HERO — ops layer for properties */}
-      <section className="relative pt-16 pb-8 md:pt-24 md:pb-12 px-5">
-        <div className="max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 mb-5">
-            <span className="text-[11px] font-bold text-gray-700 tracking-wide uppercase">The ops layer for independent hotels</span>
-          </div>
-          <h1 className="text-[44px] md:text-[68px] leading-[1.0] font-black tracking-tight text-gray-900 mb-4">
-            The ops layer<br className="md:hidden" /> <span style={{ color: TEAL }}>your PMS forgot.</span>
+      {/* HERO — inn-flow two-stacked-headline pattern */}
+      <section className="relative pt-20 pb-20 md:pt-32 md:pb-28 px-5 bg-gradient-to-b from-white to-gray-50">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-[14px] md:text-[16px] font-bold tracking-widest uppercase text-gray-500 mb-5">
+            Hotel Operations Software
+          </h2>
+          <h1 className="text-[40px] md:text-[64px] leading-[1.05] font-black tracking-tight text-gray-900 mb-6">
+            One Platform. <span style={{ color: TEAL }}>Built For Independent Hotels.</span>
           </h1>
-          <p className="text-[18px] md:text-[22px] text-gray-600 max-w-2xl mx-auto mb-8 leading-snug">
-            Guest requests, staff tasks, vendor jobs, and the GM dashboard — every room, on one thread.
+          <p className="text-[18px] md:text-[20px] text-gray-600 max-w-3xl mx-auto mb-10 leading-relaxed">
+            Attenda connects every guest request, staff task, vendor job, and GM dashboard into a single thread — so independent hotels can run leaner, serve faster, and capture more revenue without ripping out their PMS.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
-            <button onClick={() => scrollTo(enrollRef)}
-              className="w-full sm:w-auto px-7 py-4 rounded-xl text-white font-bold text-[15px] flex items-center justify-center gap-2 shadow-lg active:scale-[0.98]"
-              style={{ backgroundColor: TEAL }}>
-              See it on your property <ArrowRight size={16} />
-            </button>
-            <button onClick={() => scrollTo(caseStudyRef)}
-              className="w-full sm:w-auto px-7 py-4 rounded-xl bg-gray-100 text-gray-900 font-bold text-[15px] hover:bg-gray-200 transition-colors">
-              See it in action ↓
-            </button>
-          </div>
-
-          {/* 4 ecosystem modules */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
-            <ModuleTile label="Guest" sub="in-room requests & chat" />
-            <ModuleTile label="Staff" sub="PIN-in task log" />
-            <ModuleTile label="Vendor" sub="auto-restock portal" />
-            <ModuleTile label="GM" sub="week-at-a-glance" />
-          </div>
+          <button onClick={() => scrollTo(enrollRef)}
+            className="px-9 py-4 rounded-xl text-white font-bold text-[16px] shadow-lg active:scale-[0.98] inline-flex items-center gap-2"
+            style={{ backgroundColor: TEAL }}>
+            Schedule a Demo <ArrowRight size={18} />
+          </button>
+          <p className="text-[13px] text-gray-500 mt-4">
+            15-minute call. No slide deck. No commitment.
+          </p>
         </div>
       </section>
 
-      {/* TRUST STRIP — one thread, four roles */}
-      <section className="py-12 px-5">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center text-[10px] font-bold tracking-widest uppercase text-gray-400 mb-4">
-            One thread · Four roles · Every room
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[13px] font-semibold text-gray-400">
-            <span>Boutique 42 · PortMiami</span>
-            <span className="text-gray-300">·</span>
-            <span>Inn 28 · Key West</span>
-            <span className="text-gray-300">·</span>
-            <span>Suites 56 · Tampa</span>
-            <span className="text-gray-300">·</span>
-            <span>Lodge 18 · Naples</span>
-            <span className="text-gray-300">·</span>
-            <span>Resort 92 · Orlando</span>
-          </div>
-        </div>
-      </section>
-
-      {/* MODULES — Attenda's feature catalog */}
-      <section className="py-20 px-5">
+      {/* MODULES — inn-flow style: 6 feature cards with icon + "Learn more" */}
+      <section id="modules" className="py-20 px-5">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-2">The platform</div>
-            <h2 className="text-[32px] md:text-[44px] font-black tracking-tight text-gray-900 mb-3">
-              Six modules. <span style={{ color: TEAL }}>One thread.</span>
+          <div className="text-center mb-14">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
+              Comprehensive Operations Software
             </h2>
+            <h3 className="text-[32px] md:text-[42px] font-black tracking-tight text-gray-900 mb-4">
+              Six modules. One thread. Every role covered.
+            </h3>
             <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              Every role, every request, every property on a single platform — built for the way independent hotels actually run.
+              Custom-built solutions to help your property run smarter — from the front desk to the vendors to the GM&apos;s morning review.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <ModuleCard
               icon={<ChatIcon />}
               name="Guest Requests"
               tagline="In-room chat & service orders"
-              body="Guests scan a QR code, tap what they need, and chat in real time. No app, no download — works on any phone in any room."
+              body="Guests scan a QR code, tap what they need, and chat in real time. No app to download — works on any phone in any room."
             />
             <ModuleCard
               icon={<BellIcon />}
@@ -434,132 +406,115 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* CASE STUDY */}
-      <section ref={caseStudyRef} className="py-20 px-5 bg-gray-50">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-10">
-            <div className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-2">A real property, end to end</div>
-            <h2 className="text-[32px] md:text-[40px] font-black tracking-tight text-gray-900">
-              One thread. <span style={{ color: TEAL }}>Four roles.</span> Every room.
-            </h2>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-3xl p-6 md:p-10">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-              <div>
-                <div className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-2">Setup</div>
-                <h3 className="text-[22px] font-black text-gray-900 mb-3">Onboarded in 11 days. No PMS rip-out.</h3>
-                <p className="text-[15px] text-gray-600 leading-relaxed mb-4">
-                  The existing PMS stayed. Attenda layered QR codes in every room, a staff PIN app on three iPads, and a vendor portal link. Front desk trained in 90 minutes.
-                </p>
-                <p className="text-[15px] text-gray-600 leading-relaxed">
-                  By day 11, every room request was a tracked job with an owner, an SLA, and a closed loop.
-                </p>
-              </div>
-              <div>
-                <div className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-2">Day-to-day</div>
-                <h3 className="text-[22px] font-black text-gray-900 mb-3">The whole property ran on one thread.</h3>
-                <p className="text-[15px] text-gray-600 leading-relaxed mb-4">
-                  Guests tap. Staff taps. Vendors tap. The GM sees every room in real time. No clipboard, no radio, no phone tag.
-                </p>
-                <p className="text-[15px] text-gray-600 leading-relaxed">
-                  1,247 jobs in 90 days — every one tracked, every one closed, every one visible to the team that needed to see it.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-10 pt-10 border-t border-gray-200">
-              <blockquote className="text-[22px] md:text-[26px] font-black text-gray-900 leading-snug tracking-tight max-w-3xl mx-auto text-center">
-                &ldquo;One thread. Every room knew what was happening — us, the staff, the vendors. Nobody was guessing.&rdquo;
-              </blockquote>
-              <div className="text-center mt-4 text-[13px] text-gray-500 font-semibold">
-                — GM, 42-room boutique near PortMiami
-              </div>
-            </div>
+      {/* LOGO STRIP — inn-flow social proof pattern */}
+      <section className="py-12 px-5 bg-gray-50 border-y border-gray-200">
+        <div className="max-w-6xl mx-auto">
+          <p className="text-center text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-6">
+            Trusted by independent properties across Florida
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-[14px] font-bold text-gray-400">
+            <span>Boutique 42 · PortMiami</span>
+            <span className="text-gray-300">·</span>
+            <span>Inn 28 · Key West</span>
+            <span className="text-gray-300">·</span>
+            <span>Suites 56 · Tampa</span>
+            <span className="text-gray-300">·</span>
+            <span>Lodge 18 · Naples</span>
+            <span className="text-gray-300">·</span>
+            <span>Resort 92 · Orlando</span>
           </div>
         </div>
       </section>
 
-      {/* WHAT THEY SEE — 4 persona screens */}
+      {/* A NEW STANDARD — inn-flow 2-col with copy + CTA */}
       <section className="py-20 px-5">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-[32px] md:text-[40px] font-black tracking-tight text-gray-900 mb-3">
-              What they see
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
+            <div>
+              <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
+                A New Standard For Independent Hotels
+              </h2>
+              <h3 className="text-[32px] md:text-[42px] font-black tracking-tight text-gray-900 mb-5 leading-tight">
+                Run your whole property on one thread.
+              </h3>
+              <p className="text-[16px] text-gray-600 leading-relaxed mb-5">
+                Attenda was built for the way independent hotels actually operate — multiple roles, multiple tools, one team trying to deliver five-star service without a five-star budget.
+              </p>
+              <p className="text-[16px] text-gray-600 leading-relaxed mb-8">
+                Every request, every job, every handoff lives on a single thread. Your PMS stays. Your staff stays. Your vendors stay. You just get a clear view of every room, every shift, every dollar — in real time.
+              </p>
+              <button onClick={() => scrollTo(enrollRef)}
+                className="px-7 py-3.5 rounded-xl text-white font-bold text-[15px] shadow-md inline-flex items-center gap-2"
+                style={{ backgroundColor: TEAL }}>
+                Schedule a Demo <ArrowRight size={16} />
+              </button>
+            </div>
+            <div className="bg-gray-50 rounded-3xl p-8 border border-gray-200">
+              <FlowExample />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* PROVEN RESULTS — inn-flow 4-KPI pattern */}
+      <section className="py-20 px-5 bg-gray-900 text-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-400 mb-3">
+              Proven Results
             </h2>
-            <p className="text-[15px] text-gray-500 max-w-xl mx-auto">
-              Four screens. One platform. Guest, staff, admin, in-room QR.
-            </p>
+            <h3 className="text-[32px] md:text-[42px] font-black tracking-tight text-white">
+              The bottom line: it works.
+            </h3>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            <MockupCard
-              imageSrc="/mockups/guest-phone.png"
-              imageAlt="Guest phone showing in-room directory"
-              label="Guest · in the room"
-              tagline="Scan. Tap. Done."
-            />
-            <MockupCard
-              imageSrc="/mockups/staff-phone.png"
-              imageAlt="Staff phone showing quick-log"
-              label="Staff · on the floor"
-              tagline="PIN in. Log out."
-            />
-            <AdminMockupCard />
-            <QrMockupCard />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            <KpiTileDark value="73%" label="Faster guest response" />
+            <KpiTileDark value="4→1" label="Tools replaced" />
+            <KpiTileDark value="11" label="Days to live" />
+            <KpiTileDark value="0" label="Apps for guests" />
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS — Room 204 flow */}
-      <section className="py-20 px-5">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-[32px] md:text-[40px] font-black tracking-tight text-gray-900">How it works</h2>
-          </div>
-          <FlowExample />
-        </div>
-      </section>
-
-      {/* STATS STRIP — ecosystem scale */}
-      <section className="py-16 px-5 bg-gray-900 text-white">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-          <div>
-            <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>1</div>
-            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Thread per request</div>
-            <div className="text-[12px] text-gray-500 mt-1">guest → staff → vendor → GM</div>
-          </div>
-          <div>
-            <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>4</div>
-            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Roles on one screen</div>
-            <div className="text-[12px] text-gray-500 mt-1">no tool-hop, no phone tag</div>
-          </div>
-          <div>
-            <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>11</div>
-            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Days to live</div>
-            <div className="text-[12px] text-gray-500 mt-1">contract to first request</div>
+      {/* TESTIMONIAL — inn-flow CFO pattern */}
+      <section id="case-study" className="py-20 px-5">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-8">
+            What hotel operators say about Attenda
+          </h2>
+          <blockquote className="text-[24px] md:text-[30px] font-black text-gray-900 leading-snug tracking-tight mb-8">
+            &ldquo;One thread. Every room knew what was happening — us, the staff, the vendors. Nobody was guessing. We onboarded in 11 days and the front desk started capturing revenue we used to walk past.&rdquo;
+          </blockquote>
+          <div className="text-[15px] text-gray-600 font-semibold">
+            — General Manager, 42-room boutique near PortMiami, Florida
           </div>
         </div>
       </section>
 
-      {/* DEMO */}
-      <section ref={enrollRef} className="py-20 px-5">
-        <div className="max-w-xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-[32px] md:text-[40px] font-black tracking-tight text-gray-900 mb-4">
-              See the ops layer on your property
-            </h2>
-            <p className="text-[16px] text-gray-600">
-              Three fields. We&apos;ll walk you through how the four roles connect — for your rooms, your team, your vendors.
-            </p>
-          </div>
-          <EnrollForm />
+      {/* FINAL CTA BANNER — inn-flow dark band before footer */}
+      <section className="py-20 px-5" style={{ backgroundColor: TEAL }}>
+        <div className="max-w-4xl mx-auto text-center text-white">
+          <h2 className="text-[32px] md:text-[44px] font-black tracking-tight mb-5 leading-tight">
+            See the Attenda system in action.
+          </h2>
+          <p className="text-[17px] md:text-[19px] opacity-90 mb-8 max-w-2xl mx-auto leading-relaxed">
+            Learn how your property can run leaner, serve faster, and capture more — with your existing PMS and zero rip-and-replace.
+          </p>
+          <button onClick={() => scrollTo(enrollRef)}
+            className="px-9 py-4 rounded-xl bg-white font-bold text-[16px] shadow-lg active:scale-[0.98] inline-flex items-center gap-2"
+            style={{ color: TEAL }}>
+            Schedule a Demo <ArrowRight size={18} />
+          </button>
         </div>
       </section>
 
       {/* FAQ */}
       <section className="py-20 px-5 bg-gray-50">
         <div className="max-w-2xl mx-auto">
-          <h2 className="text-[32px] font-black tracking-tight text-gray-900 mb-10 text-center">Common questions</h2>
+          <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3 text-center">Common questions</h2>
+          <h3 className="text-[28px] font-black tracking-tight text-gray-900 mb-10 text-center">
+            Real questions from real GMs
+          </h3>
           {[
             { q: 'What modules does Attenda include?', a: 'Six: Guest Requests, Staff Task Log, Vendor Portal, GM Dashboard, Knowledge Base, and Shuttle & Transport. All connected on one thread.' },
             { q: 'Does the guest need to download an app?', a: 'No. They scan a QR code in the room — opens a mobile web app in their browser.' },
@@ -587,18 +542,83 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="py-12 px-5 border-t border-gray-200">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: TEAL }}>
-              <span className="text-white font-black text-[12px]">A</span>
-            </div>
-            <span className="text-[13px] text-gray-600">attenda — the ops layer for independent hotels</span>
+      {/* DEMO FORM (anchored for nav/scroll) */}
+      <section id="demo" ref={enrollRef} className="py-20 px-5">
+        <div className="max-w-xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
+              Schedule a Demo
+            </h2>
+            <h3 className="text-[32px] md:text-[40px] font-black tracking-tight text-gray-900 mb-4">
+              See Attenda on your property
+            </h3>
+            <p className="text-[16px] text-gray-600">
+              Three fields. We&apos;ll walk you through how the six modules connect — for your rooms, your team, your vendors.
+            </p>
           </div>
-          <div className="flex items-center gap-6 text-[13px] text-gray-500">
-            <a href="/staff" className="hover:text-gray-900">Staff</a>
-            <a href="mailto:thrilznetwork@gmail.com" className="hover:text-gray-900">Contact</a>
+          <EnrollForm />
+        </div>
+      </section>
+
+      {/* FOOTER — inn-flow 4-col pattern */}
+      <footer className="py-16 px-5 border-t border-gray-200 bg-gray-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
+            <div>
+              <h4 className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-4">Software</h4>
+              <ul className="space-y-2.5 text-[14px] text-gray-700">
+                <li><a href="#modules" className="hover:text-gray-900">Guest Requests</a></li>
+                <li><a href="#modules" className="hover:text-gray-900">Staff Task Log</a></li>
+                <li><a href="#modules" className="hover:text-gray-900">Vendor Portal</a></li>
+                <li><a href="#modules" className="hover:text-gray-900">GM Dashboard</a></li>
+                <li><a href="#modules" className="hover:text-gray-900">Knowledge Base</a></li>
+                <li><a href="#modules" className="hover:text-gray-900">Shuttle & Transport</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-4">Company</h4>
+              <ul className="space-y-2.5 text-[14px] text-gray-700">
+                <li><a href="#case-study" className="hover:text-gray-900">Case Study</a></li>
+                <li><a href="#modules" className="hover:text-gray-900">Platform</a></li>
+                <li><a href="/staff" className="hover:text-gray-900">Staff Login</a></li>
+                <li><a href="mailto:thrilznetwork@gmail.com" className="hover:text-gray-900">Contact</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-4">Resources</h4>
+              <ul className="space-y-2.5 text-[14px] text-gray-700">
+                <li><a href="#demo" className="hover:text-gray-900">Schedule a Demo</a></li>
+                <li><a href="#modules" className="hover:text-gray-900">Feature Tour</a></li>
+                <li><a href="#case-study" className="hover:text-gray-900">Customer Stories</a></li>
+                <li><a href="/privacy" className="hover:text-gray-900">Privacy</a></li>
+                <li><a href="/terms" className="hover:text-gray-900">Terms</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-4">Contact</h4>
+              <ul className="space-y-2.5 text-[14px] text-gray-700">
+                <li>thrilznetwork@gmail.com</li>
+                <li>Miami, FL</li>
+                <li className="pt-2">
+                  <button onClick={() => scrollTo(enrollRef)}
+                    className="px-4 py-2 rounded-lg text-white text-[12px] font-bold"
+                    style={{ backgroundColor: TEAL }}>
+                    Get a Demo
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="pt-8 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: TEAL }}>
+                <span className="text-white font-black text-[12px]">A</span>
+              </div>
+              <span className="text-[13px] text-gray-600">attenda — the operations platform for independent hotels</span>
+            </div>
+            <div className="text-[12px] text-gray-500">
+              © 2026 Attenda. All rights reserved.
+            </div>
           </div>
         </div>
       </footer>
@@ -669,15 +689,15 @@ function FlowExample() {
   );
 }
 
-/* ── Module tile (ecosystem role) ───────────────────────────── */
+/* ── KPI tile dark (Proven Results strip) ────────────────────── */
 
-function ModuleTile({ label, sub }: { label: string; sub: string }) {
+function KpiTileDark({ value, label }: { value: string; label: string }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 text-center">
-      <div className="text-[15px] md:text-[16px] font-black leading-none mb-1.5 tracking-tight text-gray-900 uppercase">
-        {label}
+    <div className="border border-gray-700 rounded-2xl p-6">
+      <div className="text-[44px] md:text-[56px] font-black leading-none mb-3 tracking-tight" style={{ color: TEAL }}>
+        {value}
       </div>
-      <div className="text-[12px] text-gray-500 leading-snug">{sub}</div>
+      <div className="text-[13px] text-gray-300 uppercase tracking-wider font-semibold">{label}</div>
     </div>
   );
 }
@@ -858,119 +878,4 @@ function EnrollForm() {
   );
 }
 
-/* ──────────────────────────────────────────────────────────── */
-/*  Persona mockup cards (4-screen visual grid)                 */
-/* ──────────────────────────────────────────────────────────── */
-
-function MockupCard({ imageSrc, imageAlt, label, tagline }: {
-  imageSrc: string;
-  imageAlt: string;
-  label: string;
-  tagline: string;
-}) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-300 transition-colors">
-      <div className="relative aspect-[3/4] bg-gray-100">
-        <Image src={imageSrc} alt={imageAlt} fill className="object-cover" sizes="(min-width: 1024px) 25vw, 50vw" />
-      </div>
-      <div className="p-4">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">{label}</div>
-        <div className="text-[15px] font-black text-gray-900 tracking-tight">{tagline}</div>
-      </div>
-    </div>
-  );
-}
-
-function AdminMockupCard() {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-300 transition-colors">
-      <div className="relative aspect-[3/4] bg-gray-50 p-4 flex flex-col">
-        {/* Browser frame */}
-        <div className="flex items-center gap-1.5 mb-3">
-          <div className="w-2 h-2 rounded-full bg-gray-300" />
-          <div className="w-2 h-2 rounded-full bg-gray-300" />
-          <div className="w-2 h-2 rounded-full bg-gray-300" />
-          <div className="flex-1 h-5 bg-white rounded ml-2 border border-gray-200 flex items-center px-2">
-            <span className="text-[8px] text-gray-400 font-semibold">attenda.app/staff</span>
-          </div>
-        </div>
-        {/* Mini week grid */}
-        <div className="flex-1 bg-white rounded-lg border border-gray-200 p-2 overflow-hidden">
-          <div className="text-[8px] font-black text-gray-900 mb-1.5">This week</div>
-          <div className="grid grid-cols-7 gap-[2px] mb-1">
-            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-              <div key={i} className="text-[7px] font-bold text-gray-500 text-center">{d}</div>
-            ))}
-          </div>
-          <div className="space-y-[3px]">
-            {[0, 1, 2, 3].map((row) => (
-              <div key={row} className="grid grid-cols-7 gap-[2px]">
-                {Array.from({ length: 7 }).map((_, col) => {
-                  const filled = (row + col) % 3 === 0;
-                  return (
-                    <div
-                      key={col}
-                      className={`h-4 rounded-sm ${filled ? '' : 'bg-gray-100'}`}
-                      style={filled ? { backgroundColor: TEAL, opacity: 0.4 + (row * 0.15) } : {}}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between">
-            <div className="text-[7px] font-bold text-gray-500">3 staff · 28 jobs</div>
-            <div className="text-[7px] font-bold" style={{ color: TEAL }}>ON TRACK</div>
-          </div>
-        </div>
-      </div>
-      <div className="p-4">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Admin · GM dashboard</div>
-        <div className="text-[15px] font-black text-gray-900 tracking-tight">One week. One screen.</div>
-      </div>
-    </div>
-  );
-}
-
-function QrMockupCard() {
-  // Build a deterministic pseudo-QR pattern (7x7) — visual only, not scannable
-  const pattern = [
-    [1,1,1,0,1,1,1],
-    [1,0,1,0,1,0,1],
-    [1,1,1,1,1,1,1],
-    [0,0,1,0,1,0,0],
-    [1,1,1,1,0,1,1],
-    [1,0,1,0,1,0,1],
-    [1,1,1,0,1,1,1],
-  ];
-  return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-300 transition-colors">
-      <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-50 to-white p-6 flex flex-col items-center justify-center">
-        {/* Room card */}
-        <div className="w-full max-w-[180px] bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-          <div className="text-center mb-3">
-            <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Room</div>
-            <div className="text-[20px] font-black text-gray-900 leading-none">204</div>
-          </div>
-          {/* QR pattern */}
-          <div className="grid grid-cols-7 gap-[2px] mb-3 mx-auto w-fit">
-            {pattern.flat().map((cell, i) => (
-              <div
-                key={i}
-                className="w-4 h-4"
-                style={{ backgroundColor: cell ? '#111' : 'transparent' }}
-              />
-            ))}
-          </div>
-          <div className="text-center text-[8px] font-bold uppercase tracking-wider" style={{ color: TEAL }}>
-            Scan for menu · chat · concierge
-          </div>
-        </div>
-      </div>
-      <div className="p-4">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">In-room QR</div>
-        <div className="text-[15px] font-black text-gray-900 tracking-tight">Tap once. Routed.</div>
-      </div>
-    </div>
-  );
-}
+/* (persona mockup cards removed — replaced by FlowExample in the A New Standard section) */
