@@ -427,6 +427,48 @@ function AttendaLandingPage() {
         </div>
       </section>
 
+      {/* SEE IT IN ACTION — Pixel-accurate mockups of the actual product on 3 devices */}
+      <section id="see-it-in-action" className="py-16 md:py-24 px-5 bg-white relative overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+        <div className="max-w-6xl mx-auto relative">
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 border border-gray-200 mb-4">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-gray-700">The actual product · No mockups</span>
+            </div>
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
+              One thread. Every role.
+            </h2>
+            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
+              The guest asks. The staff handles. <br className="hidden md:block" />
+              <span style={{ color: '#0D9488' }}>The GM sees it all.</span>
+            </h3>
+            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
+              Three devices. One conversation. Every request, every shift, every room — on the same thread.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-4 items-end">
+            <div className="order-1"><PhoneMockup /></div>
+            <div className="order-2 md:mt-12"><TabletMockup /></div>
+            <div className="order-3 md:-mt-4"><DesktopMockup /></div>
+          </div>
+          {/* Single CTA after the showcase */}
+          <div className="text-center mt-14">
+            <a
+              href="#schedule"
+              className="inline-flex items-center gap-2 px-8 py-4 text-base font-black text-black rounded-lg transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
+              style={{ backgroundColor: '#15b79e' }}
+            >
+              See it on your property
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </a>
+            <div className="mt-3 text-[12px] text-gray-500">15-min call · No slide deck · Reply in 4 hours</div>
+          </div>
+        </div>
+      </section>
+
       {/* LOGO STRIP — inn-flow social proof pattern */}
       <section className="py-12 px-5 bg-gray-50 border-y border-gray-200">
         <div className="max-w-6xl mx-auto">
@@ -741,6 +783,302 @@ function FlowExample() {
 }
 
 /* ── Header product mockup (CSS-rendered GM dashboard, hero right side) ── */
+
+/* ── Pixel-accurate mockups of the actual product — used in the "See it in action" section ── */
+
+const TEAL_MOCKUP = '#0D9488';
+
+function PhoneMockup() {
+  return (
+    <div className="relative w-full max-w-[280px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.18))' }}>
+      <div className="relative rounded-[40px] border-[10px] border-gray-900 bg-gray-900 overflow-hidden aspect-[9/19] shadow-2xl">
+        <div className="relative h-full w-full rounded-[32px] overflow-hidden bg-[#F4F4F5]">
+          {/* Notch */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80px] h-[20px] bg-gray-900 rounded-b-2xl z-10" />
+          {/* Status bar */}
+          <div className="relative z-0 bg-white px-5 pt-3 pb-1 flex items-center justify-between text-[10px] font-semibold text-gray-900">
+            <span>9:41</span>
+            <div className="flex items-center gap-1">
+              <div className="flex gap-[2px] items-end">
+                <div className="w-[2px] h-[5px] bg-gray-900 rounded-sm" />
+                <div className="w-[2px] h-[7px] bg-gray-900 rounded-sm" />
+                <div className="w-[2px] h-[9px] bg-gray-900 rounded-sm" />
+                <div className="w-[2px] h-[11px] bg-gray-900 rounded-sm" />
+              </div>
+              <div className="w-5 h-2.5 border border-gray-900 rounded-[2px] ml-1 relative">
+                <div className="absolute inset-[1px] bg-gray-900 rounded-[1px]" style={{ width: '85%' }} />
+              </div>
+            </div>
+          </div>
+          {/* Header — /message page header */}
+          <div className="bg-white px-4 py-2.5 flex items-center gap-2.5 border-b border-gray-100">
+            <div className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4B5563" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+              </svg>
+            </div>
+            <div className="flex-1">
+              <div className="text-[12px] font-bold text-black leading-none">Front Desk</div>
+              <div className="text-[9px] text-green-500 font-medium mt-0.5">● Online now</div>
+            </div>
+          </div>
+          {/* Chat area */}
+          <div className="px-3 py-3 space-y-2">
+            <div className="flex justify-start">
+              <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-white border border-gray-100 px-3 py-2 text-[10px] text-gray-800 leading-relaxed shadow-sm">
+                Hello! How can I assist you today? I can help with room service, transport, nearby attractions, and more.
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <div className="max-w-[75%] rounded-2xl rounded-br-md px-3 py-2 text-[10px] text-white leading-relaxed" style={{ backgroundColor: TEAL_MOCKUP }}>
+                Request Towels
+              </div>
+            </div>
+            <div className="flex justify-start">
+              <div className="max-w-[90%] rounded-2xl rounded-bl-md bg-white border border-gray-100 px-3 py-2.5 shadow-sm">
+                <p className="text-[10px] text-gray-800 leading-relaxed mb-2">
+                  I can send a towel request to housekeeping for you. Would you like me to do that?
+                </p>
+                <div className="flex gap-1.5">
+                  <div className="flex-1 py-1.5 rounded-lg text-white text-[9px] font-bold text-center" style={{ backgroundColor: TEAL_MOCKUP }}>
+                    Yes, send request
+                  </div>
+                  <div className="flex-1 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-[9px] font-bold text-center">
+                    No thanks
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <div className="max-w-[75%] rounded-2xl rounded-br-md px-3 py-2 text-[10px] text-white leading-relaxed" style={{ backgroundColor: TEAL_MOCKUP }}>
+                Yes, please send towel service
+              </div>
+            </div>
+            <div className="flex justify-start">
+              <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-white border border-green-200 px-3 py-2 text-[10px] text-gray-800 leading-relaxed shadow-sm">
+                <div className="flex items-center gap-1 mb-1">
+                  <div className="w-3.5 h-3.5 rounded-full bg-green-500 flex items-center justify-center text-white text-[7px] font-bold">✓</div>
+                  <span className="text-[9px] font-bold text-green-700">Request sent</span>
+                </div>
+                Our team will take care of this. Track it in the Live Orders dashboard.
+              </div>
+            </div>
+          </div>
+          {/* Quick replies */}
+          <div className="px-3 pb-2 flex gap-1.5 overflow-hidden">
+            {['WiFi', 'Pool', 'Checkout', 'Wake-Up'].map((label, i) => (
+              <div key={i} className="shrink-0 px-2.5 py-1 rounded-full bg-white border border-gray-200 text-[8px] text-gray-600 font-medium">
+                {label}
+              </div>
+            ))}
+          </div>
+          {/* Input bar */}
+          <div className="bg-white border-t border-gray-100 px-3 py-2.5 flex items-center gap-1.5">
+            <div className="flex-1 bg-gray-50 rounded-full px-3 py-2 text-[10px] text-gray-400 border border-gray-200">
+              Type a message...
+            </div>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: TEAL_MOCKUP }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="text-center mt-4">
+        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">1. Guest submits</div>
+        <div className="text-sm font-black text-gray-900 mt-1">From the room, in 4 taps</div>
+        <div className="text-[10px] text-gray-500 mt-0.5">No app to download</div>
+      </div>
+    </div>
+  );
+}
+
+function TabletMockup() {
+  const requests = [
+    { room: '204', type: 'Towels', icon: '🛏️', time: '2m', status: 'pending', assignee: null, urgent: true },
+    { room: '318', type: 'Pillows', icon: '☕', time: '5m', status: 'in-progress', assignee: 'Maria', urgent: false },
+    { room: '412', type: 'Maintenance · A/C', icon: '🔧', time: '8m', status: 'in-progress', assignee: 'Carlos', urgent: false },
+    { room: '205', type: 'Housekeeping', icon: '🧹', time: '3m', status: 'pending', assignee: null, urgent: false },
+  ];
+  return (
+    <div className="relative w-full max-w-[420px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.15))' }}>
+      <div className="rounded-2xl overflow-hidden bg-white shadow-2xl border-[8px] border-gray-900">
+        {/* Browser chrome */}
+        <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+            <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+            <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+          </div>
+          <div className="flex-1 h-6 bg-white rounded-md border border-gray-200 flex items-center px-2 text-[9px] text-gray-500 font-semibold">
+            attenda.app/staff · Best Western Miami Airport
+          </div>
+        </div>
+        {/* Top bar — staff header with PIN badge */}
+        <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-black" style={{ backgroundColor: TEAL_MOCKUP }}>
+              A
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-gray-900 leading-none">Attenda Staff</div>
+              <div className="text-[8px] text-gray-500 mt-0.5">Maria · Housekeeping</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="px-2 py-1 rounded-md bg-gray-100 text-[8px] font-bold text-gray-700">PIN: 2025</div>
+            <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center text-[8px] font-black text-red-700">2</div>
+          </div>
+        </div>
+        {/* Status tabs */}
+        <div className="bg-white border-b border-gray-200 px-4 flex gap-3">
+          <div className="py-2 text-[10px] font-bold border-b-2" style={{ color: TEAL_MOCKUP, borderColor: TEAL_MOCKUP }}>
+            Active <span className="ml-1 px-1.5 rounded-full text-[8px]" style={{ backgroundColor: TEAL_MOCKUP, color: 'white' }}>3</span>
+          </div>
+          <div className="py-2 text-[10px] font-bold text-gray-400">Completed</div>
+          <div className="py-2 text-[10px] font-bold text-gray-400">Messages <span className="ml-1 px-1.5 rounded-full bg-gray-200 text-gray-600 text-[8px]">1</span></div>
+        </div>
+        {/* Request cards */}
+        <div className="bg-gray-50 p-3 space-y-2">
+          {requests.map((req, i) => (
+            <div key={i} className={`bg-white rounded-lg border ${req.urgent ? 'border-l-4' : 'border-gray-200'} p-2.5 shadow-sm`}
+                 style={req.urgent ? { borderLeftColor: TEAL_MOCKUP } : {}}>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <div className="text-base">{req.icon}</div>
+                  <div>
+                    <div className="text-[10px] font-bold text-gray-900">Room {req.room} · {req.type}</div>
+                    <div className="text-[8px] text-gray-500">Submitted {req.time} ago</div>
+                  </div>
+                </div>
+                <div className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
+                  req.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {req.status === 'pending' ? 'Pending' : 'In progress'}
+                </div>
+              </div>
+              <div className="flex items-center justify-between mt-2">
+                <div className="text-[8px] text-gray-600">
+                  {req.assignee ? `Assigned: ${req.assignee}` : 'Unassigned'}
+                </div>
+                <div className="flex gap-1">
+                  {req.status === 'pending' ? (
+                    <>
+                      <div className="px-2 py-1 rounded text-[8px] font-bold text-gray-600 bg-gray-100">Assign</div>
+                      <div className="px-2 py-1 rounded text-[8px] font-bold text-white" style={{ backgroundColor: TEAL_MOCKUP }}>Accept</div>
+                    </>
+                  ) : (
+                    <div className="px-2 py-1 rounded text-[8px] font-bold text-white bg-green-600">Mark done ✓</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="text-center mt-4">
+        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">2. Staff executes</div>
+        <div className="text-sm font-black text-gray-900 mt-1">PIN-in, accept, done</div>
+        <div className="text-[10px] text-gray-500 mt-0.5">Average resolution: 7m 14s</div>
+      </div>
+    </div>
+  );
+}
+
+function DesktopMockup() {
+  const navItems = [
+    { label: 'Dashboard', active: false, icon: '📊' },
+    { label: 'Orders', active: true, icon: '📋', count: 3 },
+    { label: 'Staff', active: false, icon: '👥' },
+    { label: 'Vendors', active: false, icon: '🚚' },
+    { label: 'Knowledge', active: false, icon: '📚' },
+  ];
+  const compactRequests = [
+    { room: '204', type: 'Towels', time: '2m', status: 'pending' },
+    { room: '318', type: 'Pillows', time: '5m', status: 'progress' },
+    { room: '412', type: 'A/C fix', time: '8m', status: 'progress' },
+  ];
+  return (
+    <div className="relative w-full max-w-[480px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.18))' }}>
+      <div className="rounded-2xl overflow-hidden bg-white shadow-2xl border-[8px] border-gray-900">
+        {/* Browser chrome */}
+        <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+            <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+            <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+          </div>
+          <div className="flex-1 h-6 bg-white rounded-md border border-gray-200 flex items-center px-2 text-[9px] text-gray-500 font-semibold">
+            gm.attenda.app · Best Western Miami Airport
+          </div>
+        </div>
+        {/* Two-col layout */}
+        <div className="flex">
+          {/* Sidebar */}
+          <div className="w-[100px] bg-gray-50 border-r border-gray-200 p-2.5 shrink-0">
+            <div className="text-[9px] font-black text-gray-900 mb-2 tracking-wide">ATTENDA GM</div>
+            <div className="space-y-1">
+              {navItems.map((item, i) => (
+                <div key={i} className={`px-2 py-1.5 rounded text-[9px] font-bold flex items-center justify-between ${
+                  item.active ? 'text-white' : 'text-gray-700'
+                }`} style={item.active ? { backgroundColor: TEAL_MOCKUP } : {}}>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px]">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </div>
+                  {item.count && <span className="text-[8px] bg-white/30 px-1 rounded">{item.count}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Main */}
+          <div className="flex-1 p-3 bg-white">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="text-[12px] font-black text-gray-900">Live Orders</div>
+              <div className="text-[8px] text-gray-500">Updated 2s ago</div>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5 mb-2.5">
+              <div className="bg-gray-50 rounded p-1.5">
+                <div className="text-[7px] text-gray-500 uppercase font-bold">Open</div>
+                <div className="text-[12px] font-black text-gray-900">3</div>
+              </div>
+              <div className="bg-gray-50 rounded p-1.5">
+                <div className="text-[7px] text-gray-500 uppercase font-bold">In progress</div>
+                <div className="text-[12px] font-black text-gray-900">5</div>
+              </div>
+              <div className="bg-gray-50 rounded p-1.5">
+                <div className="text-[7px] text-gray-500 uppercase font-bold">Avg time</div>
+                <div className="text-[12px] font-black text-gray-900">7m</div>
+              </div>
+            </div>
+            <div className="space-y-1">
+              {compactRequests.map((req, i) => (
+                <div key={i} className="flex items-center justify-between py-1 px-1.5 border-b border-gray-100 last:border-0">
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-[9px] font-bold text-gray-900">#{req.room}</div>
+                    <div className="text-[9px] text-gray-700">{req.type}</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="text-[8px] text-gray-500">{req.time}</div>
+                    <div className={`w-1.5 h-1.5 rounded-full ${
+                      req.status === 'pending' ? 'bg-amber-500' : 'bg-blue-500'
+                    }`} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="text-center mt-4">
+        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">3. GM oversees</div>
+        <div className="text-sm font-black text-gray-900 mt-1">One screen, total visibility</div>
+        <div className="text-[10px] text-gray-500 mt-0.5">Every room, every shift, in real time</div>
+      </div>
+    </div>
+  );
+}
 
 function HeaderMockup() {
   // Real-looking week-at-a-glance GM dashboard, rendered in pure CSS
