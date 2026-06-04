@@ -7,12 +7,13 @@ import { supabase, getHotelConfig } from '@/lib/supabase';
 import { goBackToHotel } from '@/lib/guest-context';
 
 type Message = {
-  from: 'guest' | 'bot';
+  from: 'guest' | 'bot' | 'staff';
   text: string;
   isConfirm?: boolean;
   confirmType?: string;
   confirmDetails?: string;
   ts?: number;
+  id?: string;
 };
 
 export default function MessagePage() {
@@ -26,27 +27,73 @@ export default function MessagePage() {
   const [guestRoom, setGuestRoom] = useState('?');
   const [brandColor, setBrandColor] = useState('#6B1D3C');
   const [isFocused, setIsFocused] = useState(false);
+  const [hotelId, setHotelId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-
+  // Load hotel config + guest session on mount
   useEffect(() => {
-    getHotelConfig().then((config) => {
+    (async () => {
+      const config = await getHotelConfig();
       if (config?.brandColor) setBrandColor(config.brandColor);
-    }).catch(() => {});
-  }, []);
+      if (config?.id) setHotelId(config.id);
 
-  useEffect(() => {
-    const stored = localStorage.getItem('guestSession');
-    if (stored) {
-      try {
-        const s = JSON.parse(stored);
-        setGuestName(s.name || 'Guest');
-        setGuestRoom(s.room || localStorage.getItem('attenda_qr_room') || '?');
-      } catch {
-        localStorage.removeItem('guestSession');
+      const stored = localStorage.getItem('guestSession');
+      if (stored) {
+        try {
+          const s = JSON.parse(stored);
+          setGuestName(s.name || 'Guest');
+          setGuestRoom(s.room || localStorage.getItem('attenda_qr_room') || '?');
+        } catch {
+          localStorage.removeItem('guestSession');
+        }
       }
-    }
+    })();
   }, []);
 
+  // Load staff replies from DB
+  useEffect(() => {
+    if (!hotelId) return;
+    const loadReplies = async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('hotel_id', hotelId)
+        .eq('guest_name', guestName)
+        .eq('room', guestRoom)
+        .eq('sender', 'staff')
+        .order('created_at', { ascending: true });
+      if (data && data.length > 0) {
+        setMessages(prev => {
+          const existingIds = new Set(prev.filter(m => m.id).map(m => m.id));
+          const newMsgs = data
+            .filter((m: { id: string }) => !existingIds.has(m.id))
+            .map((m: { id: string; body: string }) => ({ from: 'staff' as const, text: m.body, id: m.id }));
+          if (newMsgs.length === 0) return prev;
+          return [...prev, ...newMsgs];
+        });
+      }
+    };
+    loadReplies();
+
+    // Subscribe to new staff replies
+    const ch = supabase
+      .channel('guest-messages-live')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `hotel_id=eq.${hotelId}` },
+        (payload: { new: { id: string; sender: string; guest_name: string; room: string; body: string } }) => {
+          const msg = payload.new;
+          if (msg.sender === 'staff' && msg.guest_name === guestName && msg.room === guestRoom) {
+            setMessages(prev => {
+              if (prev.some(m => m.id === msg.id)) return prev;
+              return [...prev, { from: 'staff', text: msg.body, id: msg.id }];
+            });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [hotelId, guestName, guestRoom, supabase]);
+
+  // Auto-scroll on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -234,9 +281,14 @@ export default function MessagePage() {
                   <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed ${
                     m.from === 'guest'
                       ? 'text-white rounded-br-md'
+                      : m.from === 'staff'
+                      ? 'bg-blue-50 text-gray-800 border border-blue-200 rounded-bl-md'
                       : 'bg-white text-gray-800 border border-gray-100 rounded-bl-md'
                   }`}
                   style={m.from === 'guest' ? { backgroundColor: brandColor } : {}}>
+                    {m.from === 'staff' && (
+                      <p className="text-[9px] font-bold text-blue-600 uppercase mb-0.5">Front Desk</p>
+                    )}
                     {m.text}
                   </div>
                 )}

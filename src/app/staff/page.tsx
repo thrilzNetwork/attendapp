@@ -133,7 +133,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[] }[] = [
   { tab: 'staff_mgmt',      label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'] },
   { tab: 'partners',        label: 'Partners & Menu',    icon: Store,           roles: ['admin', 'superadmin'] },
   { tab: 'qrcodes',         label: 'QR Codes',           icon: QrCodeIcon,       roles: ['admin', 'superadmin'] },
-  { tab: 'knowledge',       label: 'Knowledge Base',     icon: BookOpen,        roles: ['admin', 'superadmin'] },
+  { tab: 'knowledge',       label: 'Knowledge Base',     icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'] },
   { tab: 'rooms',            label: 'Room Management',    icon: DoorOpen,        roles: ['admin', 'superadmin'] },
   { tab: 'properties',      label: 'All Properties',     icon: Building2,      roles: ['superadmin'] },
 ];
@@ -652,7 +652,7 @@ export default function Dashboard() {
             onRefresh={() => reload(s.role)}
           />
         )}
-        {effectiveTab === 'messages' && <MessagesView messages={messages} />}
+        {effectiveTab === 'messages' && config?.id && <MessagesView messages={messages} hotelId={config.id} />}
         {effectiveTab === 'shuttle' && config?.id && (
           <ShuttleView hotelId={config.id} isAdmin={isAdmin} />
         )}
@@ -677,7 +677,7 @@ export default function Dashboard() {
         {effectiveTab === 'qrcodes' && isAdmin && config?.id && config?.slug && (
           <QrCodesView hotelId={config.id} hotelSlug={config.slug} />
         )}
-        {effectiveTab === 'knowledge' && isAdmin && config?.id && (
+        {effectiveTab === 'knowledge' && config?.id && (
           <IncidentKBView hotelId={config.id} isAdmin={isAdmin} userName={s.name} />
         )}
         {effectiveTab === 'rooms' && isAdmin && config?.id && config?.slug && (
@@ -1115,10 +1115,46 @@ function OrdersView({
 }
 
 /* ── Messages View (WhatsApp-Style Split) ──────────────── */
-function MessagesView({ messages }: { messages: Message[] }) {
+function MessagesView({ messages, hotelId }: { messages: Message[]; hotelId?: string }) {
   const [selectedGuest, setSelectedGuest] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [staffChannel, setStaffChannel] = useState<Message[]>([]);
+  const [staffMsg, setStaffMsg] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [internalTab, setInternalTab] = useState<'guest' | 'staff'>('guest');
+
+  // Load staff messages
+  useEffect(() => {
+    if (!hotelId) return;
+    supabase.from('messages')
+      .select('*')
+      .eq('hotel_id', hotelId)
+      .eq('sender', 'staff')
+      .eq('room', '__staff__')
+      .order('created_at', { ascending: true })
+      .then(({ data }) => setStaffChannel(data || []));
+  }, [hotelId]);
+
+  // Subscribe to new staff messages
+  useEffect(() => {
+    if (!hotelId) return;
+    const ch = supabase
+      .channel('staff-messages-live')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `hotel_id=eq.${hotelId}` },
+        () => {
+          supabase.from('messages')
+            .select('*')
+            .eq('hotel_id', hotelId)
+            .eq('sender', 'staff')
+            .eq('room', '__staff__')
+            .order('created_at', { ascending: true })
+            .then(({ data }) => setStaffChannel(data || []));
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [hotelId]);
 
   // Build conversation groups (by guest_name), sorted by most recent
   const byGuest = new Map<string, Message[]>();
@@ -1129,13 +1165,16 @@ function MessagesView({ messages }: { messages: Message[] }) {
   });
   const groups: { guest_name: string; room: string; messages: Message[]; lastMsg: Message; unread: number }[] = [];
   byGuest.forEach((msgs, name) => {
-    msgs.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    // Filter out internal staff messages from guest view
+    const real = msgs.filter(m => m.room !== '__staff__');
+    if (real.length === 0) return;
+    real.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     groups.push({
       guest_name: name,
-      room: msgs[msgs.length - 1].room,
-      messages: msgs,
-      lastMsg: msgs[msgs.length - 1],
-      unread: msgs.length,
+      room: real[real.length - 1].room,
+      messages: real,
+      lastMsg: real[real.length - 1],
+      unread: real.length,
     });
   });
   groups.sort((a, b) => new Date(b.lastMsg.created_at).getTime() - new Date(a.lastMsg.created_at).getTime());
@@ -1152,14 +1191,27 @@ function MessagesView({ messages }: { messages: Message[] }) {
   const filteredGroups = showArchived ? archivedGroups : activeGroups;
 
   const handleSend = async () => {
-    if (!replyText.trim() || !selected) return;
+    if (!replyText.trim() || !selected || !hotelId) return;
     await supabase.from('messages').insert({
+      hotel_id: hotelId,
       guest_name: selected.guest_name,
       room: selected.room,
       sender: 'staff',
       body: replyText.trim(),
     });
     setReplyText('');
+  };
+
+  const sendStaffMessage = async () => {
+    if (!staffMsg.trim() || !hotelId) return;
+    await supabase.from('messages').insert({
+      hotel_id: hotelId,
+      guest_name: 'Staff Channel',
+      room: '__staff__',
+      sender: 'staff',
+      body: staffMsg.trim(),
+    });
+    setStaffMsg('');
   };
 
   useEffect(() => {
@@ -1293,20 +1345,81 @@ function MessagesView({ messages }: { messages: Message[] }) {
     </div>
   );
 
-  /* ── Layout: Desktop = split, Mobile = full screen ─── */
-  return (
-    <div className="h-full flex">
-      {/* Left panel — hidden on mobile when a conversation is open */}
-      <div className="hidden lg:flex lg:flex-col w-80 border-r border-gray-200 shrink-0">
-        {contactList}
-      </div>
-      <div className={`lg:hidden w-full ${selectedGuest ? 'hidden' : 'block'}`}>
-        {contactList}
-      </div>
+  /* ── Tab switcher ────────────────────────────────────── */
+  const tabBar = (
+    <div className="flex gap-0.5 p-2 bg-gray-100 rounded-xl mb-3 mx-4 mt-3">
+      <button onClick={() => setInternalTab('guest')}
+        className={`flex-1 py-2 rounded-lg text-[12px] font-bold transition-colors ${internalTab === 'guest' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+        Guest Chats ({activeGroups.length + archivedGroups.length})
+      </button>
+      <button onClick={() => setInternalTab('staff')}
+        className={`flex-1 py-2 rounded-lg text-[12px] font-bold transition-colors ${internalTab === 'staff' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+        Staff Channel ({staffChannel.length})
+      </button>
+    </div>
+  );
 
-      {/* Right panel — chat */}
-      <div className={`flex-1 min-w-0 ${selectedGuest ? 'block' : 'hidden lg:block'}`}>
-        {chatContent}
+  /* ── Staff Channel View ─────────────────────────────── */
+  const staffChannelView = (
+    <div className="h-full flex flex-col">
+      <div className="shrink-0 px-4 py-3 border-b border-gray-200 bg-white">
+        <h2 className="text-[15px] font-extrabold text-gray-900">Staff Channel</h2>
+        <p className="text-[11px] text-gray-400 mt-0.5">Internal team messages — all staff see this</p>
+      </div>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#FAFAFA]">
+        {staffChannel.length === 0 ? (
+          <div className="py-12 text-center">
+            <MessageSquare size={28} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-[12px] text-gray-500">No staff messages yet.</p>
+          </div>
+        ) : (
+          staffChannel.map(msg => (
+            <div key={msg.id} className={`flex flex-col ${msg.sender === 'staff' ? 'items-start' : 'items-end'}`}>
+              <div className="max-w-[75%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm bg-white text-gray-800 rounded-bl-md">
+                <p className="text-[10px] font-bold text-gray-500 mb-0.5">{msg.guest_name}</p>
+                {msg.body}
+              </div>
+              <span className="text-[9px] text-gray-400 mt-0.5 px-1">
+                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="shrink-0 bg-gray-50 border-t border-gray-200 px-4 py-3">
+        <div className="flex gap-2">
+          <input value={staffMsg} onChange={e => setStaffMsg(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendStaffMessage(); } }}
+            placeholder="Message the team..."
+            className="flex-1 bg-white rounded-full px-4 py-2.5 text-[13px] outline-none border border-gray-200 placeholder-gray-400" />
+          <button onClick={sendStaffMessage} disabled={!staffMsg.trim()}
+            className="px-5 py-2.5 rounded-full text-white font-semibold text-[13px] disabled:opacity-40" style={{ backgroundColor: TEAL }}>
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ── Layout: Desktop = split, Mobile = full screen ─── */
+  return internalTab === 'staff' ? (
+    <div className="h-full">{staffChannelView}</div>
+  ) : (
+    <div className="h-full flex flex-col">
+      {tabBar}
+      <div className="flex-1 flex">
+        {/* Left panel — hidden on mobile when a conversation is open */}
+        <div className="hidden lg:flex lg:flex-col w-80 border-r border-gray-200 shrink-0">
+          {contactList}
+        </div>
+        <div className={`lg:hidden w-full ${selectedGuest ? 'hidden' : 'block'}`}>
+          {contactList}
+        </div>
+
+        {/* Right panel — chat */}
+        <div className={`flex-1 min-w-0 ${selectedGuest ? 'block' : 'hidden lg:block'}`}>
+          {chatContent}
+        </div>
       </div>
     </div>
   );
