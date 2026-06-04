@@ -10,7 +10,7 @@ import {
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
-  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search,
+  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship,
 } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
@@ -31,7 +31,7 @@ import {
   upsertGuestValidation, getGuestValidations,
   getChecklists, createChecklist, deleteChecklist, Checklist,
   getChecklistInstances, createChecklistInstance, updateChecklistInstance, ChecklistInstance,
-  getStaffSchedules, createStaffSchedule, deleteStaffSchedule, StaffSchedule,
+  getStaffSchedules, getStaffSchedulesRange, createStaffSchedule, deleteStaffSchedule, StaffSchedule,
   getDailyRecap,
   getHotelOpsTools, getAllOpsTools,
   getLearningDocs, getHrDocs,
@@ -53,7 +53,7 @@ import {
   listLearningContent, createLearningContent, deleteLearningContent,
   listHrDocuments, createHrDocument, deleteHrDocument,
   listScheduleChangeRequests, createScheduleChangeRequest,
-  listShuttleSlots, listKbSuggestions, createKbSuggestion, deleteKbSuggestion,
+  listShuttleSlots, listKbSuggestions, createKbSuggestion, deleteKbSuggestion, listKbSuggestionsByStatus, createKbSuggestionPending, approveKbSuggestion, rejectKbSuggestion,
   suggestResponse,
   generateShiftsFromForecast, today,
   type KpiDefinition, type KpiSubmission,
@@ -5380,18 +5380,24 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName }: { hotelId: 
     checklistsCompleted: number; checklistsTotal: number;
   } | null>(null);
   const [todayShuttleSlots, setTodayShuttleSlots] = useState<ShuttleSlot[]>([]);
+  const [monthShuttleSlots, setMonthShuttleSlots] = useState<OpsShuttleSlot[]>([]);
   const [todayShuttleRoutes, setTodayShuttleRoutes] = useState<ShuttleRoute[]>([]);
+  const [weekShifts, setWeekShifts] = useState<StaffSchedule[]>([]);
 
   useEffect(() => {
     (async () => {
-      const [r, slots, routes] = await Promise.all([
+      const [r, slots, routes, monthSlots, schedules] = await Promise.all([
         getDailyRecap(hotelId),
         getAllShuttleSlotsForHotel(hotelId),
         getShuttleRoutes(hotelId),
+        listShuttleSlots(hotelId),
+        getStaffSchedulesRange(hotelId, today(), addDays(today(), 7)),
       ]);
       setRecap(r);
       setTodayShuttleSlots(slots);
       setTodayShuttleRoutes(routes);
+      setMonthShuttleSlots(monthSlots || []);
+      setWeekShifts(schedules || []);
     })();
   }, [hotelId]);
 
@@ -5400,6 +5406,22 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName }: { hotelId: 
   const daySlots = todayShuttleSlots.filter(s =>
     (s.date === todayStr) || (s.days_of_week?.includes(todayDay) && !s.date)
   );
+
+  // Build per-day counts of shuttle slots and shifts for the next 14 days
+  const addDays = (d: string, n: number) => {
+    const dt = new Date(d);
+    dt.setDate(dt.getDate() + n);
+    return dt.toISOString().split('T')[0];
+  };
+  const next14 = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const ds = d.toISOString().split('T')[0];
+    const dow = d.getDay(); // 0=Sun..6=Sat
+    const slotsCount = monthShuttleSlots.filter(s => s.day_of_week === dow).length;
+    const shiftsCount = weekShifts.filter(s => s.shift_date === ds).length;
+    return { date: ds, day: d.toLocaleDateString('en-US', { weekday: 'short' }), dayNum: d.getDate(), slotsCount, shiftsCount, isToday: i === 0 };
+  });
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
@@ -5469,7 +5491,7 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName }: { hotelId: 
 
       {/* Today's Shuttle */}
       {daySlots.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-5 shadow-sm">
           <h3 className="text-[13px] font-bold text-gray-900 mb-3">Today&apos;s Shuttle Schedule</h3>
           <div className="space-y-2">
             {(() => {
@@ -5496,6 +5518,96 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName }: { hotelId: 
           </div>
         </div>
       )}
+
+      {/* Next 14 days — shuttle + schedule snapshot */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-5 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <CalendarDays size={16} style={{ color: TEAL }} />
+          <h3 className="text-[13px] font-bold text-gray-900">Next 14 Days</h3>
+          <span className="text-[10px] text-gray-400">shuttle slots · shifts scheduled</span>
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {next14.map(d => (
+            <div key={d.date} className={`text-center p-2 rounded-xl border ${d.isToday ? 'border-gray-900 bg-gray-50' : 'border-gray-100'}`}>
+              <p className={`text-[9px] font-bold uppercase ${d.isToday ? 'text-gray-900' : 'text-gray-400'}`}>{d.day}</p>
+              <p className={`text-[14px] font-extrabold ${d.isToday ? 'text-gray-900' : 'text-gray-700'}`}>{d.dayNum}</p>
+              <div className="flex items-center justify-center gap-0.5 mt-1">
+                {d.slotsCount > 0 && <span className="text-[8px] px-1 py-0.5 rounded font-bold" style={{ backgroundColor: `${TEAL}20`, color: TEAL }}>{d.slotsCount}🚌</span>}
+                {d.shiftsCount > 0 && <span className="text-[8px] px-1 py-0.5 rounded font-bold bg-gray-100 text-gray-600">{d.shiftsCount}👤</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-3 mt-3 text-[10px] text-gray-500">
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded font-bold flex items-center justify-center text-[8px]" style={{ backgroundColor: `${TEAL}20`, color: TEAL }}>🚌</span><span>shuttle slots</span></span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-100"></span><span>shifts</span></span>
+        </div>
+      </div>
+
+      {/* Cruise Lines + Hotel Schedule grid placeholder */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <Ship size={16} style={{ color: TEAL }} />
+          <h3 className="text-[13px] font-bold text-gray-900">Cruise Line Calendar</h3>
+        </div>
+        <p className="text-[11px] text-gray-500 mb-3">Cruise ships docking nearby this month — your busiest days for shuttle and late check-in.</p>
+        <CruiseCalendar hotelId={hotelId} />
+      </div>
+    </div>
+  );
+}
+
+/* Cruise Calendar — reads from cruise_schedules table; falls back to a quiet empty state */
+function CruiseCalendar({ hotelId }: { hotelId: string }) {
+  const [schedules, setSchedules] = useState<CruiseSchedule[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getCruiseSchedulesAll(hotelId);
+        // Filter to next 30 days
+        const cutoff = new Date(); cutoff.setDate(cutoff.getDate() + 30);
+        setSchedules((data || []).filter(s => {
+          const dStr = s.departure_date;
+          if (!dStr) return false;
+          const d = new Date(dStr);
+          return d >= new Date() && d <= cutoff;
+        }));
+      } catch {
+        setSchedules([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [hotelId]);
+
+  if (loading) return <p className="text-[12px] text-gray-400">Loading cruise schedule…</p>;
+  if (schedules.length === 0) {
+    return (
+      <div className="bg-gray-50 rounded-xl p-4 text-center">
+        <p className="text-[12px] text-gray-500">No cruise ships docking in the next 30 days.</p>
+        <p className="text-[11px] text-gray-400 mt-1">Add cruise schedules in Property Settings to see them here.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1.5">
+      {schedules.slice(0, 8).map((s, i) => {
+        const d = new Date(s.departure_date);
+        return (
+          <div key={s.id || i} className="flex items-center gap-3 bg-gray-50 rounded-lg p-2.5">
+            <div className="text-center w-10">
+              <p className="text-[9px] font-bold text-gray-400 uppercase">{d.toLocaleDateString('en-US', { month: 'short' })}</p>
+              <p className="text-[16px] font-extrabold text-gray-900">{d.getDate()}</p>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-bold text-gray-900 truncate">{s.ship_name || 'Cruise ship'}</p>
+              <p className="text-[11px] text-gray-500">{s.cruise_line || ''}{s.terminal ? ` · ${s.terminal}` : ''}{s.departure_time ? ` · ${s.departure_time}` : ''}</p>
+            </div>
+            <div className="text-[10px] font-bold text-gray-400 uppercase">{s.notes ? s.notes.slice(0, 12) : ''}</div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -6715,22 +6827,34 @@ function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: b
 // INCIDENT / KNOWLEDGE BASE VIEW (paste incident → AI suggestion → save)
 // ============================================================
 function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdmin: boolean; userName: string }) {
-  const [entries, setEntries] = useState<OpRecord[]>([]);
+  const [approved, setApproved] = useState<OpRecord[]>([]);
+  const [pending, setPending] = useState<OpRecord[]>([]);
+  const [rejected, setRejected] = useState<OpRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [incident, setIncident] = useState('');
   const [category, setCategory] = useState<string>('Complaint');
   const [suggestion, setSuggestion] = useState('');
   const [saving, setSaving] = useState(false);
-  const [filter, setFilter] = useState<string>('all');
+  const [filter, setFilter] = useState<'approved' | 'pending' | 'rejected' | 'all'>('approved');
+  const [ask, setAsk] = useState('');
+  const [askResult, setAskResult] = useState<{ id: string; title: string; category: string; situation: string; response: string; score: number } | null>(null);
+  const [askNotFound, setAskNotFound] = useState(false);
+  const [askCopied, setAskCopied] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const e = await listKbSuggestions(hotelId);
-      setEntries(e || []);
-      setLoading(false);
-    })();
-  }, [hotelId]);
+  const load = async () => {
+    setLoading(true);
+    const [a, p, r] = await Promise.all([
+      listKbSuggestionsByStatus(hotelId, 'active'),
+      listKbSuggestionsByStatus(hotelId, 'pending'),
+      listKbSuggestionsByStatus(hotelId, 'rejected'),
+    ]);
+    setApproved(a || []);
+    setPending(p || []);
+    setRejected(r || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [hotelId]);
 
   const generateSuggestion = () => {
     if (!incident) return;
@@ -6742,15 +6866,15 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
     if (!incident || !suggestion) return;
     setSaving(true);
     try {
-      await createKbSuggestion(hotelId, {
+      // New flow: staff submissions start in 'pending' for admin review
+      await createKbSuggestionPending(hotelId, {
         title: category + ' response',
         category,
         situation: incident,
         response: suggestion,
         added_by: userName,
       });
-      const e = await listKbSuggestions(hotelId);
-      setEntries(e || []);
+      await load();
       setIncident('');
       setSuggestion('');
     } finally {
@@ -6758,10 +6882,49 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
     }
   };
 
+  const approve = async (id: string) => {
+    await approveKbSuggestion(id);
+    await load();
+  };
+
+  const reject = async (id: string) => {
+    if (!confirm('Reject this entry? It will be moved to Rejected and not appear in search.')) return;
+    await rejectKbSuggestion(id);
+    await load();
+  };
+
   const del = async (id: string) => {
     if (!confirm('Delete this KB entry?')) return;
     await deleteKbSuggestion(id);
-    setEntries(entries.filter(e => e.id !== id));
+    await load();
+  };
+
+  const askKb = () => {
+    if (!ask.trim()) { setAskResult(null); setAskNotFound(false); return; }
+    const q = ask.toLowerCase().trim();
+    // Score each approved entry by keyword overlap on situation + response + category
+    const scored = approved.map(e => {
+      const d = e.details as any;
+      const haystack = [d.situation || '', d.response || '', d.category || '', d.title || ''].join(' ').toLowerCase();
+      const qWords = q.split(/\s+/).filter(w => w.length > 1);
+      let score = 0;
+      for (const w of qWords) {
+        if (haystack.includes(w)) score += 2;
+        // Whole phrase bonus
+        if (haystack.includes(q)) score += 3;
+      }
+      // Exact phrase match big bonus
+      if (haystack.includes(q)) score += 5;
+      return { id: e.id, title: d.title, category: d.category, situation: d.situation, response: d.response, score };
+    }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+    if (scored.length === 0) {
+      setAskResult(null);
+      setAskNotFound(true);
+    } else {
+      setAskResult(scored[0]);
+      setAskNotFound(false);
+      setAskCopied(false);
+    }
   };
 
   if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
@@ -6773,27 +6936,80 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
     { key: 'Safety', label: 'Incident', icon: '🚨' },
   ];
 
-  const filtered = filter === 'all' ? entries : entries.filter(e => (e.details as any).category === filter);
+  const visible = filter === 'all'
+    ? [...pending, ...approved, ...rejected]
+    : filter === 'pending' ? pending
+    : filter === 'rejected' ? rejected
+    : approved;
 
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto">
       <div className="mb-4">
         <h1 className="text-[20px] font-extrabold text-gray-900">Knowledge Base</h1>
-        <p className="text-[12px] text-gray-500">Paste an incident, get a suggested response, save for the team</p>
+        <p className="text-[12px] text-gray-500">Ask the KB · log incidents · admin approves · team searches</p>
       </div>
 
-      {/* Input card */}
+      {/* Ask the KB — chatbot-style search bar */}
       <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm mb-4">
+        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5">
+          <Search size={11} /> Ask the KB
+        </label>
+        <div className="flex gap-2 mt-1.5">
+          <input
+            type="text"
+            value={ask}
+            onChange={e => { setAsk(e.target.value); if (!e.target.value) { setAskResult(null); setAskNotFound(false); } }}
+            onKeyDown={e => { if (e.key === 'Enter') askKb(); }}
+            placeholder="e.g. guest complaint about noise, late checkout fee..."
+            className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100"
+          />
+          <button onClick={askKb} disabled={!ask.trim()} className="px-4 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+            Ask
+          </button>
+        </div>
+
+        {askResult && (
+          <div className="mt-3 bg-gray-50 rounded-xl p-3 border border-gray-200">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700 font-semibold capitalize">{askResult.category}</span>
+              <span className="text-[10px] text-gray-500">{askResult.title}</span>
+            </div>
+            <p className="text-[10px] font-bold text-gray-500 uppercase mt-2 mb-0.5">Situation</p>
+            <p className="text-[12px] text-gray-700">{askResult.situation}</p>
+            <p className="text-[10px] font-bold text-gray-500 uppercase mt-2 mb-0.5">Suggested response</p>
+            <p className="text-[12px] text-gray-700 whitespace-pre-wrap">{askResult.response}</p>
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => { navigator.clipboard.writeText(askResult.response); setAskCopied(true); setTimeout(() => setAskCopied(false), 1500); }} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
+                <Copy size={11} /> {askCopied ? 'Copied' : 'Copy response'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {askNotFound && ask.trim() && (
+          <div className="mt-3 bg-gray-50 rounded-xl p-3 text-[12px] text-gray-600">
+            No approved KB entry matches "{ask}". {isAdmin ? 'Review the Pending tab below — entries awaiting your approval.' : 'Paste the situation in the form below to log a new incident for admin review.'}
+          </div>
+        )}
+      </div>
+
+      {/* Submit a new incident */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Plus size={14} className="text-gray-700" />
+          <p className="text-[14px] font-bold text-gray-900">Log a new incident</p>
+        </div>
+        <p className="text-[11px] text-gray-500 mb-3">Staff submissions are saved as <span className="font-semibold">Pending</span>. Admins review and approve to add to the searchable KB.</p>
         <label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
         <div className="grid grid-cols-4 gap-1 mt-1 mb-3">
           {categories.map(c => (
-            <button key={c.key} onClick={() => setCategory(c.key)} className={`py-2 rounded-xl text-[11px] font-bold border ${category === c.key ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-600'}`}>
+            <button key={c.key} onClick={() => setCategory(c.key)} className={`py-2 rounded-xl text-[11px] font-bold border ${category === c.key ? 'text-white border-transparent' : 'bg-white border-gray-200 text-gray-600'}`} style={category === c.key ? { backgroundColor: TEAL } : {}}>
               <span className="mr-1">{c.icon}</span>{c.label}
             </button>
           ))}
         </div>
-        <label className="text-[10px] font-bold text-gray-500 uppercase">What happened? (paste guest feedback / incident)</label>
-        <textarea value={incident} onChange={e => setIncident(e.target.value)} rows={4} placeholder="e.g. Guest in 312 complained about noise from the room above at 1am..." className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
+        <label className="text-[10px] font-bold text-gray-500 uppercase">What happened?</label>
+        <textarea value={incident} onChange={e => setIncident(e.target.value)} rows={3} placeholder="e.g. Guest in 312 complained about noise from the room above at 1am..." className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
         <button onClick={generateSuggestion} disabled={!incident} className="mt-3 w-full py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
           ✨ Suggest Response
         </button>
@@ -6802,7 +7018,7 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
             <label className="text-[10px] font-bold text-gray-500 uppercase mt-3 block">Suggested response (edit if needed)</label>
             <textarea value={suggestion} onChange={e => setSuggestion(e.target.value)} rows={5} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
             <div className="flex gap-2 mt-3">
-              <button onClick={save} disabled={saving} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{saving ? 'Saving…' : 'Save to KB'}</button>
+              <button onClick={save} disabled={saving} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{saving ? 'Submitting…' : 'Submit for Review'}</button>
               <button onClick={() => { setIncident(''); setSuggestion(''); }} className="px-4 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Clear</button>
             </div>
           </>
@@ -6810,52 +7026,74 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
       </div>
 
       {/* Filter tabs */}
-      {entries.length > 0 && (
-        <div className="flex gap-1 mb-3 overflow-x-auto">
-          <button onClick={() => setFilter('all')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap ${filter === 'all' ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600'}`}>All ({entries.length})</button>
-          {categories.map(c => {
-            const count = entries.filter(e => (e.details as any).category === c.key).length;
-            if (count === 0) return null;
-            return (
-              <button key={c.key} onClick={() => setFilter(c.key)} className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap ${filter === c.key ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600'}`}>
-                {c.icon} {c.label} ({count})
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <div className="flex gap-1 mb-3 overflow-x-auto">
+        {([
+          { key: 'approved', label: `✓ Approved (${approved.length})` },
+          ...(isAdmin ? [{ key: 'pending', label: `⏳ Pending (${pending.length})` }] : []),
+          ...(isAdmin ? [{ key: 'rejected', label: `✗ Rejected (${rejected.length})` }] : []),
+          ...(isAdmin ? [{ key: 'all', label: `All (${approved.length + pending.length + rejected.length})` }] : []),
+        ] as { key: 'approved' | 'pending' | 'rejected' | 'all'; label: string }[]).map(t => (
+          <button key={t.key} onClick={() => setFilter(t.key)} className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap ${filter === t.key ? 'text-white' : 'bg-white border border-gray-200 text-gray-600'}`} style={filter === t.key ? { backgroundColor: TEAL } : {}}>{t.label}</button>
+        ))}
+      </div>
 
       {/* KB entries */}
-      {filtered.length === 0 ? (
+      {visible.length === 0 ? (
         <div className="bg-gray-50 rounded-2xl p-8 text-center">
           <BookOpen size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-[14px] text-gray-500 font-medium">No KB entries yet</p>
-          <p className="text-[12px] text-gray-400 mt-1">Save an incident above to build your KB</p>
+          <p className="text-[14px] text-gray-500 font-medium">
+            {filter === 'pending' ? 'No pending entries' : filter === 'rejected' ? 'No rejected entries' : 'No KB entries yet'}
+          </p>
+          <p className="text-[12px] text-gray-400 mt-1">
+            {filter === 'pending' ? 'New staff submissions will appear here for your review.' : 'Submit an incident above to start the KB.'}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(e => {
+          {visible.map(e => {
             const d = e.details as any;
+            const isPending = e.status === 'pending';
+            const isRejected = e.status === 'rejected';
             return (
-              <details key={e.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm group">
+              <details key={e.id} className={`bg-white rounded-2xl border shadow-sm group ${isPending ? 'border-amber-200' : isRejected ? 'border-gray-200 opacity-70' : 'border-gray-200'}`}>
                 <summary className="p-4 cursor-pointer list-none flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold capitalize">{d.category}</span>
+                      {isPending && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">⏳ Pending</span>}
+                      {isRejected && <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 font-semibold">✗ Rejected</span>}
                       <span className="text-[10px] text-gray-400">{e.created_at?.split('T')[0]}</span>
+                      <span className="text-[10px] text-gray-400">by {d.added_by}</span>
                     </div>
                     <p className="text-[13px] text-gray-700 line-clamp-2">{d.situation}</p>
                   </div>
                   {isAdmin && (
-                    <button onClick={ev => { ev.preventDefault(); del(e.id); }} className="p-1 text-gray-400 hover:text-red-500 ml-2"><Trash2 size={14} /></button>
+                    <button onClick={ev => { ev.preventDefault(); del(e.id); }} className="p-1 text-gray-400 hover:text-gray-700 ml-2" title="Delete"><Trash2 size={14} /></button>
                   )}
                 </summary>
                 <div className="px-4 pb-4 pt-0 border-t border-gray-100">
                   <p className="text-[10px] font-bold text-gray-500 uppercase mt-3 mb-1">Suggested response</p>
                   <p className="text-[12px] text-gray-700 leading-relaxed whitespace-pre-wrap">{d.response}</p>
-                  <button onClick={() => { navigator.clipboard.writeText(d.response); alert('Copied to clipboard'); }} className="mt-2 text-[11px] text-teal-600 font-semibold flex items-center gap-1">
-                    <Copy size={11} /> Copy response
-                  </button>
+                  <div className="flex items-center gap-2 mt-3">
+                    <button onClick={() => { navigator.clipboard.writeText(d.response); }} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
+                      <Copy size={11} /> Copy
+                    </button>
+                    {isAdmin && isPending && (
+                      <>
+                        <button onClick={() => approve(e.id)} className="ml-auto px-3 py-1.5 rounded-lg text-white font-bold text-[11px]" style={{ backgroundColor: TEAL }}>
+                          ✓ Approve
+                        </button>
+                        <button onClick={() => reject(e.id)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 font-bold text-[11px]">
+                          ✗ Reject
+                        </button>
+                      </>
+                    )}
+                    {isAdmin && isRejected && (
+                      <button onClick={() => approve(e.id)} className="ml-auto px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 font-bold text-[11px]">
+                        Restore
+                      </button>
+                    )}
+                  </div>
                 </div>
               </details>
             );

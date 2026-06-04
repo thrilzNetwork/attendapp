@@ -614,11 +614,33 @@ export async function listKbSuggestions(hotelId: string): Promise<OpRecord[]> {
   return listOps(hotelId, 'kb_suggestion', { status: 'active' });
 }
 
+// New: list entries filtered by status — used for the approval flow
+// Approved = 'active' (canonical KB), Pending = 'pending' (awaiting admin review)
+export async function listKbSuggestionsByStatus(hotelId: string, status: 'pending' | 'active' | 'rejected'): Promise<OpRecord[]> {
+  return listOps(hotelId, 'kb_suggestion', { status });
+}
+
 export async function createKbSuggestion(
   hotelId: string,
   k: KbSuggestion
 ): Promise<OpRecord | null> {
   return createOps(hotelId, 'kb_suggestion', k, 'active', { guest_name: k.added_by, room: 'KB' });
+}
+
+// New: create a KB suggestion that starts in 'pending' status — awaits admin approval
+export async function createKbSuggestionPending(
+  hotelId: string,
+  k: KbSuggestion
+): Promise<OpRecord | null> {
+  return createOps(hotelId, 'kb_suggestion', k, 'pending', { guest_name: k.added_by, room: 'KB' });
+}
+
+export async function approveKbSuggestion(id: string): Promise<boolean> {
+  return updateOps(id, { status: 'active' });
+}
+
+export async function rejectKbSuggestion(id: string): Promise<boolean> {
+  return updateOps(id, { status: 'rejected' });
 }
 
 export async function deleteKbSuggestion(id: string): Promise<boolean> {
