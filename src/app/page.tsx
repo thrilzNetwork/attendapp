@@ -381,6 +381,59 @@ function AttendaLandingPage() {
         </div>
       </section>
 
+      {/* MODULES — Attenda's feature catalog */}
+      <section className="py-20 px-5">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-2">The platform</div>
+            <h2 className="text-[32px] md:text-[44px] font-black tracking-tight text-gray-900 mb-3">
+              Six modules. <span style={{ color: TEAL }}>One thread.</span>
+            </h2>
+            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
+              Every role, every request, every property on a single platform — built for the way independent hotels actually run.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <ModuleCard
+              icon={<ChatIcon />}
+              name="Guest Requests"
+              tagline="In-room chat & service orders"
+              body="Guests scan a QR code, tap what they need, and chat in real time. No app, no download — works on any phone in any room."
+            />
+            <ModuleCard
+              icon={<BellIcon />}
+              name="Staff Task Log"
+              tagline="PIN-in, log out. Every job tracked."
+              body="Housekeeping, front desk, and maintenance get a single tap-to-accept view. Every accepted job is timestamped and tied to a room."
+            />
+            <ModuleCard
+              icon={<TruckIcon />}
+              name="Vendor Portal"
+              tagline="Auto-restock, auto-invoice"
+              body="Linen, food, shuttle, maintenance — vendors get a portal link, see open jobs, accept, and close. Invoices generated automatically."
+            />
+            <ModuleCard
+              icon={<ChartIcon />}
+              name="GM Dashboard"
+              tagline="Every room, every shift, in one view"
+              body="Real-time status across all rooms, all staff, all jobs. The GM opens one screen and knows everything happening on property right now."
+            />
+            <ModuleCard
+              icon={<BookIcon />}
+              name="Knowledge Base"
+              tagline="Incidents captured, staff trained"
+              body="When something goes wrong, the fix gets written down. New staff onboard faster, repeat incidents drop, and the playbook grows with the property."
+            />
+            <ModuleCard
+              icon={<BusIcon />}
+              name="Shuttle & Transport"
+              tagline="Routes, cruise calendar, guest booking"
+              body="Schedule shuttle runs, sync with cruise ship arrivals, let guests book seats from the room. Walked revenue becomes captured revenue."
+            />
+          </div>
+        </div>
+      </section>
+
       {/* CASE STUDY */}
       <section ref={caseStudyRef} className="py-20 px-5 bg-gray-50">
         <div className="max-w-5xl mx-auto">
@@ -508,12 +561,12 @@ function AttendaLandingPage() {
         <div className="max-w-2xl mx-auto">
           <h2 className="text-[32px] font-black tracking-tight text-gray-900 mb-10 text-center">Common questions</h2>
           {[
+            { q: 'What modules does Attenda include?', a: 'Six: Guest Requests, Staff Task Log, Vendor Portal, GM Dashboard, Knowledge Base, and Shuttle & Transport. All connected on one thread.' },
             { q: 'Does the guest need to download an app?', a: 'No. They scan a QR code in the room — opens a mobile web app in their browser.' },
             { q: 'How are vendors onboarded?', a: 'Each vendor gets a lightweight web portal link. They see open jobs, accept, and update status.' },
             { q: 'What about my existing PMS?', a: 'Attenda runs alongside your current PMS from day one. No rip-and-replace.' },
             { q: 'How long does setup take?', a: '11 days from contract to live. We do QR design, branding, and staff training.' },
             { q: 'What does Attenda cost?', a: 'Per-room, tiered by property size. We&apos;ll quote on the demo call.' },
-            { q: 'Who else uses the four roles in the system?', a: 'Guests tap from the room. Staff tap from a phone or iPad. Vendors tap from any browser. The GM sees everything on one dashboard.' },
           ].map((item, i) => (
             <button
               key={i}
@@ -626,6 +679,88 @@ function ModuleTile({ label, sub }: { label: string; sub: string }) {
       </div>
       <div className="text-[12px] text-gray-500 leading-snug">{sub}</div>
     </div>
+  );
+}
+
+/* ── Module card (feature catalog) ──────────────────────────── */
+
+function ModuleCard({ icon, name, tagline, body }: {
+  icon: React.ReactNode;
+  name: string;
+  tagline: string;
+  body: string;
+}) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 transition-colors">
+      <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: TEAL }}>
+        <div className="text-white">{icon}</div>
+      </div>
+      <h3 className="text-[18px] font-black text-gray-900 mb-1 tracking-tight">{name}</h3>
+      <p className="text-[13px] font-semibold text-gray-500 mb-3 leading-snug">{tagline}</p>
+      <p className="text-[14px] text-gray-700 leading-relaxed">{body}</p>
+    </div>
+  );
+}
+
+/* ── Module icons (inline SVG) ───────────────────────────────── */
+
+function ChatIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function BellIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+function TruckIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="3" width="15" height="13" />
+      <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+      <circle cx="5.5" cy="18.5" r="2.5" />
+      <circle cx="18.5" cy="18.5" r="2.5" />
+    </svg>
+  );
+}
+
+function ChartIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="20" x2="12" y2="10" />
+      <line x1="18" y1="20" x2="18" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="16" />
+    </svg>
+  );
+}
+
+function BookIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  );
+}
+
+function BusIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 6v6" />
+      <path d="M16 6v6" />
+      <path d="M2 12h20" />
+      <path d="M18 18h2a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2" />
+      <circle cx="7" cy="18" r="2" />
+      <circle cx="17" cy="18" r="2" />
+    </svg>
   );
 }
 
