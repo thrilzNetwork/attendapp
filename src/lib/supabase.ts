@@ -46,6 +46,7 @@ export interface HotelConfig {
   shuttleCapacity?: number;
   shuttlePickupLocation?: string;
   shuttleNotes?: string;
+  weekStartsOn?: 'Sunday' | 'Monday';
 }
 
 export interface StaffAccount {
@@ -115,6 +116,7 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     shuttleCapacity: data.shuttle_capacity || 8,
     shuttlePickupLocation: data.shuttle_pickup_location || '',
     shuttleNotes: data.shuttle_notes || '',
+    weekStartsOn: data.week_starts_on || 'Sunday',
   };
 }
 
@@ -145,6 +147,7 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       custom_review_links: config.customReviewLinks,
       brand: config.propertyType || 'Hotel',
       gm_notes: config.gmNotes || '',
+      week_starts_on: config.weekStartsOn || 'Sunday',
     }, { onConflict: 'slug' });
   if (error) throw error;
   return data;

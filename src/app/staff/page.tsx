@@ -100,6 +100,7 @@ interface Session {
   name: string;
   role: Role;
   vendorType?: string;
+  department?: string;
 }
 
 /* ── Constants ─────────────────────────────────────────── */
@@ -122,8 +123,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'dailybrief',      label: 'Dashboard',         icon: BarChart3,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'orders',          label: 'Requests',           icon: Bell,            roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'messages',        label: 'Messages',           icon: MessageSquare,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'schedules',       label: 'Schedules',          icon: Clock,           roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'checklists_tab',  label: 'Checklists',         icon: ClipboardCheck,  roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'schedules',       label: 'Schedules',          icon: CalendarDays,    roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
 
   // ── OPERATIONS — property tools ──
   { tab: 'shuttle',         label: 'Shuttle',            icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
@@ -283,7 +283,7 @@ export default function Dashboard() {
       const role: Role =
         data.role === 'manager' || data.role === 'admin' ? 'admin' :
         data.role === 'vendor' ? 'vendor' : 'staff';
-      setSession({ name: data.name, role, vendorType: data.vendor_type || undefined });
+      setSession({ name: data.name, role, vendorType: data.vendor_type || undefined, department: data.department || undefined });
       setAuthMode('authenticated');
     } else {
       setPinError('Incorrect PIN. Try again.');
@@ -664,7 +664,7 @@ export default function Dashboard() {
       {/* ── Main Content ────────────────────────────── */}
       <main className="flex-1 min-w-0 bg-[#FAFAFA]">
         {effectiveTab === 'dailybrief' && config?.id && (
-          <DailyBriefView hotelId={config.id} hotelName={config.name} config={config} sessionName={session?.name} />
+          <DailyBriefView hotelId={config.id} hotelName={config.name} config={config} sessionName={session?.name || ''} department={session?.department} isAdmin={isAdmin} />
         )}
         {effectiveTab === 'property_info' && config && (
           <PropertyInfoView config={config} />
@@ -5523,7 +5523,7 @@ function FrontDeskView({ hotelId, isAdmin, staff, hotelName, config }: {
 }
 
 /* ── Daily Brief View (staff-facing) ──────────────────── */
-function DailyBriefView({ hotelId, hotelName, config, sessionName }: { hotelId: string; hotelName: string; config: HotelConfig; sessionName?: string }) {
+function DailyBriefView({ hotelId, hotelName, config, sessionName, department, isAdmin }: { hotelId: string; hotelName: string; config: HotelConfig; sessionName: string; department?: string; isAdmin: boolean }) {
   const [recap, setRecap] = useState<{
     requestsToday: number; completedToday: number; pendingNow: number;
     messagesToday: number; shuttleBookingsToday: number;
@@ -5534,31 +5534,45 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName }: { hotelId: 
   const [monthShuttleSlots, setMonthShuttleSlots] = useState<OpsShuttleSlot[]>([]);
   const [todayShuttleRoutes, setTodayShuttleRoutes] = useState<ShuttleRoute[]>([]);
   const [weekShifts, setWeekShifts] = useState<StaffSchedule[]>([]);
+  // Checklists loaded inline from supabase staff_checklists + instances
+  const [checklistTemplates, setChecklistTemplates] = useState<Checklist[]>([]);
+  const [checklistInstances, setChecklistInstances] = useState<ChecklistInstance[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  const todayStr = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     (async () => {
-      const [r, slots, routes, monthSlots, schedules] = await Promise.all([
+      const [r, slots, routes, monthSlots, schedules, templates, instances] = await Promise.all([
         getDailyRecap(hotelId),
         getAllShuttleSlotsForHotel(hotelId),
         getShuttleRoutes(hotelId),
         listShuttleSlots(hotelId),
         getStaffSchedulesRange(hotelId, today(), addDays(today(), 7)),
+        getChecklists(hotelId),
+        getChecklistInstances(hotelId, todayStr),
       ]);
       setRecap(r);
       setTodayShuttleSlots(slots);
       setTodayShuttleRoutes(routes);
       setMonthShuttleSlots(monthSlots || []);
       setWeekShifts(schedules || []);
+      setChecklistTemplates(templates || []);
+      setChecklistInstances(instances || []);
     })();
-  }, [hotelId]);
+  }, [hotelId, todayStr]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Filter checklists by department: staff see their dept, admin/managers see all
+  const myDept = department || '';
+  const relevantTemplates = isAdmin || !myDept
+    ? checklistTemplates
+    : checklistTemplates.filter(t => t.department === myDept || !t.department);
+
   const todayDay = new Date().getDay() || 7;
   const daySlots = todayShuttleSlots.filter(s =>
     (s.date === todayStr) || (s.days_of_week?.includes(todayDay) && !s.date)
   );
 
-  // Build per-day counts of shuttle slots and shifts for the next 14 days
   const addDays = (d: string, n: number) => {
     const dt = new Date(d);
     dt.setDate(dt.getDate() + n);
@@ -5568,11 +5582,17 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName }: { hotelId: 
     const d = new Date();
     d.setDate(d.getDate() + i);
     const ds = d.toISOString().split('T')[0];
-    const dow = d.getDay(); // 0=Sun..6=Sat
+    const dow = d.getDay();
     const slotsCount = monthShuttleSlots.filter(s => s.day_of_week === dow).length;
     const shiftsCount = weekShifts.filter(s => s.shift_date === ds).length;
     return { date: ds, day: d.toLocaleDateString('en-US', { weekday: 'short' }), dayNum: d.getDate(), slotsCount, shiftsCount, isToday: i === 0 };
   });
+
+  // Get today's instance for a template
+  const todaysInstance = (templateId: string) =>
+    checklistInstances
+      .filter(i => i.checklist_id === templateId)
+      .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0];
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
