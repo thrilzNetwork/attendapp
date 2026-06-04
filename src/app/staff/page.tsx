@@ -10,7 +10,7 @@ import {
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
-  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox,
+  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search,
 } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
@@ -72,9 +72,9 @@ type NavTab =
   | 'hotel' | 'staff_mgmt'
   | 'partners' | 'qrcodes' | 'properties'
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
-  | 'frontdesk' | 'dailybrief' | 'property_info'
-  | 'schedules' | 'checklists_tab' | 'kpis' | 'learning' | 'hr'
-  | 'shuttle_schedule' | 'callouts';
+  | 'dailybrief' | 'property_info'
+  | 'schedules' | 'checklists_tab' | 'kpis' | 'learning_hr'
+  | 'shuttle_schedule';
 
 interface Request {
   id: string;
@@ -126,19 +126,16 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[] }[] = [
   { tab: 'schedules',       label: 'Schedules',          icon: Clock,           roles: ['admin', 'staff', 'superadmin', 'manager'] },
   { tab: 'checklists_tab',  label: 'Checklists',         icon: ClipboardCheck,  roles: ['admin', 'staff', 'superadmin', 'manager'] },
   { tab: 'kpis',            label: 'KPIs',               icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'callouts',        label: 'Staff Callouts',     icon: Inbox,           roles: ['admin', 'superadmin'] },
-  { tab: 'learning',        label: 'Learning',           icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'hr',              label: 'H/R',                icon: Briefcase,       roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'frontdesk',       label: 'Front Desk',         icon: ClipboardList,   roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'learning_hr',     label: 'Learning & HR',      icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'] },
   { tab: 'property_info',   label: 'Property Info',      icon: HotelIcon,       roles: ['admin', 'staff', 'superadmin', 'manager'] },
   { tab: 'vendor_manifest', label: 'Vendor Dashboard',   icon: Users,           roles: ['vendor'] },
   { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'] },
   { tab: 'staff_mgmt',      label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'] },
   { tab: 'partners',        label: 'Partners & Menu',    icon: Store,           roles: ['admin', 'superadmin'] },
-  { tab: 'qrcodes',         label: 'QR Codes',           icon: QrCodeIcon,      roles: ['admin', 'superadmin'] },
+  { tab: 'qrcodes',         label: 'QR Codes',           icon: QrCodeIcon,       roles: ['admin', 'superadmin'] },
   { tab: 'knowledge',       label: 'Knowledge Base',     icon: BookOpen,        roles: ['admin', 'superadmin'] },
   { tab: 'rooms',            label: 'Room Management',    icon: DoorOpen,        roles: ['admin', 'superadmin'] },
-  { tab: 'properties',      label: 'All Properties',     icon: Building2,       roles: ['superadmin'] },
+  { tab: 'properties',      label: 'All Properties',     icon: Building2,      roles: ['superadmin'] },
 ];
 
 /* ── Main Component ───────────────────────────────────── */
@@ -643,11 +640,8 @@ export default function Dashboard() {
         {effectiveTab === 'kpis' && config?.id && (
           <KpisView hotelId={config.id} isAdmin={isAdmin} userId="" userName={session?.name || 'Staff'} />
         )}
-        {effectiveTab === 'learning' && config?.id && (
-          <LearningView hotelId={config.id} />
-        )}
-        {effectiveTab === 'hr' && config?.id && (
-          <HRView hotelId={config.id} />
+        {effectiveTab === 'learning_hr' && config?.id && (
+          <LearningHRView hotelId={config.id} />
         )}
         {effectiveTab === 'orders' && (
           <OrdersView
@@ -664,9 +658,6 @@ export default function Dashboard() {
         )}
         {effectiveTab === 'shuttle_schedule' && config?.id && (
           <ShuttleScheduleView hotelId={config.id} isAdmin={isAdmin} />
-        )}
-        {effectiveTab === 'callouts' && config?.id && (
-          <AdminCalloutsView hotelId={config.id} />
         )}
         {effectiveTab === 'vendor_manifest' && config?.id && (
           <VendorDashboard hotelId={config.id} vendorType={s.vendorType || 'shuttle'} vendorName={s.name} />
@@ -703,9 +694,6 @@ export default function Dashboard() {
         )}
         {effectiveTab === 'guests' && config?.id && (
           <GuestsView hotelId={config.id} />
-        )}
-        {effectiveTab === 'frontdesk' && config?.id && (
-          <FrontDeskView hotelId={config.id} isAdmin={isAdmin} staff={staff.map(s => ({ id: s.id, name: s.name, email: s.email, role: s.role, department: s.department }))} hotelName={config.name} config={config} />
         )}
       </main>
     </div>
@@ -6159,93 +6147,122 @@ function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boo
 }
 
 /* ── Learning View ───────────────────────────────────── */
-function LearningView({ hotelId }: { hotelId: string }) {
-  const [docs, setDocs] = useState<(KnowledgeEntry)[]>([]);
+/* ── Learning & HR (combined) ─────────────────────────── */
+function LearningHRView({ hotelId }: { hotelId: string }) {
+  const [learning, setLearning] = useState<(KnowledgeEntry)[]>([]);
+  const [hr, setHr] = useState<(KnowledgeEntry)[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const data = await getLearningDocs(hotelId);
-      setDocs(data || []);
+      const [l, h] = await Promise.all([getLearningDocs(hotelId), getHrDocs(hotelId)]);
+      setLearning(l || []);
+      setHr(h || []);
       setLoading(false);
     })();
   }, [hotelId]);
+
+  const filterDocs = (docs: KnowledgeEntry[]) => {
+    if (!search.trim()) return docs;
+    const q = search.toLowerCase();
+    return docs.filter(d =>
+      d.question.toLowerCase().includes(q) ||
+      d.answer.toLowerCase().includes(q) ||
+      (d.keywords || []).some(k => k.toLowerCase().includes(q))
+    );
+  };
+
+  const filteredLearning = filterDocs(learning);
+  const filteredHR = filterDocs(hr);
+  const totalCount = learning.length + hr.length;
 
   if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto">
-      <h1 className="text-[22px] font-extrabold text-gray-900 mb-1">Learning</h1>
-      <p className="text-[13px] text-gray-500 mb-6">Training materials &amp; guides</p>
+      <div className="mb-6">
+        <h1 className="text-[22px] font-extrabold text-gray-900 mb-1">Learning & HR</h1>
+        <p className="text-[13px] text-gray-500">Training, policies, forms, and employee reference</p>
+      </div>
 
-      {docs.length === 0 ? (
-        <div className="bg-gray-50 rounded-2xl p-8 text-center">
-          <GraduationCap size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-[14px] text-gray-500 font-medium">No learning materials yet</p>
-          <p className="text-[12px] text-gray-400 mt-1">Admins can add docs from the Knowledge Base.</p>
+      {/* Search */}
+      <div className="mb-5">
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search policies, SOPs, training, forms..."
+            className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-[13px] bg-white focus:outline-none focus:border-gray-400"
+          />
         </div>
-      ) : (
-        <div className="space-y-3">
-          {docs.map(d => (
-            <div key={d.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-              <p className="text-[14px] font-bold text-gray-900">{d.question}</p>
-              {d.answer && <p className="text-[12px] text-gray-500 mt-1 line-clamp-2">{d.answer}</p>}
-              {d.source_url && (
-                <a href={d.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline mt-2">
-                  <ExternalLink size={11} /> Open
-                </a>
-              )}
-            </div>
-          ))}
+        {search && (
+          <p className="text-[11px] text-gray-500 mt-1.5">
+            {filteredLearning.length + filteredHR.length} of {totalCount} match "{search}"
+          </p>
+        )}
+      </div>
+
+      {/* Learning section */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <GraduationCap size={16} className="text-gray-700" />
+          <h2 className="text-[15px] font-bold text-gray-900">Learning</h2>
+          <span className="text-[11px] text-gray-500">({filteredLearning.length})</span>
         </div>
-      )}
-    </div>
-  );
-}
+        {filteredLearning.length === 0 ? (
+          <div className="bg-gray-50 rounded-2xl p-6 text-center">
+            <p className="text-[13px] text-gray-500">{search ? 'No matches in learning' : 'No training materials yet'}</p>
+            {!search && <p className="text-[11px] text-gray-400 mt-1">Admins add docs from Knowledge Base.</p>}
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {filteredLearning.map(d => (
+              <div key={d.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+                <p className="text-[14px] font-bold text-gray-900">{d.question}</p>
+                {d.answer && <p className="text-[12px] text-gray-600 mt-1.5 line-clamp-3">{d.answer}</p>}
+                {d.source_url && (
+                  <a href={d.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-700 hover:underline mt-2">
+                    <ExternalLink size={11} /> Open
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-/* ── HR View ─────────────────────────────────────────── */
-function HRView({ hotelId }: { hotelId: string }) {
-  const [docs, setDocs] = useState<(KnowledgeEntry)[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const data = await getHrDocs(hotelId);
-      setDocs(data || []);
-      setLoading(false);
-    })();
-  }, [hotelId]);
-
-  if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
-
-  return (
-    <div className="p-4 md:p-8 max-w-2xl mx-auto">
-      <h1 className="text-[22px] font-extrabold text-gray-900 mb-1">HR Documents</h1>
-      <p className="text-[13px] text-gray-500 mb-6">Policies, forms, and employee info</p>
-
-      {docs.length === 0 ? (
-        <div className="bg-gray-50 rounded-2xl p-8 text-center">
-          <Briefcase size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-[14px] text-gray-500 font-medium">No HR documents yet</p>
-          <p className="text-[12px] text-gray-400 mt-1">Admins can add HR docs from the Knowledge Base.</p>
+      {/* HR section */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Briefcase size={16} className="text-gray-700" />
+          <h2 className="text-[15px] font-bold text-gray-900">HR Documents</h2>
+          <span className="text-[11px] text-gray-500">({filteredHR.length})</span>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {docs.map(d => (
-            <div key={d.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-              <p className="text-[14px] font-bold text-gray-900">{d.question}</p>
-              {d.answer && <p className="text-[12px] text-gray-500 mt-1 line-clamp-3">{d.answer}</p>}
-              {d.source_url && (
-                <a href={d.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline mt-2">
-                  <ExternalLink size={11} /> Open document
-                </a>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+        {filteredHR.length === 0 ? (
+          <div className="bg-gray-50 rounded-2xl p-6 text-center">
+            <p className="text-[13px] text-gray-500">{search ? 'No matches in HR' : 'No HR documents yet'}</p>
+            {!search && <p className="text-[11px] text-gray-400 mt-1">Admins add HR docs from Knowledge Base.</p>}
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {filteredHR.map(d => (
+              <div key={d.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+                <p className="text-[14px] font-bold text-gray-900">{d.question}</p>
+                {d.answer && <p className="text-[12px] text-gray-600 mt-1.5 line-clamp-3">{d.answer}</p>}
+                {d.source_url && (
+                  <a href={d.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-700 hover:underline mt-2">
+                    <ExternalLink size={11} /> Open document
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -6445,15 +6462,21 @@ function KpisView({ hotelId, isAdmin, userName }: { hotelId: string; isAdmin: bo
 // ============================================================
 function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
   const [slots, setSlots] = useState<(OpsShuttleSlot & { id: string })[]>([]);
+  const [config, setConfig] = useState<HotelConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [showGenerate, setShowGenerate] = useState(false);
+  const [genMonth, setGenMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [generating, setGenerating] = useState(false);
+  const [genResult, setGenResult] = useState<string | null>(null);
   const [form, setForm] = useState<{ day_of_week: number; departure_time: string; pickup_location: string; destination: string; service_type: 'regular' | 'express'; capacity: number; notes: string }>({ day_of_week: 1, departure_time: '08:00', pickup_location: '', destination: '', service_type: 'regular', capacity: 12, notes: '' });
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const s = await listShuttleSlots(hotelId);
+      const [s, c] = await Promise.all([listShuttleSlots(hotelId), getHotelConfig(hotelId)]);
       setSlots(s || []);
+      setConfig(c);
       setLoading(false);
     })();
   }, [hotelId]);
@@ -6477,6 +6500,63 @@ function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: b
     setSlots(slots.filter(s => s.id !== id));
   };
 
+  const generateMonth = async () => {
+    if (!config?.hasFreeShuttle) {
+      setGenResult('Free shuttle is not enabled. Turn it on in Property Settings first.');
+      return;
+    }
+    const startTime = config.shuttleStartTime?.slice(0, 5);
+    const endTime = config.shuttleEndTime?.slice(0, 5);
+    if (!startTime || !endTime) {
+      setGenResult('Set shuttle start and end times in Property Settings first.');
+      return;
+    }
+    if (!config.shuttleDays || config.shuttleDays.length === 0) {
+      setGenResult('Set shuttle days in Property Settings first.');
+      return;
+    }
+    setGenerating(true);
+    setGenResult(null);
+    try {
+      const [year, month] = genMonth.split('-').map(Number);
+      const startMin = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]);
+      const endMin = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1]);
+      const lastDay = new Date(year, month, 0).getDate();
+      let created = 0;
+      let skipped = 0;
+      for (let d = 1; d <= lastDay; d++) {
+        const dt = new Date(year, month - 1, d);
+        const dow = dt.getDay(); // 0=Sun..6=Sat
+        // Convert 0-6 to our schedule's day_of_week convention (this view uses 0=Sun..6=Sat, matching Date.getDay)
+        if (!config.shuttleDays.includes(dow)) { skipped++; continue; }
+        for (let m = startMin; m <= endMin; m += 60) {
+          const hh = String(Math.floor(m / 60)).padStart(2, '0');
+          const mm = String(m % 60).padStart(2, '0');
+          // Skip if a slot for this day+time already exists
+          const exists = slots.some(s => s.day_of_week === dow && s.departure_time === `${hh}:${mm}:00`);
+          if (exists) { skipped++; continue; }
+          await createOps(hotelId, 'shuttle_slot', {
+            day_of_week: dow,
+            departure_time: `${hh}:${mm}:00`,
+            pickup_location: config.shuttlePickupLocation || 'Hotel lobby',
+            destination: 'Airport',
+            service_type: 'regular',
+            capacity: config.shuttleCapacity || 8,
+            notes: '',
+          }, 'active', { guest_name: 'Admin', room: 'SHUTTLE' });
+          created++;
+        }
+      }
+      const refreshed = await listShuttleSlots(hotelId);
+      setSlots(refreshed || []);
+      setGenResult(`Created ${created} slots for ${genMonth}${skipped ? `, skipped ${skipped} duplicates or off-days` : ''}.`);
+    } catch (e: any) {
+      setGenResult(`Failed: ${e?.message || 'unknown error'}`);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
 
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -6496,9 +6576,14 @@ function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: b
           <p className="text-[12px] text-gray-500">Free pickup and drop-off times</p>
         </div>
         {isAdmin && (
-          <button onClick={() => setShowAdd(true)} className="px-3 py-2 rounded-xl text-white font-bold text-[12px] flex items-center gap-1" style={{ backgroundColor: TEAL }}>
-            <Plus size={14} /> Add Slot
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowGenerate(true)} disabled={!config?.hasFreeShuttle} className="px-3 py-2 rounded-xl bg-gray-900 text-white font-bold text-[12px] flex items-center gap-1 disabled:opacity-40" title={!config?.hasFreeShuttle ? 'Enable free shuttle in Property Settings first' : 'Auto-fill the month'}>
+              <CalendarDays size={14} /> Generate Month
+            </button>
+            <button onClick={() => setShowAdd(true)} className="px-3 py-2 rounded-xl text-white font-bold text-[12px] flex items-center gap-1" style={{ backgroundColor: TEAL }}>
+              <Plus size={14} /> Add Slot
+            </button>
+          </div>
         )}
       </div>
 
@@ -6591,6 +6676,33 @@ function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: b
                 <button onClick={save} disabled={!form.pickup_location} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>Save</button>
                 <button onClick={() => setShowAdd(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showGenerate && isAdmin && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => { setShowGenerate(false); setGenResult(null); }}>
+          <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h2 className="text-[15px] font-bold mb-1">Generate Month of Shuttle Slots</h2>
+            <p className="text-[11px] text-gray-500 mb-4">
+              Auto-fills every {config?.shuttleDays && config.shuttleDays.length < 7 ? 'selected ' : ''}day from {config?.shuttleStartTime?.slice(0, 5) || '—'} to {config?.shuttleEndTime?.slice(0, 5) || '—'} on the hour. Uses {config?.shuttlePickupLocation || 'Hotel lobby'} → Airport, capacity {config?.shuttleCapacity || 8}. Existing slots are kept; duplicates are skipped.
+            </p>
+
+            <label className="text-[10px] font-bold text-gray-500 uppercase">Month</label>
+            <input type="month" value={genMonth} onChange={e => setGenMonth(e.target.value)} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1 mb-4" />
+
+            {genResult && (
+              <div className="bg-gray-50 rounded-xl p-3 text-[12px] text-gray-700 mb-3">
+                {genResult}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <button onClick={generateMonth} disabled={generating} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                {generating ? 'Generating…' : 'Generate'}
+              </button>
+              <button onClick={() => { setShowGenerate(false); setGenResult(null); }} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Close</button>
             </div>
           </div>
         </div>
