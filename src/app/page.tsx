@@ -355,7 +355,7 @@ function AttendaLandingPage() {
             </button>
             <button onClick={() => scrollTo(enrollRef)}
               className="w-full sm:w-auto px-7 py-4 rounded-xl bg-gray-100 text-gray-900 font-bold text-[15px] hover:bg-gray-200 transition-colors">
-              Join the pilot
+              Book a 15-min demo
             </button>
           </div>
         </div>
@@ -434,15 +434,15 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* ═══ PILOT ENROLLMENT ═══ */}
+      {/* ═══ DEMO REQUEST ═══ */}
       <section ref={enrollRef} className="py-20 px-5">
         <div className="max-w-xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-[32px] md:text-[40px] font-black tracking-tight text-gray-900 mb-4">
-              Join the pilot
+              See it run on your property
             </h2>
             <p className="text-[16px] text-gray-600">
-              3 months free. Built for independent hotels and small groups. We onboard together.
+              15-minute walkthrough on your real workflow — schedules, concierge, vendors, the lot. No deck, no fluff. We tailor the demo to a problem you actually have.
             </p>
           </div>
           <EnrollForm />
@@ -464,7 +464,7 @@ function AttendaLandingPage() {
             },
             {
               q: 'What about my existing PMS?',
-              a: 'Attenda runs alongside your PMS for the pilot. We replace it once you see the value — or stay if you prefer.',
+              a: 'Attenda runs alongside your current PMS from day one. We replace it once you see the value — or stay layered if you prefer. No rip-and-replace.',
             },
             {
               q: 'How long does setup take?',
