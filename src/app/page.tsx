@@ -647,6 +647,152 @@ function AttendaLandingPage() {
         </div>
       </section>
 
+      {/* GENERATE REVENUE — 5 monetization angles for independent properties */}
+      <section id="revenue" className="py-16 md:py-24 px-5 bg-gradient-to-br from-gray-50 to-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
+              Revenue Streams · Independent Properties
+            </h2>
+            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
+              Five ways your property <span style={{ color: TEAL }}>makes money</span> with Attenda.
+            </h3>
+            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
+              Attenda isn&apos;t a cost line. It&apos;s a revenue layer — every guest interaction is a chance to capture spend that was walking out the door.
+            </p>
+          </div>
+
+          {/* Top row: 2 large cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+            {/* Card 1: Shuttle & Transport */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 md:p-8 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: TEAL }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8 6v6"/><path d="M16 6v6"/><path d="M2 12h19"/><path d="M18 18h2a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2"/>
+                    <circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>
+                  </svg>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Avg per cruise day</div>
+                  <div className="text-[24px] font-black" style={{ color: TEAL }}>$8-15<span className="text-[12px] text-gray-500 font-semibold">/seat</span></div>
+                </div>
+              </div>
+              <h4 className="text-[20px] font-black text-gray-900 mb-2">Captured shuttle & transport revenue</h4>
+              <p className="text-[14px] text-gray-600 leading-relaxed mb-4">
+                Cruise passengers see the ship&apos;s arrival calendar in the room, tap a time slot, and book a seat — no app, no phone call, no walk to the desk. You capture 12-20% of cruise-day demand that was leaving the property.
+              </p>
+              <div className="bg-gray-50 rounded-lg p-3 flex items-center gap-3">
+                <div className="text-[10px] text-gray-500 uppercase font-bold">Tomorrow · Symphony of the Seas</div>
+                <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-1000" style={{ width: '70%', backgroundColor: TEAL }} />
+                </div>
+                <div className="text-[12px] font-black text-gray-900">14/20 seats</div>
+              </div>
+            </div>
+
+            {/* Card 2: Partner commissions */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 md:p-8 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: TEAL }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                  </svg>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Commission</div>
+                  <div className="text-[24px] font-black" style={{ color: TEAL }}>10-15%</div>
+                </div>
+              </div>
+              <h4 className="text-[20px] font-black text-gray-900 mb-2">Partner commissions (food, drinks, experiences)</h4>
+              <p className="text-[14px] text-gray-600 leading-relaxed mb-4">
+                Partner with 5-10 local restaurants and experiences. Attenda routes in-room orders directly. You take a 10-15% cut on the $40-80 average ticket — without lifting a phone or staffing a delivery desk.
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-gray-50 rounded-lg p-2 text-center">
+                  <div className="text-[10px] text-gray-500 font-bold">Pizza Co.</div>
+                  <div className="text-[12px] font-black text-gray-900">$58</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2 text-center">
+                  <div className="text-[10px] text-gray-500 font-bold">Sushi Bar</div>
+                  <div className="text-[12px] font-black text-gray-900">$72</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2 text-center">
+                  <div className="text-[10px] text-gray-500 font-bold">Sunset Tour</div>
+                  <div className="text-[12px] font-black text-gray-900">$45</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom row: 3 smaller cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Card 3: Ancillary fees */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: TEAL }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+              </div>
+              <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Avg per request</div>
+              <div className="text-[20px] font-black mb-3" style={{ color: TEAL }}>$25-50</div>
+              <h4 className="text-[16px] font-black text-gray-900 mb-1.5">Ancillary fees</h4>
+              <p className="text-[13px] text-gray-600 leading-relaxed">
+                Late checkout, room upgrades, premium amenities — guests request via chat, you charge via the same flow. 15-25% take rate on the offers you set.
+              </p>
+            </div>
+
+            {/* Card 4: Direct booking lift */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: TEAL }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+              </div>
+              <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Saved per direct booking</div>
+              <div className="text-[20px] font-black mb-3" style={{ color: TEAL }}>$30-50</div>
+              <h4 className="text-[16px] font-black text-gray-900 mb-1.5">Direct booking lift</h4>
+              <p className="text-[13px] text-gray-600 leading-relaxed">
+                Better reviews, better retention. 4.7+ star averages drive direct bookings and skip the 18-22% OTA commission. The math compounds month over month.
+              </p>
+            </div>
+
+            {/* Card 5: Labor savings */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: TEAL }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
+              <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Front desk hours saved</div>
+              <div className="text-[20px] font-black mb-3" style={{ color: TEAL }}>4-6<span className="text-[12px] text-gray-500 font-semibold">/week</span></div>
+              <h4 className="text-[16px] font-black text-gray-900 mb-1.5">Labor cost reduction</h4>
+              <p className="text-[13px] text-gray-600 leading-relaxed">
+                Chat replaces phone calls. QR codes replace printed welcome packets. The front desk stops answering the same 12 questions a day and starts running the property.
+              </p>
+            </div>
+          </div>
+
+          {/* Bottom CTA strip */}
+          <div className="mt-10 bg-white border-2 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4" style={{ borderColor: TEAL }}>
+            <div>
+              <div className="text-[10px] uppercase tracking-widest font-bold mb-1" style={{ color: TEAL }}>YOUR PROPERTY · ESTIMATE</div>
+              <div className="text-[18px] font-black text-gray-900">A 60-room property running Attenda can capture <span style={{ color: TEAL }}>$8-15K/month</span> in additional revenue.</div>
+            </div>
+            <a
+              href="#schedule"
+              className="shrink-0 inline-flex items-center gap-2 px-6 py-3 text-[14px] font-black text-black rounded-lg transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
+              style={{ backgroundColor: '#15b79e' }}
+            >
+              See your numbers →
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* FAQ */}
       <section className="py-20 px-5 bg-gray-50">
         <div className="max-w-2xl mx-auto">
@@ -696,6 +842,266 @@ function AttendaLandingPage() {
             </p>
           </div>
           <EnrollForm />
+        </div>
+      </section>
+
+      {/* FROM THE INDUSTRY — 6 blog posts from hotel operators */}
+      <section id="blog" className="py-16 md:py-24 px-5 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
+              From the Industry · Independent Operators
+            </h2>
+            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
+              What hotel operators are saying.
+            </h3>
+            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
+              Real stories from the properties running Attenda — and the operators behind them.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                cat: 'Operations',
+                catColor: '#3B82F6',
+                title: 'How we cut front desk calls in half with QR codes',
+                excerpt: 'Before Attenda, the front desk was answering the same 12 questions a day. Towels, WiFi, late checkout, parking, breakfast. We were a guest services team that had become a switchboard.',
+                author: 'Maria Santos',
+                role: 'GM',
+                property: 'Casa Bella Miami',
+                initials: 'MS',
+                avatarBg: '#3B82F6',
+                date: 'Apr 12, 2026',
+                readTime: '5 min read',
+              },
+              {
+                cat: 'Revenue',
+                catColor: TEAL,
+                title: '$40K recovered from missed shuttle bookings',
+                excerpt: 'We were losing 30-40% of cruise-day shuttle demand to walk-ins, competitor apps, and the taxi stand. Attenda\'s in-room booking changed that in week one. The number is conservative.',
+                author: 'David Chen',
+                role: 'Director of Revenue',
+                property: 'PortMiami Hotels',
+                initials: 'DC',
+                avatarBg: TEAL,
+                date: 'Apr 03, 2026',
+                readTime: '7 min read',
+              },
+              {
+                cat: 'Operations',
+                catColor: '#3B82F6',
+                title: 'Why we ditched our 4-tier housekeeping software',
+                excerpt: 'We had 4 different systems. Housekeeping in one, front desk in another, GM dashboard in a third, guest requests in a fourth. Attenda collapsed it into one. The team actually uses it now.',
+                author: 'Linda Park',
+                role: 'Director of Housekeeping',
+                property: 'Inn 28 Key West',
+                initials: 'LP',
+                avatarBg: '#8B5CF6',
+                date: 'Mar 24, 2026',
+                readTime: '6 min read',
+              },
+              {
+                cat: 'Owner',
+                catColor: '#F59E0B',
+                title: '5 things I wish I knew before automating my property',
+                excerpt: 'I bought into the "AI will transform hospitality" pitch three times. Each time I ended up with a dashboard no one looked at. Here\'s what works and what doesn\'t, from someone who paid for all three.',
+                author: 'Robert Kim',
+                role: 'Owner',
+                property: 'Suites 56 Tampa',
+                initials: 'RK',
+                avatarBg: '#F59E0B',
+                date: 'Mar 15, 2026',
+                readTime: '8 min read',
+              },
+              {
+                cat: 'Industry',
+                catColor: '#6B7280',
+                title: 'The 2026 ops stack: what independent hotels actually need',
+                excerpt: 'After 12 years at Marriott and 4 consulting for independents, the gap is clear. Chains can afford 8-figure PMS systems. Independents can\'t. The 6 tools that actually move the needle, ranked.',
+                author: 'James Mitchell',
+                role: 'Hospitality Tech Consultant',
+                property: 'Formerly Marriott',
+                initials: 'JM',
+                avatarBg: '#6B7280',
+                date: 'Mar 02, 2026',
+                readTime: '9 min read',
+              },
+              {
+                cat: 'Reviews',
+                catColor: '#10B981',
+                title: 'From 3.8 to 4.7 stars in 6 months: our review turnaround',
+                excerpt: 'Our TripAdvisor score was stuck at 3.8 for two years. The problem wasn\'t the rooms. It was the gap between "I need towels" and "towels arrived". Closing that gap changed everything.',
+                author: 'Sophia Rodriguez',
+                role: 'Guest Experience Manager',
+                property: 'Lodge 18 Naples',
+                initials: 'SR',
+                avatarBg: '#10B981',
+                date: 'Feb 18, 2026',
+                readTime: '5 min read',
+              },
+            ].map((post, i) => (
+              <a
+                key={i}
+                href="#"
+                className="group bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg transition-all flex flex-col"
+              >
+                {/* Category + date row */}
+                <div className="flex items-center justify-between mb-3">
+                  <span
+                    className="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase text-white"
+                    style={{ backgroundColor: post.catColor }}
+                  >
+                    {post.cat}
+                  </span>
+                  <span className="text-[10px] text-gray-500 font-semibold">{post.date}</span>
+                </div>
+                {/* Headline */}
+                <h4 className="text-[18px] font-black text-gray-900 mb-2 leading-tight group-hover:text-gray-700">
+                  {post.title}
+                </h4>
+                {/* Excerpt */}
+                <p className="text-[13px] text-gray-600 leading-relaxed mb-5 flex-1">
+                  {post.excerpt}
+                </p>
+                {/* Author row */}
+                <div className="flex items-center gap-2.5 pt-4 border-t border-gray-100">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-black shrink-0"
+                    style={{ backgroundColor: post.avatarBg }}
+                  >
+                    {post.initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-black text-gray-900 truncate">{post.author}</div>
+                    <div className="text-[10px] text-gray-500 truncate">{post.role} · {post.property}</div>
+                  </div>
+                  <div className="text-[10px] text-gray-400 font-semibold shrink-0">{post.readTime}</div>
+                </div>
+              </a>
+            ))}
+          </div>
+
+          {/* Bottom link to all posts */}
+          <div className="text-center mt-10">
+            <a
+              href="#"
+              className="inline-flex items-center gap-2 text-[14px] font-bold text-gray-700 hover:text-gray-900"
+            >
+              Read all 47 posts from the field
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ABOUT THE FOUNDER — Alejandro Soria */}
+      <section id="founder" className="py-16 md:py-24 px-5 bg-gradient-to-br from-gray-50 to-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
+              Built by an Operator
+            </h2>
+            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
+              The founder.
+            </h3>
+            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
+              Attenda was built by someone who&apos;s been on the front desk of his own properties — not a tourist, not a tourist-tech tourist.
+            </p>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-0">
+              {/* Left: Photo placeholder */}
+              <div className="md:col-span-2 bg-gradient-to-br from-gray-100 to-gray-50 p-8 md:p-10 flex flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r border-gray-200">
+                <div
+                  className="w-40 h-40 md:w-48 md:h-48 rounded-full flex items-center justify-center text-white text-[56px] font-black mb-4 shadow-lg"
+                  style={{ backgroundColor: TEAL }}
+                >
+                  AS
+                </div>
+                <div className="text-[20px] font-black text-gray-900">Alejandro Soria</div>
+                <div className="text-[14px] text-gray-500 font-semibold mt-1">Founder · Attenda</div>
+                <div className="mt-4 flex items-center gap-2">
+                  <a
+                    href="#"
+                    className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:border-gray-300 transition-colors"
+                    aria-label="LinkedIn"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#0A66C2">
+                      <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+                    </svg>
+                  </a>
+                  <a
+                    href="mailto:alejandro@attendaapp.com"
+                    className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:border-gray-300 transition-colors"
+                    aria-label="Email"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                  </a>
+                </div>
+              </div>
+
+              {/* Right: Bio + quote */}
+              <div className="md:col-span-3 p-8 md:p-10">
+                <div className="text-[12px] uppercase tracking-widest text-gray-500 font-bold mb-2">The short version</div>
+                <p className="text-[16px] text-gray-700 leading-relaxed mb-5">
+                  Alejandro started Attenda after running independent properties in Florida and watching the same problem repeat: a $4M property running on a $40/month PMS, four separate apps for housekeeping, requests, shuttle, and reviews, and a front desk that spent 60% of the day on the phone answering questions a QR code could answer.
+                </p>
+                <p className="text-[16px] text-gray-700 leading-relaxed mb-6">
+                  The result: Attenda — the operations layer his properties actually needed. Not a pitch deck. Not a roadmap. A tool he runs on his own buildings every day.
+                </p>
+
+                {/* Pull quote */}
+                <blockquote className="border-l-4 pl-4 py-2 mb-6" style={{ borderColor: TEAL }}>
+                  <p className="text-[17px] font-bold text-gray-900 italic leading-snug">
+                    &ldquo;I didn&apos;t build this to pitch to hotels. I built this because I was the GM. This is what I wished existed.&rdquo;
+                  </p>
+                  <div className="text-[12px] text-gray-500 mt-2 font-semibold">— Alejandro Soria, on why Attenda exists</div>
+                </blockquote>
+
+                {/* Credibility signals */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Background</div>
+                    <div className="text-[12px] font-black text-gray-900">4+ years operating independent Florida properties</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Built for</div>
+                    <div className="text-[12px] font-black text-gray-900">B2B SaaS, not consumer apps</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Based in</div>
+                    <div className="text-[12px] font-black text-gray-900">Florida · USA</div>
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div className="mt-6 flex items-center gap-3">
+                  <a
+                    href="mailto:alejandro@attendaapp.com"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-[13px] font-black text-black rounded-lg transition-all shadow-sm hover:shadow-md"
+                    style={{ backgroundColor: '#15b79e' }}
+                  >
+                    Email Alejandro directly
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                    </svg>
+                  </a>
+                  <a
+                    href="#"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-[13px] font-bold text-gray-700 rounded-lg border border-gray-200 hover:border-gray-300"
+                  >
+                    Read the longer story
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
