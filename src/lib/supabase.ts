@@ -278,7 +278,7 @@ export function subscribeToRequests(hotelId: string | null, callback: (payload: 
   return channel;
 }
 
-export function subscribeToMessages(hotelId: string | null, callback: () => void) {
+export function subscribeToMessages(hotelId: string | null, callback: (payload?: Record<string, unknown>) => void) {
   const channel = supabase
     .channel('messages-live');
   if (hotelId) {
