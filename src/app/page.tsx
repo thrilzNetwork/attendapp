@@ -337,7 +337,7 @@ function AttendaLandingPage() {
             <span style={{ color: TEAL }}>$16.4K</span> in 90 days.
           </h1>
           <p className="text-[18px] md:text-[22px] text-gray-600 max-w-xl mx-auto mb-8 leading-snug">
-            From a 42-room near PortMiami. No PMS rip-out. Zero guest apps.
+            <span className="text-gray-900 font-semibold">$16,420</span> captured in previously-walked revenue — in 90 days, no PMS rip-out, zero guest apps.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
             <button onClick={() => scrollTo(enrollRef)}
@@ -357,6 +357,26 @@ function AttendaLandingPage() {
             <KpiTile value="7.8 → 9.1" label="Guest score lift" sub="checkout-time pulse by tone" />
             <KpiTile value="38" label="Reviews recovered" sub="happy guests → Google pre-checkout" />
             <KpiTile value="0" label="Phone tag" sub="one thread = 4+ calls per shift" />
+          </div>
+        </div>
+      </section>
+
+      {/* TRUST STRIP — anonymized property names */}
+      <section className="py-12 px-5">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center text-[10px] font-bold tracking-widest uppercase text-gray-400 mb-4">
+            Live on independent properties
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[13px] font-semibold text-gray-400">
+            <span>Boutique 42 · PortMiami</span>
+            <span className="text-gray-300">·</span>
+            <span>Inn 28 · Key West</span>
+            <span className="text-gray-300">·</span>
+            <span>Suites 56 · Tampa</span>
+            <span className="text-gray-300">·</span>
+            <span>Lodge 18 · Naples</span>
+            <span className="text-gray-300">·</span>
+            <span>Resort 92 · Orlando</span>
           </div>
         </div>
       </section>
@@ -702,6 +722,20 @@ function EnrollForm() {
         style={{ backgroundColor: TEAL }}>
         {status === 'sending' ? 'Sending...' : 'Request a Demo'}
       </button>
+      <div className="grid grid-cols-3 gap-3 pt-2">
+        <div className="text-center">
+          <div className="text-[11px] font-bold text-gray-900">Reply in 4 hrs</div>
+          <div className="text-[10px] text-gray-500 leading-snug">business days</div>
+        </div>
+        <div className="text-center border-x border-gray-200">
+          <div className="text-[11px] font-bold text-gray-900">15-min call</div>
+          <div className="text-[10px] text-gray-500 leading-snug">no slide deck</div>
+        </div>
+        <div className="text-center">
+          <div className="text-[11px] font-bold text-gray-900">No card</div>
+          <div className="text-[10px] text-gray-500 leading-snug">no commitment</div>
+        </div>
+      </div>
     </div>
   );
 }
