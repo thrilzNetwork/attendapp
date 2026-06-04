@@ -2,15 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import {
-  MapPin, Bus, Bell, ShieldCheck, Phone, Globe, User,
-  MessageSquare, QrCode, Utensils, Star, ArrowRight,
-  CheckCircle, Menu, X, Zap, Building2,
-  BarChart3, Shield, TrendingUp,
-  Car, ChefHat, Layers,
-  ArrowLeftRight,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { ArrowRight, Bell, Bus, CheckCircle, Globe, MapPin, Phone, ShieldCheck, User, Utensils } from 'lucide-react';
 import GuestAuthModal from '@/components/GuestAuthModal';
 import {
   GuestSheet,
@@ -299,436 +291,460 @@ function HotelGuestApp({
 
 /* ── Brand Constants ─────────────────────────────────────── */
 const TEAL = '#0D9488';
-const INK_950 = '#0f0f23';
-
-/* ── Reusable Section Component ──────────────────────────── */
-function SectionLabel({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
-  return (
-    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-brand-400/20 bg-brand-400/8 mb-5">
-      <Icon size={12} className="text-brand-400" />
-      <span className="text-[11px] font-bold text-brand-400 tracking-wide uppercase">{text}</span>
-    </div>
-  );
-}
 
 function AttendaLandingPage() {
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const demoRef = useRef<HTMLDivElement>(null);
   const enrollRef = useRef<HTMLDivElement>(null);
 
-  const scrollToEnroll = () => {
-    enrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-    setMobileNavOpen(false);
-  };
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
+  const scrollTo = (ref: React.RefObject<HTMLDivElement>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth' });
+  };
   return (
     <div className="min-h-screen bg-white font-sans antialiased overflow-x-hidden">
 
-      {/* ═══════════════════════════════════════════════════════
-          NAV
-         ═══════════════════════════════════════════════════════ */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-ink-100/60">
+      {/* ═══ NAV ═══ */}
+      <nav className={`sticky top-0 z-50 transition-all ${scrolled ? 'bg-white/95 backdrop-blur-xl shadow-sm' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
-          <a href="#" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-              <span className="text-white font-display font-black text-[16px] tracking-tight">A</span>
+          <a href="#" className="flex items-center gap-2.5 group">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm" style={{ backgroundColor: TEAL }}>
+              <span className="text-white font-black text-[16px] tracking-tight">A</span>
             </div>
-            <span className="font-display font-bold text-[17px] text-ink-900 tracking-tight">attenda</span>
+            <span className="font-bold text-[17px] text-gray-900 tracking-tight">attenda</span>
           </a>
-
-          <div className="hidden md:flex items-center gap-8">
-            <a href="#how-it-works" className="nav-link">How It Works</a>
-            <a href="#features" className="nav-link">Features</a>
-            <a href="/staff" className="nav-link">Staff Login</a>
-            <button onClick={scrollToEnroll}
-              className="px-5 py-2.5 rounded-xl bg-brand-500 text-white text-[13px] font-bold hover:bg-brand-600 transition-all active:scale-[0.97] shadow-sm">
-              Get a Demo
+          <div className="hidden md:flex items-center gap-7">
+            <button onClick={() => scrollTo(demoRef)} className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">See it</button>
+            <a href="/staff" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Staff Login</a>
+            <button onClick={() => scrollTo(enrollRef)}
+              className="px-5 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all active:scale-[0.97] shadow-sm"
+              style={{ backgroundColor: TEAL }}>
+              Join the pilot
             </button>
           </div>
-
-          <button onClick={() => setMobileNavOpen(!mobileNavOpen)} className="md:hidden p-2 text-ink-500 hover:text-ink-900">
-            {mobileNavOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
+          <button onClick={() => scrollTo(enrollRef)} className="md:hidden px-4 py-2 rounded-lg text-white text-[12px] font-bold"
+            style={{ backgroundColor: TEAL }}>Pilot</button>
         </div>
-
-        {mobileNavOpen && (
-          <div className="md:hidden border-t border-ink-100 bg-white px-5 py-5 space-y-4 animate-fade-in">
-            <a href="#how-it-works" onClick={() => setMobileNavOpen(false)} className="block text-[15px] font-semibold text-ink-700 hover:text-ink-900">How It Works</a>
-            <a href="#features" onClick={() => setMobileNavOpen(false)} className="block text-[15px] font-semibold text-ink-700 hover:text-ink-900">Features</a>
-            <a href="/staff" className="block text-[15px] font-semibold text-ink-700 hover:text-ink-900">Staff Login</a>
-            <button onClick={scrollToEnroll} className="w-full py-3.5 rounded-xl bg-brand-500 text-white font-bold text-[14px] hover:bg-brand-600 transition-colors">
-              Get a Demo
-            </button>
-          </div>
-        )}
       </nav>
 
-      {/* ═══════════════════════════════════════════════════════
-          HERO
-         ═══════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden" style={{ background: `linear-gradient(160deg, ${INK_950} 0%, #0d1b2a 50%, #0a2418 100%)` }}>
-        <div className="absolute inset-0 bg-dot" />
-        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-brand-500/5 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-brand-400/5 rounded-full blur-[100px] pointer-events-none" />
-
-        <div className="relative max-w-7xl mx-auto px-5 pt-24 pb-32 flex flex-col lg:flex-row items-center gap-16">
-          <div className="flex-1 text-center lg:text-left max-w-2xl">
-            <SectionLabel icon={Zap} text="Built by an Operator · For Operators" />
-
-            <h1 className="font-display text-[44px] md:text-[60px] font-extrabold text-white leading-[1.05] mb-6 tracking-tight">
-              Same chaos.<br />
-              <span className="gradient-text">One system.</span>
-            </h1>
-
-            <p className="text-[17px] text-ink-300 leading-relaxed mb-6 max-w-xl mx-auto lg:mx-0">
-              The same repetitive questions, requests, and phone calls every shift. One platform that connects your guests, your staff, and your vendors &mdash; so nothing gets lost and your team can focus on running the place.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-              <button onClick={scrollToEnroll}
-                className="px-7 py-4 rounded-xl bg-brand-500 text-white text-[15px] font-bold flex items-center justify-center gap-2 hover:bg-brand-600 transition-all active:scale-[0.97] shadow-lg shadow-brand-500/20">
-                Enroll Your Property <ArrowRight size={16} />
-              </button>
-              <a href="/staff"
-                className="px-7 py-4 rounded-xl border border-white/15 text-ink-200 text-[15px] font-semibold flex items-center justify-center gap-2 hover:bg-white/5 transition-colors">
-                View Staff Dashboard
-              </a>
-            </div>
-
-            <div className="flex flex-wrap gap-x-10 gap-y-3 mt-12 justify-center lg:justify-start">
-              <div className="text-center lg:text-left">
-                <p className="text-[28px] font-bold text-white font-display tracking-tight">0%</p>
-                <p className="text-[10px] text-ink-400 uppercase tracking-wider font-medium">Commissions to 3rd parties</p>
-              </div>
-              <div className="text-center lg:text-left">
-                <p className="text-[28px] font-bold text-white font-display tracking-tight">&lt; 60s</p>
-                <p className="text-[10px] text-ink-400 uppercase tracking-wider font-medium">Guest access via QR</p>
-              </div>
-            </div>
+      {/* ═══ HERO ═══ */}
+      <section className="relative pt-12 pb-16 md:pt-20 md:pb-24 px-5">
+        <div className="max-w-5xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 mb-6">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[11px] font-bold text-gray-700 tracking-wide uppercase">Pilot program — 3 hotels live</span>
           </div>
-
-          <div className="flex-shrink-0 flex flex-col items-center gap-6">
-            <PhoneMockup />
-
-            <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-xl px-5 py-3">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-brand-400 bg-brand-400/15 w-5 h-5 rounded-full flex items-center justify-center">1</span>
-                <span className="text-[11px] text-ink-300 font-medium whitespace-nowrap">Guest scans</span>
-              </div>
-              <ArrowRight size={14} className="text-ink-500 shrink-0" />
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-brand-400 bg-brand-400/15 w-5 h-5 rounded-full flex items-center justify-center">2</span>
-                <span className="text-[11px] text-ink-300 font-medium whitespace-nowrap">Staff routes</span>
-              </div>
-              <ArrowRight size={14} className="text-ink-500 shrink-0" />
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-brand-400 bg-brand-400/15 w-5 h-5 rounded-full flex items-center justify-center">3</span>
-                <span className="text-[11px] text-ink-300 font-medium whitespace-nowrap">Vendor fulfills</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white to-transparent" />
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════
-          REVENUE
-         ═══════════════════════════════════════════════════════ */}
-      <section id="revenue" className="py-28" style={{ background: `linear-gradient(135deg, ${INK_950} 0%, #0d1b2a 100%)` }}>
-        <div className="relative max-w-7xl mx-auto px-5">
-          <div className="text-center mb-16">
-            <SectionLabel icon={TrendingUp} text="Revenue Potential" />
-            <h2 className="font-display text-[38px] md:text-[44px] font-extrabold text-white mb-4 tracking-tight">
-              Not every feature makes money.<br className="hidden sm:block" /> <span className="gradient-text">The right ones can.</span>
-            </h2>
-            <p className="text-[16px] text-ink-300 max-w-2xl mx-auto leading-relaxed">
-              Partner with local businesses, set your shuttle rates, and earn referral commissions. Revenue is a potential &mdash; not a promise. We only show you what actually works.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-5">
-            {/* Food */}
-            <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6 text-center hover:bg-white/[0.07] transition-all">
-              <div className="w-12 h-12 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-4">
-                <ChefHat size={22} className="text-emerald-400" />
-              </div>
-              <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-[0.15em] mb-1">Food &amp; Beverage</p>
-              <h3 className="text-[17px] font-bold text-white font-display mb-3">Revenue on partnered orders</h3>
-              <p className="text-[13px] text-ink-300 leading-relaxed mb-4">
-                Delivery apps like Uber Eats won&apos;t pay the property &mdash; but partnered restaurants do. When local businesses go Attenda-powered, every order through the guest app earns a cut. No kitchen required.
-              </p>
-              <div className="pill border-white/10 text-white/60 text-[10px]">Up to 15% per order</div>
-            </div>
-
-            {/* Transport */}
-            <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6 text-center hover:bg-white/[0.07] transition-all">
-              <div className="w-12 h-12 rounded-full bg-blue-500/15 flex items-center justify-center mx-auto mb-4">
-                <Car size={22} className="text-blue-400" />
-              </div>
-              <p className="text-[10px] text-blue-400 font-bold uppercase tracking-[0.15em] mb-1">Transportation</p>
-              <h3 className="text-[17px] font-bold text-white font-display mb-3">Set your shuttle rates</h3>
-              <p className="text-[13px] text-ink-300 leading-relaxed mb-4">
-                You set the price. The driver gets paid. You take a cut. Scheduled routes, on-demand rides, and cruise port calendars — all booked through the guest app. No Uber. No Lyft.
-              </p>
-              <div className="pill border-white/10 text-white/60 text-[10px]">You control pricing</div>
-            </div>
-
-            {/* Attractions */}
-            <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6 text-center hover:bg-white/[0.07] transition-all">
-              <div className="w-12 h-12 rounded-full bg-amber-500/15 flex items-center justify-center mx-auto mb-4">
-                <MapPin size={22} className="text-amber-400" />
-              </div>
-              <p className="text-[10px] text-amber-400 font-bold uppercase tracking-[0.15em] mb-1">Local Attractions</p>
-              <h3 className="text-[17px] font-bold text-white font-display mb-3">Referral commissions</h3>
-              <p className="text-[13px] text-ink-300 leading-relaxed mb-4">
-                Tours, spas, water sports, excursions — any local experience lists in the app. When a guest books, you earn a referral commission. Your concierge work, automated and monetized.
-              </p>
-              <div className="pill border-white/10 text-white/60 text-[10px]">Passive revenue stream</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════
-          HOW IT WORKS
-         ═══════════════════════════════════════════════════════ */}
-      <section id="how-it-works" className="py-28 bg-ink-50">
-        <div className="max-w-7xl mx-auto px-5">
-          <div className="text-center mb-16">
-            <SectionLabel icon={ArrowLeftRight} text="How it connects" />
-            <h2 className="font-display text-[38px] md:text-[44px] font-extrabold text-ink-900 mb-4 tracking-tight">
-              One flow, no middleman.
-            </h2>
-            <p className="text-[16px] text-ink-400 max-w-2xl mx-auto leading-relaxed">
-              Every interaction flows through Attenda &mdash; from guest request to staff action to vendor fulfillment. No third-party platforms taking a cut.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-2xl border border-ink-100 p-7 shadow-sm">
-              <p className="text-[10px] font-bold text-brand-500 uppercase tracking-[0.15em] mb-3">Step 1</p>
-              <h3 className="font-bold text-[17px] text-ink-900 font-display mb-2">Guest taps in</h3>
-              <p className="text-[13px] text-ink-400 leading-relaxed">
-                Scans the QR code in their room. Instant access to food ordering, shuttle booking, messaging, nearby attractions, and more.
-              </p>
-            </div>
-            <div className="bg-white rounded-2xl border border-ink-100 p-7 shadow-sm relative">
-              <div className="hidden md:block absolute -left-3 top-1/2 -translate-y-1/2 text-ink-300">
-                <ArrowRight size={20} />
-              </div>
-              <p className="text-[10px] font-bold text-brand-500 uppercase tracking-[0.15em] mb-3">Step 2</p>
-              <h3 className="font-bold text-[17px] text-ink-900 font-display mb-2">Staff receives &amp; routes</h3>
-              <p className="text-[13px] text-ink-400 leading-relaxed">
-                Every request hits the live staff dashboard. AI replies handle the basics. Orders and service tickets go directly to the right vendor or team member.
-              </p>
-            </div>
-            <div className="bg-white rounded-2xl border border-ink-100 p-7 shadow-sm">
-              <p className="text-[10px] font-bold text-brand-500 uppercase tracking-[0.15em] mb-3">Step 3</p>
-              <h3 className="font-bold text-[17px] text-ink-900 font-display mb-2">Vendor fulfills</h3>
-              <p className="text-[13px] text-ink-400 leading-relaxed">Local restaurants get food orders. Drivers see their shuttle manifest. Attractions receive bookings. Everyone gets paid. Partnered vendors share revenue with the property.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════
-          FEATURES
-         ═══════════════════════════════════════════════════════ */}
-      <section id="features" className="py-28 bg-white">
-        <div className="max-w-7xl mx-auto px-5">
-          <div className="text-center mb-16">
-            <SectionLabel icon={Layers} text="Everything you need" />
-            <h2 className="font-display text-[38px] md:text-[44px] font-extrabold text-ink-900 mb-4 tracking-tight">
-              Every feature eliminates<br className="hidden sm:block" /> a real problem.
-            </h2>
-            <p className="text-[16px] text-ink-400 max-w-xl mx-auto leading-relaxed">
-              Not a feature list. A list of repetitive tasks your staff never has to do manually again.
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              { icon: Bell, title: 'Live Request Dashboard', tag: 'Lost sticky notes', desc: 'Towels, housekeeping, wake-up calls — every request hits a real-time dashboard, gets assigned, and is tracked to done.' },
-              { icon: MessageSquare, title: 'Guest Messaging + AI Replies', tag: 'Endless repetitive questions', desc: 'Guests message the front desk directly. Smart auto-replies handle Wi-Fi, pool hours, checkout times without staff lifting a finger.' },
-              { icon: Bus, title: 'Shuttle & Transport Booking', tag: 'Phone tag & missed pickups', desc: 'Guests book seats on scheduled shuttles. Staff see a live manifest. Drivers get their routes. Everyone stays on time.' },
-              { icon: QrCode, title: 'QR Room Codes', tag: 'App downloads that never happen', desc: 'Scan a QR in the room. Instant access. No download, no login. Pre-fills room number and guest info automatically.' },
-              { icon: Utensils, title: 'In-Room Food Ordering', tag: 'Guests leaving for meals', desc: 'Restaurants go Attenda-powered for direct ordering. One tap to order. Property earns when partnered &mdash; not from every delivery app.' },
-              { icon: Star, title: 'Review & Feedback Flow', tag: 'Bad reviews you never saw', desc: 'Capture feedback before checkout. Route happy guests to Google. Handle issues privately before they hit public reviews.' },
-              { icon: Shield, title: 'Safety & Emergency Info', tag: 'Guests calling for basics', desc: 'Fire exits, emergency contacts, CO detector info — all in the app. Staff handle fewer inquiry calls.' },
-              { icon: BarChart3, title: 'Staff Operations Dashboard', tag: 'No shift visibility', desc: 'Every request, message, booking, and assignment in one screen. See what is pending from any device, any shift.' },
-              { icon: Building2, title: 'Multi-Property Management', tag: 'Running blind across sites', desc: 'Superadmin console gives you oversight across every property. Switch, compare, and manage everything from one login.' },
-            ].map(f => (
-              <div key={f.title} className="group relative rounded-2xl p-6 border border-ink-100 bg-white hover:border-brand-200 hover:shadow-sm transition-all">
-                <div className="w-10 h-10 rounded-xl bg-brand-400/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                  <f.icon size={20} className="text-brand-500" />
-                </div>
-                <div className="inline-block text-[10px] text-ink-400 font-semibold bg-ink-50 px-2 py-0.5 rounded-md mb-2.5">{f.tag}</div>
-                <h3 className="font-bold text-[15px] text-ink-900 mb-1.5 font-display">{f.title}</h3>
-                <p className="text-[12px] text-ink-400 leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      {/* ═══════════════════════════════════════════════════════
-          BUILT BY OPERATORS
-         ═══════════════════════════════════════════════════════ */}
-      <section className="py-28" style={{ background: `linear-gradient(135deg, ${INK_950} 0%, #0d1b2a 100%)` }}>
-        <div className="relative max-w-4xl mx-auto px-5 text-center">
-          <p className="text-[12px] font-bold text-brand-400 uppercase tracking-[0.2em] mb-5">Who built this</p>
-          <h2 className="font-display text-[34px] md:text-[40px] font-extrabold text-white mb-5 tracking-tight">
-            Built by operators who<br />
-            <span className="gradient-text">worked the floor.</span>
-          </h2>
-          <p className="text-[16px] text-ink-300 leading-relaxed mb-6 max-w-2xl mx-auto">
-            Attenda didn&apos;t come from a product manager&apos;s whiteboard. Every feature was born from a real moment of frustration inside a hospitality property — the front desk answering the same question for the 30th time, a shuttle booking lost in a text thread, a guest ordering Uber Eats instead of calling the kitchen.
+          <h1 className="text-[40px] md:text-[64px] leading-[1.05] font-black tracking-tight text-gray-900 mb-6">
+            Guests, staff, and vendors.<br />
+            <span style={{ color: TEAL }}>One roof. One conversation.</span>
+          </h1>
+          <p className="text-[18px] md:text-[20px] text-gray-600 max-w-2xl mx-auto mb-10 leading-relaxed">
+            A connected platform for independent hotels. QR directories in every room. Native chat between guests, staff, and providers. No app to download.
           </p>
-          <p className="text-[15px] text-ink-300 leading-relaxed mb-12 max-w-2xl mx-auto">
-            We are <span className="text-white font-semibold">Thrilz Network LLC</span> — an agentic technology company that builds operational tools for the hospitality industry.
-          </p>
-          <div className="flex flex-wrap justify-center gap-10">
-            {[
-              { icon: Zap, label: 'Agentic AI Frameworks' },
-              { icon: MapPin, label: 'Local-First Design' },
-              { icon: ArrowLeftRight, label: 'Operator-Driven Roadmap' },
-            ].map(v => (
-              <div key={v.label} className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-brand-500/15 flex items-center justify-center">
-                  <v.icon size={18} className="text-brand-400" />
-                </div>
-                <span className="text-[14px] font-semibold text-white">{v.label}</span>
-              </div>
-            ))}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button onClick={() => scrollTo(demoRef)}
+              className="w-full sm:w-auto px-7 py-4 rounded-xl text-white font-bold text-[15px] flex items-center justify-center gap-2 shadow-lg active:scale-[0.98]"
+              style={{ backgroundColor: TEAL }}>
+              See it in 30 seconds <ArrowRight size={16} />
+            </button>
+            <button onClick={() => scrollTo(enrollRef)}
+              className="w-full sm:w-auto px-7 py-4 rounded-xl bg-gray-100 text-gray-900 font-bold text-[15px] hover:bg-gray-200 transition-colors">
+              Join the pilot
+            </button>
+          </div>
+        </div>
+
+        {/* ── Live animated chat mockup ── */}
+        <div className="max-w-md mx-auto mt-14 md:mt-20">
+          <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-[28px] p-6 shadow-2xl">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-white text-[10px] font-bold text-gray-900 tracking-wider">
+              LIVE THREAD · ROOM 204
+            </div>
+            <ChatThread />
           </div>
         </div>
       </section>
-      {/* ═══════════════════════════════════════════════════════
-          INTEGRATIONS
-         ═══════════════════════════════════════════════════════ */}
-      <section className="py-16 bg-white border-y border-ink-100">
-        <div className="max-w-5xl mx-auto px-5">
-          <p className="text-center text-[10px] text-ink-400 uppercase tracking-[0.2em] font-bold mb-4">Works with tools you already run</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { name: 'Clover POS', desc: 'Direct kitchen orders. No re-entry.' },
-              { name: 'Google Reviews', desc: 'Route happy guests. Protect your rating.' },
-              { name: 'Email Alerts', desc: 'Instant alerts for every request.' },
-              { name: 'QR Codes', desc: 'Room-specific codes. Instant access.' },
-            ].map(i => (
-              <div key={i.name} className="border border-ink-100 rounded-2xl p-5 hover:border-brand-200 hover:shadow-sm transition-all text-center">
-                <h3 className="font-bold text-[14px] text-ink-900 font-display mb-1">{i.name}</h3>
-                <p className="text-[11px] text-ink-400 leading-relaxed">{i.desc}</p>
-              </div>
-            ))}
+
+      {/* ═══ 4-SCREEN VISUAL GRID ═══ */}
+      <section ref={demoRef} className="py-20 px-5 bg-gray-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-[32px] md:text-[44px] font-black tracking-tight text-gray-900 mb-4">
+              One platform. Four screens. Zero friction.
+            </h2>
+            <p className="text-[16px] text-gray-600 max-w-xl mx-auto">
+              Every side of the conversation, in the pocket or on the wall.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MockupCard
+              imageSrc="/mockups/guest-phone.png"
+              imageAlt="Guest phone showing concierge chat"
+              label="Guest in their room"
+              tagline="Scan. Talk. Done."
+            />
+            <MockupCard
+              imageSrc="/mockups/staff-phone.png"
+              imageAlt="Staff phone showing quick-log checklist"
+              label="Staff on the floor"
+              tagline="Log in 3 seconds."
+            />
+            <AdminMockupCard />
+            <QrMockupCard />
           </div>
         </div>
       </section>
-      {/* ═══════════════════════════════════════════════════════
-          ENROLL
-         ═══════════════════════════════════════════════════════ */}
-      <section ref={enrollRef} id="enroll" className="py-28" style={{ background: `linear-gradient(160deg, ${INK_950} 0%, #0a2218 100%)` }}>
-        <div className="relative max-w-2xl mx-auto px-5 text-center">
-          <SectionLabel icon={Zap} text="No contract. No setup fee." />
-          <h2 className="font-display text-[34px] md:text-[40px] font-extrabold text-white mb-4 tracking-tight">Let&apos;s fix your operation.</h2>
-          <p className="text-[15px] text-ink-300 mb-10 max-w-lg mx-auto leading-relaxed">
-            Tell us about your operation. We&apos;ll reach out within one business day with a live demo and a plan built specifically for your property.
-          </p>
+
+      {/* ═══ HOW IT FLOWS ═══ */}
+      <section className="py-20 px-5">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-[32px] md:text-[44px] font-black tracking-tight text-gray-900 mb-4">
+              How a request actually flows
+            </h2>
+            <p className="text-[16px] text-gray-600">One thread. Three roles. Zero phone tag.</p>
+          </div>
+
+          <FlowExample />
+        </div>
+      </section>
+
+      {/* ═══ STATS ═══ */}
+      <section className="py-16 px-5 bg-gray-900 text-white">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+          <div>
+            <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>73%</div>
+            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Faster guest response time</div>
+          </div>
+          <div>
+            <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>4→1</div>
+            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Tools replaced (PMS + chat + vendor + QR)</div>
+          </div>
+          <div>
+            <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>0</div>
+            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Apps for guests to download</div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ PILOT ENROLLMENT ═══ */}
+      <section ref={enrollRef} className="py-20 px-5">
+        <div className="max-w-xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-[32px] md:text-[40px] font-black tracking-tight text-gray-900 mb-4">
+              Join the pilot
+            </h2>
+            <p className="text-[16px] text-gray-600">
+              3 months free. Built for independent hotels and small groups. We onboard together.
+            </p>
+          </div>
           <EnrollForm />
         </div>
       </section>
-      {/* ═══════════════════════════════════════════════════════
-          FOOTER
-         ═══════════════════════════════════════════════════════ */}
-      <footer className="bg-white border-t border-ink-100 py-12">
-        <div className="max-w-7xl mx-auto px-5 flex flex-col md:flex-row items-center justify-between gap-6">
+
+      {/* ═══ FAQ ═══ */}
+      <section className="py-20 px-5 bg-gray-50">
+        <div className="max-w-2xl mx-auto">
+          <h2 className="text-[32px] font-black tracking-tight text-gray-900 mb-10 text-center">Common questions</h2>
+          {[
+            {
+              q: 'Does the guest need to download an app?',
+              a: 'No. They scan a QR code in the room — opens a mobile web app in their browser. Add to home screen if they want.',
+            },
+            {
+              q: 'How are vendors onboarded?',
+              a: 'Each vendor gets a lightweight web portal link. They see open jobs, accept, and update status. We handle the rest.',
+            },
+            {
+              q: 'What about my existing PMS?',
+              a: 'Attenda runs alongside your PMS for the pilot. We replace it once you see the value — or stay if you prefer.',
+            },
+            {
+              q: 'How long does setup take?',
+              a: '2 weeks from contract to live. We do the QR design, branding, and staff training.',
+            },
+          ].map((item, i) => (
+            <button
+              key={i}
+              onClick={() => setOpenFaq(openFaq === i ? null : i)}
+              className="w-full text-left bg-white rounded-2xl p-5 mb-3 border border-gray-200 hover:border-gray-300 transition-colors"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <span className="font-bold text-[15px] text-gray-900">{item.q}</span>
+                <span className={`text-gray-400 transition-transform ${openFaq === i ? 'rotate-45' : ''}`}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </span>
+              </div>
+              {openFaq === i && (
+                <p className="mt-3 text-[14px] text-gray-600 leading-relaxed">{item.a}</p>
+              )}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══ FOOTER ═══ */}
+      <footer className="py-12 px-5 border-t border-gray-200">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-sm">
-              <span className="text-white font-display font-black text-[14px]">A</span>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: TEAL }}>
+              <span className="text-white font-black text-[12px]">A</span>
             </div>
-            <span className="font-display font-bold text-[16px] text-ink-900 tracking-tight">attenda</span>
-            <span className="text-[11px] text-ink-400 ml-1">· Thrilz Network LLC</span>
+            <span className="text-[13px] text-gray-600">attenda — built for independent hotels</span>
           </div>
-          <div className="flex items-center gap-8 flex-wrap justify-center text-[12px]">
-            <a href="#revenue" className="text-ink-400 hover:text-ink-900 transition-colors">Revenue</a>
-            <a href="#how-it-works" className="text-ink-400 hover:text-ink-900 transition-colors">How It Works</a>
-            <a href="#features" className="text-ink-400 hover:text-ink-900 transition-colors">Features</a>
-            <a href="/privacy" className="text-ink-400 hover:text-ink-900 transition-colors">Privacy</a>
-            <a href="/terms" className="text-ink-400 hover:text-ink-900 transition-colors">Terms</a>
-            <a href="/staff" className="text-ink-400 hover:text-ink-900 transition-colors">Staff Login</a>
-          </div>
-          <p className="text-[11px] text-ink-300">© {new Date().getFullYear()} Thrilz Network LLC</p>
-        </div>
-      </footer>    </div>
-  );
-}
-
-/* ── Phone Mockup ───────────────────────────────────────────── */
-function PhoneMockup() {
-  const BURG = TEAL;
-  const tiles = [
-    { label: 'WELCOME', bg: BURG, text: 'white' },
-    { label: 'TRANSPORT', bg: 'white', text: BURG },
-    { label: 'FACILITIES', bg: 'white', text: BURG },
-    { label: 'SAFETY', bg: BURG, text: 'white' },
-  ];
-
-  return (
-    <div className="relative" style={{ width: 230, height: 460 }}>
-      <div className="absolute inset-0 rounded-[38px] border-[8px] border-gray-700 bg-gray-900 shadow-2xl overflow-hidden">
-        <div className="absolute inset-0 bg-[#F4F4F5] flex flex-col p-3 gap-2">
-          <div className="flex items-center justify-between px-1 pt-1 pb-0.5">
-            <div>
-              <p className="text-[11px] font-black text-black leading-none">Hello!</p>
-              <p className="text-[7px] text-gray-400 mt-0.5">What do you need today?</p>
-            </div>
-            <div className="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center">
-              <Phone size={10} style={{ color: BURG }} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-1.5 flex-1">
-            {tiles.map(t => (
-              <div key={t.label} className="rounded-xl flex items-center justify-center shadow-sm"
-                style={{ backgroundColor: t.bg, border: t.bg === 'white' ? '1px solid #e5e7eb' : 'none' }}>
-                <span className="text-[7px] font-black tracking-[0.1em]" style={{ color: t.text }}>{t.label}</span>
-              </div>
-            ))}
-          </div>
-          <div className="h-[18%] rounded-xl overflow-hidden relative">
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #374151 0%, #1f2937 100%)' }} />
-            <div className="absolute inset-0 flex items-end p-2">
-              <span className="text-[7px] font-bold text-white tracking-wider">REWARDS</span>
-            </div>
-          </div>
-          <div className="flex gap-1.5" style={{ height: '18%' }}>
-            <div className="w-[38%] rounded-xl flex items-center justify-center shadow-sm" style={{ backgroundColor: BURG }}>
-              <span className="text-[6px] font-black text-white">NEARBY</span>
-            </div>
-            <div className="flex-1 flex flex-col gap-1.5">
-              <div className="flex-1 rounded-xl flex items-center justify-center" style={{ backgroundColor: BURG }}>
-                <span className="text-[6px] font-black text-white">FOOD</span>
-              </div>
-              <div className="flex-1 rounded-xl bg-white border border-gray-100 flex items-center justify-center shadow-sm">
-                <span className="text-[6px] font-black" style={{ color: BURG }}>REVIEW</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center justify-between px-1 pt-0.5">
-            <span className="text-[6px] text-gray-400">powered by attenda</span>
-            <div className="flex items-center gap-1">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: BURG }}>
-                <User size={9} className="text-white" />
-              </div>
-              <span className="text-[6px] font-bold" style={{ color: BURG }}>MESSAGE</span>
-            </div>
+          <div className="flex items-center gap-6 text-[13px] text-gray-500">
+            <a href="/staff" className="hover:text-gray-900">Staff</a>
+            <a href="mailto:thrilznetwork@gmail.com" className="hover:text-gray-900">Contact</a>
           </div>
         </div>
-      </div>
-      <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-16 h-4 bg-gray-900 rounded-full z-10" />
-      <div className="absolute -inset-6 rounded-[60px] opacity-15 blur-3xl pointer-events-none"
-        style={{ background: `radial-gradient(circle, ${TEAL}, transparent)` }} />
+      </footer>
     </div>
   );
 }
+
+/* ──────────────────────────────────────────────────────────── */
+/*  Live animated chat thread (Hero)                            */
+/* ──────────────────────────────────────────────────────────── */
+
+function ChatThread() {
+  const [step, setStep] = useState(0);
+  const messages = [
+    { role: 'guest', name: 'Room 204', text: 'Hi — we need extra pillows please', time: '9:42 PM' },
+    { role: 'staff', name: 'Maria · Housekeeping', text: 'On the way with 2 pillows 👌', time: '9:43 PM' },
+    { role: 'vendor', name: 'Linen Co.', text: 'Restock order received for Room 204', time: '9:44 PM' },
+    { role: 'staff', name: 'Maria', text: 'Delivered. Anything else?', time: '9:51 PM' },
+  ];
+
+  useEffect(() => {
+    const t = setInterval(() => setStep(s => (s + 1) % (messages.length + 1)), 2200);
+    return () => clearInterval(t);
+  }, [messages.length]);
+
+  return (
+    <div className="space-y-2.5">
+      {messages.slice(0, step).map((m, i) => (
+        <div key={i} className={`flex ${m.role === 'guest' ? 'justify-end' : 'justify-start'} animate-fadeIn`}>
+          <div className={`max-w-[80%] ${m.role === 'guest' ? 'items-end' : 'items-start'} flex flex-col`}>
+            <div className="text-[9px] text-gray-400 mb-0.5 px-1 font-semibold uppercase tracking-wider">
+              {m.name} · {m.time}
+            </div>
+            <div
+              className="px-3.5 py-2 rounded-2xl text-[13px] text-white"
+              style={
+                m.role === 'guest'
+                  ? { backgroundColor: TEAL, borderBottomRightRadius: 4 }
+                  : m.role === 'staff'
+                  ? { backgroundColor: '#374151', borderBottomLeftRadius: 4 }
+                  : { backgroundColor: '#7c3aed', borderBottomLeftRadius: 4 }
+              }
+            >
+              {m.text}
+            </div>
+          </div>
+        </div>
+      ))}
+      {step === 0 && (
+        <div className="text-center text-[11px] text-gray-500 py-4">Thread starting...</div>
+      )}
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────── */
+/*  4 mockup cards                                              */
+/* ──────────────────────────────────────────────────────────── */
+
+function MockupCard({ imageSrc, imageAlt, label, tagline }: {
+  imageSrc: string;
+  imageAlt: string;
+  label: string;
+  tagline: string;
+}) {
+  return (
+    <div className="group bg-white rounded-3xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-all hover:shadow-xl">
+      <div className="aspect-[3/4] relative bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+        <Image
+          src={imageSrc}
+          alt={imageAlt}
+          fill
+          className="object-cover group-hover:scale-105 transition-transform duration-500"
+          sizes="(max-width: 768px) 100vw, 25vw"
+        />
+      </div>
+      <div className="p-5">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">{label}</div>
+        <div className="text-[18px] font-black text-gray-900 tracking-tight">{tagline}</div>
+      </div>
+    </div>
+  );
+}
+
+function AdminMockupCard() {
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const shifts: { [k: number]: { [k: number]: string } } = {
+    0: { 1: 'Maria', 2: 'Maria' },
+    1: { 1: 'Maria', 2: 'Alex', 3: 'Alex' },
+    2: { 0: 'Alex', 1: 'Alex', 2: 'Sofia' },
+    3: { 1: 'Sofia', 2: 'Sofia' },
+    4: { 1: 'Alex', 2: 'Alex', 3: 'Maria' },
+    5: { 0: 'Maria', 1: 'Maria', 2: 'Maria', 3: 'Sofia' },
+    6: { 1: 'Sofia', 2: 'Sofia' },
+  };
+  const colorMap: { [k: string]: string } = {
+    Maria: '#0D9488',
+    Alex: '#7c3aed',
+    Sofia: '#f59e0b',
+  };
+  return (
+    <div className="group bg-white rounded-3xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-all hover:shadow-xl">
+      <div className="aspect-[3/4] relative bg-gradient-to-br from-gray-900 to-gray-800 p-4 overflow-hidden">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Admin · Schedule</div>
+          <div className="text-[9px] text-gray-500">Week of May 30</div>
+        </div>
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {days.map(d => (
+            <div key={d} className="text-center text-[8px] font-bold text-gray-400 uppercase">{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {days.map((_, dayIdx) => (
+            <div key={dayIdx} className="space-y-1">
+              {[0, 1, 2, 3].map(row => {
+                const name = shifts[dayIdx]?.[row];
+                return (
+                  <div
+                    key={row}
+                    className="rounded text-[8px] font-bold text-white text-center py-1"
+                    style={{ backgroundColor: name ? colorMap[name] : '#1f2937', opacity: name ? 1 : 0.3 }}
+                  >
+                    {name || '—'}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <div className="absolute bottom-4 left-4 right-4 bg-gray-800/80 backdrop-blur rounded-lg p-2 flex items-center justify-between">
+          <div className="text-[9px] text-gray-300">
+            <span className="font-bold text-white">3</span> open shifts
+          </div>
+          <div className="text-[9px] px-2 py-0.5 rounded text-white font-bold" style={{ backgroundColor: TEAL }}>
+            Auto-fill
+          </div>
+        </div>
+      </div>
+      <div className="p-5">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Admin at the desk</div>
+        <div className="text-[18px] font-black text-gray-900 tracking-tight">Schedule a week in 60s.</div>
+      </div>
+    </div>
+  );
+}
+
+function QrMockupCard() {
+  return (
+    <div className="group bg-white rounded-3xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-all hover:shadow-xl">
+      <div className="aspect-[3/4] relative bg-gradient-to-br from-amber-50 to-orange-50 p-6 flex flex-col items-center justify-center">
+        <div className="bg-white rounded-2xl p-4 shadow-lg border-4 border-gray-900">
+          <div className="w-32 h-32 grid grid-cols-7 grid-rows-7 gap-px">
+            {Array.from({ length: 49 }).map((_, i) => {
+              // pseudo-random pattern
+              const filled = [0, 1, 2, 6, 7, 8, 13, 14, 18, 21, 24, 25, 28, 32, 35, 39, 40, 42, 45, 48].includes(i);
+              return <div key={i} className={filled ? 'bg-gray-900' : 'bg-white'} />;
+            })}
+          </div>
+        </div>
+        <div className="mt-4 text-center">
+          <div className="text-[11px] font-black text-gray-900 uppercase tracking-widest">Scan me</div>
+          <div className="text-[10px] text-gray-600 mt-0.5">Your room&apos;s digital directory</div>
+        </div>
+      </div>
+      <div className="p-5">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">In every room</div>
+        <div className="text-[18px] font-black text-gray-900 tracking-tight">Tap once. Routed.</div>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────── */
+/*  Flow example (Room 204 pillows)                            */
+/* ──────────────────────────────────────────────────────────── */
+
+function FlowExample() {
+  return (
+    <div className="space-y-4">
+      {/* Thread header */}
+      <div className="bg-gray-900 text-white rounded-t-2xl px-5 py-3 flex items-center justify-between">
+        <div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Live thread</div>
+          <div className="text-[14px] font-bold">Room 204 · Extra pillows · 9:42 PM</div>
+        </div>
+        <div className="text-[10px] px-2 py-1 rounded-full bg-green-500/20 text-green-300 font-bold">RESOLVED 9:51 PM</div>
+      </div>
+
+      {/* 3 role cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-gray-100 p-3 rounded-b-2xl">
+        {/* Guest */}
+        <div className="bg-white rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[12px]" style={{ backgroundColor: TEAL }}>G</div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-500 uppercase">Guest</div>
+              <div className="text-[12px] font-bold text-gray-900">Room 204</div>
+            </div>
+          </div>
+          <div className="space-y-1.5 text-[12px] text-gray-700">
+            <div className="bg-gray-50 rounded-lg p-2">📱 Taps &ldquo;Need extras&rdquo; in QR directory</div>
+            <div className="bg-gray-50 rounded-lg p-2">💬 &ldquo;We need extra pillows please&rdquo;</div>
+            <div className="rounded-lg p-2 text-white" style={{ backgroundColor: TEAL }}>✓ &ldquo;Delivered in 10 min&rdquo;</div>
+          </div>
+        </div>
+
+        {/* Staff */}
+        <div className="bg-white rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-[12px]">S</div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-500 uppercase">Staff</div>
+              <div className="text-[12px] font-bold text-gray-900">Maria · Housekeeping</div>
+            </div>
+          </div>
+          <div className="space-y-1.5 text-[12px] text-gray-700">
+            <div className="bg-gray-50 rounded-lg p-2">🔔 Phone buzzes: &ldquo;Room 204 &middot; pillows&rdquo;</div>
+            <div className="bg-gray-50 rounded-lg p-2">✅ Taps Accept</div>
+            <div className="bg-gray-50 rounded-lg p-2">🚪 Walks to room, delivers</div>
+          </div>
+        </div>
+
+        {/* Vendor */}
+        <div className="bg-white rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-[12px]">V</div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-500 uppercase">Vendor</div>
+              <div className="text-[12px] font-bold text-gray-900">Linen Co.</div>
+            </div>
+          </div>
+          <div className="space-y-1.5 text-[12px] text-gray-700">
+            <div className="bg-gray-50 rounded-lg p-2">📦 Auto-restock alert: Room 204</div>
+            <div className="bg-gray-50 rounded-lg p-2">✅ Confirms next-day delivery</div>
+            <div className="bg-gray-50 rounded-lg p-2">💰 Invoice auto-generated</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 /* ── Enroll Form ────────────────────────────────────────────── */
 function EnrollForm() {

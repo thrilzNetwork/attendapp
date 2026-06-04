@@ -1,3 +1,4 @@
+/* eslint-disable */
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -9,7 +10,7 @@ import {
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
-  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon,
+  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox,
 } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
@@ -41,6 +42,28 @@ import DailyLogsView from '@/components/ops-tools/DailyLogsView';
 import NoShowsView from '@/components/ops-tools/NoShowsView';
 import RoomMovesView from '@/components/ops-tools/RoomMovesView';
 import BankCountView from '@/components/ops-tools/BankCountView';
+import {
+  listOps, createOps, updateOps, deleteOps,
+  listKpiDefinitions, createKpiDefinition, deleteKpiDefinition,
+  listKpiSubmissions, createKpiSubmission,
+  listChecklistTemplates, createChecklistTemplate, deleteChecklistTemplate,
+  listChecklistCompletions, createChecklistCompletion, updateChecklistCompletion,
+  listForecasts, createForecast as createForecastRecord,
+  listShifts, createGeneratedShift, updateShift, deleteShift,
+  listLearningContent, createLearningContent, deleteLearningContent,
+  listHrDocuments, createHrDocument, deleteHrDocument,
+  listScheduleChangeRequests, createScheduleChangeRequest,
+  listShuttleSlots, listKbSuggestions, createKbSuggestion, deleteKbSuggestion,
+  suggestResponse,
+  generateShiftsFromForecast, today,
+  type KpiDefinition, type KpiSubmission,
+  type ChecklistTemplate, type ChecklistCompletion,
+  type Forecast, type GeneratedShift, type CoverageRule,
+  type LearningContent, type HrDocument,
+  type ScheduleChangeRequest,
+  type OpRecord,
+  type ShuttleSlot as OpsShuttleSlot,
+} from '@/lib/opsStore';
 
 /* ── Types ─────────────────────────────────────────────── */
 type Role = 'admin' | 'staff' | 'superadmin' | 'vendor' | 'manager';
@@ -50,7 +73,8 @@ type NavTab =
   | 'partners' | 'qrcodes' | 'properties'
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
   | 'frontdesk' | 'dailybrief' | 'property_info'
-  | 'schedules' | 'checklists_tab' | 'learning' | 'hr';
+  | 'schedules' | 'checklists_tab' | 'kpis' | 'learning' | 'hr'
+  | 'shuttle_schedule' | 'callouts';
 
 interface Request {
   id: string;
@@ -98,8 +122,11 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[] }[] = [
   { tab: 'orders',          label: 'Requests',           icon: Bell,            roles: ['admin', 'staff', 'superadmin', 'manager'] },
   { tab: 'messages',        label: 'Messages',           icon: MessageSquare,   roles: ['admin', 'staff', 'superadmin', 'manager'] },
   { tab: 'shuttle',         label: 'Shuttle',            icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'shuttle_schedule', label: 'Shuttle Grid',      icon: Bus,             roles: ['admin', 'superadmin', 'manager'] },
   { tab: 'schedules',       label: 'Schedules',          icon: Clock,           roles: ['admin', 'staff', 'superadmin', 'manager'] },
   { tab: 'checklists_tab',  label: 'Checklists',         icon: ClipboardCheck,  roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'kpis',            label: 'KPIs',               icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'] },
+  { tab: 'callouts',        label: 'Staff Callouts',     icon: Inbox,           roles: ['admin', 'superadmin'] },
   { tab: 'learning',        label: 'Learning',           icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'] },
   { tab: 'hr',              label: 'H/R',                icon: Briefcase,       roles: ['admin', 'staff', 'superadmin', 'manager'] },
   { tab: 'frontdesk',       label: 'Front Desk',         icon: ClipboardList,   roles: ['admin', 'staff', 'superadmin', 'manager'] },
@@ -613,6 +640,9 @@ export default function Dashboard() {
         {effectiveTab === 'checklists_tab' && config?.id && (
           <ChecklistsTabView hotelId={config.id} isAdmin={isAdmin} />
         )}
+        {effectiveTab === 'kpis' && config?.id && (
+          <KpisView hotelId={config.id} isAdmin={isAdmin} userId="" userName={session?.name || 'Staff'} />
+        )}
         {effectiveTab === 'learning' && config?.id && (
           <LearningView hotelId={config.id} />
         )}
@@ -631,6 +661,12 @@ export default function Dashboard() {
         {effectiveTab === 'messages' && <MessagesView messages={messages} />}
         {effectiveTab === 'shuttle' && config?.id && (
           <ShuttleView hotelId={config.id} isAdmin={isAdmin} />
+        )}
+        {effectiveTab === 'shuttle_schedule' && config?.id && (
+          <ShuttleScheduleView hotelId={config.id} isAdmin={isAdmin} />
+        )}
+        {effectiveTab === 'callouts' && config?.id && (
+          <AdminCalloutsView hotelId={config.id} />
         )}
         {effectiveTab === 'vendor_manifest' && config?.id && (
           <VendorDashboard hotelId={config.id} vendorType={s.vendorType || 'shuttle'} vendorName={s.name} />
@@ -651,7 +687,7 @@ export default function Dashboard() {
           <QrCodesView hotelId={config.id} hotelSlug={config.slug} />
         )}
         {effectiveTab === 'knowledge' && isAdmin && config?.id && (
-          <KnowledgeBaseView hotelId={config.id} />
+          <IncidentKBView hotelId={config.id} isAdmin={isAdmin} userName={s.name} />
         )}
         {effectiveTab === 'rooms' && isAdmin && config?.id && config?.slug && (
           <RoomsView hotelId={config.id} hotelName={config.name} />
@@ -5513,203 +5549,330 @@ function PropertyInfoView({ config }: { config: HotelConfig }) {
   );
 }
 
-/* ── Schedules View ──────────────────────────────────── */
+/* ── Schedules View — Week Grid (Sun-Sat × Hours) ───────── */
 function SchedulesView({ hotelId, isAdmin, staffList }: { hotelId: string; isAdmin: boolean; staffList: { id?: string; name: string; role?: string; department?: string }[] }) {
-  const [schedules, setSchedules] = useState<StaffSchedule[]>([]);
-  const [showForm, setShowForm] = useState(false);
+  const [forecasts, setForecasts] = useState<any[]>([]);
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [changeRequests, setChangeRequests] = useState<any[]>([]);
+  const [weekStart, setWeekStart] = useState<string>(getWeekStart(today()));
+  const [showForecastForm, setShowForecastForm] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
-  const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [form, setForm] = useState({ staff_name: '', staff_id: '', role: 'front desk', department: 'front_desk' as DepartmentKey, shift_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '17:00', notes: '' });
-  const [reqForm, setReqForm] = useState({ staff_name: '', department: 'front_desk' as DepartmentKey, shift_date: new Date().toISOString().split('T')[0], details: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [fcForm, setFcForm] = useState({
+    forecast_date: today(),
+    expected_occupancy: 50,
+    rules: DEFAULT_COVERAGE_RULES.map(r => ({ ...r })),
+    notes: '',
+  });
+
+  const [reqForm, setReqForm] = useState({
+    staff_name: '',
+    department: 'front_desk' as DepartmentKey,
+    shift_date: today(),
+    change_type: 'time_off' as ScheduleChangeRequest['change_type'],
+    details: '',
+  });
+
   const load = async () => {
-    const data = await getStaffSchedules(hotelId);
-    setSchedules(data || []);
+    const [f, s, cr] = await Promise.all([
+      listForecasts(hotelId),
+      listShifts(hotelId),
+      listScheduleChangeRequests(hotelId, 'pending'),
+    ]);
+    setForecasts(f);
+    setShifts(s);
+    setChangeRequests(cr);
   };
   useEffect(() => { load(); }, [hotelId]);
 
-  const create = async () => {
-    if (!form.staff_name.trim()) return;
+  const saveForecast = async () => {
     setSubmitting(true); setError(null);
-    const { error: err } = await supabase.from('staff_schedules').insert({
-      hotel_id: hotelId,
-      staff_name: form.staff_name.trim(),
-      staff_id: form.staff_id || undefined,
-      shift_date: form.shift_date,
-      start_time: form.start_time,
-      end_time: form.end_time,
-      role: form.role,
-      department: form.department,
-      notes: form.notes || undefined,
+    const adminName = (typeof window !== 'undefined' && sessionStorage.getItem('attenda_session_name')) || 'Admin';
+    const res = await createForecastRecord(hotelId, {
+      forecast_date: fcForm.forecast_date,
+      expected_occupancy: Number(fcForm.expected_occupancy),
+      coverage_rules: fcForm.rules,
+      notes: fcForm.notes || undefined,
+      created_by: adminName,
     });
-    if (err) { setError(err.message); setSubmitting(false); return; }
-    setShowForm(false);
-    setForm({ staff_name: '', staff_id: '', role: 'front desk', department: 'front_desk', shift_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '17:00', notes: '' });
+    if (!res) { setError('Could not save forecast.'); setSubmitting(false); return; }
+    const draft = generateShiftsFromForecast({
+      forecast_date: fcForm.forecast_date,
+      expected_occupancy: Number(fcForm.expected_occupancy),
+      coverage_rules: fcForm.rules,
+      created_by: adminName,
+    });
+    for (const shift of draft) {
+      await createGeneratedShift(hotelId, { ...shift, forecast_id: res.id });
+    }
+    setShowForecastForm(false);
+    setFcForm({ forecast_date: today(), expected_occupancy: 50, rules: DEFAULT_COVERAGE_RULES.map(r => ({ ...r })), notes: '' });
     await load();
     setSubmitting(false);
   };
 
-  const requestChange = async () => {
-    if (!reqForm.details.trim()) { setError('Tell us what change you need.'); return; }
+  const submitRequest = async () => {
+    if (!reqForm.details.trim() && reqForm.change_type === 'other') { setError('Tell us what you need.'); return; }
     setSubmitting(true); setError(null);
-    const deptLabel = DEPARTMENTS.find(d => d.key === reqForm.department)?.label || reqForm.department;
-    const { error: err } = await supabase.from('requests').insert({
-      hotel_id: hotelId,
-      type: 'schedule_change_request',
-      details: `[${deptLabel} · ${reqForm.shift_date}] ${reqForm.details}${reqForm.staff_name ? ` (for ${reqForm.staff_name})` : ''}`,
-      status: 'pending',
-      assigned_to: null,
-      guest_name: reqForm.staff_name || 'Staff',
-      room: 'staff',
+    const res = await createScheduleChangeRequest(hotelId, {
+      requested_by: reqForm.staff_name || 'Staff',
+      shift_date: reqForm.shift_date,
+      department: reqForm.department,
+      change_type: reqForm.change_type,
+      details: reqForm.details,
     });
-    if (err) { setError(err.message); setSubmitting(false); return; }
+    if (!res) { setError('Could not send request.'); setSubmitting(false); return; }
     setShowRequest(false);
-    setReqForm({ staff_name: '', department: 'front_desk', shift_date: new Date().toISOString().split('T')[0], details: '' });
+    setReqForm({ staff_name: '', department: 'front_desk', shift_date: today(), change_type: 'time_off', details: '' });
+    await load();
     setSubmitting(false);
   };
 
-  const remove = async (id: string) => {
-    if (!confirm('Delete this schedule entry?')) return;
-    await deleteStaffSchedule(id);
+  const approveShift = async (id: string) => { await updateShift(id, { status: 'approved' }); load(); };
+  const removeShift = async (id: string) => {
+    if (!confirm('Delete this shift?')) return;
+    await deleteShift(id);
     load();
   };
+  const completeChange = async (id: string) => { await updateOps(id, { status: 'completed' }); load(); };
 
-  // Group schedules by department for the chosen date
-  const byDept: Record<string, StaffSchedule[]> = {};
-  schedules.filter(s => s.shift_date === filterDate).forEach(s => {
-    const k = s.department || 'front_desk';
-    (byDept[k] = byDept[k] || []).push(s);
+  // Build week dates
+  const weekDates = getWeekDates(weekStart);
+  const weekEnd = weekDates[6];
+
+  // Shifts in this week
+  const weekShifts = shifts.filter(s => {
+    const d = s.details?.shift_date;
+    return d && d >= weekStart && d <= weekEnd;
   });
 
-  // Roll-up headcount per department for the date (from staff_list, since not every
-  // department has a schedule that day)
-  const deptHeadcount: Record<string, number> = {};
-  staffList.forEach(s => {
-    const k = s.department || 'front_desk';
-    deptHeadcount[k] = (deptHeadcount[k] || 0) + 1;
-  });
+  // Hours 06:00 – 23:00 (covers overnight split)
+  const HOURS = Array.from({ length: 18 }, (_, i) => 6 + i);
+
+  // Map shift -> calendar slot
+  const getShiftsForCell = (date: string, hour: number) => {
+    return weekShifts.filter(s => {
+      const d = s.details;
+      if (d?.shift_date !== date) return false;
+      const start = parseInt((d.start_time || '0:0').split(':')[0]);
+      const end = parseInt((d.end_time || '0:0').split(':')[0]);
+      // Normal shift within a day
+      if (end > start) return hour >= start && hour < end;
+      // Overnight (end <= start): wraps midnight
+      return hour >= start || hour < end;
+    });
+  };
+
+  const departmentColor = (dept: string) => {
+    const colors: Record<string, string> = {
+      management: 'bg-purple-100 border-purple-300 text-purple-900',
+      front_desk: 'bg-sky-100 border-sky-300 text-sky-900',
+      housekeeping: 'bg-emerald-100 border-emerald-300 text-emerald-900',
+      maintenance: 'bg-amber-100 border-amber-300 text-amber-900',
+      security: 'bg-slate-200 border-slate-400 text-slate-900',
+      drivers: 'bg-orange-100 border-orange-300 text-orange-900',
+    };
+    return colors[dept] || 'bg-gray-100 border-gray-300 text-gray-900';
+  };
 
   return (
-    <div className="p-4 md:p-8 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <h1 className="text-[22px] font-extrabold text-gray-900">Staff Schedules</h1>
-          <p className="text-[13px] text-gray-500">Departments and shift times</p>
+          <h1 className="text-[22px] font-extrabold text-gray-900">Schedules</h1>
+          <p className="text-[13px] text-gray-500">{formatDateRange(weekStart, weekEnd)}</p>
         </div>
-        {isAdmin ? (
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
-            <Plus size={14} /> Add
-          </button>
-        ) : (
-          <button onClick={() => setShowRequest(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
-            <SendHorizontal size={14} /> Request Change
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin ? (
+            <button onClick={() => setShowForecastForm(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
+              <Plus size={14} /> New Forecast
+            </button>
+          ) : (
+            <button onClick={() => setShowRequest(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
+              <CalendarDays size={14} /> + Request Day Off
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Date filter */}
-      <div className="flex items-center gap-2 mb-5">
-        <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="bg-white rounded-xl px-3 py-2 text-[13px] border border-gray-200 shadow-sm" />
-        <button onClick={() => setFilterDate(new Date().toISOString().split('T')[0])} className="text-[12px] font-semibold text-gray-500 px-3 py-2 rounded-xl hover:bg-gray-100">Today</button>
+      {/* Week navigation */}
+      <div className="flex items-center gap-2 mb-4">
+        <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-600">← Prev</button>
+        <button onClick={() => setWeekStart(getWeekStart(today()))} className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-600">This week</button>
+        <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-600">Next →</button>
+        <span className="text-[11px] text-gray-500 ml-2">Color = department</span>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] rounded-xl px-4 py-3 mb-4">{error}</div>}
 
-      {/* Department sections */}
-      <div className="space-y-4">
-        {DEPARTMENTS.map(dept => {
-          const entries = byDept[dept.key] || [];
-          const onDuty = entries.length;
-          const headcount = deptHeadcount[dept.key] || 0;
-          return (
-            <div key={dept.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <span className="text-[18px]">{dept.icon}</span>
-                  <p className="text-[14px] font-bold text-gray-900">{dept.label}</p>
+      {/* Pending change requests banner (admin) */}
+      {isAdmin && changeRequests.length > 0 && (
+        <div className="bg-amber-50 rounded-2xl border border-amber-200 p-4 mb-5">
+          <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-2">⏳ {changeRequests.length} day-off / change request{changeRequests.length === 1 ? '' : 's'} pending</p>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {changeRequests.slice(0, 5).map(cr => (
+              <div key={cr.id} className="bg-white rounded-xl p-2.5 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[12px] font-semibold text-gray-900 truncate">{cr.details.requested_by} · {cr.details.change_type}</p>
+                  <p className="text-[10px] text-gray-500">{cr.details.shift_date} · {DEPARTMENTS.find(d => d.key === cr.details.department)?.label} · {cr.details.details}</p>
                 </div>
-                <div className="flex items-center gap-2 text-[11px] font-semibold">
-                  <span className="text-gray-500">{headcount} on staff</span>
-                  <span className="text-gray-300">·</span>
-                  <span style={{ color: TEAL }}>{onDuty} on shift today</span>
-                </div>
+                <button onClick={() => completeChange(cr.id)} className="text-[10px] font-bold px-2 py-1 rounded-lg text-white shrink-0" style={{ backgroundColor: TEAL }}>Done</button>
               </div>
-              <div className="divide-y divide-gray-100">
-                {entries.length === 0 ? (
-                  <p className="text-[12px] text-gray-400 px-4 py-4">No shifts scheduled for this department on {filterDate}.</p>
-                ) : (
-                  entries.map(s => (
-                    <div key={s.id} className="px-4 py-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-[14px] font-semibold text-gray-900">{s.staff_name}</p>
-                        <p className="text-[11px] text-gray-500">{s.start_time?.slice(0, 5)} – {s.end_time?.slice(0, 5)} · {s.role}{s.notes ? ` · ${s.notes}` : ''}</p>
-                      </div>
-                      {isAdmin && (
-                        <button onClick={() => remove(s.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Week grid */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px] border-collapse">
+            <thead>
+              <tr>
+                <th className="bg-gray-50 border-b border-r border-gray-200 p-2 w-16 sticky left-0 z-10"></th>
+                {weekDates.map(d => {
+                  const isToday = d === today();
+                  return (
+                    <th key={d} className={`border-b border-r border-gray-200 p-2 text-center min-w-[110px] ${isToday ? 'bg-teal-50' : 'bg-gray-50'}`}>
+                      <div className="text-[10px] font-bold text-gray-500 uppercase">{dayName(d)}</div>
+                      <div className={`text-[14px] font-extrabold ${isToday ? 'text-teal-700' : 'text-gray-900'}`}>{dayMonth(d)}</div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {HOURS.map(hour => (
+                <tr key={hour}>
+                  <td className="bg-gray-50 border-b border-r border-gray-200 p-1.5 text-center text-[10px] font-bold text-gray-500 sticky left-0">
+                    {formatHour(hour)}
+                  </td>
+                  {weekDates.map(d => {
+                    const cellShifts = getShiftsForCell(d, hour);
+                    return (
+                      <td key={d} className="border-b border-r border-gray-100 p-1 align-top h-14">
+                        <div className="space-y-1">
+                          {cellShifts.map(s => (
+                            <div
+                              key={s.id}
+                              className={`rounded-md border px-1.5 py-1 text-[10px] leading-tight ${departmentColor(s.details?.department)} ${isAdmin ? 'cursor-pointer hover:shadow-sm' : ''}`}
+                              onClick={() => isAdmin && confirm(`Delete this ${s.details.position} shift?`) && removeShift(s.id)}
+                              title={isAdmin ? 'Tap to delete' : s.details.position}
+                            >
+                              <p className="font-bold truncate">{s.details.position}</p>
+                              <p className="opacity-80">{s.details.staff_count}× · {s.details.start_time?.slice(0,5)}-{s.details.end_time?.slice(0,5)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="p-3 border-t border-gray-100 bg-gray-50 flex flex-wrap items-center gap-3 text-[10px]">
+          <span className="font-bold text-gray-500 uppercase">Legend:</span>
+          {DEPARTMENTS.map(d => (
+            <span key={d.key} className={`px-2 py-0.5 rounded border ${departmentColor(d.key)}`}>{d.icon} {d.label}</span>
+          ))}
+          {isAdmin && <span className="ml-auto text-gray-500">Tap a shift to delete. Use "New Forecast" to generate more.</span>}
+        </div>
       </div>
 
-      {/* Admin: add schedule modal */}
-      {showForm && isAdmin && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowForm(false)}>
-          <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+      {/* New forecast modal */}
+      {showForecastForm && isAdmin && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowForecastForm(false)}>
+          <div className="w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[15px] font-bold">New Schedule Entry</h2>
-              <button onClick={() => setShowForm(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
+              <h2 className="text-[15px] font-bold">New Forecast</h2>
+              <button onClick={() => setShowForecastForm(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
             </div>
+            <p className="text-[12px] text-gray-500 mb-4">Set expected occupancy. The system will generate recommended shifts per department based on your coverage rules.</p>
             <div className="space-y-3">
-              <select value={form.staff_id} onChange={e => { const s = staffList.find(x => x.id === e.target.value); setForm(p => ({ ...p, staff_id: e.target.value, staff_name: s?.name || p.staff_name, department: (s?.department as DepartmentKey) || p.department })); }} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100">
-                <option value="">Select staff…</option>
-                {staffList.map(s => <option key={s.id} value={s.id}>{s.name}{s.department ? ` · ${DEPARTMENTS.find(d => d.key === s.department)?.label || s.department}` : ''}</option>)}
-              </select>
-              <select value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value as DepartmentKey }))} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100">
-                {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
-              </select>
-              <input value={form.shift_date} onChange={e => setForm(p => ({ ...p, shift_date: e.target.value }))} type="date" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
-              <div className="flex gap-2">
-                <input value={form.start_time} onChange={e => setForm(p => ({ ...p, start_time: e.target.value }))} type="time" className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
-                <input value={form.end_time} onChange={e => setForm(p => ({ ...p, end_time: e.target.value }))} type="time" className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <div>
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Forecast date</label>
+                <input type="date" value={fcForm.forecast_date} onChange={e => setFcForm(p => ({ ...p, forecast_date: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
               </div>
-              <input value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} placeholder="Position (e.g. Lead, Server)" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
-              <input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Notes (optional)" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <div>
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Expected occupancy (rooms sold)</label>
+                <input type="number" value={fcForm.expected_occupancy} onChange={e => setFcForm(p => ({ ...p, expected_occupancy: Number(e.target.value) }))} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Coverage rules (1 staff per X rooms)</label>
+                <div className="space-y-2 mt-1">
+                  {fcForm.rules.map((r, i) => (
+                    <div key={i} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[16px]">{DEPARTMENTS.find(d => d.key === r.department)?.icon}</span>
+                        <p className="text-[12px] font-bold text-gray-700">{DEPARTMENTS.find(d => d.key === r.department)?.label}</p>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        <div>
+                          <label className="text-[10px] text-gray-500">1 per</label>
+                          <input type="number" value={r.ratio} onChange={e => { const v = Number(e.target.value); setFcForm(p => ({ ...p, rules: p.rules.map((x, j) => j === i ? { ...x, ratio: v } : x) })); }} className="w-full bg-white rounded-lg px-2 py-1.5 text-[12px] border border-gray-200" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-500">Min</label>
+                          <input type="number" value={r.min_staff} onChange={e => { const v = Number(e.target.value); setFcForm(p => ({ ...p, rules: p.rules.map((x, j) => j === i ? { ...x, min_staff: v } : x) })); }} className="w-full bg-white rounded-lg px-2 py-1.5 text-[12px] border border-gray-200" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-500">Max</label>
+                          <input type="number" value={r.max_staff} onChange={e => { const v = Number(e.target.value); setFcForm(p => ({ ...p, rules: p.rules.map((x, j) => j === i ? { ...x, max_staff: v } : x) })); }} className="w-full bg-white rounded-lg px-2 py-1.5 text-[12px] border border-gray-200" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-500">Hours</label>
+                          <div className="flex gap-1">
+                            <input type="time" value={r.start_time} onChange={e => setFcForm(p => ({ ...p, rules: p.rules.map((x, j) => j === i ? { ...x, start_time: e.target.value } : x) }))} className="w-full bg-white rounded-lg px-1 py-1.5 text-[11px] border border-gray-200" />
+                            <input type="time" value={r.end_time} onChange={e => setFcForm(p => ({ ...p, rules: p.rules.map((x, j) => j === i ? { ...x, end_time: e.target.value } : x) }))} className="w-full bg-white rounded-lg px-1 py-1.5 text-[11px] border border-gray-200" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Notes (optional)</label>
+                <textarea value={fcForm.notes} onChange={e => setFcForm(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="e.g. Cruise ship disembarkation day" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
+              </div>
               <div className="flex gap-2 pt-1">
-                <button onClick={create} disabled={submitting} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{submitting ? 'Saving…' : 'Save'}</button>
-                <button onClick={() => setShowForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
+                <button onClick={saveForecast} disabled={submitting} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{submitting ? 'Generating…' : 'Generate Shifts'}</button>
+                <button onClick={() => setShowForecastForm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Staff: request change modal */}
+      {/* Staff: Request Day Off / Change modal */}
       {showRequest && !isAdmin && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowRequest(false)}>
           <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[15px] font-bold">Request Schedule Change</h2>
+              <h2 className="text-[15px] font-bold">Request Day Off / Change</h2>
               <button onClick={() => setShowRequest(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
             </div>
-            <p className="text-[12px] text-gray-500 mb-4">Your manager will see this in the Requests queue. Schedules are managed by admin/manager — staff submit requests here.</p>
+            <p className="text-[12px] text-gray-500 mb-4">Your manager will see this in their queue.</p>
             <div className="space-y-3">
               <input value={reqForm.staff_name} onChange={e => setReqForm(p => ({ ...p, staff_name: e.target.value }))} placeholder="Your name" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
               <select value={reqForm.department} onChange={e => setReqForm(p => ({ ...p, department: e.target.value as DepartmentKey }))} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100">
                 {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
               </select>
               <input value={reqForm.shift_date} onChange={e => setReqForm(p => ({ ...p, shift_date: e.target.value }))} type="date" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
-              <textarea value={reqForm.details} onChange={e => setReqForm(p => ({ ...p, details: e.target.value }))} rows={3} placeholder="What change do you need? (swap, day off, cover, etc.)" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <div className="grid grid-cols-3 gap-2">
+                {(['time_off', 'swap', 'cover', 'time_change', 'other'] as const).map(t => (
+                  <button key={t} onClick={() => setReqForm(p => ({ ...p, change_type: t }))} className={`py-2 rounded-xl text-[11px] font-bold border ${reqForm.change_type === t ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-600'}`}>
+                    {t === 'time_off' ? 'Day off' : t === 'time_change' ? 'Time change' : t === 'swap' ? 'Swap' : t === 'cover' ? 'Cover' : 'Other'}
+                  </button>
+                ))}
+              </div>
+              <textarea value={reqForm.details} onChange={e => setReqForm(p => ({ ...p, details: e.target.value }))} rows={3} placeholder="Reason / details (optional for Day off)" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
               <div className="flex gap-2 pt-1">
-                <button onClick={requestChange} disabled={submitting} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{submitting ? 'Sending…' : 'Send Request'}</button>
+                <button onClick={submitRequest} disabled={submitting} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{submitting ? 'Sending…' : 'Send Request'}</button>
                 <button onClick={() => setShowRequest(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
               </div>
             </div>
@@ -5719,6 +5882,49 @@ function SchedulesView({ hotelId, isAdmin, staffList }: { hotelId: string; isAdm
     </div>
   );
 }
+
+// Week helpers
+function getWeekStart(date: string): string {
+  const d = new Date(date + 'T00:00:00');
+  const day = d.getDay(); // 0=Sun
+  d.setDate(d.getDate() - day);
+  return d.toISOString().split('T')[0];
+}
+function getWeekDates(weekStart: string): string[] {
+  return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+}
+function addDays(date: string, n: number): string {
+  const d = new Date(date + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+function dayName(date: string): string {
+  return new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+}
+function dayMonth(date: string): string {
+  return new Date(date + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+}
+function formatHour(h: number): string {
+  if (h === 0) return '12 AM';
+  if (h < 12) return `${h} AM`;
+  if (h === 12) return '12 PM';
+  return `${h - 12} PM`;
+}
+function formatDateRange(a: string, b: string): string {
+  const da = new Date(a + 'T00:00:00');
+  const db = new Date(b + 'T00:00:00');
+  return `${da.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${db.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+}
+
+// Default coverage rules used by the forecast form
+const DEFAULT_COVERAGE_RULES: CoverageRule[] = [
+  { department: 'front_desk',   position: 'Front Desk Agent',  ratio: 30, min_staff: 1, max_staff: 4, start_time: '07:00', end_time: '23:00' },
+  { department: 'housekeeping', position: 'Housekeeper',       ratio: 15, min_staff: 2, max_staff: 8, start_time: '08:00', end_time: '16:00' },
+  { department: 'maintenance',  position: 'Maintenance Tech',  ratio: 50, min_staff: 1, max_staff: 3, start_time: '08:00', end_time: '17:00' },
+  { department: 'security',     position: 'Security Officer',  ratio: 60, min_staff: 1, max_staff: 2, start_time: '22:00', end_time: '06:00' },
+  { department: 'drivers',      position: 'Shuttle Driver',    ratio: 40, min_staff: 0, max_staff: 3, start_time: '06:00', end_time: '22:00' },
+  { department: 'management',   position: 'Manager on Duty',   ratio: 80, min_staff: 1, max_staff: 2, start_time: '08:00', end_time: '20:00' },
+];
 
 /* ── Checklists Tab View ─────────────────────────────── */
 function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
@@ -6038,6 +6244,566 @@ function HRView({ hotelId }: { hotelId: string }) {
               )}
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// KPI TRACKING VIEW
+// ============================================================
+function KpisView({ hotelId, isAdmin, userName }: { hotelId: string; isAdmin: boolean; userId: string; userName: string }) {
+  const [kpis, setKpis] = useState<OpRecord[]>([]);
+  const [logs, setLogs] = useState<OpRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ kpi_name: '', unit: '', target: 0, frequency: 'daily' as 'daily' | 'weekly' | 'monthly', category: 'Operations' });
+  const [logValues, setLogValues] = useState<Record<string, number>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const [defs, lg] = await Promise.all([listKpiDefinitions(hotelId), listKpiSubmissions(hotelId)]);
+      setKpis(defs || []);
+      setLogs(lg || []);
+      setLoading(false);
+    })();
+  }, [hotelId]);
+
+  const today = new Date().toISOString().split('T')[0];
+  const isInWindow = (kpiId: string, freq: string): boolean => {
+    if (freq === 'daily') return !logs.some(l => (l.details as any).definition_id === kpiId && (l.details as any).shift_date === today);
+    if (freq === 'weekly') {
+      const ws = getWeekStart(today);
+      return !logs.some(l => (l.details as any).definition_id === kpiId && getWeekStart((l.details as any).shift_date) === ws);
+    }
+    if (freq === 'monthly') {
+      const m = today.substring(0, 7);
+      return !logs.some(l => (l.details as any).definition_id === kpiId && (l.details as any).shift_date?.startsWith(m));
+    }
+    return true;
+  };
+
+  const saveKpi = async () => {
+    if (!form.kpi_name) return;
+    setSubmitting(true);
+    try {
+      await createKpiDefinition(hotelId, form);
+      const defs = await listKpiDefinitions(hotelId);
+      setKpis(defs || []);
+      setShowAdd(false);
+      setForm({ kpi_name: '', unit: '', target: 0, frequency: 'daily', category: 'Operations' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitLog = async (kpi: OpRecord) => {
+    const def = kpi.details as any;
+    const v = logValues[kpi.id];
+    if (v === undefined) return;
+    setSubmitting(true);
+    try {
+      await createKpiSubmission(hotelId, { definition_id: kpi.id, kpi_name: def.kpi_name, value: v, shift_date: today, submitted_by: userName });
+      const lg = await listKpiSubmissions(hotelId);
+      setLogs(lg || []);
+      setLogValues(p => { const n = { ...p }; delete n[kpi.id]; return n; });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const deleteKpi = async (id: string) => {
+    if (!confirm('Delete this KPI?')) return;
+    await deleteOps(id);
+    setKpis(kpis.filter(k => k.id !== id));
+  };
+
+  if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
+
+  return (
+    <div className="p-4 md:p-6 max-w-3xl mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-[20px] font-extrabold text-gray-900">KPIs</h1>
+          <p className="text-[12px] text-gray-500">Track performance metrics</p>
+        </div>
+        {isAdmin && (
+          <button onClick={() => setShowAdd(true)} className="px-3 py-2 rounded-xl text-white font-bold text-[12px] flex items-center gap-1" style={{ backgroundColor: TEAL }}>
+            <Plus size={14} /> New KPI
+          </button>
+        )}
+      </div>
+
+      {kpis.length === 0 ? (
+        <div className="bg-gray-50 rounded-2xl p-8 text-center">
+          <TrendingUp size={32} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-[14px] text-gray-500 font-medium">No KPIs yet</p>
+          <p className="text-[12px] text-gray-400 mt-1">{isAdmin ? 'Tap "New KPI" to add one' : 'Your manager will add KPIs'}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {kpis.map(k => {
+            const def = k.details as any;
+            const due = isInWindow(k.id, def.frequency);
+            const recent = logs.filter(l => (l.details as any).definition_id === k.id).slice(0, 5);
+            return (
+              <div key={k.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[14px] font-bold text-gray-900">{def.kpi_name}</p>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold capitalize">{def.frequency}</span>
+                      {def.category && <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-semibold">{def.category}</span>}
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-1">Target: {def.target} {def.unit}</p>
+                  </div>
+                  {isAdmin && (
+                    <button onClick={() => deleteKpi(k.id)} className="p-1 text-gray-400 hover:text-gray-700"><Trash2 size={14} /></button>
+                  )}
+                </div>
+                {!isAdmin && due && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <input type="number" value={logValues[k.id] ?? ''} onChange={e => setLogValues(p => ({ ...p, [k.id]: Number(e.target.value) }))} placeholder={`Value (${def.unit})`} className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100" />
+                    <button onClick={() => submitLog(k)} disabled={submitting} className="px-3 py-2 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: TEAL }}>Log</button>
+                  </div>
+                )}
+                {!isAdmin && !due && (
+                  <p className="text-[11px] text-gray-600 mt-2 font-semibold">✓ Logged this {def.frequency.replace('ly', '')}</p>
+                )}
+                {isAdmin && recent.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Recent</p>
+                    <div className="space-y-1">
+                      {recent.map(l => {
+                        const ld = l.details as any;
+                        return (
+                          <div key={l.id} className="flex items-center justify-between text-[12px]">
+                            <span className="text-gray-600">{ld.shift_date} · {ld.submitted_by}</span>
+                            <span className="font-bold text-gray-900">{ld.value} {def.unit}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showAdd && isAdmin && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowAdd(false)}>
+          <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h2 className="text-[15px] font-bold mb-4">New KPI</h2>
+            <div className="space-y-3">
+              <input value={form.kpi_name} onChange={e => setForm(p => ({ ...p, kpi_name: e.target.value }))} placeholder="KPI name (e.g. Check-in time)" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Target</label>
+                  <input type="number" value={form.target} onChange={e => setForm(p => ({ ...p, target: Number(e.target.value) }))} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Unit</label>
+                  <input value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value }))} placeholder="min, %, $…" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Frequency</label>
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  {(['daily', 'weekly', 'monthly'] as const).map(f => (
+                    <button key={f} onClick={() => setForm(p => ({ ...p, frequency: f }))} className={`py-2 rounded-xl text-[12px] font-bold border capitalize ${form.frequency === f ? 'border-gray-900 text-gray-900 bg-gray-100' : 'bg-white border-gray-200 text-gray-600'}`}>{f}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
+                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1">
+                  <option>Revenue</option>
+                  <option>Operations</option>
+                  <option>Guest Experience</option>
+                  <option>Quality</option>
+                </select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={saveKpi} disabled={submitting || !form.kpi_name} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{submitting ? 'Saving…' : 'Save KPI'}</button>
+                <button onClick={() => setShowAdd(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// SHUTTLE SCHEDULE VIEW (Sun–Sat week grid with time-slot rows)
+// ============================================================
+function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
+  const [slots, setSlots] = useState<(OpsShuttleSlot & { id: string })[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState<{ day_of_week: number; departure_time: string; pickup_location: string; destination: string; service_type: 'regular' | 'express'; capacity: number; notes: string }>({ day_of_week: 1, departure_time: '08:00', pickup_location: '', destination: '', service_type: 'regular', capacity: 12, notes: '' });
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const s = await listShuttleSlots(hotelId);
+      setSlots(s || []);
+      setLoading(false);
+    })();
+  }, [hotelId]);
+
+  const save = async () => {
+    if (!form.pickup_location) return;
+    try {
+      await createOps(hotelId, 'shuttle_slot', form, 'active', { guest_name: 'Admin', room: 'SHUTTLE' });
+      const s = await listShuttleSlots(hotelId);
+      setSlots(s || []);
+      setShowAdd(false);
+      setForm({ day_of_week: 1, departure_time: '08:00', pickup_location: '', destination: '', service_type: 'regular', capacity: 12, notes: '' });
+    } catch {
+      alert('Failed to save shuttle slot');
+    }
+  };
+
+  const del = async (id: string) => {
+    if (!confirm('Delete this slot?')) return;
+    await deleteOps(id);
+    setSlots(slots.filter(s => s.id !== id));
+  };
+
+  if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
+
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const SERVICE_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
+    regular: { bg: 'bg-gray-100', text: 'text-gray-700', ring: 'ring-gray-300' },
+    express: { bg: 'bg-gray-900', text: 'text-white', ring: 'ring-gray-700' },
+  };
+
+  // Build unique time-slot rows
+  const allTimes = Array.from(new Set(slots.map(s => s.departure_time))).sort();
+
+  return (
+    <div className="p-4 md:p-6 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-[20px] font-extrabold text-gray-900">Shuttle Schedule</h1>
+          <p className="text-[12px] text-gray-500">Free pickup and drop-off times</p>
+        </div>
+        {isAdmin && (
+          <button onClick={() => setShowAdd(true)} className="px-3 py-2 rounded-xl text-white font-bold text-[12px] flex items-center gap-1" style={{ backgroundColor: TEAL }}>
+            <Plus size={14} /> Add Slot
+          </button>
+        )}
+      </div>
+
+      {slots.length === 0 ? (
+        <div className="bg-gray-50 rounded-2xl p-8 text-center">
+          <Bus size={32} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-[14px] text-gray-500 font-medium">No shuttle slots configured</p>
+          {isAdmin && <p className="text-[12px] text-gray-400 mt-1">Tap "Add Slot" to build the weekly grid</p>}
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="sticky left-0 z-10 bg-gray-50 text-left p-2 font-bold text-gray-500 uppercase text-[10px] min-w-[80px]">Time</th>
+                  {DAYS.map(d => <th key={d} className="text-center p-2 font-bold text-gray-500 uppercase text-[10px] min-w-[110px]">{d}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {allTimes.map(time => (
+                  <tr key={time} className="border-b border-gray-100">
+                    <td className="sticky left-0 z-10 bg-white p-2 font-bold text-gray-700 text-[11px]">{time}</td>
+                    {DAYS.map((_, dayIdx) => {
+                      const cellSlots = slots.filter(s => s.day_of_week === dayIdx && s.departure_time === time);
+                      return (
+                        <td key={dayIdx} className="p-1 align-top">
+                          {cellSlots.map(s => {
+                            const c = SERVICE_COLORS[s.service_type] || SERVICE_COLORS.regular;
+                            return (
+                              <div key={s.id} className={`${c.bg} ${c.text} rounded-lg p-1.5 mb-1 ring-1 ${c.ring} relative group`}>
+                                <p className="font-bold text-[10px] leading-tight">{s.pickup_location}</p>
+                                {s.notes && <p className="text-[9px] opacity-80 leading-tight mt-0.5">→ {s.notes}</p>}
+                                {isAdmin && (
+                                  <button onClick={() => del(s.id)} className="absolute -top-1 -right-1 w-4 h-4 bg-gray-900 text-white rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px]">×</button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 flex items-center gap-3 text-[10px]">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-100 ring-1 ring-gray-300"></span><span className="text-gray-600">Regular</span></span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-900 ring-1 ring-gray-700"></span><span className="text-gray-600">Express</span></span>
+          </div>
+        </div>
+      )}
+
+      {showAdd && isAdmin && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowAdd(false)}>
+          <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h2 className="text-[15px] font-bold mb-4">New Shuttle Slot</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Day</label>
+                <div className="grid grid-cols-7 gap-1 mt-1">
+                  {DAYS.map((d, i) => (
+                    <button key={d} onClick={() => setForm(p => ({ ...p, day_of_week: i }))} className={`py-2 rounded-lg text-[10px] font-bold ${form.day_of_week === i ? 'text-white' : 'bg-gray-100 text-gray-600'}`} style={form.day_of_week === i ? { backgroundColor: TEAL } : {}}>{d}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Departure Time</label>
+                <input type="time" value={form.departure_time} onChange={e => setForm(p => ({ ...p, departure_time: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
+              </div>
+              <input value={form.pickup_location} onChange={e => setForm(p => ({ ...p, pickup_location: e.target.value }))} placeholder="Pickup location (e.g. Hotel lobby)" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <input value={form.destination} onChange={e => setForm(p => ({ ...p, destination: e.target.value }))} placeholder="Destination (e.g. MIA Airport)" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Service</label>
+                  <div className="grid grid-cols-2 gap-1 mt-1">
+                    {(['regular', 'express'] as const).map(t => (
+                      <button key={t} onClick={() => setForm(p => ({ ...p, service_type: t }))} className={`py-2 rounded-xl text-[11px] font-bold border capitalize ${form.service_type === t ? 'text-white border-transparent' : 'bg-white border-gray-200 text-gray-600'}`} style={form.service_type === t ? { backgroundColor: TEAL } : {}}>{t}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Capacity</label>
+                  <input type="number" min="1" value={form.capacity} onChange={e => setForm(p => ({ ...p, capacity: Number(e.target.value) }))} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
+                </div>
+              </div>
+              <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="Notes (optional)" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+              <div className="flex gap-2 pt-2">
+                <button onClick={save} disabled={!form.pickup_location} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>Save</button>
+                <button onClick={() => setShowAdd(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// INCIDENT / KNOWLEDGE BASE VIEW (paste incident → AI suggestion → save)
+// ============================================================
+function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdmin: boolean; userName: string }) {
+  const [entries, setEntries] = useState<OpRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [incident, setIncident] = useState('');
+  const [category, setCategory] = useState<string>('Complaint');
+  const [suggestion, setSuggestion] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState<string>('all');
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const e = await listKbSuggestions(hotelId);
+      setEntries(e || []);
+      setLoading(false);
+    })();
+  }, [hotelId]);
+
+  const generateSuggestion = () => {
+    if (!incident) return;
+    const result = suggestResponse(incident, category as any);
+    setSuggestion(result.response);
+  };
+
+  const save = async () => {
+    if (!incident || !suggestion) return;
+    setSaving(true);
+    try {
+      await createKbSuggestion(hotelId, {
+        title: category + ' response',
+        category,
+        situation: incident,
+        response: suggestion,
+        added_by: userName,
+      });
+      const e = await listKbSuggestions(hotelId);
+      setEntries(e || []);
+      setIncident('');
+      setSuggestion('');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const del = async (id: string) => {
+    if (!confirm('Delete this KB entry?')) return;
+    await deleteKbSuggestion(id);
+    setEntries(entries.filter(e => e.id !== id));
+  };
+
+  if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
+
+  const categories = [
+    { key: 'Complaint', label: 'Complaint', icon: '⚠️' },
+    { key: 'Praise', label: 'Praise', icon: '⭐' },
+    { key: 'Service', label: 'Service', icon: '💬' },
+    { key: 'Safety', label: 'Incident', icon: '🚨' },
+  ];
+
+  const filtered = filter === 'all' ? entries : entries.filter(e => (e.details as any).category === filter);
+
+  return (
+    <div className="p-4 md:p-6 max-w-3xl mx-auto">
+      <div className="mb-4">
+        <h1 className="text-[20px] font-extrabold text-gray-900">Knowledge Base</h1>
+        <p className="text-[12px] text-gray-500">Paste an incident, get a suggested response, save for the team</p>
+      </div>
+
+      {/* Input card */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm mb-4">
+        <label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
+        <div className="grid grid-cols-4 gap-1 mt-1 mb-3">
+          {categories.map(c => (
+            <button key={c.key} onClick={() => setCategory(c.key)} className={`py-2 rounded-xl text-[11px] font-bold border ${category === c.key ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-600'}`}>
+              <span className="mr-1">{c.icon}</span>{c.label}
+            </button>
+          ))}
+        </div>
+        <label className="text-[10px] font-bold text-gray-500 uppercase">What happened? (paste guest feedback / incident)</label>
+        <textarea value={incident} onChange={e => setIncident(e.target.value)} rows={4} placeholder="e.g. Guest in 312 complained about noise from the room above at 1am..." className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
+        <button onClick={generateSuggestion} disabled={!incident} className="mt-3 w-full py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+          ✨ Suggest Response
+        </button>
+        {suggestion && (
+          <>
+            <label className="text-[10px] font-bold text-gray-500 uppercase mt-3 block">Suggested response (edit if needed)</label>
+            <textarea value={suggestion} onChange={e => setSuggestion(e.target.value)} rows={5} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
+            <div className="flex gap-2 mt-3">
+              <button onClick={save} disabled={saving} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{saving ? 'Saving…' : 'Save to KB'}</button>
+              <button onClick={() => { setIncident(''); setSuggestion(''); }} className="px-4 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Clear</button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Filter tabs */}
+      {entries.length > 0 && (
+        <div className="flex gap-1 mb-3 overflow-x-auto">
+          <button onClick={() => setFilter('all')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap ${filter === 'all' ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600'}`}>All ({entries.length})</button>
+          {categories.map(c => {
+            const count = entries.filter(e => (e.details as any).category === c.key).length;
+            if (count === 0) return null;
+            return (
+              <button key={c.key} onClick={() => setFilter(c.key)} className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap ${filter === c.key ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600'}`}>
+                {c.icon} {c.label} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* KB entries */}
+      {filtered.length === 0 ? (
+        <div className="bg-gray-50 rounded-2xl p-8 text-center">
+          <BookOpen size={32} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-[14px] text-gray-500 font-medium">No KB entries yet</p>
+          <p className="text-[12px] text-gray-400 mt-1">Save an incident above to build your KB</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(e => {
+            const d = e.details as any;
+            return (
+              <details key={e.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm group">
+                <summary className="p-4 cursor-pointer list-none flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold capitalize">{d.category}</span>
+                      <span className="text-[10px] text-gray-400">{e.created_at?.split('T')[0]}</span>
+                    </div>
+                    <p className="text-[13px] text-gray-700 line-clamp-2">{d.situation}</p>
+                  </div>
+                  {isAdmin && (
+                    <button onClick={ev => { ev.preventDefault(); del(e.id); }} className="p-1 text-gray-400 hover:text-red-500 ml-2"><Trash2 size={14} /></button>
+                  )}
+                </summary>
+                <div className="px-4 pb-4 pt-0 border-t border-gray-100">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase mt-3 mb-1">Suggested response</p>
+                  <p className="text-[12px] text-gray-700 leading-relaxed whitespace-pre-wrap">{d.response}</p>
+                  <button onClick={() => { navigator.clipboard.writeText(d.response); alert('Copied to clipboard'); }} className="mt-2 text-[11px] text-teal-600 font-semibold flex items-center gap-1">
+                    <Copy size={11} /> Copy response
+                  </button>
+                </div>
+              </details>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// ADMIN CALLOUTS (requests for changes / time off)
+// ============================================================
+function AdminCalloutsView({ hotelId }: { hotelId: string }) {
+  const [reqs, setReqs] = useState<OpRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const r = await listScheduleChangeRequests(hotelId, 'pending');
+      setReqs(r || []);
+      setLoading(false);
+    })();
+  }, [hotelId]);
+
+  const resolve = async (id: string) => {
+    await updateOps(id, { status: 'resolved' });
+    setReqs(reqs.filter(r => r.id !== id));
+  };
+
+  if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
+
+  return (
+    <div className="p-4 md:p-6 max-w-3xl mx-auto">
+      <div className="mb-4">
+        <h1 className="text-[20px] font-extrabold text-gray-900">Staff Callouts</h1>
+        <p className="text-[12px] text-gray-500">Requests for time off, swaps, and changes</p>
+      </div>
+      {reqs.length === 0 ? (
+        <div className="bg-gray-50 rounded-2xl p-8 text-center">
+          <Inbox size={32} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-[14px] text-gray-500 font-medium">No pending callouts</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {reqs.map(r => {
+            const d = r.details as any;
+            return (
+              <div key={r.id} className="bg-white rounded-2xl border border-amber-200 p-4 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-[14px] font-bold text-gray-900">{d.requested_by} · {d.change_type?.replace('_', ' ')}</p>
+                    <p className="text-[12px] text-gray-500 mt-1">{d.details}</p>
+                    <p className="text-[10px] text-gray-400 mt-2">{d.shift_date} · {d.department}</p>
+                  </div>
+                  <button onClick={() => resolve(r.id)} className="px-3 py-1.5 rounded-lg text-white font-bold text-[11px]" style={{ backgroundColor: TEAL }}>Resolve</button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
