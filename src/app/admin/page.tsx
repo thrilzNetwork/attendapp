@@ -5,6 +5,6 @@ import { useRouter } from 'next/navigation';
 
 export default function AdminPage() {
   const router = useRouter();
-  useEffect(() => { router.replace('/staff'); }, [router]);
+  useEffect(() => { router.replace('/superadmin'); }, [router]);
   return null;
 }
