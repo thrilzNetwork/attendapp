@@ -5575,14 +5575,20 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName }: { hotelId: 
   });
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-[22px] font-extrabold text-gray-900">Good morning, {sessionName || config.managerName || 'team'} ☀️</h1>
-        <p className="text-[13px] text-gray-500 mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · {hotelName}</p>
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+      {/* ── Header Row ── */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-[22px] font-extrabold text-gray-900">Good morning, {sessionName || config.managerName || 'team'} ☀️</h1>
+          <p className="text-[13px] text-gray-500 mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · {hotelName}</p>
+        </div>
+        <div className="hidden md:flex items-center gap-2">
+          <span className="text-[11px] text-gray-400">Today</span>
+          <span className="text-[11px] font-bold text-gray-900">{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+        </div>
       </div>
 
-      {/* GM Notes / Daily Brief */}
+      {/* ── Today's Brief / GM Notes ── */}
       {config.gmNotes ? (
         <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-5 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
@@ -5597,112 +5603,137 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName }: { hotelId: 
         </div>
       )}
 
-      {/* Stats Cards */}
+      {/* ── Quick Stats Row ── */}
       {recap && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
           <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
             <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.pendingNow}</p>
           </div>
           <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Completed Today</p>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Completed</p>
             <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.completedToday}</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Requests Today</p>
-            <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.requestsToday}</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Avg Response</p>
-            <p className="text-[20px] font-extrabold text-gray-900 mt-1">{recap.avgResponseMin}<span className="text-[12px] font-normal text-gray-400"> min</span></p>
           </div>
           <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Staff on Duty</p>
             <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.staffOnDuty}</p>
           </div>
           <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Shuttle Bookings</p>
-            <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.shuttleBookingsToday}</p>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Avg Response</p>
+            <p className="text-[20px] font-extrabold text-gray-900 mt-1">{recap.avgResponseMin}<span className="text-[12px] font-normal text-gray-400"> min</span></p>
           </div>
         </div>
       )}
 
-      {/* Checklists Progress */}
-      {recap && recap.checklistsTotal > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-5 shadow-sm">
-          <h3 className="text-[13px] font-bold text-gray-900 mb-2">Today&apos;s Checklists</h3>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 bg-gray-100 rounded-full h-2.5">
-              <div className="h-2.5 rounded-full transition-all" style={{width:`${(recap.checklistsCompleted/recap.checklistsTotal)*100}%`, backgroundColor: TEAL}} />
-            </div>
-            <span className="text-[13px] font-bold text-gray-700">{recap.checklistsCompleted}/{recap.checklistsTotal}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Today's Shuttle */}
-      {daySlots.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-5 shadow-sm">
-          <h3 className="text-[13px] font-bold text-gray-900 mb-3">Today&apos;s Shuttle Schedule</h3>
-          <div className="space-y-2">
-            {(() => {
-              const routeMap = new Map(todayShuttleRoutes.map(r => [r.id, r.name]));
-              const grouped: Record<string, ShuttleSlot[]> = {};
-              daySlots.forEach(s => {
-                const key = routeMap.get(s.route_id) || 'Shuttle';
-                if (!grouped[key]) grouped[key] = [];
-                grouped[key].push(s);
-              });
-              return Object.entries(grouped).map(([routeName, slots]) => (
-                <div key={routeName}>
-                  <p className="text-[11px] font-bold text-gray-400 uppercase mb-1">{routeName}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {slots.sort((a, b) => a.departure_time.localeCompare(b.departure_time)).map(s => (
-                      <span key={s.id} className="text-[11px] bg-gray-100 text-gray-600 font-medium px-2 py-1 rounded-lg">
-                        {s.departure_time.slice(0, 5)}
-                      </span>
-                    ))}
-                  </div>
+      {/* ── Two-column layout for main content ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+        {/* Left column: Today's Activity */}
+        <div className="space-y-5">
+          {/* Requests Today */}
+          {recap && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[13px] font-bold text-gray-900">Today&apos;s Activity</h3>
+                <span className="text-[11px] text-gray-400">{recap.requestsToday} requests · {recap.messagesToday} messages</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 bg-gray-100 rounded-full h-2.5">
+                  <div className="h-2.5 rounded-full transition-all" style={{width:`${recap.requestsToday > 0 ? Math.min((recap.completedToday/recap.requestsToday)*100, 100) : 0}%`, backgroundColor: TEAL}} />
                 </div>
-              ));
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* Next 14 days — shuttle + schedule snapshot */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-5 shadow-sm">
-        <div className="flex items-center gap-2 mb-3">
-          <CalendarDays size={16} style={{ color: TEAL }} />
-          <h3 className="text-[13px] font-bold text-gray-900">Next 14 Days</h3>
-          <span className="text-[10px] text-gray-400">shuttle slots · shifts scheduled</span>
-        </div>
-        <div className="grid grid-cols-7 gap-1.5">
-          {next14.map(d => (
-            <div key={d.date} className={`text-center p-2 rounded-xl border ${d.isToday ? 'border-gray-900 bg-gray-50' : 'border-gray-100'}`}>
-              <p className={`text-[9px] font-bold uppercase ${d.isToday ? 'text-gray-900' : 'text-gray-400'}`}>{d.day}</p>
-              <p className={`text-[14px] font-extrabold ${d.isToday ? 'text-gray-900' : 'text-gray-700'}`}>{d.dayNum}</p>
-              <div className="flex items-center justify-center gap-0.5 mt-1">
-                {d.slotsCount > 0 && <span className="text-[8px] px-1 py-0.5 rounded font-bold" style={{ backgroundColor: `${TEAL}20`, color: TEAL }}>{d.slotsCount}🚌</span>}
-                {d.shiftsCount > 0 && <span className="text-[8px] px-1 py-0.5 rounded font-bold bg-gray-100 text-gray-600">{d.shiftsCount}👤</span>}
+                <span className="text-[12px] font-bold text-gray-700">{recap.completedToday}/{recap.requestsToday} done</span>
               </div>
             </div>
-          ))}
-        </div>
-        <div className="flex items-center gap-3 mt-3 text-[10px] text-gray-500">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded font-bold flex items-center justify-center text-[8px]" style={{ backgroundColor: `${TEAL}20`, color: TEAL }}>🚌</span><span>shuttle slots</span></span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-100"></span><span>shifts</span></span>
-        </div>
-      </div>
+          )}
 
-      {/* Cruise Lines + Hotel Schedule grid placeholder */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-        <div className="flex items-center gap-2 mb-3">
-          <Ship size={16} style={{ color: TEAL }} />
-          <h3 className="text-[13px] font-bold text-gray-900">Cruise Line Calendar</h3>
+          {/* Checklists Progress */}
+          {recap && recap.checklistsTotal > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[13px] font-bold text-gray-900">Checklists</h3>
+                <span className="text-[11px] text-gray-400">{recap.checklistsCompleted}/{recap.checklistsTotal}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 bg-gray-100 rounded-full h-2.5">
+                  <div className="h-2.5 rounded-full transition-all" style={{width:`${(recap.checklistsCompleted/recap.checklistsTotal)*100}%`, backgroundColor: TEAL}} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Next 14 Days */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <CalendarDays size={16} style={{ color: TEAL }} />
+              <h3 className="text-[13px] font-bold text-gray-900">Next 14 Days</h3>
+            </div>
+            <div className="grid grid-cols-7 gap-1.5">
+              {next14.map(d => (
+                <div key={d.date} className={`text-center p-2 rounded-xl border ${d.isToday ? 'border-gray-900 bg-gray-50' : 'border-gray-100'}`}>
+                  <p className={`text-[9px] font-bold uppercase ${d.isToday ? 'text-gray-900' : 'text-gray-400'}`}>{d.day}</p>
+                  <p className={`text-[14px] font-extrabold ${d.isToday ? 'text-gray-900' : 'text-gray-700'}`}>{d.dayNum}</p>
+                  <div className="flex items-center justify-center gap-0.5 mt-1">
+                    {d.slotsCount > 0 && <span className="text-[8px] px-1 py-0.5 rounded font-bold" style={{ backgroundColor: `${TEAL}20`, color: TEAL }}>{d.slotsCount}🚌</span>}
+                    {d.shiftsCount > 0 && <span className="text-[8px] px-1 py-0.5 rounded font-bold bg-gray-100 text-gray-600">{d.shiftsCount}👤</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <p className="text-[11px] text-gray-500 mb-3">Cruise ships docking nearby this month — your busiest days for shuttle and late check-in.</p>
-        <CruiseCalendar hotelId={hotelId} />
+
+        {/* Right column: Schedule & Shuttle */}
+        <div className="space-y-5">
+          {/* Today's Shuttle */}
+          {daySlots.length > 0 ? (
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Bus size={16} style={{ color: TEAL }} />
+                <h3 className="text-[13px] font-bold text-gray-900">Today&apos;s Shuttle</h3>
+                <span className="text-[11px] text-gray-400">{daySlots.length} trips</span>
+              </div>
+              <div className="space-y-2">
+                {(() => {
+                  const routeMap = new Map(todayShuttleRoutes.map(r => [r.id, r.name]));
+                  const grouped: Record<string, ShuttleSlot[]> = {};
+                  daySlots.forEach(s => {
+                    const key = routeMap.get(s.route_id) || 'Shuttle';
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(s);
+                  });
+                  return Object.entries(grouped).map(([routeName, slots]) => (
+                    <div key={routeName}>
+                      <p className="text-[11px] font-bold text-gray-400 uppercase mb-1">{routeName}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {slots.sort((a, b) => a.departure_time.localeCompare(b.departure_time)).map(s => (
+                          <span key={s.id} className="text-[11px] bg-gray-100 text-gray-600 font-medium px-2 py-1 rounded-lg">
+                            {s.departure_time.slice(0, 5)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Bus size={16} className="text-gray-300" />
+                <h3 className="text-[13px] font-bold text-gray-900">Today&apos;s Shuttle</h3>
+              </div>
+              <p className="text-[12px] text-gray-400">No shuttle trips scheduled today.</p>
+            </div>
+          )}
+
+          {/* Cruise Calendar */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <Ship size={16} style={{ color: TEAL }} />
+              <h3 className="text-[13px] font-bold text-gray-900">Cruise Ships</h3>
+            </div>
+            <CruiseCalendar hotelId={hotelId} />
+          </div>
+        </div>
       </div>
     </div>
   );
