@@ -117,25 +117,34 @@ const DEPARTMENTS = [
 ] as const;
 type DepartmentKey = typeof DEPARTMENTS[number]['key'];
 
-const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[] }[] = [
-  { tab: 'dailybrief',      label: 'Dashboard',         icon: BarChart3,       roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'orders',          label: 'Requests',           icon: Bell,            roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'messages',        label: 'Messages',           icon: MessageSquare,   roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'shuttle',         label: 'Shuttle',            icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'shuttle_schedule', label: 'Shuttle Grid',      icon: Bus,             roles: ['admin', 'superadmin', 'manager'] },
-  { tab: 'schedules',       label: 'Schedules',          icon: Clock,           roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'checklists_tab',  label: 'Checklists',         icon: ClipboardCheck,  roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'kpis',            label: 'KPIs',               icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'learning_hr',     label: 'Learning & HR',      icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'property_info',   label: 'Property Info',      icon: HotelIcon,       roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'vendor_manifest', label: 'Vendor Dashboard',   icon: Users,           roles: ['vendor'] },
-  { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'] },
-  { tab: 'staff_mgmt',      label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'] },
-  { tab: 'partners',        label: 'Partners & Menu',    icon: Store,           roles: ['admin', 'superadmin'] },
-  { tab: 'qrcodes',         label: 'QR Codes',           icon: QrCodeIcon,       roles: ['admin', 'superadmin'] },
-  { tab: 'knowledge',       label: 'Knowledge Base',     icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'] },
-  { tab: 'rooms',            label: 'Room Management',    icon: DoorOpen,        roles: ['admin', 'superadmin'] },
-  { tab: 'properties',      label: 'All Properties',     icon: Building2,      roles: ['superadmin'] },
+const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; section?: string }[] = [
+  // ── TODAY — staff daily ops ──
+  { tab: 'dailybrief',      label: 'Dashboard',         icon: BarChart3,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'orders',          label: 'Requests',           icon: Bell,            roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'messages',        label: 'Messages',           icon: MessageSquare,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'schedules',       label: 'Schedules',          icon: Clock,           roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'checklists_tab',  label: 'Checklists',         icon: ClipboardCheck,  roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+
+  // ── OPERATIONS — property tools ──
+  { tab: 'shuttle',         label: 'Shuttle',            icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'kpis',            label: 'KPIs',               icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'knowledge',       label: 'Knowledge Base',     icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'learning_hr',     label: 'Learning & HR',      icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'property_info',   label: 'Property Info',      icon: HotelIcon,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+
+  // ── ADMIN — settings & management ──
+  { tab: 'shuttle_schedule', label: 'Shuttle Grid',      icon: Bus,             roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
+  { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'], section: 'Admin' },
+  { tab: 'staff_mgmt',      label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'], section: 'Admin' },
+  { tab: 'partners',        label: 'Partners & Menu',    icon: Store,           roles: ['admin', 'superadmin'], section: 'Admin' },
+  { tab: 'qrcodes',         label: 'QR Codes',           icon: QrCodeIcon,       roles: ['admin', 'superadmin'], section: 'Admin' },
+  { tab: 'rooms',            label: 'Room Management',    icon: DoorOpen,        roles: ['admin', 'superadmin'], section: 'Admin' },
+
+  // ── PLATFORM — superadmin only ──
+  { tab: 'properties',      label: 'All Properties',     icon: Building2,      roles: ['superadmin'], section: 'Platform' },
+
+  // ── VENDOR ──
+  { tab: 'vendor_manifest', label: 'Vendor Dashboard',   icon: Users,           roles: ['vendor'], section: '' },
 ];
 
 /* ── Main Component ───────────────────────────────────── */
@@ -593,24 +602,53 @@ export default function Dashboard() {
         </div>
 
         <nav className="px-3 py-3 flex-1">
-          {visibleNav.map(item => (
-            <button
-              key={item.tab}
-              onClick={() => setTab(item.tab)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-semibold transition-colors text-left mb-0.5 ${
-                effectiveTab === item.tab ? 'text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200/50'
-              }`}
-              style={effectiveTab === item.tab ? { backgroundColor: TEAL } : {}}
-            >
-              <item.icon size={15} />
-              {item.label}
-              {item.tab === 'orders' && pendingCount > 0 && (
-                <span className="ml-auto bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                  {pendingCount}
-                </span>
-              )}
-            </button>
-          ))}
+          {(() => {
+            const sections = new Map<string, typeof visibleNav>();
+            visibleNav.forEach(item => {
+              const s = item.section || '';
+              if (!sections.has(s)) sections.set(s, []);
+              sections.get(s)!.push(item);
+            });
+            const sectionOrder = ['Today', 'Operations', 'Admin', 'Platform', ''];
+            const sectionLabels: Record<string, string> = {
+              'Today': 'TODAY',
+              'Operations': 'OPERATIONS',
+              'Admin': 'ADMIN',
+              'Platform': 'PLATFORM',
+              '': '',
+            };
+            const result: JSX.Element[] = [];
+            sectionOrder.forEach(sec => {
+              const items = sections.get(sec);
+              if (!items || items.length === 0) return;
+              if (sec) {
+                result.push(
+                  <p key={`h-${sec}`} className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-3 pt-4 pb-1.5">{sectionLabels[sec]}</p>
+                );
+              }
+              items.forEach(item => {
+                result.push(
+                  <button
+                    key={item.tab}
+                    onClick={() => setTab(item.tab)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-semibold transition-colors text-left mb-0.5 ${
+                      effectiveTab === item.tab ? 'text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200/50'
+                    }`}
+                    style={effectiveTab === item.tab ? { backgroundColor: TEAL } : {}}
+                  >
+                    <item.icon size={15} />
+                    {item.label}
+                    {item.tab === 'orders' && pendingCount > 0 && (
+                      <span className="ml-auto bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        {pendingCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              });
+            });
+            return result;
+          })()}
         </nav>
 
         <div className="p-4 border-t border-gray-200/60">
