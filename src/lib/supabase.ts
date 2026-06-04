@@ -750,7 +750,7 @@ export async function getStaffAccountsForHotel(hotelId: string): Promise<StaffAc
 
 export async function createStaffAccountWithDetails(staff: {
   hotel_id: string; name: string; role: string; email?: string; phone?: string;
-  pin_code: string; permissions?: string[]; vendor_type?: string;
+  pin_code: string; permissions?: string[]; vendor_type?: string; department?: string;
 }) {
   const { data, error } = await supabase.from('staff_accounts').insert({
     name: staff.name,
@@ -761,6 +761,7 @@ export async function createStaffAccountWithDetails(staff: {
     pin_code: staff.pin_code,
     permissions: staff.permissions || ['orders', 'messages', 'shuttle'],
     vendor_type: staff.vendor_type || null,
+    department: staff.department || null,
     active: true,
   }).select().single();
   if (error) throw error;
@@ -773,6 +774,7 @@ export async function updateStaffPermissions(id: string, permissions: string[]) 
 
 export async function updateStaffDetails(id: string, updates: {
   name?: string; email?: string; phone?: string; permissions?: string[]; active?: boolean;
+  department?: string;
 }) {
   await supabase.from('staff_accounts').update(updates).eq('id', id);
 }

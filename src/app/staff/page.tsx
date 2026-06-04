@@ -2473,10 +2473,12 @@ function GeneralVendorView({ hotelId, vendorName, vendorType }: { hotelId: strin
 
 /* ── Enhanced Staff View ─────────────────────────────────── */
 function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelId: string; hotelName: string; hotelSlug: string; staff: StaffAccount[]; onRefresh: () => void }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '' });
   const [showPin, setShowPin] = useState(false);
   const [pinError, setPinError] = useState('');
   const [editingPerms, setEditingPerms] = useState<string | null>(null);
+  const [editingDept, setEditingDept] = useState<string | null>(null);
+  const [editingDeptValue, setEditingDeptValue] = useState('');
   const [sendInvite, setSendInvite] = useState(true);
   const ALL_PERMS = ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes'];
 
@@ -2493,6 +2495,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       email: form.email, phone: form.phone, pin_code: form.pin,
       permissions: form.role === 'vendor' ? [] : ['orders', 'messages', 'shuttle'],
       vendor_type: form.role === 'vendor' ? form.vendor_type || 'shuttle' : undefined,
+      department: form.department || undefined,
     });
 
     // Send invitation email with setup link
@@ -2516,7 +2519,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       }).catch(() => {});
     }
 
-    setForm({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '' });
+    setForm({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '' });
     onRefresh();
   };
 
@@ -2573,6 +2576,20 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                 <p className="text-[10px] text-orange-600 mt-1">Vendors only see their own manifest — no hotel data.</p>
               </div>
             )}
+            {/* Position / Department */}
+            {form.role !== 'vendor' && (
+              <div>
+                <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Position / Department</label>
+                <select value={form.department} onChange={e => setForm({ ...form, department: e.target.value })}
+                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
+                  <option value="">— No position —</option>
+                  {DEPARTMENTS.map(d => (
+                    <option key={d.key} value={d.key}>{d.icon} {d.label}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1">Used for checklist filtering on the Dashboard.</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Email</label>
@@ -2614,13 +2631,22 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                 <div className="flex items-center justify-between mb-1">
                   <div>
                     <p className="text-[14px] font-bold text-gray-900">{s.name}
-                      <span className="text-[10px] text-gray-400 capitalize font-normal">· {s.role}{s.vendor_type ? ` (${s.vendor_type})` : ''}</span>
+                      <span className="text-[10px] text-gray-400 capitalize font-normal"> · {s.role}{s.vendor_type ? ` (${s.vendor_type})` : ''}</span>
                     </p>
-                    <p className="text-[11px] text-gray-400">{s.email}{s.email && s.phone ? ' · ' : ''}{s.phone} · PIN: ••••</p>
+                    <p className="text-[11px] text-gray-400">{s.email}{s.email && s.phone ? ' · ' : ''}{s.phone} · PIN: ••••
+                      {s.department && (
+                        <span> · Position: {DEPARTMENTS.find(d => d.key === s.department)?.icon} {DEPARTMENTS.find(d => d.key === s.department)?.label || s.department}</span>
+                      )}
+                    </p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => setEditingPerms(editingPerms === s.id ? null : s.id!)}
                       className="text-[10px] font-bold px-2 py-1 rounded bg-gray-100 text-gray-600">Permissions</button>
+                    <button onClick={() => {
+                      if (editingDept === s.id) { setEditingDept(null); return; }
+                      setEditingDept(s.id!);
+                      setEditingDeptValue(s.department || '');
+                    }} className="text-[10px] font-bold px-2 py-1 rounded bg-gray-100 text-gray-600">Position</button>
                     <button onClick={() => handleToggleActive(s)} className="text-[10px] font-bold px-2 py-1 rounded bg-amber-100 text-amber-700">Deactivate</button>
                     <button onClick={() => { if(confirm('Delete?')) { deleteStaffAccount(s.id!); onRefresh(); } }}
                       className="text-red-400"><Trash2 size={13} /></button>
@@ -2635,6 +2661,23 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                           className={`px-2 py-1 rounded text-[10px] font-bold ${has ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-400'}`}>{permLabels[p]}</button>
                       );
                     })}
+                  </div>
+                )}
+                {editingDept === s.id && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <select value={editingDeptValue} onChange={e => setEditingDeptValue(e.target.value)}
+                      className="flex-1 bg-gray-50 rounded-lg px-3 py-1.5 border border-gray-200 text-[12px] outline-none">
+                      <option value="">— No position —</option>
+                      {DEPARTMENTS.map(d => (
+                        <option key={d.key} value={d.key}>{d.icon} {d.label}</option>
+                      ))}
+                    </select>
+                    <button onClick={async () => {
+                      await updateStaffDetails(s.id!, { department: editingDeptValue || undefined });
+                      setEditingDept(null);
+                      onRefresh();
+                    }} className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white" style={{backgroundColor: TEAL}}>Save</button>
+                    <button onClick={() => setEditingDept(null)} className="text-[11px] text-gray-500 font-semibold px-2">Cancel</button>
                   </div>
                 )}
               </div>
