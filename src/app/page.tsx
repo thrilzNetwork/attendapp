@@ -288,6 +288,7 @@ const TEAL = '#0D9488';
 
 function AttendaLandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [activeModule, setActiveModule] = useState<number | null>(0); // Default to first module demo open
   const [scrolled, setScrolled] = useState(false);
   const enrollRef = useRef<HTMLDivElement>(null);
 
@@ -372,10 +373,10 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* MODULES — inn-flow style: 6 feature cards with icon + "Learn more" */}
-      <section id="modules" className="py-20 px-5">
+      {/* MODULES — Interactive: click a card to see a mini-demo of the feature */}
+      <section id="modules" className="py-16 md:py-20 px-5">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
+          <div className="text-center mb-12">
             <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
               Comprehensive Operations Software
             </h2>
@@ -383,47 +384,92 @@ function AttendaLandingPage() {
               Six modules. One thread. Every role covered.
             </h3>
             <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              Custom-built solutions to help your property run smarter — from the front desk to the vendors to the GM&apos;s morning review.
+              Tap any module to see how it works — no slide deck, no demo-gate, just the feature in motion.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <ModuleCard
-              icon={<ChatIcon />}
-              name="Guest Requests"
-              tagline="In-room chat & service orders"
-              body="Guests scan a QR code, tap what they need, and chat in real time. No app to download — works on any phone in any room."
-            />
-            <ModuleCard
-              icon={<BellIcon />}
-              name="Staff Task Log"
-              tagline="PIN-in, log out. Every job tracked."
-              body="Housekeeping, front desk, and maintenance get a single tap-to-accept view. Every accepted job is timestamped and tied to a room."
-            />
-            <ModuleCard
-              icon={<TruckIcon />}
-              name="Vendor Portal"
-              tagline="Auto-restock, auto-invoice"
-              body="Linen, food, shuttle, maintenance — vendors get a portal link, see open jobs, accept, and close. Invoices generated automatically."
-            />
-            <ModuleCard
-              icon={<ChartIcon />}
-              name="GM Dashboard"
-              tagline="Every room, every shift, in one view"
-              body="Real-time status across all rooms, all staff, all jobs. The GM opens one screen and knows everything happening on property right now."
-            />
-            <ModuleCard
-              icon={<BookIcon />}
-              name="Knowledge Base"
-              tagline="Incidents captured, staff trained"
-              body="When something goes wrong, the fix gets written down. New staff onboard faster, repeat incidents drop, and the playbook grows with the property."
-            />
-            <ModuleCard
-              icon={<BusIcon />}
-              name="Shuttle & Transport"
-              tagline="Routes, cruise calendar, guest booking"
-              body="Schedule shuttle runs, sync with cruise ship arrivals, let guests book seats from the room. Walked revenue becomes captured revenue."
-            />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+            {[
+              { icon: <ChatIcon />, name: 'Guest Requests' },
+              { icon: <BellIcon />, name: 'Staff Task Log' },
+              { icon: <TruckIcon />, name: 'Vendor Portal' },
+              { icon: <ChartIcon />, name: 'GM Dashboard' },
+              { icon: <BookIcon />, name: 'Knowledge Base' },
+              { icon: <BusIcon />, name: 'Shuttle & Transport' },
+            ].map((m, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveModule(activeModule === i ? null : i)}
+                className={`text-left bg-white border-2 rounded-xl p-3 transition-all ${
+                  activeModule === i
+                    ? 'shadow-lg scale-[1.02]'
+                    : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                }`}
+                style={activeModule === i ? { borderColor: TEAL } : {}}
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: TEAL }}>
+                  <div className="text-white">{m.icon}</div>
+                </div>
+                <h4 className="text-[13px] font-black text-gray-900 leading-tight">{m.name}</h4>
+                <div className="text-[10px] font-semibold mt-1 flex items-center gap-1" style={{ color: activeModule === i ? TEAL : '#9CA3AF' }}>
+                  {activeModule === i ? '● Showing demo' : 'Tap to preview →'}
+                </div>
+              </button>
+            ))}
           </div>
+
+          {/* Active module demo panel */}
+          {activeModule !== null && (
+            <div className="bg-gradient-to-br from-gray-50 to-white border-2 rounded-2xl p-6 md:p-8 shadow-xl" style={{ borderColor: TEAL }}>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                {/* Left: description */}
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase mb-3" style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: TEAL }} />
+                    Module {activeModule + 1} of 6
+                  </div>
+                  <h4 className="text-[26px] md:text-[32px] font-black text-gray-900 mb-2 leading-tight">
+                    {[
+                      'Guests chat. The room responds.',
+                      'PIN in. Accept. Done.',
+                      'Vendors get a portal, not a phone call.',
+                      'One screen. Total visibility.',
+                      'When it breaks, write it down.',
+                      'Shuttle runs, synced to cruise arrivals.',
+                    ][activeModule]}
+                  </h4>
+                  <p className="text-[15px] text-gray-600 leading-relaxed mb-5">
+                    {[
+                      'Guests scan a QR code in the room, tap what they need, and chat in real time. No app to download, no login to remember. The front desk sees the request the moment it lands.',
+                      'Housekeeping, front desk, and maintenance open one screen, tap to accept, tap to mark done. Every job is timestamped and tied to a room, a guest, and a shift.',
+                      'Linen, food, shuttle, maintenance — every vendor gets a portal link. They see open jobs, accept, and close. Invoices generate automatically. No more phone tag.',
+                      'Real-time status across all rooms, all staff, all jobs, all vendors. The GM opens one screen at 7am and knows exactly what happened overnight — and what needs to happen today.',
+                      'When something goes wrong, the fix gets written down once. New staff onboard in days, not weeks. Repeat incidents drop. The playbook grows with the property.',
+                      'Schedule shuttle runs, sync with cruise ship arrivals, let guests book seats from the room. Walked revenue becomes captured revenue.',
+                    ][activeModule]}
+                  </p>
+                  <div className="flex items-center gap-4 text-[12px] text-gray-500">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                      <span>Live demo · No signup</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: TEAL }} />
+                      <span>Resets every 8 seconds</span>
+                    </div>
+                  </div>
+                </div>
+                {/* Right: mini-demo */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  {activeModule === 0 && <GuestRequestsDemo />}
+                  {activeModule === 1 && <StaffTaskLogDemo />}
+                  {activeModule === 2 && <VendorPortalDemo />}
+                  {activeModule === 3 && <GmDashboardDemo />}
+                  {activeModule === 4 && <KnowledgeBaseDemo />}
+                  {activeModule === 5 && <ShuttleDemo />}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -1206,26 +1252,6 @@ function KpiTileDark({ value, label }: { value: string; label: string }) {
   );
 }
 
-/* ── Module card (feature catalog) ──────────────────────────── */
-
-function ModuleCard({ icon, name, tagline, body }: {
-  icon: React.ReactNode;
-  name: string;
-  tagline: string;
-  body: string;
-}) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 transition-colors">
-      <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: TEAL }}>
-        <div className="text-white">{icon}</div>
-      </div>
-      <h3 className="text-[18px] font-black text-gray-900 mb-1 tracking-tight">{name}</h3>
-      <p className="text-[13px] font-semibold text-gray-500 mb-3 leading-snug">{tagline}</p>
-      <p className="text-[14px] text-gray-700 leading-relaxed">{body}</p>
-    </div>
-  );
-}
-
 /* ── Module icons (inline SVG) ───────────────────────────────── */
 
 function ChatIcon() {
@@ -1285,6 +1311,379 @@ function BusIcon() {
       <circle cx="7" cy="18" r="2" />
       <circle cx="17" cy="18" r="2" />
     </svg>
+  );
+}
+
+/* ── Module mini-demos (interactive feature previews) ─────── */
+
+function GuestRequestsDemo() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setStep(s => (s + 1) % 6), 1400);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="p-4 h-[320px] flex flex-col" style={{ backgroundColor: '#F4F4F5' }}>
+      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Guest /message flow</div>
+      <div className="flex-1 space-y-2 overflow-hidden">
+        <div className={`flex justify-start transition-all duration-500 ${step >= 0 ? 'opacity-100' : 'opacity-0'}`}>
+          <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-white border border-gray-100 px-3 py-2 text-[11px] text-gray-800 shadow-sm">
+            Hello! How can I assist you today?
+          </div>
+        </div>
+        <div className={`flex justify-end transition-all duration-500 ${step >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+          <div className="max-w-[70%] rounded-2xl rounded-br-md px-3 py-2 text-[11px] text-white" style={{ backgroundColor: TEAL }}>
+            Request Towels
+          </div>
+        </div>
+        <div className={`flex justify-start transition-all duration-500 ${step >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+          <div className="max-w-[88%] rounded-2xl rounded-bl-md bg-white border border-gray-100 px-3 py-2 shadow-sm">
+            <p className="text-[10px] text-gray-800 mb-1.5">I can send a towel request to housekeeping. Shall I?</p>
+            <div className="flex gap-1.5">
+              <div className="flex-1 py-1 rounded text-white text-[9px] font-bold text-center" style={{ backgroundColor: TEAL }}>Yes, send</div>
+              <div className="flex-1 py-1 rounded bg-gray-100 text-gray-700 text-[9px] font-bold text-center">No</div>
+            </div>
+          </div>
+        </div>
+        <div className={`flex justify-end transition-all duration-500 ${step >= 3 ? 'opacity-100' : 'opacity-0'}`}>
+          <div className="max-w-[70%] rounded-2xl rounded-br-md px-3 py-2 text-[11px] text-white" style={{ backgroundColor: TEAL }}>
+            Yes, please
+          </div>
+        </div>
+        <div className={`flex justify-start transition-all duration-500 ${step >= 4 ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+          <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-white border border-green-200 px-3 py-2 text-[11px] shadow-sm">
+            <div className="flex items-center gap-1 mb-0.5">
+              <div className="w-3 h-3 rounded-full bg-green-500 flex items-center justify-center text-white text-[8px] font-bold">✓</div>
+              <span className="text-[9px] font-bold text-green-700">Request sent</span>
+            </div>
+            <span className="text-[10px] text-gray-700">Front desk notified · ETA 7m</span>
+          </div>
+        </div>
+        {step >= 5 && (
+          <div className="text-center text-[10px] text-gray-500 pt-1">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-gray-200">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> 2,847 requests this week
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StaffTaskLogDemo() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setStep(s => (s + 1) % 5), 1600);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="p-4 h-[320px] flex flex-col">
+      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Staff /staff Orders</div>
+      <div className="space-y-2 flex-1">
+        {[
+          { room: '204', type: 'Towels', status: 'pending', visible: step >= 0 },
+          { room: '318', type: 'Pillows', status: 'progress', visible: step >= 1 || true },
+          { room: '412', type: 'A/C fix', status: 'progress', visible: true },
+        ].map((req, i) => (
+          <div key={i} className={`bg-white border ${req.status === 'progress' ? 'border-blue-200' : 'border-amber-200'} rounded-lg p-2.5 shadow-sm transition-all duration-500 ${req.visible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[12px] font-bold text-gray-900">Room {req.room} · {req.type}</div>
+                <div className="text-[10px] text-gray-500 mt-0.5">
+                  {req.status === 'progress' ? `Assigned: Maria · ${(i*2)+3}m elapsed` : `Unassigned · ${(i+1)*2}m ago`}
+                </div>
+              </div>
+              <div className={`px-2 py-0.5 rounded text-[9px] font-bold ${req.status === 'progress' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                {req.status === 'progress' ? 'In progress' : 'Pending'}
+              </div>
+            </div>
+            {req.status === 'progress' && (
+              <div className="mt-2 flex items-center gap-1.5">
+                <div className="text-[9px] text-gray-500">Resolve in:</div>
+                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${60 + i*15}%` }} />
+                </div>
+                <div className="text-[9px] text-gray-700 font-bold">{7-i*2}m</div>
+              </div>
+            )}
+          </div>
+        ))}
+        {step >= 3 && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-2.5 flex items-center gap-2 animate-pulse">
+            <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px] font-bold">✓</div>
+            <div className="text-[11px] font-bold text-green-800">Room 204 · Towels · Marked done</div>
+          </div>
+        )}
+        {step >= 4 && (
+          <div className="text-center text-[10px] text-gray-500">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-gray-200">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Avg resolution: 7m 14s
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VendorPortalDemo() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setStep(s => (s + 1) % 5), 1500);
+    return () => clearInterval(t);
+  }, []);
+  const jobs = [
+    { vendor: 'Linen Co.', item: '50 bath towels', qty: 'x50', status: step >= 1 ? 'in-progress' : 'open', value: 120 },
+    { vendor: 'Sundries Inc.', item: 'Coffee pods', qty: 'x200', status: 'open', value: 85 },
+    { vendor: 'Maintenance Pro', item: 'HVAC filter', qty: 'x4', status: 'open', value: 240 },
+  ];
+  return (
+    <div className="p-4 h-[320px] flex flex-col">
+      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Vendor /portal dashboard</div>
+      <div className="flex items-center gap-1.5 mb-2 text-[10px] text-gray-600">
+        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+        3 open jobs · $445 total
+      </div>
+      <div className="space-y-1.5 flex-1">
+        {jobs.map((job, i) => (
+          <div key={i} className={`border rounded-lg p-2.5 transition-all duration-500 ${
+            job.status === 'in-progress' ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[12px] font-bold text-gray-900">{job.vendor}</div>
+                <div className="text-[10px] text-gray-500 mt-0.5">{job.item} · {job.qty}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[13px] font-black text-gray-900">${job.value}</div>
+                <div className={`text-[9px] font-bold mt-0.5 ${
+                  job.status === 'in-progress' ? 'text-blue-600' : 'text-amber-600'
+                }`}>
+                  {job.status === 'in-progress' ? '● In progress' : '○ Open'}
+                </div>
+              </div>
+            </div>
+            {job.status === 'in-progress' && (
+              <div className="mt-2 text-[10px] text-blue-700 flex items-center gap-1.5">
+                <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+                Vendor accepted · ETA 30m · Invoice auto-drafting
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      {step >= 3 && (
+        <div className="mt-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-2.5 text-[10px] flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[9px] font-bold">✓</div>
+            <span className="font-bold text-green-800">Invoice #1284 generated</span>
+          </div>
+          <span className="text-green-700 font-mono">$120.00</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GmDashboardDemo() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setStep(s => (s + 1) % 5), 1300);
+    return () => clearInterval(t);
+  }, []);
+  const occupancy = [0.85, 0.92, 0.78, 0.95, 0.88, 0.72, 0.45];
+  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  return (
+    <div className="p-4 h-[320px] flex flex-col">
+      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">GM Dashboard · Live</div>
+      <div className="grid grid-cols-3 gap-1.5 mb-2">
+        {[
+          { label: 'Occupancy', value: '87%', color: TEAL },
+          { label: 'Open', value: '3', color: '#F59E0B' },
+          { label: 'In progress', value: '5', color: '#3B82F6' },
+        ].map((kpi, i) => (
+          <div key={i} className="bg-gray-50 rounded p-2">
+            <div className="text-[9px] text-gray-500 uppercase font-bold tracking-wide">{kpi.label}</div>
+            <div className="text-[16px] font-black" style={{ color: kpi.color }}>{kpi.value}</div>
+          </div>
+        ))}
+      </div>
+      <div className="bg-gray-50 rounded p-2 mb-2">
+        <div className="text-[9px] text-gray-500 uppercase font-bold mb-1.5">This week</div>
+        <div className="grid grid-cols-7 gap-1 h-12">
+          {occupancy.map((v, i) => (
+            <div key={i} className="flex flex-col items-center justify-end">
+              <div
+                className="w-full rounded-sm transition-all duration-1000"
+                style={{ height: `${v * 100}%`, backgroundColor: TEAL, opacity: 0.8 }}
+              />
+              <div className="text-[8px] font-bold text-gray-500 mt-0.5">{days[i]}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="bg-white border border-gray-200 rounded p-2 flex-1 overflow-hidden">
+        <div className="text-[9px] text-gray-500 uppercase font-bold mb-1.5">Live activity</div>
+        <div className="space-y-1">
+          <div className={`flex items-center gap-1.5 text-[10px] transition-all duration-500 ${step >= 0 ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            <span className="text-gray-700">Room 204 ready</span>
+            <span className="text-gray-400 ml-auto">12s</span>
+          </div>
+          <div className={`flex items-center gap-1.5 text-[10px] transition-all duration-500 ${step >= 1 ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            <span className="text-gray-700">Vendor: Linen accepted</span>
+            <span className="text-gray-400 ml-auto">28s</span>
+          </div>
+          <div className={`flex items-center gap-1.5 text-[10px] transition-all duration-500 ${step >= 2 ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span className="text-gray-700">New: Room 412 A/C</span>
+            <span className="text-gray-400 ml-auto">1m</span>
+          </div>
+          <div className={`flex items-center gap-1.5 text-[10px] transition-all duration-500 ${step >= 3 ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+            <span className="text-gray-700">Shuttle booked 9:30</span>
+            <span className="text-gray-400 ml-auto">2m</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KnowledgeBaseDemo() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setStep(s => (s + 1) % 5), 1600);
+    return () => clearInterval(t);
+  }, []);
+  const query = step >= 1 ? 'AC not cooling' : '';
+  const results = [
+    { title: 'AC not cooling — first response', uses: 4, steps: 3, visible: step >= 2 },
+    { title: 'AC making noise — diagnostic', uses: 2, steps: 4, visible: step >= 3 },
+    { title: 'AC leaking water — emergency', uses: 1, steps: 5, visible: step >= 3 },
+  ];
+  return (
+    <div className="p-4 h-[320px] flex flex-col">
+      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Knowledge Base /search</div>
+      <div className="relative mb-2">
+        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        </div>
+        <div className="w-full bg-white border-2 rounded-lg pl-8 pr-3 py-2 text-[12px] border-gray-200 min-h-[36px] flex items-center">
+          <span className="text-gray-900 font-mono">{query}</span>
+          {query && <span className="inline-block w-0.5 h-3.5 ml-0.5 bg-gray-900 animate-pulse" />}
+        </div>
+      </div>
+      <div className="space-y-1.5 flex-1 overflow-hidden">
+        {results.filter(r => r.visible).map((r, i) => (
+          <div key={i} className={`border rounded-lg p-2.5 transition-all duration-500 ${
+            step >= 4 && i === 0
+              ? 'bg-white border-2 shadow-md'
+              : 'bg-white border-gray-200'
+          }`}
+          style={step >= 4 && i === 0 ? { borderColor: TEAL } : {}}>
+            <div className="flex items-start justify-between mb-1">
+              <div className="text-[12px] font-bold text-gray-900 leading-tight">{r.title}</div>
+              <div className="text-[9px] text-gray-500 ml-2 shrink-0">{r.uses}× used</div>
+            </div>
+            {step >= 4 && i === 0 ? (
+              <div className="mt-2 space-y-1">
+                <div className="text-[10px] font-bold text-gray-700">Steps:</div>
+                <div className="text-[10px] text-gray-600 space-y-0.5">
+                  <div>1. Check filter — clean if dirty</div>
+                  <div>2. Reset breaker at thermostat</div>
+                  <div>3. Call HVAC if still failing</div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[10px] text-gray-500">{r.steps} steps · last used 2d ago</div>
+            )}
+          </div>
+        ))}
+        {step === 0 && (
+          <div className="text-center text-[10px] text-gray-400 italic py-4">
+            Try searching: &ldquo;AC not cooling&rdquo;, &ldquo;leaky faucet&rdquo;, &ldquo;key not working&rdquo;
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ShuttleDemo() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setStep(s => (s + 1) % 6), 1300);
+    return () => clearInterval(t);
+  }, []);
+  const slots = [
+    { time: '8:00', capacity: 5, booked: 2 },
+    { time: '9:00', capacity: 5, booked: 4 },
+    { time: '9:30', capacity: 5, booked: step >= 2 ? 4 : 1 },
+    { time: '10:00', capacity: 5, booked: 3 },
+    { time: '10:30', capacity: 5, booked: 1 },
+    { time: '11:00', capacity: 5, booked: 2 },
+  ];
+  return (
+    <div className="p-4 h-[320px] flex flex-col">
+      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Shuttle /transport</div>
+      {step >= 1 && (
+        <div className={`mb-2 px-2.5 py-1.5 rounded-lg flex items-center gap-2 text-[10px] font-bold transition-all duration-500 ${
+          step >= 1 ? 'opacity-100' : 'opacity-0'
+        }`} style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+          <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: TEAL }} />
+          🚢 Symphony of the Seas · arriving 10:30
+        </div>
+      )}
+      <div className="text-[10px] text-gray-500 mb-1.5">Tomorrow · Wed May 28</div>
+      <div className="grid grid-cols-3 gap-1.5 flex-1">
+        {slots.map((slot, i) => {
+          const isHot = slot.time === '9:30' || slot.time === '10:00';
+          const isFull = slot.booked >= slot.capacity;
+          return (
+            <div key={i} className={`border rounded-lg p-2 transition-all duration-500 ${
+              isHot && step >= 2 ? 'border-2 shadow-md' : 'border-gray-200'
+            }`}
+            style={isHot && step >= 2 ? { borderColor: TEAL, backgroundColor: `${TEAL}08` } : {}}>
+              <div className="text-[11px] font-black text-gray-900">{slot.time}</div>
+              <div className="text-[9px] text-gray-500 mt-0.5">PortMiami → Hotel</div>
+              <div className="mt-1.5 flex items-center gap-1">
+                <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full transition-all duration-700"
+                    style={{
+                      width: `${(slot.booked / slot.capacity) * 100}%`,
+                      backgroundColor: isFull ? '#EF4444' : slot.booked >= 4 ? '#F59E0B' : TEAL,
+                    }}
+                  />
+                </div>
+                <div className={`text-[9px] font-bold ${
+                  isFull ? 'text-red-600' : slot.booked >= 4 ? 'text-amber-600' : 'text-gray-600'
+                }`}>
+                  {slot.booked}/{slot.capacity}
+                </div>
+              </div>
+              {isHot && step >= 2 && (
+                <div className="text-[8px] mt-1 font-bold" style={{ color: TEAL }}>
+                  +{step >= 2 ? '3 booked' : ''}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {step >= 4 && (
+        <div className="mt-2 text-center text-[10px] text-gray-500">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-gray-200">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> 14 bookings today · $210 captured
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
 
