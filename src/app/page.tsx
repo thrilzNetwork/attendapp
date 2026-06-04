@@ -325,11 +325,11 @@ function AttendaLandingPage() {
             <button onClick={() => scrollTo(enrollRef)}
               className="px-5 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all active:scale-[0.97] shadow-sm"
               style={{ backgroundColor: TEAL }}>
-              Join the pilot
+              Book a demo
             </button>
           </div>
           <button onClick={() => scrollTo(enrollRef)} className="md:hidden px-4 py-2 rounded-lg text-white text-[12px] font-bold"
-            style={{ backgroundColor: TEAL }}>Pilot</button>
+            style={{ backgroundColor: TEAL }}>Demo</button>
         </div>
       </nav>
 
