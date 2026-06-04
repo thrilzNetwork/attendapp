@@ -670,7 +670,7 @@ export default function Dashboard() {
           <PropertyInfoView config={config} />
         )}
         {effectiveTab === 'schedules' && config?.id && (
-          <SchedulesView hotelId={config.id} isAdmin={isAdmin} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department }))} />
+          <SchedulesView hotelId={config.id} isAdmin={isAdmin} weekStartsOn={config.weekStartsOn || 'Sunday'} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department }))} />
         )}
         {effectiveTab === 'checklists_tab' && config?.id && (
           <ChecklistsTabView hotelId={config.id} isAdmin={isAdmin} />
@@ -2966,14 +2966,44 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
             onChange={e => setForm({ ...form, gmNotes: e.target.value })}
             rows={8}
             className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none font-mono"
-            placeholder={`🏨 TODAY'S BRIEF — ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-
+            placeholder={`e.g. Today's priorities:
 • VIP arrivals/checkouts
 • Maintenance issues
 • Staffing notes
 • Special events today
 • Safety reminders`}
           />
+        </Section>
+
+        <Section title="Schedule Settings" Icon={CalendarDays}>
+          <p className="text-[11px] text-gray-400 -mt-1">
+            Choose whether your schedule grid starts on Sunday or Monday.
+          </p>
+          <div className="mt-3">
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Week starts on</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setForm({ ...form, weekStartsOn: 'Sunday' })}
+                className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold border ${
+                  (form.weekStartsOn || 'Sunday') === 'Sunday'
+                    ? 'bg-teal-50 border-teal-300 text-teal-700'
+                    : 'bg-white border-gray-200 text-gray-600'
+                }`}
+              >
+                Sunday
+              </button>
+              <button
+                onClick={() => setForm({ ...form, weekStartsOn: 'Monday' })}
+                className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold border ${
+                  form.weekStartsOn === 'Monday'
+                    ? 'bg-teal-50 border-teal-300 text-teal-700'
+                    : 'bg-white border-gray-200 text-gray-600'
+                }`}
+              >
+                Monday
+              </button>
+            </div>
+          </div>
         </Section>
 
         <Section title="Email Notifications" Icon={Bell}>
@@ -5562,6 +5592,40 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName, department, i
     })();
   }, [hotelId, todayStr]);
 
+  const startInstance = async (templateId: string) => {
+    setSubmitting(true);
+    const { error: err } = await supabase.from('staff_checklist_instances').insert({
+      checklist_id: templateId,
+      hotel_id: hotelId,
+      staff_name: sessionName || 'Staff',
+      shift_date: todayStr,
+      checked_items: [],
+      completed: false,
+    });
+    if (!err) {
+      const updated = await getChecklistInstances(hotelId, todayStr);
+      setChecklistInstances(updated || []);
+    }
+    setSubmitting(false);
+  };
+
+  const toggleChecklistItem = async (instanceId: string, itemId: string, currentlyChecked: boolean) => {
+    const inst = checklistInstances.find(i => i.id === instanceId);
+    if (!inst) return;
+    const newChecked = currentlyChecked
+      ? inst.checked_items.filter(x => x.item_id !== itemId)
+      : [...inst.checked_items, { item_id: itemId, checked_at: new Date().toISOString() }];
+    const tpl = checklistTemplates.find(t => t.id === inst.checklist_id);
+    const completed = newChecked.length === (tpl?.items.length || 0);
+    await supabase.from('staff_checklist_instances').update({
+      checked_items: newChecked,
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+    }).eq('id', instanceId);
+    const updated = await getChecklistInstances(hotelId, todayStr);
+    setChecklistInstances(updated || []);
+  };
+
   // Filter checklists by department: staff see their dept, admin/managers see all
   const myDept = department || '';
   const relevantTemplates = isAdmin || !myDept
@@ -5665,18 +5729,66 @@ function DailyBriefView({ hotelId, hotelName, config, sessionName, department, i
             </div>
           )}
 
-          {/* Checklists Progress */}
-          {recap && recap.checklistsTotal > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[13px] font-bold text-gray-900">Checklists</h3>
-                <span className="text-[11px] text-gray-400">{recap.checklistsCompleted}/{recap.checklistsTotal}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 bg-gray-100 rounded-full h-2.5">
-                  <div className="h-2.5 rounded-full transition-all" style={{width:`${(recap.checklistsCompleted/recap.checklistsTotal)*100}%`, backgroundColor: TEAL}} />
-                </div>
-              </div>
+          {/* ── Interactive Checklists ── */}
+          {relevantTemplates.length > 0 && (
+            <div className="space-y-3">
+              {relevantTemplates.map(tpl => {
+                const inst = todaysInstance(tpl.id);
+                const totalItems = tpl.items?.length || 0;
+                const doneCount = inst?.checked_items.length || 0;
+                return (
+                  <div key={tpl.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-[13px] font-bold text-gray-900">{tpl.name}</p>
+                        <p className="text-[11px] text-gray-500">
+                          {totalItems} item{totalItems === 1 ? '' : 's'}
+                          {inst ? ` · ${doneCount}/${totalItems} done` : ''}
+                        </p>
+                      </div>
+                      {!inst && totalItems > 0 ? (
+                        <button
+                          onClick={() => startInstance(tpl.id)}
+                          disabled={submitting}
+                          className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-50"
+                          style={{ backgroundColor: TEAL }}
+                        >
+                          {submitting ? '...' : 'Start'}
+                        </button>
+                      ) : inst?.completed ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✓ Done</span>
+                      ) : inst ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">In Progress</span>
+                      ) : null}
+                    </div>
+                    {inst && totalItems > 0 && (
+                      <>
+                        <div className="bg-gray-100 rounded-full h-1.5 mb-2">
+                          <div className="h-1.5 rounded-full transition-all" style={{ width: `${(doneCount / totalItems) * 100}%`, backgroundColor: TEAL }} />
+                        </div>
+                        <div className="space-y-1">
+                          {tpl.items.map(item => {
+                            const isChecked = !!inst.checked_items.find(x => x.item_id === item.id);
+                            return (
+                              <label key={item.id} className="flex items-center gap-2.5 py-1 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleChecklistItem(inst.id, item.id, isChecked)}
+                                  disabled={submitting}
+                                  className="w-4 h-4 rounded border-gray-300 cursor-pointer"
+                                  style={{ accentColor: TEAL }}
+                                />
+                                <span className={`text-[12px] ${isChecked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{item.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -5852,11 +5964,11 @@ function PropertyInfoView({ config }: { config: HotelConfig }) {
 }
 
 /* ── Schedules View — Week Grid (Sun-Sat × Hours) ───────── */
-function SchedulesView({ hotelId, isAdmin, staffList }: { hotelId: string; isAdmin: boolean; staffList: { id?: string; name: string; role?: string; department?: string }[] }) {
+function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId: string; isAdmin: boolean; staffList: { id?: string; name: string; role?: string; department?: string }[]; weekStartsOn?: string }) {
   const [forecasts, setForecasts] = useState<any[]>([]);
   const [shifts, setShifts] = useState<any[]>([]);
   const [changeRequests, setChangeRequests] = useState<any[]>([]);
-  const [weekStart, setWeekStart] = useState<string>(getWeekStart(today()));
+  const [weekStart, setWeekStart] = useState<string>(getWeekStart(today(), weekStartsOn));
   const [showForecastForm, setShowForecastForm] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -6002,7 +6114,7 @@ function SchedulesView({ hotelId, isAdmin, staffList }: { hotelId: string; isAdm
       {/* Week navigation */}
       <div className="flex items-center gap-2 mb-4">
         <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-600">← Prev</button>
-        <button onClick={() => setWeekStart(getWeekStart(today()))} className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-600">This week</button>
+        <button onClick={() => setWeekStart(getWeekStart(today(), weekStartsOn))} className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-600">This week</button>
         <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-600">Next →</button>
         <span className="text-[11px] text-gray-500 ml-2">Color = department</span>
       </div>
@@ -6186,10 +6298,17 @@ function SchedulesView({ hotelId, isAdmin, staffList }: { hotelId: string; isAdm
 }
 
 // Week helpers
-function getWeekStart(date: string): string {
+function getWeekStart(date: string, weekStartsOn?: string): string {
   const d = new Date(date + 'T00:00:00');
   const day = d.getDay(); // 0=Sun
-  d.setDate(d.getDate() - day);
+  if (weekStartsOn === 'Monday') {
+    // Monday-start: offset so Monday=0
+    const monOffset = day === 0 ? 6 : day - 1;
+    d.setDate(d.getDate() - monOffset);
+  } else {
+    // Sunday-start (default)
+    d.setDate(d.getDate() - day);
+  }
   return d.toISOString().split('T')[0];
 }
 function getWeekDates(weekStart: string): string[] {
