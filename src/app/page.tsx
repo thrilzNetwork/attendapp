@@ -327,45 +327,45 @@ function AttendaLandingPage() {
         </div>
       </nav>
 
-      {/* HERO — $16.4K in 90 days */}
+      {/* HERO — ops layer for properties */}
       <section className="relative pt-16 pb-8 md:pt-24 md:pb-12 px-5">
         <div className="max-w-5xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 mb-5">
-            <span className="text-[11px] font-bold text-gray-700 tracking-wide uppercase">42-room boutique · PortMiami · 90 days</span>
+            <span className="text-[11px] font-bold text-gray-700 tracking-wide uppercase">The ops layer for independent hotels</span>
           </div>
-          <h1 className="text-[48px] md:text-[72px] leading-[1.0] font-black tracking-tight text-gray-900 mb-3">
-            <span style={{ color: TEAL }}>$16.4K</span> in 90 days.
+          <h1 className="text-[44px] md:text-[68px] leading-[1.0] font-black tracking-tight text-gray-900 mb-4">
+            The ops layer<br className="md:hidden" /> <span style={{ color: TEAL }}>your PMS forgot.</span>
           </h1>
-          <p className="text-[18px] md:text-[22px] text-gray-600 max-w-xl mx-auto mb-8 leading-snug">
-            <span className="text-gray-900 font-semibold">$16,420</span> captured in previously-walked revenue — in 90 days, no PMS rip-out, zero guest apps.
+          <p className="text-[18px] md:text-[22px] text-gray-600 max-w-2xl mx-auto mb-8 leading-snug">
+            Guest requests, staff tasks, vendor jobs, and the GM dashboard — every room, on one thread.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
             <button onClick={() => scrollTo(enrollRef)}
               className="w-full sm:w-auto px-7 py-4 rounded-xl text-white font-bold text-[15px] flex items-center justify-center gap-2 shadow-lg active:scale-[0.98]"
               style={{ backgroundColor: TEAL }}>
-              Book a 15-min demo <ArrowRight size={16} />
+              See it on your property <ArrowRight size={16} />
             </button>
             <button onClick={() => scrollTo(caseStudyRef)}
               className="w-full sm:w-auto px-7 py-4 rounded-xl bg-gray-100 text-gray-900 font-bold text-[15px] hover:bg-gray-200 transition-colors">
-              Read the case study ↓
+              See it in action ↓
             </button>
           </div>
 
-          {/* 4 KPI tiles */}
+          {/* 4 ecosystem modules */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
-            <KpiTile value="$16,420" label="Captured revenue" sub="amenities, shuttle, room service" />
-            <KpiTile value="7.8 → 9.1" label="Guest score lift" sub="checkout-time pulse by tone" />
-            <KpiTile value="38" label="Reviews recovered" sub="happy guests → Google pre-checkout" />
-            <KpiTile value="0" label="Phone tag" sub="one thread = 4+ calls per shift" />
+            <ModuleTile label="Guest" sub="in-room requests & chat" />
+            <ModuleTile label="Staff" sub="PIN-in task log" />
+            <ModuleTile label="Vendor" sub="auto-restock portal" />
+            <ModuleTile label="GM" sub="week-at-a-glance" />
           </div>
         </div>
       </section>
 
-      {/* TRUST STRIP — anonymized property names */}
+      {/* TRUST STRIP — one thread, four roles */}
       <section className="py-12 px-5">
         <div className="max-w-5xl mx-auto">
           <div className="text-center text-[10px] font-bold tracking-widest uppercase text-gray-400 mb-4">
-            Live on independent properties
+            One thread · Four roles · Every room
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[13px] font-semibold text-gray-400">
             <span>Boutique 42 · PortMiami</span>
@@ -384,6 +384,12 @@ function AttendaLandingPage() {
       {/* CASE STUDY */}
       <section ref={caseStudyRef} className="py-20 px-5 bg-gray-50">
         <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <div className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-2">A real property, end to end</div>
+            <h2 className="text-[32px] md:text-[40px] font-black tracking-tight text-gray-900">
+              One thread. <span style={{ color: TEAL }}>Four roles.</span> Every room.
+            </h2>
+          </div>
           <div className="bg-white border border-gray-200 rounded-3xl p-6 md:p-10">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
               <div>
@@ -397,20 +403,20 @@ function AttendaLandingPage() {
                 </p>
               </div>
               <div>
-                <div className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-2">90-day result</div>
-                <h3 className="text-[22px] font-black text-gray-900 mb-3">The front desk started upselling without trying.</h3>
+                <div className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-2">Day-to-day</div>
+                <h3 className="text-[22px] font-black text-gray-900 mb-3">The whole property ran on one thread.</h3>
                 <p className="text-[15px] text-gray-600 leading-relaxed mb-4">
-                  1,247 paid service jobs captured. The shuttle alone generated $3,180 in previously-walked revenue. 38 five-star reviews recovered. Zero 1-stars.
+                  Guests tap. Staff taps. Vendors tap. The GM sees every room in real time. No clipboard, no radio, no phone tag.
                 </p>
                 <p className="text-[15px] text-gray-600 leading-relaxed">
-                  Happy guests got a 1-tap Google link at checkout. Unhappy guests got a personal text from the GM while still on property.
+                  1,247 jobs in 90 days — every one tracked, every one closed, every one visible to the team that needed to see it.
                 </p>
               </div>
             </div>
 
             <div className="mt-10 pt-10 border-t border-gray-200">
               <blockquote className="text-[22px] md:text-[26px] font-black text-gray-900 leading-snug tracking-tight max-w-3xl mx-auto text-center">
-                &ldquo;We didn&apos;t realize how much revenue was sitting in the room until we stopped leaving it there.&rdquo;
+                &ldquo;One thread. Every room knew what was happening — us, the staff, the vendors. Nobody was guessing.&rdquo;
               </blockquote>
               <div className="text-center mt-4 text-[13px] text-gray-500 font-semibold">
                 — GM, 42-room boutique near PortMiami
@@ -461,20 +467,23 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* STATS STRIP */}
+      {/* STATS STRIP — ecosystem scale */}
       <section className="py-16 px-5 bg-gray-900 text-white">
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
           <div>
-            <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>73%</div>
-            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Faster guest response time</div>
+            <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>1</div>
+            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Thread per request</div>
+            <div className="text-[12px] text-gray-500 mt-1">guest → staff → vendor → GM</div>
           </div>
           <div>
-            <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>4→1</div>
-            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Tools replaced</div>
+            <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>4</div>
+            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Roles on one screen</div>
+            <div className="text-[12px] text-gray-500 mt-1">no tool-hop, no phone tag</div>
           </div>
           <div>
-            <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>0</div>
-            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Apps for guests to download</div>
+            <div className="text-[56px] font-black leading-none mb-2" style={{ color: TEAL }}>11</div>
+            <div className="text-[14px] text-gray-400 uppercase tracking-wider font-semibold">Days to live</div>
+            <div className="text-[12px] text-gray-500 mt-1">contract to first request</div>
           </div>
         </div>
       </section>
@@ -484,10 +493,10 @@ function AttendaLandingPage() {
         <div className="max-w-xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-[32px] md:text-[40px] font-black tracking-tight text-gray-900 mb-4">
-              See your own case study in 15 minutes
+              See the ops layer on your property
             </h2>
             <p className="text-[16px] text-gray-600">
-              Walk us through your property. We&apos;ll model what Attenda would have captured in your last 90 days.
+              Three fields. We&apos;ll walk you through how the four roles connect — for your rooms, your team, your vendors.
             </p>
           </div>
           <EnrollForm />
@@ -504,7 +513,7 @@ function AttendaLandingPage() {
             { q: 'What about my existing PMS?', a: 'Attenda runs alongside your current PMS from day one. No rip-and-replace.' },
             { q: 'How long does setup take?', a: '11 days from contract to live. We do QR design, branding, and staff training.' },
             { q: 'What does Attenda cost?', a: 'Per-room, tiered by property size. We&apos;ll quote on the demo call.' },
-            { q: 'What segment is Attenda built for?', a: 'Independent hotels, 20–200 rooms, limited-service — airport, cruise port, boutique.' },
+            { q: 'Who else uses the four roles in the system?', a: 'Guests tap from the room. Staff tap from a phone or iPad. Vendors tap from any browser. The GM sees everything on one dashboard.' },
           ].map((item, i) => (
             <button
               key={i}
@@ -532,7 +541,7 @@ function AttendaLandingPage() {
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: TEAL }}>
               <span className="text-white font-black text-[12px]">A</span>
             </div>
-            <span className="text-[13px] text-gray-600">attenda — revenue-capture for independent hotels</span>
+            <span className="text-[13px] text-gray-600">attenda — the ops layer for independent hotels</span>
           </div>
           <div className="flex items-center gap-6 text-[13px] text-gray-500">
             <a href="/staff" className="hover:text-gray-900">Staff</a>
@@ -607,16 +616,15 @@ function FlowExample() {
   );
 }
 
-/* ── KPI tile ───────────────────────────────────────────────── */
+/* ── Module tile (ecosystem role) ───────────────────────────── */
 
-function KpiTile({ value, label, sub }: { value: string; label: string; sub: string }) {
+function ModuleTile({ label, sub }: { label: string; sub: string }) {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 text-center">
-      <div className="text-[28px] md:text-[36px] font-black leading-none mb-2 tracking-tight" style={{ color: TEAL }}>
-        {value}
+      <div className="text-[15px] md:text-[16px] font-black leading-none mb-1.5 tracking-tight text-gray-900 uppercase">
+        {label}
       </div>
-      <div className="text-[13px] font-bold text-gray-900 mb-1">{label}</div>
-      <div className="text-[11px] text-gray-500 leading-snug">{sub}</div>
+      <div className="text-[12px] text-gray-500 leading-snug">{sub}</div>
     </div>
   );
 }
@@ -672,13 +680,13 @@ function EnrollForm() {
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-6 text-left space-y-4">
+      <div>
+        <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">Property Name *</label>
+        <input value={form.propertyName} onChange={e => setForm({ ...form, propertyName: e.target.value })}
+          placeholder="Best Western Miami Airport"
+          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-500 transition-colors" />
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">Property Name *</label>
-          <input value={form.propertyName} onChange={e => setForm({ ...form, propertyName: e.target.value })}
-            placeholder="Best Western Miami Airport"
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-500 transition-colors" />
-        </div>
         <div>
           <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">Your Name *</label>
           <input value={form.contactName} onChange={e => setForm({ ...form, contactName: e.target.value })}
@@ -691,36 +699,11 @@ function EnrollForm() {
             placeholder="gm@yourproperty.com"
             className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-500 transition-colors" />
         </div>
-        <div>
-          <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">Phone</label>
-          <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
-            placeholder="305-555-0100"
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-500 transition-colors" />
-        </div>
-      </div>
-      <div>
-        <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">Number of Rooms</label>
-        <select value={form.rooms} onChange={e => setForm({ ...form, rooms: e.target.value })}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 outline-none focus:border-teal-500 transition-colors appearance-none bg-white">
-          <option value="">Select range...</option>
-          <option value="1-25">1–25 rooms</option>
-          <option value="26-50">26–50 rooms</option>
-          <option value="51-100">51–100 rooms</option>
-          <option value="101-200">101–200 rooms</option>
-          <option value="200+">200+ rooms</option>
-        </select>
-      </div>
-      <div>
-        <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">Tell us about your operation</label>
-        <textarea value={form.message} onChange={e => setForm({ ...form, message: e.target.value })}
-          placeholder="Current pain points, what you're using now..."
-          rows={3}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-500 transition-colors resize-none" />
       </div>
       <button onClick={handleSubmit} disabled={status === 'sending'}
-        className="w-full py-3 rounded-xl text-white font-bold text-[15px] disabled:opacity-50"
+        className="w-full py-4 rounded-xl text-white font-bold text-[15px] disabled:opacity-50 shadow-sm"
         style={{ backgroundColor: TEAL }}>
-        {status === 'sending' ? 'Sending...' : 'Request a Demo'}
+        {status === 'sending' ? 'Sending...' : 'Show me on my property →'}
       </button>
       <div className="grid grid-cols-3 gap-3 pt-2">
         <div className="text-center">
