@@ -2772,6 +2772,17 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   const [sendInvite, setSendInvite] = useState(true);
   const ALL_PERMS = ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes'];
 
+  const adminFetch = async (action: string, body: any) => {
+    const res = await fetch('/api/superadmin-db', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, data: body }),
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Request failed');
+    return json;
+  };
+
   const handleAdd = async () => {
     setPinError('');
     if (!form.name || !form.pin) return;
@@ -2779,8 +2790,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       setPinError('PIN must be 4–6 digits.');
       return;
     }
-    // If email is set and sendInvite is on, use auto-generated PIN (don't show raw PIN to admin)
-    await createStaffAccountWithDetails({
+    await adminFetch('create_staff', {
       hotel_id: hotelId, name: form.name, role: form.role,
       email: form.email, phone: form.phone, pin_code: form.pin,
       permissions: form.role === 'vendor' ? [] : ['orders', 'messages', 'shuttle'],
@@ -2818,12 +2828,12 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
 
   const handlePermToggle = async (staffId: string, perm: string, current: string[]) => {
     const updated = current.includes(perm) ? current.filter(p => p !== perm) : [...current, perm];
-    await updateStaffPermissions(staffId, updated);
+    await adminFetch('update_staff_permissions', { id: staffId, permissions: updated });
     onRefresh();
   };
 
   const handleToggleActive = async (s: StaffAccount) => {
-    await updateStaffDetails(s.id!, { active: !s.active });
+    await adminFetch('update_staff', { id: s.id!, updates: { active: !s.active } });
     onRefresh();
   };
 
@@ -3104,10 +3114,25 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
   const [discoverResult, setDiscoverResult] = useState<{ added: number; total: number } | null>(null);
 
   const handleSave = async () => {
-    await updateHotelConfig(form);
-    setSaved(true);
-    onSaved();
-    setTimeout(() => setSaved(false), 2500);
+    // Use service-role proxy for PIN-based logins (superadmin)
+    try {
+      const res = await fetch('/api/superadmin-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_hotel', data: { config: form } }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Save failed');
+      setSaved(true);
+      onSaved();
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      // Fallback to direct call for email-login admins
+      await updateHotelConfig(form);
+      setSaved(true);
+      onSaved();
+      setTimeout(() => setSaved(false), 2500);
+    }
   };
 
   const handleDiscover = async () => {
@@ -4207,8 +4232,19 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
   const [copied, setCopied] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const adminFetch = async (action: string, body: any) => {
+    const res = await fetch('/api/superadmin-db', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, data: body }),
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Request failed');
+    return json;
+  };
+
   useEffect(() => {
-    getAllHotels().then(setHotels);
+    adminFetch('list_hotels', {}).then(json => setHotels(json.hotels || [])).catch(() => {});
   }, []);
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://attenda.vercel.app';
@@ -4219,7 +4255,10 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
     if (!form.slug || !form.name) return;
     setCreating(true);
     try {
-      const hotel = await createHotel({ slug: form.slug, name: form.name, adminEmail: form.adminEmail || undefined, propertyType: form.propertyType });
+      const json = await adminFetch('create_hotel', {
+        slug: form.slug, name: form.name, adminEmail: form.adminEmail || undefined, propertyType: form.propertyType,
+      });
+      const hotel = json.hotel;
       if (form.adminEmail && hotel) {
         const origin = window.location.origin;
         await fetch('/api/email', {
@@ -4238,7 +4277,8 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
         });
       }
       setForm({ slug: '', name: '', adminEmail: '', propertyType: 'Hotel' });
-      getAllHotels().then(setHotels);
+      const refreshed = await adminFetch('list_hotels', {});
+      setHotels(refreshed.hotels || []);
     } catch (e: unknown) {
       const msg = (e instanceof Error ? e.message : '') || (typeof e === 'object' && e !== null && 'message' in e ? String((e as { message: unknown }).message) : '');
       alert(msg.includes('unique') || msg.includes('duplicate') ? 'Slug already in use. Try a different one.' : msg || 'Failed to create hotel. Please try again.');
