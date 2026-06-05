@@ -54,6 +54,7 @@ import {
   getStaffSchedules, getStaffSchedulesRange, createStaffSchedule, deleteStaffSchedule, StaffSchedule,
   getDailyRecap,
   getHotelOpsTools, getAllOpsTools,
+  getWeeklyForecasts, upsertWeeklyForecast, WeeklyForecast,
   getLearningDocs, getHrDocs,
 } from '@/lib/supabase';
 import type { OpsTool } from '@/lib/supabase';
@@ -793,7 +794,7 @@ export default function Dashboard() {
           <PropertyInfoView config={config} />
         )}
         {effectiveTab === 'schedules' && (
-          <SchedulesView hotelId={config?.id || ''} isAdmin={isAdmin} weekStartsOn={config?.weekStartsOn || 'Sunday'} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department, hire_date: s.hire_date }))} />
+          <SchedulesView hotelId={config?.id || ''} isAdmin={isAdmin} weekStartsOn={config?.weekStartsOn || 'Sunday'} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department, hire_date: s.hire_date, min_hours: s.min_hours || 0, employment_type: s.employment_type }))} />
         )}
         {effectiveTab === 'checklists_tab' && (
           <ChecklistsTabView hotelId={config?.id || ''} isAdmin={isAdmin} />
@@ -2665,7 +2666,7 @@ function GeneralVendorView({ hotelId, vendorName, vendorType }: { hotelId: strin
 
 /* ── Enhanced Staff View ─────────────────────────────────── */
 function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelId: string; hotelName: string; hotelSlug: string; staff: StaffAccount[]; onRefresh: () => void }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '', hire_date: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '', hire_date: '', min_hours: 0, employment_type: 'full_time' });
   const [showPin, setShowPin] = useState(false);
   const [pinError, setPinError] = useState('');
   const [editingPerms, setEditingPerms] = useState<string | null>(null);
@@ -2689,6 +2690,8 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       vendor_type: form.role === 'vendor' ? form.vendor_type || 'shuttle' : undefined,
       department: form.department || undefined,
       hire_date: form.hire_date || undefined,
+      min_hours: Number(form.min_hours) || 0,
+      employment_type: form.employment_type || 'full_time',
     });
 
     // Send invitation email with setup link
@@ -2712,7 +2715,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       }).catch(() => {});
     }
 
-    setForm({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '', hire_date: '' });
+    setForm({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '', hire_date: '', min_hours: 0, employment_type: 'full_time' });
     onRefresh();
   };
 
@@ -2801,6 +2804,21 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                 className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
               <p className="text-[10px] text-gray-400 mt-1">Used for PTO accrual calculations.</p>
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Min Weekly Hours</label>
+                <input type="number" min={0} max={80} value={form.min_hours} onChange={e => setForm({ ...form, min_hours: parseInt(e.target.value) || 0 })}
+                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Employment Type</label>
+                <select value={form.employment_type} onChange={e => setForm({ ...form, employment_type: e.target.value })}
+                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
+                  <option value="full_time">Full Time</option>
+                  <option value="part_time">Part Time</option>
+                </select>
+              </div>
+            </div>
             <div>
               <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">PIN Code *</label>
               <div className="relative">
@@ -2842,6 +2860,9 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                         const ptoAccrued = Math.floor(months * 1.25); // ~15 days/year
                         return <span> · {ptoAccrued}PTO days</span>;
                       })()}
+                      {(s.min_hours || s.employment_type) && (
+                        <span> · {s.employment_type === 'part_time' ? 'Part-time' : 'Full-time'}{s.min_hours ? ` · ${s.min_hours}h/wk min` : ''}</span>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -6257,12 +6278,14 @@ function PropertyInfoView({ config }: { config: HotelConfig }) {
 }
 
 /* ── Schedules View — Staff × Day Matrix ───────────────── */
-function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId: string; isAdmin: boolean; staffList: { id?: string; name: string; role?: string; department?: string; hire_date?: string }[]; weekStartsOn?: string }) {
+function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId: string; isAdmin: boolean; staffList: { id?: string; name: string; role?: string; department?: string; hire_date?: string; min_hours?: number; employment_type?: string }[]; weekStartsOn?: string }) {
   const [schedules, setSchedules] = useState<StaffSchedule[]>([]);
   const [changeRequests, setChangeRequests] = useState<any[]>([]);
+  const [forecasts, setForecasts] = useState<WeeklyForecast[]>([]);
   const [weekStart, setWeekStart] = useState<string>(getWeekStart(today(), weekStartsOn));
   const [showAdd, setShowAdd] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
+  const [showForecast, setShowForecast] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -6278,12 +6301,14 @@ function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId:
 
   const load = async () => {
     const weekEnd = addDays(weekStart, 6);
-    const [s, cr] = await Promise.all([
+    const [s, cr, f] = await Promise.all([
       getStaffSchedulesRange(hotelId, weekStart, weekEnd),
       listScheduleChangeRequests(hotelId, 'pending'),
+      getWeeklyForecasts(hotelId, weekStart),
     ]);
     setSchedules(s || []);
     setChangeRequests(cr);
+    setForecasts(f || []);
   };
   useEffect(() => { load(); }, [hotelId, weekStart]);
 
@@ -6407,6 +6432,11 @@ function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId:
           <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
             <Plus size={14} /> Add Shift
           </button>
+          {isAdmin && (
+            <button onClick={() => setShowForecast(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-[12px] font-bold text-gray-600">
+              <TrendingUp size={14} /> Forecast
+            </button>
+          )}
           {!isAdmin && (
             <button onClick={() => setShowRequest(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-[12px] font-bold text-gray-600">
               <CalendarDays size={14} /> Request Off
@@ -6463,6 +6493,41 @@ function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId:
               </tr>
             </thead>
             <tbody>
+              {/* ── Forecast row (3 metrics × 7 days) ── */}
+              <tr className="bg-blue-50/40">
+                <td className="border-b border-r border-gray-200 p-1.5 sticky left-0 bg-blue-50/40">
+                  <div className="flex items-center gap-1">
+                    <TrendingUp size={12} className="text-blue-500" />
+                    <span className="text-[9px] font-bold text-blue-700 uppercase tracking-wider">Forecast</span>
+                  </div>
+                </td>
+                {weekDates.map(d => {
+                  const fc = forecasts.find(f => f.date === d);
+                  return (
+                    <td key={d} className="border-b border-r border-gray-200 p-1.5 text-center">
+                      {fc ? (
+                        <div className="space-y-0.5">
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[10px] font-bold text-gray-800">{fc.occupancy_pct}%</span>
+                            <span className="text-[7px] text-gray-400">occ</span>
+                          </div>
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[10px] font-semibold text-gray-700">{fc.arrivals}</span>
+                            <span className="text-[7px] text-gray-400">arr</span>
+                          </div>
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[10px] font-semibold text-gray-700">{fc.rooms_occupied}</span>
+                            <span className="text-[7px] text-gray-400">rooms</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-[9px] text-gray-300">—</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+
               {Object.entries(staffByDept).map(([dept, names]) => (
                 <Fragment key={dept}>
                   {/* Department header row */}
@@ -6476,6 +6541,18 @@ function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId:
                   {/* Staff rows */}
                   {names.map(name => {
                     const deptColor = shiftColor(dept);
+                    // Calculate weekly hours for this staff member
+                    const weeklyShifts = schedules.filter(s => s.staff_name === name);
+                    const totalMinutes = weeklyShifts.reduce((sum, s) => {
+                      const [sh, sm] = s.start_time.split(':').map(Number);
+                      const [eh, em] = s.end_time.split(':').map(Number);
+                      return sum + (eh * 60 + em) - (sh * 60 + sm);
+                    }, 0);
+                    const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
+                    const staffInfo = staffList.find(s => s.name === name);
+                    const minHrs = staffInfo?.min_hours || 0;
+                    const empType = staffInfo?.employment_type === 'part_time' ? 'PT' : 'FT';
+                    const meetsMin = minHrs === 0 || totalHours >= minHrs;
                     return (
                       <tr key={name}>
                         <td className="bg-white border-b border-r border-gray-200 p-2 sticky left-0">
@@ -6483,7 +6560,12 @@ function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId:
                             <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0" style={{backgroundColor: TEAL}}>
                               {name.charAt(0).toUpperCase()}
                             </div>
-                            <span className="text-[12px] font-semibold text-gray-900 truncate">{name}</span>
+                            <div className="min-w-0">
+                              <span className="text-[12px] font-semibold text-gray-900 truncate block">{name}</span>
+                              <span className={`text-[9px] font-medium ${meetsMin ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                {empType} · {totalHours}h{minHrs > 0 ? ` / ${minHrs}h` : ''}
+                              </span>
+                            </div>
                           </div>
                         </td>
                         {weekDates.map(d => {

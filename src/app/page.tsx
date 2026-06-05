@@ -126,8 +126,14 @@ function HotelGuestApp({
         localStorage.removeItem('guestSession');
       }
     }
-    setPendingTarget(sheet);
-    setModalOpen(true);
+    // No valid session — only ask for info on features that need it
+    if (requiresValidation) {
+      setPendingTarget(sheet);
+      setModalOpen(true);
+      return;
+    }
+    // Everything else opens directly — no forms
+    setOpenSheet(sheet);
   };
 
   const closeSheet = () => setOpenSheet(null);
@@ -217,7 +223,7 @@ function HotelGuestApp({
           <Globe size={14} className="text-gray-400" />
           <span className="text-[11px] text-gray-400 leading-none">powered by Attenda</span>
         </div>
-        <button onClick={() => handleClick('message')} className="flex items-center gap-2 shrink-0">
+        <button onClick={() => handleClick('message', true)} className="flex items-center gap-2 shrink-0">
           <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: brandColor }}>
             <User size={20} className="text-white" strokeWidth={1.5} />
           </div>

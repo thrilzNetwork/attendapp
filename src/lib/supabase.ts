@@ -66,6 +66,8 @@ export interface StaffAccount {
   vendor_type?: string;   // 'shuttle' | 'taxi' | etc — only relevant when role='vendor'
   hire_date?: string;     // ISO date — first day of employment
   pto_used?: number;      // PTO days used this year
+  min_hours?: number;     // Minimum weekly hours expected
+  employment_type?: string; // 'full_time' | 'part_time'
 }
 
 export interface RequestItem {
@@ -756,13 +758,15 @@ export async function getStaffAccountsForHotel(hotelId: string): Promise<StaffAc
     vendor_type: s.vendor_type as string || undefined,
     hire_date: s.hire_date as string || '',
     pto_used: (s.pto_used as number) || 0,
+    min_hours: (s.min_hours as number) || 0,
+    employment_type: (s.employment_type as string) || '',
   }));
 }
 
 export async function createStaffAccountWithDetails(staff: {
   hotel_id: string; name: string; role: string; email?: string; phone?: string;
   pin_code: string; permissions?: string[]; vendor_type?: string; department?: string;
-  hire_date?: string; pto_used?: number;
+  hire_date?: string; pto_used?: number; min_hours?: number; employment_type?: string;
 }) {
   const { data, error } = await supabase.from('staff_accounts').insert({
     name: staff.name,
@@ -776,6 +780,8 @@ export async function createStaffAccountWithDetails(staff: {
     department: staff.department || null,
     hire_date: staff.hire_date || null,
     pto_used: staff.pto_used || 0,
+    min_hours: staff.min_hours || 0,
+    employment_type: staff.employment_type || null,
     active: true,
   }).select().single();
   if (error) throw error;
@@ -788,7 +794,7 @@ export async function updateStaffPermissions(id: string, permissions: string[]) 
 
 export async function updateStaffDetails(id: string, updates: {
   name?: string; email?: string; phone?: string; permissions?: string[]; active?: boolean;
-  department?: string; hire_date?: string; pto_used?: number;
+  department?: string; hire_date?: string; pto_used?: number; min_hours?: number; employment_type?: string;
 }) {
   await supabase.from('staff_accounts').update(updates).eq('id', id);
 }
@@ -1515,6 +1521,76 @@ export async function createRDO(
 }
 
 // ─── Knowledge Base Helpers ────────────────────────────
+
+// ─── Weekly Forecasts ─────────────────────────────────
+export interface WeeklyForecast {
+  id: string;
+  hotel_id: string;
+  week_start: string;       // Monday of the forecast week
+  date: string;              // specific day
+  occupancy_pct: number;     // forecasted occupancy %
+  arrivals: number;          // forecasted arrivals
+  rooms_occupied: number;    // forecasted rooms occupied
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export async function getWeeklyForecasts(hotelId: string, weekStart: string): Promise<WeeklyForecast[]> {
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const endStr = weekEnd.toISOString().split('T')[0];
+  const { data } = await supabase
+    .from('weekly_forecasts')
+    .select('*')
+    .eq('hotel_id', hotelId)
+    .gte('date', weekStart)
+    .lte('date', endStr)
+    .order('date');
+  return (data || []) as WeeklyForecast[];
+}
+
+export async function upsertWeeklyForecast(forecast: {
+  hotel_id: string;
+  week_start: string;
+  date: string;
+  occupancy_pct: number;
+  arrivals: number;
+  rooms_occupied: number;
+}) {
+  // Find existing for this date/hotel, update; or insert
+  const existing = await supabase
+    .from('weekly_forecasts')
+    .select('id')
+    .eq('hotel_id', forecast.hotel_id)
+    .eq('date', forecast.date)
+    .single();
+  const existingId = existing.data?.id;
+  if (existingId) {
+    const { data, error } = await supabase
+      .from('weekly_forecasts')
+      .update({
+        week_start: forecast.week_start,
+        occupancy_pct: forecast.occupancy_pct,
+        arrivals: forecast.arrivals,
+        rooms_occupied: forecast.rooms_occupied,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existingId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } else {
+    const { data, error } = await supabase
+      .from('weekly_forecasts')
+      .insert(forecast)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+}
 
 export async function getLearningDocs(hotelId: string): Promise<KnowledgeEntry[]> {
   const { data } = await supabase
