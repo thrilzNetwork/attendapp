@@ -1,4 +1,5 @@
 /* eslint-disable */
+// deploy-2026-06-05-001 - force chunk hash change
 'use client';
 
 import { useState, useEffect, useCallback, useRef, Fragment, Component } from 'react';
