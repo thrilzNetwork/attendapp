@@ -47,6 +47,9 @@ export interface HotelConfig {
   shuttlePickupLocation?: string;
   shuttleNotes?: string;
   weekStartsOn?: 'Sunday' | 'Monday';
+  // Billing
+  paymentType?: string;   // 'ach', 'check', 'wire', 'cash'
+  lastPayment?: string;   // amount + date e.g. "$500 - Jun 1, 2026"
 }
 
 export interface StaffAccount {
@@ -117,6 +120,8 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     shuttlePickupLocation: data.shuttle_pickup_location || '',
     shuttleNotes: data.shuttle_notes || '',
     weekStartsOn: data.week_starts_on || 'Sunday',
+    paymentType: data.payment_type || '',
+    lastPayment: data.last_payment || '',
   };
 }
 
@@ -148,6 +153,8 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       brand: config.propertyType || 'Hotel',
       gm_notes: config.gmNotes || '',
       week_starts_on: config.weekStartsOn || 'Sunday',
+      payment_type: config.paymentType || '',
+      last_payment: config.lastPayment || '',
     }, { onConflict: 'slug' });
   if (error) throw error;
   return data;

@@ -30,7 +30,7 @@ import {
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
-  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship,
+  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign,
 } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
@@ -3227,7 +3227,7 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
                     : 'bg-white border-gray-200 text-gray-600'
                 }`}
               >
-                Sunday
+                Sunday → Saturday
               </button>
               <button
                 onClick={() => setForm({ ...form, weekStartsOn: 'Monday' })}
@@ -3237,10 +3237,38 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
                     : 'bg-white border-gray-200 text-gray-600'
                 }`}
               >
-                Monday
+                Monday → Sunday
               </button>
             </div>
           </div>
+        </Section>
+
+        <Section title="Tenant Billing" Icon={DollarSign}>
+          <p className="text-[11px] text-gray-400 -mt-1">
+            Track how this tenant pays and when the last payment was received.
+          </p>
+          <div className="mt-3">
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Payment Method</label>
+            <select
+              value={form.paymentType || ''}
+              onChange={e => setForm({ ...form, paymentType: e.target.value })}
+              className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            >
+              <option value="">Select payment method</option>
+              <option value="ach">ACH / Bank Transfer</option>
+              <option value="check">Check</option>
+              <option value="wire">Wire Transfer</option>
+              <option value="cash">Cash</option>
+              <option value="card">Credit Card</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <Field
+            label="Last Payment"
+            value={form.lastPayment || ''}
+            onChange={v => setForm({ ...form, lastPayment: v })}
+            placeholder="e.g. $500 - Jun 1, 2026"
+          />
         </Section>
 
         <Section title="Email Notifications" Icon={Bell}>
@@ -6599,12 +6627,15 @@ function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId:
 }
 
 // Week helpers
-function getWeekStart(date: string, _weekStartsOn?: string): string {
-  // Always Monday → Sunday (hotel operations standard)
+function getWeekStart(date: string, weekStartsOn?: string): string {
   const d = new Date(date + 'T00:00:00');
   const day = d.getDay(); // 0=Sun
-  const monOffset = day === 0 ? 6 : day - 1; // Monday=0
-  d.setDate(d.getDate() - monOffset);
+  if (weekStartsOn === 'Monday') {
+    const monOffset = day === 0 ? 6 : day - 1;
+    d.setDate(d.getDate() - monOffset);
+  } else {
+    d.setDate(d.getDate() - day);
+  }
   return d.toISOString().split('T')[0];
 }
 function getWeekDates(weekStart: string): string[] {
