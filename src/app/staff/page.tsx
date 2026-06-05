@@ -879,7 +879,7 @@ function OrdersView({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [assignForm, setAssignForm] = useState<Record<string, string>>({});
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState({ guest_name: '', room: '', type: 'Other', details: '' });
+  const [createForm, setCreateForm] = useState({ guest_name: '', room: '', type: 'Other', details: '', step: 'category' });
 
   // Guest messages (sender=guest only, most recent first)
   const guestMessages = messages.filter(m => m.sender === 'guest')
@@ -966,7 +966,7 @@ function OrdersView({
       status: 'pending',
     });
     setShowCreateModal(false);
-    setCreateForm({ guest_name: '', room: '', type: 'Other', details: '' });
+    setCreateForm({ guest_name: '', room: '', type: 'Other', details: '', step: 'category' });
     onRefresh();
   };
 
@@ -975,8 +975,8 @@ function OrdersView({
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[26px] font-extrabold text-gray-900">Live Orders</h1>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 text-white px-3 py-1.5 rounded-lg text-[13px] font-bold hover:opacity-90 transition-opacity" style={{ backgroundColor: TEAL }}>
-            <Plus size={14} /> New
+          <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 text-white px-4 py-2 rounded-lg text-[13px] font-bold hover:opacity-90 transition-opacity" style={{ backgroundColor: TEAL }}>
+            <Plus size={16} /> New Request
           </button>
           <button onClick={onRefresh} className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-[13px] font-semibold text-gray-600 hover:bg-gray-50">
             <RefreshCw size={14} /> Refresh
@@ -1239,37 +1239,106 @@ function OrdersView({
       </div>}
       {/* Create Request Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4" onClick={() => setShowCreateModal(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-[16px] font-bold text-gray-900">New Request</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setShowCreateModal(false)}>
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh' }}>
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-[18px] font-bold text-gray-900">New Request</h3>
+                <p className="text-[12px] text-gray-400">Tap a category to start</p>
+              </div>
+              <button onClick={() => setShowCreateModal(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-200"><XIcon size={16} /></button>
             </div>
-            <div className="p-5 space-y-3">
-              <input value={createForm.guest_name} onChange={e => setCreateForm({ ...createForm, guest_name: e.target.value })}
-                placeholder="Guest name" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
-              <input value={createForm.room} onChange={e => setCreateForm({ ...createForm, room: e.target.value })}
-                placeholder="Room number" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
-              <select value={createForm.type} onChange={e => setCreateForm({ ...createForm, type: e.target.value })}
-                className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none">
-                <option value="Airport Shuttle">✈️ Airport Shuttle</option>
-                <option value="Cruise Shuttle">🚢 Cruise Shuttle</option>
-                <option value="Housekeeping">🧹 Housekeeping</option>
-                <option value="Maintenance">🔧 Maintenance</option>
-                <option value="Amenity">🛁 Amenity</option>
-                <option value="Food Order">🍴 Food Order</option>
-                <option value="Other">📋 Other</option>
-              </select>
-              <textarea value={createForm.details} onChange={e => setCreateForm({ ...createForm, details: e.target.value })}
-                placeholder="Details (optional)" rows={3} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none resize-none" />
-            </div>
-            <div className="px-5 py-4 border-t border-gray-100 flex gap-2 justify-end">
-              <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">Cancel</button>
-              <button onClick={handleCreateRequest} disabled={!createForm.guest_name.trim() || !createForm.room.trim()}
-                className="px-5 py-2 rounded-xl text-white text-[13px] font-bold disabled:opacity-40" style={{ backgroundColor: TEAL }}>
-                <Plus size={14} className="inline mr-1" /> Create Request
-              </button>
-            </div>
+
+            {/* Step 1: POS-style grid */}
+            {createForm.step === 'category' && (
+              <div className="p-5">
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { key: 'Food Order',         icon: '🍴', label: 'Food Order',     color: 'bg-orange-50 border-orange-200 hover:bg-orange-100', iconBg: 'bg-orange-100 text-orange-600' },
+                    { key: 'Airport Shuttle',     icon: '✈️', label: 'Airport Shuttle', color: 'bg-sky-50 border-sky-200 hover:bg-sky-100',     iconBg: 'bg-sky-100 text-sky-600' },
+                    { key: 'Cruise Shuttle',      icon: '🚢', label: 'Cruise Shuttle',  color: 'bg-blue-50 border-blue-200 hover:bg-blue-100',    iconBg: 'bg-blue-100 text-blue-600' },
+                    { key: 'Housekeeping',        icon: '🧹', label: 'Housekeeping',    color: 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100', iconBg: 'bg-emerald-100 text-emerald-600' },
+                    { key: 'Maintenance',         icon: '🔧', label: 'Maintenance',     color: 'bg-amber-50 border-amber-200 hover:bg-amber-100', iconBg: 'bg-amber-100 text-amber-600' },
+                    { key: 'Amenity',             icon: '🛁', label: 'Amenity',         color: 'bg-purple-50 border-purple-200 hover:bg-purple-100', iconBg: 'bg-purple-100 text-purple-600' },
+                  ].map(cat => (
+                    <button key={cat.key} onClick={() => setCreateForm({ ...createForm, type: cat.key, step: 'details' })}
+                      className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 p-5 transition-all active:scale-95 ${cat.color}`}
+                      style={{ minHeight: 100 }}
+                    >
+                      <span className="text-3xl leading-none">{cat.icon}</span>
+                      <span className="text-[12px] font-bold text-gray-700 text-center leading-tight">{cat.label}</span>
+                    </button>
+                  ))}
+                  <button onClick={() => setCreateForm({ ...createForm, type: 'Other', step: 'details' })}
+                    className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-gray-200 p-5 bg-gray-50 hover:bg-gray-100 transition-all active:scale-95"
+                    style={{ minHeight: 100 }}
+                  >
+                    <span className="text-3xl leading-none">📋</span>
+                    <span className="text-[12px] font-bold text-gray-500 text-center leading-tight">Other</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Guest details */}
+            {createForm.step === 'details' && (
+              <div className="p-5 space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <button onClick={() => setCreateForm({ ...createForm, step: 'category', type: '', guest_name: '', room: '', details: '' })} className="text-[12px] text-gray-400 hover:text-gray-600 flex items-center gap-1">
+                    ← Back
+                  </button>
+                  <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-gray-100 text-gray-600">{createForm.type}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <input value={createForm.guest_name} onChange={e => setCreateForm({ ...createForm, guest_name: e.target.value })}
+                    placeholder="Guest name *" className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[16px] border border-gray-100 outline-none focus:border-teal-400" />
+                  <input value={createForm.room} onChange={e => setCreateForm({ ...createForm, room: e.target.value })}
+                    placeholder="Room *" className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[16px] border border-gray-100 outline-none focus:border-teal-400" />
+                </div>
+                <textarea value={createForm.details} onChange={e => setCreateForm({ ...createForm, details: e.target.value })}
+                  placeholder="Details (optional)" rows={3} className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 outline-none resize-none focus:border-teal-400" />
+                <button onClick={handleCreateRequest} disabled={!createForm.guest_name.trim() || !createForm.room.trim()}
+                  className="w-full py-4 rounded-2xl text-white text-[16px] font-bold disabled:opacity-40 hover:opacity-90 transition-all active:scale-[0.98]"
+                  style={{ backgroundColor: TEAL }}>
+                  <Plus size={18} className="inline mr-1.5" /> Submit {createForm.type}
+                </button>
+              </div>
+            )}
+
+            {/* Step 3: Quick-add presets */}
+            {createForm.step === 'quick' && (
+              <div className="p-5 space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <button onClick={() => setCreateForm({ ...createForm, step: 'category' })} className="text-[12px] text-gray-400 hover:text-gray-600 flex items-center gap-1">
+                    ← Categories
+                  </button>
+                  <span className="text-[11px] font-bold text-gray-500">Quick Add</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Fresh Towels', 'Extra Pillows', 'Water Bottles', 'Toiletries', 'Wake Up Call', 'Late Checkout'].map(preset => (
+                    <button key={preset} onClick={async () => {
+                      const hotelSlug = localStorage.getItem('attenda_hotel_slug');
+                      const cfg = await getHotelConfig(hotelSlug || undefined);
+                      await supabase.from('requests').insert({
+                        hotel_id: cfg?.id,
+                        guest_name: createForm.guest_name,
+                        room: createForm.room,
+                        type: 'Amenity',
+                        details: preset,
+                        status: 'pending',
+                      });
+                      setShowCreateModal(false);
+                      setCreateForm({ guest_name: '', room: '', type: 'Other', details: '', step: 'category' });
+                      onRefresh();
+                    }}
+                      className="text-left px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 text-[13px] font-semibold text-gray-700 hover:bg-gray-100 transition-all active:scale-95"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -6530,17 +6599,10 @@ function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId:
 }
 
 // Week helpers
-function getWeekStart(date: string, weekStartsOn?: string): string {
+function getWeekStart(date: string, _weekStartsOn?: string): string {
+  // Always Sunday → Saturday (hotel industry standard)
   const d = new Date(date + 'T00:00:00');
-  const day = d.getDay(); // 0=Sun
-  if (weekStartsOn === 'Monday') {
-    // Monday-start: offset so Monday=0
-    const monOffset = day === 0 ? 6 : day - 1;
-    d.setDate(d.getDate() - monOffset);
-  } else {
-    // Sunday-start (default)
-    d.setDate(d.getDate() - day);
-  }
+  d.setDate(d.getDate() - d.getDay()); // 0=Sun
   return d.toISOString().split('T')[0];
 }
 function getWeekDates(weekStart: string): string[] {
