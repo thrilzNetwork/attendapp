@@ -127,6 +127,7 @@ interface Session {
 const ADMIN_PIN = '2025';
 const SUPERADMIN_PIN = '9999';
 const TEAL = '#0D9488';
+const BUILD_TS = Date.now();
 
 const DEPARTMENTS = [
   { key: 'management',   label: 'Management',   icon: '👔' },
