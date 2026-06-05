@@ -6600,9 +6600,11 @@ function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId:
 
 // Week helpers
 function getWeekStart(date: string, _weekStartsOn?: string): string {
-  // Always Sunday → Saturday (hotel industry standard)
+  // Always Monday → Sunday (hotel operations standard)
   const d = new Date(date + 'T00:00:00');
-  d.setDate(d.getDate() - d.getDay()); // 0=Sun
+  const day = d.getDay(); // 0=Sun
+  const monOffset = day === 0 ? 6 : day - 1; // Monday=0
+  d.setDate(d.getDate() - monOffset);
   return d.toISOString().split('T')[0];
 }
 function getWeekDates(weekStart: string): string[] {
