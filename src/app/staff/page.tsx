@@ -1,7 +1,26 @@
 /* eslint-disable */
 'use client';
 
-import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment, Component } from 'react';
+
+class ErrorBoundary extends Component<{children: React.ReactNode, fallback?: React.ReactNode}, {hasError: boolean, error: Error | null}> {
+  constructor(props: {children: React.ReactNode, fallback?: React.ReactNode}) {
+    super(props);
+    this.state = {hasError: false, error: null};
+  }
+  static getDerivedStateFromError(error: Error) {
+    return {hasError: true, error};
+  }
+  componentDidCatch(error: Error, info: any) {
+    console.error('ERROR BOUNDARY CAUGHT:', error.message, error.stack);
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || <div className="p-8 text-red-600"><p className="font-bold text-[14px]">Something went wrong</p><pre className="text-[11px] mt-2 bg-red-50 p-3 rounded-xl overflow-auto">{this.state.error?.message}</pre></div>;
+    }
+    return this.props.children;
+  }
+}
 import Image from 'next/image';
 import {
   Bell, MessageSquare, Bus, Settings, Users,
@@ -763,7 +782,9 @@ export default function Dashboard() {
           </div>
         )}
         {effectiveTab === 'dailybrief' && (
-          <DailyBriefView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} config={config} sessionName={session?.name || ''} department={session?.department} isAdmin={isAdmin} />
+          <ErrorBoundary fallback={<div className="p-4 md:p-8"><div className="bg-red-50 border border-red-200 rounded-2xl p-6"><p className="text-[16px] font-bold text-red-800 mb-2">Dashboard error</p><pre id="error-message" className="text-[12px] text-red-700 whitespace-pre-wrap bg-red-100 p-4 rounded-xl">{/* error will show here */}</pre></div></div>}>
+            <DailyBriefView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} config={config} sessionName={session?.name || ''} department={session?.department} isAdmin={isAdmin} />
+          </ErrorBoundary>
         )}
         {effectiveTab === 'property_info' && config && (
           <PropertyInfoView config={config} />
