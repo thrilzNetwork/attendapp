@@ -1597,7 +1597,7 @@ export async function getLearningDocs(hotelId: string): Promise<KnowledgeEntry[]
     .from('hotel_knowledge_base')
     .select('*')
     .eq('hotel_id', hotelId)
-    .in('category', ['training', 'sop', 'brand_standards'])
+    .in('category', ['training', 'sop', 'brand_standards', 'SOP', 'System Guide', 'Tenant Onboarding'])
     .eq('active', true)
     .order('category')
     .order('question');

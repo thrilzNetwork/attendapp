@@ -95,7 +95,7 @@ type NavTab =
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'checklists_tab' | 'kpis' | 'learning_hr'
-  | 'shuttle_schedule';
+  | 'shuttle_schedule' | 'callouts' | 'sops';
 
 interface Request {
   id: string;
@@ -156,6 +156,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
 
   // ── ADMIN — settings & management ──
   { tab: 'shuttle_schedule', label: 'Shuttle Grid',      icon: Bus,             roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
+  { tab: 'callouts',         label: 'Staff Callouts',    icon: ClipboardList,   roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'], section: 'Admin' },
   { tab: 'staff_mgmt',      label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'], section: 'Admin' },
   { tab: 'partners',        label: 'Partners & Menu',    icon: Store,           roles: ['admin', 'superadmin'], section: 'Admin' },
@@ -823,6 +824,9 @@ export default function Dashboard() {
         {effectiveTab === 'shuttle_schedule' && (
           <ShuttleScheduleView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
+        {effectiveTab === 'callouts' && (
+          <AdminCalloutsView hotelId={config?.id || ''} />
+        )}
         {effectiveTab === 'vendor_manifest' && (
           <VendorDashboard hotelId={config?.id || ''} vendorType={s.vendorType || 'shuttle'} vendorName={s.name} />
         )}
@@ -866,7 +870,7 @@ export default function Dashboard() {
 
 /* ── Orders View ──────────────────────────────────────── */
 function OrdersView({
-  requests, messages, onStatusChange, onDelete, onRefresh,
+  requests: initialRequests, messages, onStatusChange, onDelete, onRefresh,
 }: {
   requests: Request[];
   messages: Message[];
@@ -874,12 +878,16 @@ function OrdersView({
   onDelete: (id: string) => void;
   onRefresh: () => void;
 }) {
+  const [requests, setRequests] = useState<Request[]>(initialRequests);
+  useEffect(() => { setRequests(initialRequests); }, [initialRequests]);
   const [statusTab, setStatusTab] = useState<'active' | 'completed' | 'messages'>('active');
   const [typeFilter, setTypeFilter] = useState<'All' | 'Food' | 'Transport' | 'Amenities' | 'Other'>('All');
   const [transportSubFilter, setTransportSubFilter] = useState<'all' | 'airport' | 'cruise'>('all');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [assignForm, setAssignForm] = useState<Record<string, string>>({});
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showNextStep, setShowNextStep] = useState<Request | null>(null);
+  const [nextStepMsg, setNextStepMsg] = useState('');
   const [createForm, setCreateForm] = useState({ guest_name: '', room: '', type: 'Other', details: '', step: 'category' });
 
   // Guest messages (sender=guest only, most recent first)
@@ -1124,34 +1132,38 @@ function OrdersView({
               </div>
               <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
                 {req.status === 'pending' && (
-                  <>
-                    {isCheckinRequest(req) ? (
-                      <button onClick={async () => { await supabase.from('requests').update({status:'completed'}).eq('id', req.id); onRefresh(); }}
-                        className="px-3 py-1.5 rounded-lg text-[11px] font-bold hover:opacity-80"
-                        style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                        ✅ Confirm Guest
-                      </button>
-                    ) : (
-                      <button onClick={() => onStatusChange(req.id, 'in-progress')}
-                        className="px-3 py-1.5 rounded-lg text-[11px] font-bold hover:opacity-80"
-                        style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                        {foodOrder ? 'Notify Restaurant' : 'Start'}
-                      </button>
-                    )}
-                    <button onClick={() => onDelete(req.id)}
-                      className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-[11px] font-bold hover:bg-red-100">
-                      Delete
-                    </button>
-                  </>
+                  <button onClick={async () => {
+                    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'in-progress' } : r));
+                    await onStatusChange(req.id, 'in-progress');
+                    setShowNextStep(req);
+                  }}
+                    className="px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 transition-all active:scale-95"
+                    style={{ backgroundColor: TEAL, color: 'white' }}>
+                    Accept
+                  </button>
                 )}
                 {req.status === 'in-progress' && (
-                  <button onClick={() => onStatusChange(req.id, 'completed')}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-bold hover:bg-emerald-100">
-                    Done
+                  <button onClick={async () => {
+                    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'completed' } : r));
+                    await onStatusChange(req.id, 'completed');
+                  }}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-bold hover:bg-emerald-100 active:scale-95 transition-all">
+                    ✓ Complete
                   </button>
                 )}
                 {req.status === 'completed' && (
-                  <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-[11px] font-bold">Completed</span>
+                  <>
+                    <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-[11px] font-bold">Completed</span>
+                    <button onClick={() => {
+                      if (confirm('Cancel this completed request? It will move back to active.')) {
+                        setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'pending' } : r));
+                        onStatusChange(req.id, 'pending');
+                      }
+                    }}
+                      className="px-2 py-1 rounded-lg bg-red-50 text-red-500 text-[10px] font-semibold hover:bg-red-100">
+                      Cancel
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -1340,6 +1352,91 @@ function OrdersView({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Next Step Modal — after Accepting a request */}
+      {showNextStep && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => { setShowNextStep(null); setNextStepMsg(''); }}>
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-[18px] font-bold text-gray-900">Next Step</h3>
+                <p className="text-[12px] text-gray-400 mt-0.5">
+                  {showNextStep.guest_name} — Room {showNextStep.room}
+                  <span className="text-gray-300 mx-1">·</span>
+                  {showNextStep.type}
+                </p>
+              </div>
+              <button onClick={() => { setShowNextStep(null); setNextStepMsg(''); }} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-200">
+                <XIcon size={16} />
+              </button>
+            </div>
+            <div className="p-5 space-y-3">
+              {/* Option 1: Assign to staff */}
+              <button onClick={async () => {
+                const name = prompt('Assign to staff member by name:');
+                if (!name?.trim()) return;
+                await supabase.from('requests').update({ assigned_to: name.trim() }).eq('id', showNextStep.id);
+                setRequests(prev => prev.map(r => r.id === showNextStep.id ? { ...r, assigned_to: name.trim() } : r));
+                setShowNextStep(null); setNextStepMsg('');
+                onRefresh();
+              }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 hover:border-teal-200 hover:bg-teal-50 transition-all text-left active:scale-[0.99]">
+                <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
+                  <UserPlus size={18} className="text-teal-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-bold text-gray-900">Assign to Staff</p>
+                  <p className="text-[11px] text-gray-500">Name the staff member handling this</p>
+                </div>
+              </button>
+
+              {/* Option 1b: Notify via WhatsApp */}
+              <button onClick={() => {
+                const staffPhone = prompt('Staff WhatsApp number (with country code, e.g. +1):');
+                if (!staffPhone?.trim()) return;
+                const msg = encodeURIComponent(
+                  `New request assigned to you:\n${showNextStep.type} - ${showNextStep.guest_name}, Room ${showNextStep.room}\n${showNextStep.details}`
+                );
+                window.open(`https://wa.me/${staffPhone.replace(/[^0-9]/g, '')}?text=${msg}`, '_blank');
+                setShowNextStep(null); setNextStepMsg('');
+              }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 hover:border-green-200 hover:bg-green-50 transition-all text-left active:scale-[0.99]">
+                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
+                  <SendHorizontal size={18} className="text-green-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-bold text-gray-900">Notify via WhatsApp</p>
+                  <p className="text-[11px] text-gray-500">Send request details to staff WhatsApp</p>
+                </div>
+              </button>
+
+              {/* Option 2: Reply directly */}
+              <button onClick={() => {
+                window.location.href = '/staff?tab=messages';
+              }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 hover:border-blue-200 hover:bg-blue-50 transition-all text-left active:scale-[0.99]">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                  <MessageSquare size={18} className="text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-bold text-gray-900">Reply to Guest</p>
+                  <p className="text-[11px] text-gray-500">Send a message to {showNextStep.guest_name}</p>
+                </div>
+              </button>
+
+              {/* Option 3: All Set */}
+              <button onClick={() => {
+                setShowNextStep(null); setNextStepMsg('');
+              }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all text-left active:scale-[0.99]">
+                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
+                  <Check size={18} className="text-green-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-bold text-gray-900">All Set</p>
+                  <p className="text-[11px] text-gray-500">Request is in progress, no further action now</p>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -4282,7 +4379,7 @@ function Field({ label, value, onChange, placeholder }: {
     </div>
   );
 }
-const KB_CATEGORIES = ['General', 'WiFi & Tech', 'Amenities', 'Transport', 'Food & Dining', 'Check-in / Check-out', 'Safety', 'Local Area', 'Incidents'];
+const KB_CATEGORIES = ['General', 'WiFi & Tech', 'Amenities', 'Transport', 'Food & Dining', 'Check-in / Check-out', 'Safety', 'Local Area', 'Incidents', 'SOP', 'System Guide', 'Tenant Onboarding'];
 
 function KnowledgeBaseView({ hotelId }: { hotelId: string }) {
   const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
@@ -7870,7 +7967,7 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
   );
 }
 
-// ============================================================
+/* ── ADMIN CALLOUTS (requests for changes / time off) ─── */
 // ADMIN CALLOUTS (requests for changes / time off)
 // ============================================================
 function AdminCalloutsView({ hotelId }: { hotelId: string }) {
