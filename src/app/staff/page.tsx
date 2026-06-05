@@ -1,7 +1,7 @@
 /* eslint-disable */
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import Image from 'next/image';
 import {
   Bell, MessageSquare, Bus, Settings, Users,
@@ -6328,7 +6328,7 @@ function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId:
             </thead>
             <tbody>
               {Object.entries(staffByDept).map(([dept, names]) => (
-                <>
+                <Fragment key={dept}>
                   {/* Department header row */}
                   <tr key={`dept-${dept}`}>
                     <td className={`${deptBg(dept)} border-b border-r border-gray-200 px-3 py-1.5 sticky left-0`} colSpan={8}>
@@ -6377,7 +6377,7 @@ function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId:
                       </tr>
                     );
                   })}
-                </>
+                </Fragment>
               ))}
               {allStaffSorted.length === 0 && (
                 <tr>
