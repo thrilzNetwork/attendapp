@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin, verifySession, isSuperAdmin } from '@/lib/supabase-admin';
 
 const SUPABASE_URL = 'https://bdmmstatrsenidlgjock.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbW1zdGF0cnNlbmlkbGdqb2NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MTE5MjAsImV4cCI6MjA5NDE4NzkyMH0.1pnioO5Y_3pW2LTaYc9aliRwTkGhX2cTNLrK9jI1P-4';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export async function POST(req: NextRequest) {
   try {
-    const { action, email, password, name, pin, hotelSlug } = await req.json();
-
-    // Create Supabase admin client with service_role for auth admin operations
-    // We use the anon key since we're creating users via signUp (doesn't need service_role)
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { action, email, password, name, pin, hotelSlug, token } = await req.json();
 
     if (action === 'setup') {
-      // First-time staff setup: create auth user + PIN login
+      // First-time staff setup: create auth user with hotel_id in metadata
       if (!email || !password || !name || !pin || !hotelSlug) {
         return NextResponse.json({ ok: false, error: 'Missing required fields.' }, { status: 400 });
       }
@@ -21,38 +17,157 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, error: 'Password must be at least 6 characters.' }, { status: 400 });
       }
 
-      // Create the auth user
-      const { data: authData, error: signUpErr } = await supabase.auth.signUp({
+      // Look up hotel by slug to get the hotel_id
+      const { data: hotel } = await supabaseAdmin
+        .from('hotels')
+        .select('id')
+        .eq('slug', hotelSlug)
+        .single();
+
+      if (!hotel) {
+        return NextResponse.json({ ok: false, error: 'Hotel not found for that slug.' }, { status: 404 });
+      }
+
+      // Create the auth user with hotel_id embedded in user_metadata
+      const { data: authData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
-        options: {
-          emailRedirectTo: `${req.headers.get('origin') || 'https://attendaapp.com'}/staff`,
+        email_confirm: true,
+        user_metadata: {
+          hotel_id: hotel.id,
+          name,
+          role: 'staff',
         },
+      });
+      if (createErr) throw createErr;
+
+      // Also create staff_account record
+      const { error: staffErr } = await supabaseAdmin.from('staff_accounts').insert({
+        hotel_id: hotel.id,
+        name,
+        role: 'staff',
+        pin_code: pin,
+        active: true,
+        email,
+      });
+      if (staffErr) throw staffErr;
+
+      return NextResponse.json({ ok: true, user: authData.user });
+    }
+
+    if (action === 'setup_superadmin') {
+      // Superadmin signup — no hotel_id in metadata
+      const { data, error: signUpErr } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { role: 'superadmin' },
       });
       if (signUpErr) throw signUpErr;
 
-      return NextResponse.json({ ok: true, user: authData.user, session: authData.session });
+      return NextResponse.json({ ok: true, user: data.user });
     }
 
     if (action === 'login') {
-      // Email + password login
-      if (!email || !password) {
-        return NextResponse.json({ ok: false, error: 'Email and password required.' }, { status: 400 });
-      }
-      const { data, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+      // Email + password login — attach hotel_id to JWT on first successful login
+      const anonClient = (await import('@supabase/supabase-js')).createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const { data, error: signInErr } = await anonClient.auth.signInWithPassword({ email, password });
       if (signInErr) throw signInErr;
+
+      // Ensure user_metadata has hotel_id
+      if (data.user && !data.user.user_metadata?.hotel_id) {
+        // Look up the staff record to find hotel_id
+        const { data: staff } = await supabaseAdmin
+          .from('staff_accounts')
+          .select('hotel_id')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (staff?.hotel_id) {
+          await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+            user_metadata: { ...data.user.user_metadata, hotel_id: staff.hotel_id },
+          });
+        }
+      }
 
       return NextResponse.json({ ok: true, user: data.user, session: data.session });
     }
 
+    if (action === 'pin_login') {
+      // PIN-based login — server-side lookup using service_role (bypasses RLS)
+      if (!pin) {
+        return NextResponse.json({ ok: false, error: 'PIN required.' }, { status: 400 });
+      }
+
+      let staffQuery = supabaseAdmin
+        .from('staff_accounts')
+        .select('*, hotels!inner(slug, name)')
+        .eq('pin_code', pin)
+        .eq('active', true)
+        .maybeSingle();
+
+      if (hotelSlug) {
+        staffQuery = supabaseAdmin
+          .from('staff_accounts')
+          .select('*, hotels!inner(slug, name)')
+          .eq('pin_code', pin)
+          .eq('active', true)
+          .eq('hotels.slug', hotelSlug)
+          .maybeSingle();
+      }
+
+      const { data: staff } = await staffQuery;
+      if (!staff) {
+        return NextResponse.json({ ok: false, error: 'Invalid PIN or staff not found.' }, { status: 401 });
+      }
+
+      return NextResponse.json({
+        ok: true,
+        staff: {
+          id: staff.id,
+          hotel_id: staff.hotel_id,
+          name: staff.name,
+          role: staff.role,
+          email: staff.email || '',
+          phone: staff.phone || '',
+          pin_code: staff.pin_code,
+          active: staff.active,
+          permissions: staff.permissions || ['orders', 'messages', 'shuttle'],
+          vendor_type: staff.vendor_type || undefined,
+          hotel_slug: staff.hotels?.slug || hotelSlug,
+          hotel_name: staff.hotels?.name || '',
+        },
+      });
+    }
+
     if (action === 'check_session') {
-      const { data: { session } } = await supabase.auth.getSession();
-      return NextResponse.json({ ok: true, user: session?.user || null });
+      // Verify a session token
+      const tokenStr = token || req.headers.get('authorization')?.replace('Bearer ', '');
+      if (!tokenStr) {
+        return NextResponse.json({ ok: true, user: null });
+      }
+      const user = await verifySession(tokenStr);
+      return NextResponse.json({ ok: true, user });
     }
 
     if (action === 'sign_out') {
-      await supabase.auth.signOut();
+      const anonClient = (await import('@supabase/supabase-js')).createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      await anonClient.auth.signOut();
       return NextResponse.json({ ok: true });
+    }
+
+    if (action === 'authorize_superadmin') {
+      // Verify that the session token belongs to the registered superadmin
+      const tokenStr = token || req.headers.get('authorization')?.replace('Bearer ', '');
+      if (!tokenStr) return NextResponse.json({ ok: false }, { status: 401 });
+
+      const user = await verifySession(tokenStr);
+      if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+
+      const isAdmin = await isSuperAdmin(user.id);
+      if (!isAdmin) return NextResponse.json({ ok: false }, { status: 403 });
+
+      return NextResponse.json({ ok: true, user });
     }
 
     return NextResponse.json({ ok: false, error: 'Unknown action.' }, { status: 400 });

@@ -1,11 +1,25 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, getAllHotels, createHotel, deleteHotel, toggleHotelActive, toggleCloverForPartner, getAllOpsTools, createOpsTool, deleteOpsTool, getHotelOpsTools, setHotelOpsTool } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import type { OpsTool } from '@/lib/supabase';
 import { Building2, Copy, Check, LogOut, Globe, Eye, EyeOff, Lock, Trash2, RefreshCw, ChevronDown, ChevronUp, Power, PowerOff, Settings, Plus } from 'lucide-react';
 
 const TEAL = '#0D9488';
+
+// Helper: call superadmin proxy API (bypasses RLS via service_role)
+async function callAdmin(action: string, body: Record<string, unknown> = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const res = await fetch('/api/superadmin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ action, ...body }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Admin API error');
+  return data;
+}
 
 type Mode = 'checking' | 'signup' | 'login' | 'confirm' | 'dashboard' | 'unauthorized';
 type SuperTab = 'properties' | 'ops-tools';
@@ -78,14 +92,18 @@ interface PlatformHealth {
   const [healthLoading, setHealthLoading] = useState(false);
 
   const loadHotels = useCallback(async () => {
-    const data = await getAllHotels();
+    const { data } = await callAdmin('get_hotels');
     setHotels(data);
   }, []);
 
   const loadHealth = useCallback(async () => {
     setHealthLoading(true);
     try {
-      const res = await fetch('/api/hotel-health');
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch('/api/hotel-health', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
       const data = await res.json();
       if (res.ok) setHealth(data);
     } catch { /* silently fail, data will show 0s */ }
@@ -213,7 +231,13 @@ interface PlatformHealth {
     }
   };
 
-  const handleSignOut = async () => { await supabase.auth.signOut(); };
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setMode('login');
+    setHotels([]);
+    setHealth(null);
+  };
 
   /* ── Create hotel ───────────────────────────────────────── */
   const handleCreate = async () => {
@@ -221,7 +245,7 @@ interface PlatformHealth {
     setCreating(true);
     setCreateError('');
     try {
-      const hotel = await createHotel({
+      const hotelData = await callAdmin('create_hotel', {
         slug: form.slug,
         name: form.name,
         address: form.address || undefined,
@@ -233,7 +257,7 @@ interface PlatformHealth {
         yelpUrl: form.yelpUrl || undefined,
         propertyType: form.propertyType,
       });
-      if (form.adminEmail && hotel) {
+      if (form.adminEmail && hotelData.data) {
         fetch('/api/email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -426,7 +450,7 @@ interface PlatformHealth {
               className={`px-3 py-1.5 rounded-md text-[12px] font-bold transition-colors ${superTab === 'properties' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
               Properties
             </button>
-            <button onClick={async () => { setSuperTab('ops-tools'); if (allOpsTools.length === 0) setAllOpsTools(await getAllOpsTools()); }}
+            <button onClick={async () => { setSuperTab('ops-tools'); if (allOpsTools.length === 0) setAllOpsTools((await callAdmin('get_ops_tools')).data); }}
               className={`px-3 py-1.5 rounded-md text-[12px] font-bold transition-colors ${superTab === 'ops-tools' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
               Ops Tools
             </button>
@@ -769,7 +793,7 @@ interface PlatformHealth {
                     <div className="flex-1" />
                     <button
                       onClick={async () => {
-                        await toggleHotelActive(hotel.id, !hotel.isActive);
+                        await callAdmin('toggle_hotel', { hotelId: hotel.id, active: !hotel.isActive });
                         loadHealth();
                       }}
                       className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold ${hotel.isActive ? 'text-amber-600 bg-amber-50 hover:bg-amber-100' : 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'}`}
@@ -780,7 +804,7 @@ interface PlatformHealth {
                       onClick={async () => {
                         if (!confirm(`PERMANENTLY DELETE "${hotel.name}" and ALL its data?\n\nThis removes: partners, menus, QR codes, requests, messages, staff accounts, and revenue history.\n\nThis CANNOT be undone.`)) return;
                         if (!confirm('Type "DELETE" to confirm:')) return;
-                        await deleteHotel(hotel.id);
+                        await callAdmin('delete_hotel', { id: hotel.id });
                         loadHotels();
                         loadHealth();
                       }}
@@ -807,7 +831,7 @@ interface PlatformHealth {
                               <span className="text-[12px] font-semibold text-gray-800">{p.name}</span>
                               <button
                                 onClick={async () => {
-                                  await toggleCloverForPartner(p.id, !p.clover_enabled);
+                                  await callAdmin('toggle_clover', { partnerId: p.id, enabled: !p.clover_enabled });
                                   loadHealth();
                                 }}
                                 className={`text-[10px] font-bold px-2 py-1 rounded ${p.clover_enabled ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
@@ -856,7 +880,7 @@ interface PlatformHealth {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-[18px] font-extrabold text-gray-900">Ops Tools Catalog ({allOpsTools.length})</h2>
             <div className="flex gap-2">
-              <button onClick={async () => setAllOpsTools(await getAllOpsTools())} className="flex items-center gap-1 text-[12px] text-gray-400 hover:text-teal-600 transition-colors">
+              <button onClick={async () => setAllOpsTools((await callAdmin('get_ops_tools')).data)} className="flex items-center gap-1 text-[12px] text-gray-400 hover:text-teal-600 transition-colors">
                 <RefreshCw size={12} /> Refresh
               </button>
               <button onClick={() => setShowNewTool(true)} className="flex items-center gap-1 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold hover:opacity-90" style={{backgroundColor:TEAL}}>
@@ -907,10 +931,10 @@ interface PlatformHealth {
                   className="px-4 py-2 rounded-xl text-[12px] font-semibold bg-gray-100 text-gray-600">Cancel</button>
                 <button onClick={async () => {
                   if (!newTool.name || !newTool.key) return;
-                  await createOpsTool(newTool);
+                  await callAdmin('create_ops_tool', newTool);
                   setShowNewTool(false);
                   setNewTool({ name: '', key: '', icon: 'Tool', description: '', category: 'front_desk' });
-                  setAllOpsTools(await getAllOpsTools());
+                  setAllOpsTools((await callAdmin('get_ops_tools')).data);
                 }} disabled={!newTool.name || !newTool.key}
                   className="px-5 py-2 rounded-xl text-white text-[12px] font-bold disabled:opacity-40" style={{backgroundColor:TEAL}}>Create Tool</button>
               </div>
@@ -941,8 +965,8 @@ interface PlatformHealth {
                         ) : (
                           <div className="flex gap-1">
                             <button onClick={async () => {
-                              await deleteOpsTool(tool.id);
-                              setAllOpsTools(await getAllOpsTools());
+                              await callAdmin('delete_ops_tool', { id: tool.id, key: tool.key });
+                              setAllOpsTools((await callAdmin('get_ops_tools')).data);
                             }} className="text-red-400 hover:text-red-600"><Trash2 size={13} /></button>
                           </div>
                         )}
@@ -975,7 +999,7 @@ interface PlatformHealth {
                                   for (const [key, enabled] of Object.entries(hotelToolToggles)) {
                                     if (key.endsWith(`:${tool.key}`)) {
                                       const hid = key.split(':')[0];
-                                      await setHotelOpsTool(hid, tool.key, enabled);
+                                      await callAdmin('set_hotel_ops_tool', { hotelId: hid, toolKey: tool.key, enabled });
                                     }
                                   }
                                   setSelectedHotelTools(null);
@@ -991,8 +1015,8 @@ interface PlatformHealth {
                               for (const h of allHotels) {
                                 const hid = (h as {id: string}).id;
                                 try {
-                                  const tools = await getHotelOpsTools(hid);
-                                  const t = tools.find(t => t.tool_key === tool.key);
+                                  const toolsData = await callAdmin('get_hotel_ops_tools', { hotelId: hid });
+                                  const t = toolsData.data.find((t: { tool_key: string }) => t.tool_key === tool.key);
                                   toggles[`${hid}:${tool.key}`] = t ? t.enabled : true;
                                 } catch { toggles[`${hid}:${tool.key}`] = true; }
                               }

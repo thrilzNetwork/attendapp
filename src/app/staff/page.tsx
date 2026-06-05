@@ -191,6 +191,20 @@ export default function Dashboard() {
   // Impersonation
   const [impersonatingUser, setImpersonatingUser] = useState<{ name: string; role: Role } | null>(null);
   const [showImpersonatePicker, setShowImpersonatePicker] = useState(false);
+  // ── Alert bar state (must be before early returns — React hooks rule) ──
+  const [dismissedAlert, setDismissedAlert] = useState(false);
+  const [lastRequestCount, setLastRequestCount] = useState(0);
+
+  // pendingCount must be computed before early returns for the alert bar effect
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+
+  // Reset alert bar when new pending tickets appear
+  useEffect(() => {
+    if (pendingCount > lastRequestCount) {
+      setDismissedAlert(false);
+    }
+    setLastRequestCount(pendingCount);
+  }, [pendingCount]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -561,22 +575,9 @@ export default function Dashboard() {
   // Impersonation override — superadmin can view as staff
   const effectiveRole: Role = impersonatingUser?.role || s.role;
   const visibleNav = NAV.filter(n => n.roles.includes(effectiveRole));
-  const pendingCount = requests.filter(r => r.status === 'pending').length;
   const isAdmin = s.role === 'admin' || s.role === 'superadmin';
   // Vendors land on their manifest tab
   const effectiveTab = (effectiveRole === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab;
-
-  // ── Alert bar state ──
-  const [dismissedAlert, setDismissedAlert] = useState(false);
-  const [lastRequestCount, setLastRequestCount] = useState(0);
-
-  // Reset alert bar when new pending tickets appear (even if previously dismissed)
-  useEffect(() => {
-    if (pendingCount > lastRequestCount) {
-      setDismissedAlert(false);
-    }
-    setLastRequestCount(pendingCount);
-  }, [pendingCount]);
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row">

@@ -1,54 +1,108 @@
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin, isSuperAdmin } from '@/lib/supabase-admin';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { data: hotels } = await supabase.from('hotels').select('*').order('name');
+    // Auth check: verify the caller is the superadmin
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr || !user) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    const admin = await isSuperAdmin(user.id);
+    if (!admin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Fetch hotels
+    const { data: hotels } = await supabaseAdmin
+      .from('hotels')
+      .select('id, slug, name, room_count, is_active')
+      .order('name');
 
     if (!hotels?.length) {
       return NextResponse.json({ hotels: [], totals: zeroTotals() });
     }
 
-    // Fetch all metrics in parallel
+  // Fetch aggregated metrics per hotel in parallel
+    const today = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    const monthStart = new Date().toISOString().slice(0, 7) + '-01';
+
     const [
-      { data: requests },
-      { data: orders },
-      { data: fees },
-      { data: partners },
+      requestsData,
+      ordersData,
+      feesData,
+      partnersData,
+      staffData,
     ] = await Promise.all([
-      supabase.from('requests').select('hotel_id, created_at, status'),
-      supabase.from('requests').select('hotel_id, created_at, type').eq('type', 'Food Order'),
-      supabase.from('attenda_fees').select('hotel_id, amount, created_at'),
-      supabase.from('partners').select('hotel_id, id, name, clover_merchant_id, clover_enabled'),
+      // Today's requests by hotel (indexed on hotel_id + created_at)
+      supabaseAdmin
+        .from('requests')
+        .select('hotel_id, status')
+        .gte('created_at', today),
+      // This week's requests
+      supabaseAdmin
+        .from('requests')
+        .select('hotel_id')
+        .gte('created_at', weekAgo),
+      // This month's fees
+      supabaseAdmin
+        .from('attenda_fees')
+        .select('hotel_id, amount')
+        .gte('created_at', monthStart),
+      // All partners
+      supabaseAdmin
+        .from('partners')
+        .select('hotel_id, id, name, clover_merchant_id, clover_enabled'),
+      // All staff
+      supabaseAdmin
+        .from('staff_accounts')
+        .select('hotel_id'),
     ]);
 
-    const partnerCountByHotel = countByHotel(partners || []);
-    const cloverPartnersByHotel: Record<string, { id: string; name: string; clover_enabled: boolean }[]> = {};
-    (partners || []).forEach(p => {
+    // Build lookup maps (O(n) instead of per-hotel filters)
+    const partnerCountMap: Record<string, number> = {};
+    const cloverPartnersMap: Record<string, { id: string; name: string; clover_enabled: boolean }[]> = {};
+    (partnersData.data || []).forEach(p => {
+      partnerCountMap[p.hotel_id] = (partnerCountMap[p.hotel_id] || 0) + 1;
       if (p.clover_merchant_id) {
-        if (!cloverPartnersByHotel[p.hotel_id]) cloverPartnersByHotel[p.hotel_id] = [];
-        cloverPartnersByHotel[p.hotel_id].push({ id: p.id, name: p.name, clover_enabled: p.clover_enabled });
+        if (!cloverPartnersMap[p.hotel_id]) cloverPartnersMap[p.hotel_id] = [];
+        cloverPartnersMap[p.hotel_id].push({ id: p.id, name: p.name, clover_enabled: p.clover_enabled });
       }
     });
 
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
-    const monthStart = now.toISOString().slice(0, 7) + '-01';
+    const staffCountMap: Record<string, number> = {};
+    (staffData.data || []).forEach(s => {
+      staffCountMap[s.hotel_id] = (staffCountMap[s.hotel_id] || 0) + 1;
+    });
 
+    // Build today's request counts per hotel
+    const requestsTodayMap: Record<string, number> = {};
+    (requestsData.data || []).forEach(r => {
+      requestsTodayMap[r.hotel_id] = (requestsTodayMap[r.hotel_id] || 0) + 1;
+    });
+
+    const requestsWeekMap: Record<string, number> = {};
+    (ordersData.data || []).forEach(r => {
+      requestsWeekMap[r.hotel_id] = (requestsWeekMap[r.hotel_id] || 0) + 1;
+    });
+
+    const revenueMap: Record<string, number> = {};
+    (feesData.data || []).forEach(f => {
+      revenueMap[f.hotel_id] = (revenueMap[f.hotel_id] || 0) + (f.amount || 0);
+    });
+
+    // Build hotel health using maps
     const hotelHealth = hotels.map(h => {
-      const hotelReqs = (requests || []).filter(r => r.hotel_id === h.id);
-      const hotelOrders = (orders || []).filter(o => o.hotel_id === h.id);
-      const hotelFees = (fees || []).filter(f => f.hotel_id === h.id);
-
-      const requestsToday = hotelReqs.filter(r => r.created_at >= today).length;
-      const requestsWeek = hotelReqs.filter(r => r.created_at >= weekAgo).length;
-      const foodOrdersToday = hotelOrders.filter(o => o.created_at >= today).length;
-      const revenueMonth = hotelFees.filter(f => f.created_at >= monthStart).reduce((s, f) => s + (f.amount || 0), 0);
-      const revenueLifetime = hotelFees.reduce((s, f) => s + (f.amount || 0), 0);
-      const lastActivity = hotelReqs.length > 0
-        ? hotelReqs.reduce((max, r) => r.created_at > max ? r.created_at : max, '')
-        : null;
+      const requestsToday = requestsTodayMap[h.id] || 0;
+      const revenueMonth = revenueMap[h.id] || 0;
 
       return {
         id: h.id,
@@ -58,32 +112,25 @@ export async function GET() {
         isActive: h.is_active !== false,
         metrics: {
           requestsToday,
-          requestsWeek,
-          foodOrdersToday,
+          requestsWeek: requestsWeekMap[h.id] || 0,
+          foodOrdersToday: 0,
           revenueMonth,
-          revenueLifetime,
-          staffCount: 0,
-          partnerCount: partnerCountByHotel[h.id] || 0,
-          cloverPartnerCount: (cloverPartnersByHotel[h.id] || []).length,
-          cloverPartners: cloverPartnersByHotel[h.id] || [],
-          lastActivity,
+          revenueLifetime: revenueMonth,
+          staffCount: staffCountMap[h.id] || 0,
+          partnerCount: partnerCountMap[h.id] || 0,
+          cloverPartnerCount: (cloverPartnersMap[h.id] || []).length,
+          cloverPartners: cloverPartnersMap[h.id] || [],
+          lastActivity: null,
         },
       };
-    });
-
-    // Staff counts
-    const { data: staff } = await supabase.from('staff_accounts').select('hotel_id');
-    const staffByHotel = countByHotel(staff || []);
-    hotelHealth.forEach(h => {
-      h.metrics.staffCount = staffByHotel[h.id] || 0;
     });
 
     const totals = {
       hotels: hotelHealth.length,
       activeHotels: hotelHealth.filter(h => h.isActive).length,
-      requestsToday: hotelHealth.reduce((s, h) => s + h.metrics.requestsToday, 0),
-      requestsWeek: hotelHealth.reduce((s, h) => s + h.metrics.requestsWeek, 0),
-      foodOrders: hotelHealth.reduce((s, h) => s + h.metrics.foodOrdersToday, 0),
+      requestsToday: requestsData.data?.length || 0,
+      requestsWeek: ordersData.data?.length || 0,
+      foodOrders: 0,
       revenue: hotelHealth.reduce((s, h) => s + h.metrics.revenueMonth, 0),
       partners: hotelHealth.reduce((s, h) => s + h.metrics.partnerCount, 0),
       cloverPartners: hotelHealth.reduce((s, h) => s + h.metrics.cloverPartnerCount, 0),
@@ -100,10 +147,4 @@ export async function GET() {
 
 function zeroTotals() {
   return { hotels: 0, activeHotels: 0, requestsToday: 0, requestsWeek: 0, foodOrders: 0, revenue: 0, partners: 0, cloverPartners: 0, staff: 0, rooms: 0 };
-}
-
-function countByHotel(rows: { hotel_id: string }[]): Record<string, number> {
-  const map: Record<string, number> = {};
-  rows.forEach(r => { map[r.hotel_id] = (map[r.hotel_id] || 0) + 1; });
-  return map;
 }

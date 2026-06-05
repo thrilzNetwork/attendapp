@@ -1212,10 +1212,11 @@ export async function getHotelOpsTools(hotelId: string): Promise<HotelOpsTool[]>
 }
 
 export async function setHotelOpsTool(hotelId: string, toolKey: string, enabled: boolean): Promise<void> {
-  await supabase.from('hotel_ops_tools').upsert(
+  const { error } = await supabase.from('hotel_ops_tools').upsert(
     { hotel_id: hotelId, tool_key: toolKey, enabled },
     { onConflict: 'hotel_id,tool_key' }
   );
+  if (error) throw error;
 }
 
 export async function bulkEnableOpsTools(hotelId: string, toolKeys: string[]): Promise<void> {
