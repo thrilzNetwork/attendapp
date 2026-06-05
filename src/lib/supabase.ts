@@ -64,6 +64,8 @@ export interface StaffAccount {
   department?: string;
   permissions?: string[]; // ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes']
   vendor_type?: string;   // 'shuttle' | 'taxi' | etc — only relevant when role='vendor'
+  hire_date?: string;     // ISO date — first day of employment
+  pto_used?: number;      // PTO days used this year
 }
 
 export interface RequestItem {
@@ -752,12 +754,15 @@ export async function getStaffAccountsForHotel(hotelId: string): Promise<StaffAc
     active: s.active as boolean,
     permissions: (s.permissions as string[]) || ['orders', 'messages', 'shuttle'],
     vendor_type: s.vendor_type as string || undefined,
+    hire_date: s.hire_date as string || '',
+    pto_used: (s.pto_used as number) || 0,
   }));
 }
 
 export async function createStaffAccountWithDetails(staff: {
   hotel_id: string; name: string; role: string; email?: string; phone?: string;
   pin_code: string; permissions?: string[]; vendor_type?: string; department?: string;
+  hire_date?: string; pto_used?: number;
 }) {
   const { data, error } = await supabase.from('staff_accounts').insert({
     name: staff.name,
@@ -769,6 +774,8 @@ export async function createStaffAccountWithDetails(staff: {
     permissions: staff.permissions || ['orders', 'messages', 'shuttle'],
     vendor_type: staff.vendor_type || null,
     department: staff.department || null,
+    hire_date: staff.hire_date || null,
+    pto_used: staff.pto_used || 0,
     active: true,
   }).select().single();
   if (error) throw error;
@@ -781,7 +788,7 @@ export async function updateStaffPermissions(id: string, permissions: string[]) 
 
 export async function updateStaffDetails(id: string, updates: {
   name?: string; email?: string; phone?: string; permissions?: string[]; active?: boolean;
-  department?: string;
+  department?: string; hire_date?: string; pto_used?: number;
 }) {
   await supabase.from('staff_accounts').update(updates).eq('id', id);
 }

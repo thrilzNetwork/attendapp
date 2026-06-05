@@ -793,7 +793,7 @@ export default function Dashboard() {
           <PropertyInfoView config={config} />
         )}
         {effectiveTab === 'schedules' && (
-          <SchedulesView hotelId={config?.id || ''} isAdmin={isAdmin} weekStartsOn={config?.weekStartsOn || 'Sunday'} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department }))} />
+          <SchedulesView hotelId={config?.id || ''} isAdmin={isAdmin} weekStartsOn={config?.weekStartsOn || 'Sunday'} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department, hire_date: s.hire_date }))} />
         )}
         {effectiveTab === 'checklists_tab' && (
           <ChecklistsTabView hotelId={config?.id || ''} isAdmin={isAdmin} />
@@ -2665,7 +2665,7 @@ function GeneralVendorView({ hotelId, vendorName, vendorType }: { hotelId: strin
 
 /* ── Enhanced Staff View ─────────────────────────────────── */
 function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelId: string; hotelName: string; hotelSlug: string; staff: StaffAccount[]; onRefresh: () => void }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '', hire_date: '' });
   const [showPin, setShowPin] = useState(false);
   const [pinError, setPinError] = useState('');
   const [editingPerms, setEditingPerms] = useState<string | null>(null);
@@ -2688,6 +2688,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       permissions: form.role === 'vendor' ? [] : ['orders', 'messages', 'shuttle'],
       vendor_type: form.role === 'vendor' ? form.vendor_type || 'shuttle' : undefined,
       department: form.department || undefined,
+      hire_date: form.hire_date || undefined,
     });
 
     // Send invitation email with setup link
@@ -2711,7 +2712,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       }).catch(() => {});
     }
 
-    setForm({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '' });
+    setForm({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '', hire_date: '' });
     onRefresh();
   };
 
@@ -2795,6 +2796,12 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
               </div>
             </div>
             <div>
+              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Hire Date</label>
+              <input type="date" value={form.hire_date} onChange={e => setForm({ ...form, hire_date: e.target.value })}
+                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+              <p className="text-[10px] text-gray-400 mt-1">Used for PTO accrual calculations.</p>
+            </div>
+            <div>
               <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">PIN Code *</label>
               <div className="relative">
                 <input type={showPin ? 'text' : 'password'} value={form.pin} onChange={e => { setForm({ ...form, pin: e.target.value }); setPinError(''); }} maxLength={6} placeholder="4-6 digits"
@@ -2829,6 +2836,12 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                       {s.department && (
                         <span> · Position: {DEPARTMENTS.find(d => d.key === s.department)?.icon} {DEPARTMENTS.find(d => d.key === s.department)?.label || s.department}</span>
                       )}
+                      {s.hire_date && <span> · Hired: {new Date(s.hire_date+'T00:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}</span>}
+                      {s.hire_date && (() => {
+                        const months = Math.floor((Date.now() - new Date(s.hire_date+'T00:00:00').getTime()) / (1000*60*60*24*30.44));
+                        const ptoAccrued = Math.floor(months * 1.25); // ~15 days/year
+                        return <span> · {ptoAccrued}PTO days</span>;
+                      })()}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -6244,7 +6257,7 @@ function PropertyInfoView({ config }: { config: HotelConfig }) {
 }
 
 /* ── Schedules View — Staff × Day Matrix ───────────────── */
-function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId: string; isAdmin: boolean; staffList: { id?: string; name: string; role?: string; department?: string }[]; weekStartsOn?: string }) {
+function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId: string; isAdmin: boolean; staffList: { id?: string; name: string; role?: string; department?: string; hire_date?: string }[]; weekStartsOn?: string }) {
   const [schedules, setSchedules] = useState<StaffSchedule[]>([]);
   const [changeRequests, setChangeRequests] = useState<any[]>([]);
   const [weekStart, setWeekStart] = useState<string>(getWeekStart(today(), weekStartsOn));
@@ -6592,6 +6605,29 @@ function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId:
               <button onClick={() => setShowRequest(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
             </div>
             <p className="text-[12px] text-gray-500 mb-4">Your manager will see this in their queue.</p>
+            {/* PTO balance */}
+            {(() => {
+              const staffMember = staffList.find(s => s.name.toLowerCase() === reqForm.staff_name.toLowerCase());
+              if (staffMember?.hire_date) {
+                const hd = new Date(staffMember.hire_date + 'T00:00:00');
+                const months = Math.floor((Date.now() - hd.getTime()) / (1000*60*60*24*30.44));
+                const ptoAccrued = Math.floor(months * 1.25);
+                const used = 0; // will come from pto_used field later
+                return (
+                  <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 mb-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] font-bold text-teal-800">PTO Balance</p>
+                      <p className="text-[10px] text-teal-600">Hired {new Date(staffMember.hire_date+'T00:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[20px] font-extrabold text-teal-700">{ptoAccrued - used}</p>
+                      <p className="text-[9px] text-teal-500">days accrued ({ptoAccrued})</p>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <div className="space-y-3">
               <input value={reqForm.staff_name} onChange={e => setReqForm(p => ({ ...p, staff_name: e.target.value }))} placeholder="Your name"
                 className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
