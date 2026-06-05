@@ -293,6 +293,8 @@ export default function Dashboard() {
 
   const pickHotel = async (slug: string) => {
     localStorage.setItem('attenda_hotel_slug', slug);
+    const c = await getHotelConfig(slug);
+    if (c) setConfig(c);
     setSession({ name: 'Admin', role: 'admin' });
     setShowHotelPicker(false);
     setAuthMode('authenticated');
