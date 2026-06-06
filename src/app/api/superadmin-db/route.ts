@@ -6,19 +6,23 @@ export async function POST(req: NextRequest) {
     const { action, data } = await req.json();
 
     if (action === 'create_hotel') {
-      const { data: hotel, error } = await supabaseAdmin.from('hotels').insert({
+      const insert: Record<string, unknown> = {};
+      const guestCols: Record<string, unknown> = {
         slug: data.slug,
         name: data.name,
-        website_url: data.websiteUrl || null,
-        admin_phone: data.adminPhone || null,
-        room_count: data.roomCount || 0,
-        address: data.address || null,
-        notification_email: data.adminEmail || data.notificationEmail || null,
-        google_review_url: data.googleReviewUrl || null,
-        tripadvisor_url: data.tripadvisorUrl || null,
-        yelp_url: data.yelpUrl || null,
-        property_type: data.propertyType || 'Hotel',
-      }).select().single();
+        website_url: data.websiteUrl,
+        admin_phone: data.adminPhone,
+        room_count: data.roomCount,
+        address: data.address,
+        notification_email: data.adminEmail || data.notificationEmail,
+        google_review_url: data.googleReviewUrl,
+        tripadvisor_url: data.tripadvisorUrl,
+        yelp_url: data.yelpUrl,
+      };
+      for (const [k, v] of Object.entries(guestCols)) {
+        if (v !== null && v !== undefined && v !== '') insert[k] = v;
+      }
+      const { data: hotel, error } = await supabaseAdmin.from('hotels').insert(insert).select().single();
       if (error) throw error;
       return NextResponse.json({ ok: true, hotel });
     }
@@ -30,28 +34,36 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'create_staff') {
-      const { data: staff, error } = await supabaseAdmin.from('staff_accounts').insert({
-        hotel_id: data.hotel_id,
-        name: data.name,
-        role: data.role || 'staff',
-        email: data.email || '',
-        phone: data.phone || '',
-        pin_code: data.pin_code,
-        permissions: data.permissions || ['orders', 'messages', 'shuttle'],
-        vendor_type: data.vendor_type || null,
-        department: data.department || null,
-        hire_date: data.hire_date || null,
-        pto_used: data.pto_used || 0,
-        min_hours: data.min_hours || 0,
-        employment_type: data.employment_type || null,
-        active: true,
-      }).select().single();
+      // Only include columns that actually exist in the staff_accounts table
+      const insert: Record<string, unknown> = {};
+      const fields: [string, unknown][] = [
+        ['hotel_id', data.hotel_id],
+        ['name', data.name],
+        ['role', data.role || 'staff'],
+        ['email', data.email || ''],
+        ['phone', data.phone || ''],
+        ['pin_code', data.pin_code],
+        ['permissions', data.permissions || ['orders', 'messages', 'shuttle']],
+        ['vendor_type', data.vendor_type],
+        ['hire_date', data.hire_date],
+        ['min_hours', data.min_hours || 0],
+        ['employment_type', data.employment_type],
+        ['active', true],
+      ];
+      for (const [k, v] of fields) {
+        if (v !== null && v !== undefined) insert[k] = v;
+      }
+      const { data: staff, error } = await supabaseAdmin.from('staff_accounts').insert(insert).select().single();
       if (error) throw error;
       return NextResponse.json({ ok: true, staff });
     }
 
     if (action === 'update_staff') {
-      const { error } = await supabaseAdmin.from('staff_accounts').update(data.updates).eq('id', data.id);
+      const updates: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(data.updates || {})) {
+        if (v !== null && v !== undefined) updates[k] = v;
+      }
+      const { error } = await supabaseAdmin.from('staff_accounts').update(updates).eq('id', data.id);
       if (error) throw error;
       return NextResponse.json({ ok: true });
     }
@@ -64,16 +76,17 @@ export async function POST(req: NextRequest) {
 
     if (action === 'update_hotel') {
       const cfg = data.config;
-      const { error } = await supabaseAdmin.from('hotels').upsert({
-        slug: cfg.slug || 'miami-airport',
+      // Only include columns that exist in the actual hotels table
+      const updateData: Record<string, unknown> = {};
+      const knownCols: Record<string, unknown> = {
         name: cfg.name,
+        brand: cfg.brand,
         address: cfg.address,
         wifi_name: cfg.wifiName,
         wifi_password: cfg.wifiPassword,
-        welcome_letter: cfg.welcomeLetter,
-        manager_name: cfg.managerName,
-        manager_phone: cfg.managerPhone,
         front_desk_phone: cfg.frontDeskPhone,
+        manager_name: cfg.managerName,
+        welcome_letter: cfg.welcomeLetter,
         notification_email: cfg.notificationEmail,
         admin_phone: cfg.adminPhone,
         website_url: cfg.websiteUrl,
@@ -81,19 +94,11 @@ export async function POST(req: NextRequest) {
         google_review_url: cfg.googleReviewUrl,
         tripadvisor_url: cfg.tripadvisorUrl,
         yelp_url: cfg.yelpUrl,
-        property_type: cfg.propertyType,
-        brand: cfg.brand,
-        shuttle_provider: cfg.shuttleProvider,
-        shuttle_phone: cfg.shuttlePhone,
-        shuttle_days: cfg.shuttleDays,
-        shuttle_capacity: cfg.shuttleCapacity,
-        shuttle_pickup_location: cfg.shuttlePickupLocation,
-        shuttle_notes: cfg.shuttleNotes,
-        week_starts_on: cfg.weekStartsOn,
-        payment_type: cfg.paymentType,
-        last_payment: cfg.lastPayment,
-        amenities: cfg.amenities,
-      });
+      };
+      for (const [k, v] of Object.entries(knownCols)) {
+        if (v !== null && v !== undefined) updateData[k] = v;
+      }
+      const { error } = await supabaseAdmin.from('hotels').update(updateData).eq('slug', cfg.slug);
       if (error) throw error;
       return NextResponse.json({ ok: true });
     }
@@ -101,6 +106,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Unknown action.' }, { status: 400 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Server error';
+    console.error('/api/superadmin-db error:', message, err instanceof Error ? err.stack : '');
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

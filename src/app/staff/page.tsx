@@ -886,8 +886,6 @@ function OrdersView({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [assignForm, setAssignForm] = useState<Record<string, string>>({});
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showNextStep, setShowNextStep] = useState<Request | null>(null);
-  const [nextStepMsg, setNextStepMsg] = useState('');
   const [createForm, setCreateForm] = useState({ guest_name: '', room: '', type: 'Other', details: '', step: 'category' });
 
   // Guest messages (sender=guest only, most recent first)
@@ -1090,7 +1088,7 @@ function OrdersView({
         </div>
       )}
 
-      {statusTab !== 'messages' && <div className="space-y-3">
+      {statusTab !== 'messages' && <div className="grid grid-cols-2 gap-3">
         {visible.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
             <p className="text-[13px] text-gray-500">
@@ -1098,158 +1096,84 @@ function OrdersView({
             </p>
           </div>
         ) : visible.map(req => {
-          const foodOrder = isFood(req);
-          return (
-          <div key={req.id}>
-            <div
-              onClick={() => setExpanded(expanded === req.id ? null : req.id)}
-              className="bg-white rounded-xl border border-gray-200 p-5 flex items-start justify-between gap-4 shadow-sm cursor-pointer hover:border-teal-200 transition-colors"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`w-2 h-2 rounded-full ${req.status === 'pending' ? 'bg-amber-400' : req.status === 'in-progress' ? 'bg-blue-400' : 'bg-emerald-400'}`} />
-                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{req.type}</span>
-                  {foodOrder && <UtensilsCrossed size={11} className="text-amber-500" />}
-                  {isCheckinRequest(req) && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">
-                      ⚠️ Unverified Guest
-                    </span>
-                  )}
-                  {req.details?.includes('Clover #') && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
-                      Clover POS
-                    </span>
-                  )}
-                  {req.assigned_to && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700">
-                      👤 {req.assigned_to}
-                    </span>
-                  )}
-                  <span className="text-[11px] text-gray-400">• {new Date(req.created_at).toLocaleString()}</span>
-                </div>
-                <p className="text-[14px] font-bold text-gray-900 mb-0.5">{req.guest_name} — Room {req.room}</p>
-                <p className="text-[13px] text-gray-600 truncate">{req.details}</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                {req.status === 'pending' && (
-                  <button onClick={async () => {
-                    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'in-progress' } : r));
-                    await onStatusChange(req.id, 'in-progress');
-                    setShowNextStep(req);
-                  }}
-                    className="px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 transition-all active:scale-95"
-                    style={{ backgroundColor: TEAL, color: 'white' }}>
-                    Accept
-                  </button>
-                )}
-                {req.status === 'in-progress' && (
-                  <button onClick={async () => {
-                    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'completed' } : r));
-                    await onStatusChange(req.id, 'completed');
-                  }}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-bold hover:bg-emerald-100 active:scale-95 transition-all">
-                    ✓ Complete
-                  </button>
-                )}
-                {req.status === 'completed' && (
-                  <>
-                    <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-[11px] font-bold">Completed</span>
-                    <button onClick={() => {
-                      if (confirm('Cancel this completed request? It will move back to active.')) {
-                        setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'pending' } : r));
-                        onStatusChange(req.id, 'pending');
-                      }
-                    }}
-                      className="px-2 py-1 rounded-lg bg-red-50 text-red-500 text-[10px] font-semibold hover:bg-red-100">
-                      Cancel
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
+                  const foodOrder = isFood(req);
+                  const typeIcon = foodOrder ? '🍴' : isTransport(req) ? (isAirport(req) ? '✈️' : '🚢') : isAmenity(req) ? '🧹' : '📋';
+                  const statusColor = req.status === 'pending' ? '#F59E0B' : req.status === 'in-progress' ? '#3B82F6' : '#10B981';
+                  const statusLabel = req.status === 'pending' ? 'PENDING' : req.status === 'in-progress' ? 'ACTIVE' : 'DONE';
+                  const bgGradient = req.status === 'pending'
+                    ? 'from-amber-50 to-amber-100/60 border-amber-200'
+                    : req.status === 'in-progress'
+                    ? 'from-blue-50 to-blue-100/60 border-blue-200'
+                    : 'from-emerald-50 to-emerald-100/60 border-emerald-200';
+                  const btnClass = req.status === 'pending'
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                    : req.status === 'in-progress'
+                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                    : 'text-gray-400';
 
-            {/* Expanded panel */}
-            {expanded === req.id && (
-              <div className="bg-gray-50 border border-t-0 border-gray-200 rounded-b-xl p-5 space-y-3 shadow-sm">
-                {/* Full details */}
-                <div>
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Full Details</p>
-                  <p className="text-[13px] text-gray-800 whitespace-pre-wrap leading-relaxed">{req.details}</p>
-                </div>
-
-                {/* Guest info */}
-                <div className="grid grid-cols-2 gap-2 text-[12px]">
-                  <div>
-                    <span className="text-gray-400">Guest:</span>{' '}
-                    <span className="font-semibold text-gray-800">{req.guest_name}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Room:</span>{' '}
-                    <span className="font-semibold text-gray-800">{req.room}</span>
-                  </div>
-                </div>
-
-                {/* Clover delivery panel */}
-                {req.details?.includes('Clover #') && (
-                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-purple-600 uppercase tracking-wider mb-1">Clover Delivery</p>
-                    <div className="grid grid-cols-2 gap-2 text-[12px]">
-                      <div>
-                        <span className="text-gray-400">Status:</span>{' '}
-                        <span className="font-semibold text-purple-700">
-                          {req.status === 'pending' ? 'Sent to Kitchen' : req.status === 'in-progress' ? 'Cooking' : 'Ready'}
-                        </span>
+                  return (
+                  <div key={req.id} className={`bg-gradient-to-br ${bgGradient} rounded-2xl border-2 p-4 shadow-sm relative min-h-[140px] flex flex-col justify-between`}>
+                    {/* Top row: type badge + status dot */}
+                    <div className="flex items-start justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-lg leading-none">{typeIcon}</span>
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{req.type}</span>
+                        {req.assigned_to && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/70 text-gray-600">
+                            👤 {req.assigned_to}
+                          </span>
+                        )}
                       </div>
-                      <div>
-                        <span className="text-gray-400">Delivery:</span>{' '}
-                        <span className="font-semibold text-gray-800">Uber Direct</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Fee (5%):</span>{' '}
-                        <span className="font-semibold text-emerald-600">
-                          ${((parseFloat(req.details?.match(/— \$([\d.]+)/)?.[1] || '0')) * 0.05).toFixed(2)}
-                        </span>
+                      <div className="flex items-center gap-1">
+                        <span className={`w-2 h-2 rounded-full`} style={{ backgroundColor: statusColor }} />
                       </div>
                     </div>
-                  </div>
-                )}
 
-                {/* Assign to */}
-                {req.status !== 'completed' && (
-                  <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Assign to</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Staff name..."
-                        value={assignForm[req.id] || ''}
-                        onChange={e => {
-                          setAssignForm(prev => ({ ...prev, [req.id]: e.target.value }));
-                        }}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            handleAssign(req.id, assignForm[req.id] || '');
+                    {/* Guest info — big & readable */}
+                    <div className="flex-1">
+                      <p className="text-[16px] font-extrabold text-gray-900 leading-tight">{req.guest_name}</p>
+                      <p className="text-[13px] font-semibold text-gray-600">Room {req.room}</p>
+                      {req.details && req.details !== req.type && (
+                        <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{req.details}</p>
+                      )}
+                    </div>
+
+                    {/* Action button — big, square, one-tap */}
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (req.status === 'pending') {
+                          setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'in-progress' } : r));
+                          await onStatusChange(req.id, 'in-progress');
+                        } else if (req.status === 'in-progress') {
+                          setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'completed' } : r));
+                          await onStatusChange(req.id, 'completed');
+                        }
+                      }}
+                      className={`w-full mt-2 py-3 rounded-xl text-[13px] font-bold transition-all active:scale-[0.97] shadow-sm ${btnClass}`}
+                    >
+                      {req.status === 'pending' ? '▶ Accept' : req.status === 'in-progress' ? '✓ Complete' : '✓ Done'}
+                    </button>
+
+                    {/* Cancel on completed */}
+                    {req.status === 'completed' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm('Re-open this request?')) {
+                            setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'pending' } : r));
+                            onStatusChange(req.id, 'pending');
                           }
                         }}
-                        className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none focus:border-teal-400"
-                      />
-                      <button
-                        onClick={() => handleAssign(req.id, assignForm[req.id] || '')}
-                        disabled={!assignForm[req.id]?.trim()}
-                        className="px-3 py-2 rounded-lg text-[12px] font-bold flex items-center gap-1.5 disabled:opacity-30 transition-colors"
-                        style={{ backgroundColor: assignForm[req.id]?.trim() ? TEAL : '#e5e7eb', color: assignForm[req.id]?.trim() ? 'white' : '#9ca3af' }}
+                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/60 flex items-center justify-center text-[10px] text-red-400 hover:text-red-600 hover:bg-white"
                       >
-                        <UserPlus size={13} /> Assign & Notify
+                        ↺
                       </button>
-                    </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-        })}
+                );})}
       </div>}
+
       {/* Create Request Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setShowCreateModal(false)}>
@@ -1352,91 +1276,6 @@ function OrdersView({
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Next Step Modal — after Accepting a request */}
-      {showNextStep && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => { setShowNextStep(null); setNextStepMsg(''); }}>
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-[18px] font-bold text-gray-900">Next Step</h3>
-                <p className="text-[12px] text-gray-400 mt-0.5">
-                  {showNextStep.guest_name} — Room {showNextStep.room}
-                  <span className="text-gray-300 mx-1">·</span>
-                  {showNextStep.type}
-                </p>
-              </div>
-              <button onClick={() => { setShowNextStep(null); setNextStepMsg(''); }} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-200">
-                <XIcon size={16} />
-              </button>
-            </div>
-            <div className="p-5 space-y-3">
-              {/* Option 1: Assign to staff */}
-              <button onClick={async () => {
-                const name = prompt('Assign to staff member by name:');
-                if (!name?.trim()) return;
-                await supabase.from('requests').update({ assigned_to: name.trim() }).eq('id', showNextStep.id);
-                setRequests(prev => prev.map(r => r.id === showNextStep.id ? { ...r, assigned_to: name.trim() } : r));
-                setShowNextStep(null); setNextStepMsg('');
-                onRefresh();
-              }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 hover:border-teal-200 hover:bg-teal-50 transition-all text-left active:scale-[0.99]">
-                <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
-                  <UserPlus size={18} className="text-teal-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-bold text-gray-900">Assign to Staff</p>
-                  <p className="text-[11px] text-gray-500">Name the staff member handling this</p>
-                </div>
-              </button>
-
-              {/* Option 1b: Notify via WhatsApp */}
-              <button onClick={() => {
-                const staffPhone = prompt('Staff WhatsApp number (with country code, e.g. +1):');
-                if (!staffPhone?.trim()) return;
-                const msg = encodeURIComponent(
-                  `New request assigned to you:\n${showNextStep.type} - ${showNextStep.guest_name}, Room ${showNextStep.room}\n${showNextStep.details}`
-                );
-                window.open(`https://wa.me/${staffPhone.replace(/[^0-9]/g, '')}?text=${msg}`, '_blank');
-                setShowNextStep(null); setNextStepMsg('');
-              }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 hover:border-green-200 hover:bg-green-50 transition-all text-left active:scale-[0.99]">
-                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
-                  <SendHorizontal size={18} className="text-green-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-bold text-gray-900">Notify via WhatsApp</p>
-                  <p className="text-[11px] text-gray-500">Send request details to staff WhatsApp</p>
-                </div>
-              </button>
-
-              {/* Option 2: Reply directly */}
-              <button onClick={() => {
-                window.location.href = '/staff?tab=messages';
-              }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 hover:border-blue-200 hover:bg-blue-50 transition-all text-left active:scale-[0.99]">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                  <MessageSquare size={18} className="text-blue-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-bold text-gray-900">Reply to Guest</p>
-                  <p className="text-[11px] text-gray-500">Send a message to {showNextStep.guest_name}</p>
-                </div>
-              </button>
-
-              {/* Option 3: All Set */}
-              <button onClick={() => {
-                setShowNextStep(null); setNextStepMsg('');
-              }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all text-left active:scale-[0.99]">
-                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
-                  <Check size={18} className="text-green-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-bold text-gray-900">All Set</p>
-                  <p className="text-[11px] text-gray-500">Request is in progress, no further action now</p>
-                </div>
-              </button>
-            </div>
           </div>
         </div>
       )}
