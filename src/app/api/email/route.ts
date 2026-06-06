@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
 const FROM = 'Attenda <noreply@attendaapp.com>';
 const SUPER_BCC = 'thrilznetwork@gmail.com';
@@ -15,6 +16,18 @@ const getResend = () => {
 
 export async function POST(req: NextRequest) {
   try {
+    // Require API key header (shared between client and server)
+    if (!validateApiKey(req)) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Origin check — soft gate against non-browser clients
+    const origin = req.headers.get('origin');
+    const referer = req.headers.get('referer');
+    if (!isAllowedOrigin(origin, referer)) {
+      return originBlocked();
+    }
+
     const { type, data } = await req.json();
 
     if (type === 'tenant_onboarding') {

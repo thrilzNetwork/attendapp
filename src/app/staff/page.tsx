@@ -125,8 +125,8 @@ interface Session {
 }
 
 /* ── Constants ─────────────────────────────────────────── */
-const ADMIN_PIN = '2025';
-const SUPERADMIN_PIN = '9999';
+const ADMIN_PIN = process.env.NEXT_PUBLIC_ADMIN_PIN || '2025';
+const SUPERADMIN_PIN = process.env.NEXT_PUBLIC_SUPERADMIN_PIN || '9999';
 const TEAL = '#0D9488';
 const BUILD_TS = Date.now();
 
@@ -381,7 +381,7 @@ export default function Dashboard() {
         if (config?.notificationEmail && r.guest_name && r.room && r.type) {
           fetch('/api/email', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
             body: JSON.stringify({
               type: 'new_request',
               data: {
@@ -405,7 +405,7 @@ export default function Dashboard() {
         if (config?.notificationEmail && m.guest_name && m.body) {
           fetch('/api/email', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
             body: JSON.stringify({
               type: 'guest_message',
               data: {
@@ -903,7 +903,7 @@ function OrdersView({
     if (cfg?.notificationEmail) {
       fetch('/api/email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
         body: JSON.stringify({
           type: 'assignment',
           data: {
@@ -2614,7 +2614,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   const adminFetch = async (action: string, body: any) => {
     const res = await fetch('/api/superadmin-db', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
       body: JSON.stringify({ action, data: body }),
     });
     const json = await res.json();
@@ -2645,7 +2645,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://attendaapp.com';
       fetch('/api/email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
         body: JSON.stringify({
           type: 'staff_invitation',
           data: {
@@ -2957,7 +2957,7 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
     try {
       const res = await fetch('/api/superadmin-db', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
         body: JSON.stringify({ action: 'update_hotel', data: { config: form } }),
       });
       const json = await res.json();
@@ -2982,7 +2982,7 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
       await updateHotelConfig(form);
       const res = await fetch('/api/places-sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
         body: JSON.stringify({ hotelId: config.id, address: form.address }),
       });
       const data = await res.json();
@@ -4074,7 +4074,7 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
   const adminFetch = async (action: string, body: any) => {
     const res = await fetch('/api/superadmin-db', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
       body: JSON.stringify({ action, data: body }),
     });
     const json = await res.json();
@@ -4102,7 +4102,7 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
         const origin = window.location.origin;
         await fetch('/api/email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
           body: JSON.stringify({
             type: 'tenant_onboarding',
             data: {
@@ -5411,7 +5411,7 @@ function FrontDeskView({ hotelId, isAdmin, staff, hotelName, config }: {
   const sendScheduleEmail = async (sched: StaffSchedule) => {
     const m = staff.find(s => s.name === sched.staff_name);
     if (!m?.email) return;
-    await fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'schedule_posted', data: { staffEmail: m.email, staffName: sched.staff_name, hotelName, shiftDate: sched.shift_date, startTime: sched.start_time, endTime: sched.end_time, role: sched.role } }) }).catch(() => {});
+    await fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' }, body: JSON.stringify({ type: 'schedule_posted', data: { staffEmail: m.email, staffName: sched.staff_name, hotelName, shiftDate: sched.shift_date, startTime: sched.start_time, endTime: sched.end_time, role: sched.role } }) }).catch(() => {});
   };
 
   const handleCreateSchedule = async () => {
@@ -6305,7 +6305,7 @@ function SchedulesView({ hotelId, isAdmin, staffList, weekStartsOn }: { hotelId:
       const m = staffList.find(s => s.name === addForm.staff_name.trim()) as StaffAccount | undefined;
       if (m?.email) {
         fetch('/api/email', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
           body: JSON.stringify({
             type: 'schedule_posted',
             data: { staffEmail: m.email, staffName: addForm.staff_name.trim(), hotelName: '', shiftDate: addForm.shift_date, startTime: addForm.start_time, endTime: addForm.end_time, role: addForm.role },

@@ -114,7 +114,7 @@ export default function MessagePage() {
     if (hotel?.notificationEmail) {
       fetch('/api/email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
         body: JSON.stringify({
           type: 'new_request',
           data: {
@@ -163,7 +163,7 @@ export default function MessagePage() {
     if (hotel?.notificationEmail) {
       fetch('/api/email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
         body: JSON.stringify({
           type: 'guest_message',
           data: {

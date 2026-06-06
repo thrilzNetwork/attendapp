@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
 // Nominatim (OSM geocoding) + Overpass API — 100% free, no API key required
 
@@ -31,6 +32,18 @@ interface OsmNode {
 
 export async function POST(req: NextRequest) {
   try {
+    // Require API key
+    if (!validateApiKey(req)) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Origin check
+    const origin = req.headers.get('origin');
+    const referer = req.headers.get('referer');
+    if (!isAllowedOrigin(origin, referer)) {
+      return originBlocked();
+    }
+
     const { hotelId, address } = await req.json();
     if (!hotelId || !address) {
       return NextResponse.json({ error: 'Missing hotelId or address' }, { status: 400 });

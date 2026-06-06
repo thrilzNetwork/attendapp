@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
+import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
   try {
+    // Require API key
+    if (!validateApiKey(req)) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Origin check
+    const origin = req.headers.get('origin');
+    const referer = req.headers.get('referer');
+    if (!isAllowedOrigin(origin, referer)) {
+      return originBlocked();
+    }
+
     const { url } = await req.json();
     if (!url) return NextResponse.json({ error: 'No URL provided' }, { status: 400 });
 

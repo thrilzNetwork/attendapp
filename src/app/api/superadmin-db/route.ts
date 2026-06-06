@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
   try {
+    // Require shared API key
+    if (!validateApiKey(req)) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Origin check — soft gate against non-browser clients
+    const origin = req.headers.get('origin');
+    const referer = req.headers.get('referer');
+    if (!isAllowedOrigin(origin, referer)) {
+      return originBlocked();
+    }
+
     const { action, data } = await req.json();
 
     if (action === 'create_hotel') {
@@ -34,7 +47,6 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'create_staff') {
-      // Only include columns that actually exist in the staff_accounts table
       const insert: Record<string, unknown> = {};
       const fields: [string, unknown][] = [
         ['hotel_id', data.hotel_id],
@@ -76,7 +88,6 @@ export async function POST(req: NextRequest) {
 
     if (action === 'update_hotel') {
       const cfg = data.config;
-      // Only include columns that exist in the actual hotels table
       const updateData: Record<string, unknown> = {};
       const knownCols: Record<string, unknown> = {
         name: cfg.name,

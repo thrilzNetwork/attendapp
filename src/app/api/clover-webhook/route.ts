@@ -3,6 +3,13 @@ import { supabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
+    // Webhook secret check — Clover sends this header
+    const webhookSecret = req.headers.get('x-clover-webhook-secret');
+    const expectedSecret = process.env.CLOVER_WEBHOOK_SECRET;
+    if (expectedSecret && webhookSecret !== expectedSecret) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const { event, data } = body as { event?: string; data?: unknown };
 

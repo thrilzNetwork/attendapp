@@ -260,7 +260,7 @@ interface PlatformHealth {
       if (form.adminEmail && hotelData.data) {
         fetch('/api/email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
           body: JSON.stringify({
             type: 'tenant_onboarding',
             data: {
@@ -558,7 +558,7 @@ interface PlatformHealth {
                     try {
                       const res = await fetch('/api/lookup-hotel', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
                         body: JSON.stringify({ query: form.lookupQuery }),
                       });
                       const data = await res.json();
@@ -615,7 +615,7 @@ interface PlatformHealth {
                     try {
                       const res = await fetch('/api/scrape-hotel', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
                         body: JSON.stringify({ url: form.websiteUrl }),
                       });
                       const data = await res.json();
@@ -739,7 +739,7 @@ interface PlatformHealth {
                             if (!address) { alert('Set a hotel address in Hotel Settings first.'); return; }
                             const res = await fetch('/api/places-sync', {
                               method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
+                              headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
                               body: JSON.stringify({ hotelId: hotel.id, address }),
                             });
                             const d = await res.json();

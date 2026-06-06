@@ -86,7 +86,7 @@ export default function BlogIndexPage() {
             <button
               onClick={() => {
                 const url = window.location.href;
-                window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=500');
+                window.location.href = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
               }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#0A66C2] hover:bg-[#004182] text-white text-[13px] font-bold transition-all active:scale-[0.97] shadow-sm"
             >
@@ -140,7 +140,7 @@ function DemoForm() {
     try {
       await fetch('/api/email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
         body: JSON.stringify({
           type: 'enrollment_inquiry',
           data: {
