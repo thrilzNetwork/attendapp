@@ -97,6 +97,42 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
           </div>
         </div>
 
+        {/* Share bar */}
+        <div className="flex items-center justify-between border-y border-gray-100 py-4 mb-10">
+          <div className="flex items-center gap-2 text-[12px] text-gray-500">
+            <span className="font-semibold">Share this article</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const url = window.location.href;
+                window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=500');
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0A66C2] hover:bg-[#004182] text-white text-[12px] font-bold transition-all active:scale-[0.97] shadow-sm"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/></svg>
+              Share on LinkedIn
+            </button>
+            <button
+              onClick={() => {
+                const url = window.location.href;
+                navigator.clipboard.writeText(url).then(() => {
+                  const btn = document.getElementById('copy-btn');
+                  if (btn) {
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
+                  }
+                });
+              }}
+              id="copy-btn"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-[12px] font-bold transition-all active:scale-[0.97] border border-gray-200"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              Copy Link
+            </button>
+          </div>
+        </div>
+
         {/* In-article Lead Capture */}
         <div className="bg-teal-50 border border-teal-200 rounded-2xl p-6 md:p-8 mb-12">
           <h3 className="text-[18px] font-black text-gray-900 mb-2">
