@@ -1080,7 +1080,7 @@ function AttendaLandingPage() {
             ].map((topic, i) => (
               <a
                 key={i}
-                href="#"
+                href="#demo"
                 className="group bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg transition-all flex flex-col relative overflow-hidden"
               >
                 {/* Big number watermark */}
@@ -1129,7 +1129,7 @@ function AttendaLandingPage() {
               </div>
             </div>
             <a
-              href="mailto:field@attendaapp.com"
+              href="mailto:thrilznetwork@gmail.com"
               className="shrink-0 inline-flex items-center gap-2 px-5 py-3 text-[13px] font-black text-black rounded-lg transition-all shadow-sm hover:shadow-md"
               style={{ backgroundColor: '#15b79e' }}
             >
@@ -1244,10 +1244,10 @@ function AttendaLandingPage() {
                     </svg>
                   </a>
                   <a
-                    href="#"
+                    href="#demo"
                     className="inline-flex items-center gap-2 px-5 py-2.5 text-[13px] font-bold text-gray-700 rounded-lg border border-gray-200 hover:border-gray-300"
                   >
-                    Read the longer story
+                    See Attenda in action
                   </a>
                 </div>
               </div>
