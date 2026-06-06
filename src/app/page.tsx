@@ -322,6 +322,7 @@ function AttendaLandingPage() {
           <div className="hidden md:flex items-center gap-7">
             <a href="#modules" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Software</a>
             <a href="#case-study" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Case Study</a>
+            <a href="/blog" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Blog</a>
             <a href="#demo" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Resources</a>
             <a href="/staff" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Log in</a>
             <button onClick={() => scrollTo(enrollRef)}
@@ -1034,6 +1035,7 @@ function AttendaLandingPage() {
                 cat: 'Operations',
                 catColor: '#3B82F6',
                 title: 'The 12-questions-a-day front desk problem',
+                slug: 'the-12-questions-a-day-front-desk-problem',
                 problem: 'Towels. WiFi. Late checkout. Parking. Breakfast. Checkout time. The same six questions, twice each, every shift. Why QR codes close the gap.',
                 readingTime: '5 min',
               },
@@ -1042,6 +1044,7 @@ function AttendaLandingPage() {
                 cat: 'Revenue',
                 catColor: TEAL,
                 title: 'Cruise-day shuttle: the $7,820 line item',
+                slug: 'cruise-day-shuttle-the-dollar7820-line-item',
                 problem: 'How a 121-room boutique captured $7,820 in four months from cruise-day shuttle bookings — the math, the UI, the cruise calendar integration.',
                 readingTime: '7 min',
               },
@@ -1050,6 +1053,7 @@ function AttendaLandingPage() {
                 cat: 'Housekeeping',
                 catColor: '#8B5CF6',
                 title: 'Why we killed the 4-system housekeeping stack',
+                slug: 'why-we-killed-the-4-system-housekeeping-stack',
                 problem: 'Housekeeping in one app. Front desk in another. GM dashboard in a third. Guest requests in a fourth. The day the team stopped using three of them.',
                 readingTime: '6 min',
               },
@@ -1058,6 +1062,7 @@ function AttendaLandingPage() {
                 cat: 'Owner',
                 catColor: '#F59E0B',
                 title: 'The &ldquo;AI will transform hospitality&rdquo; trap',
+                slug: 'the-ai-will-transform-hospitality-trap',
                 problem: 'Three pitches, three contracts, three dashboards no one opened. What the sales deck doesn&apos;t show you about contact with the front desk.',
                 readingTime: '8 min',
               },
@@ -1066,6 +1071,7 @@ function AttendaLandingPage() {
                 cat: 'Industry',
                 catColor: '#6B7280',
                 title: 'The ops stack gap: chains vs. independents',
+                slug: 'the-ops-stack-gap-chains-vs-independents',
                 problem: 'Chains can afford 8-figure PMS systems. Independents can&apos;t. The six tools an independent property actually needs to compete in 2026.',
                 readingTime: '9 min',
               },
@@ -1074,13 +1080,14 @@ function AttendaLandingPage() {
                 cat: 'Reviews',
                 catColor: '#10B981',
                 title: 'From 3.8 to 4.7 stars: a six-month turnaround',
+                slug: 'from-3-8-to-4-7-stars-a-six-month-turnaround',
                 problem: 'The problem was never the rooms. It was the gap between &ldquo;I need towels&rdquo; and &ldquo;towels arrived.&rdquo; The fix, the timeline, the metric to watch.',
                 readingTime: '5 min',
               },
             ].map((topic, i) => (
               <a
                 key={i}
-                href="#demo"
+                href={`/blog/${topic.slug}`}
                 className="group bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg transition-all flex flex-col relative overflow-hidden"
               >
                 {/* Big number watermark */}
@@ -1284,6 +1291,7 @@ function AttendaLandingPage() {
               <h4 className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-4">Resources</h4>
               <ul className="space-y-2.5 text-[14px] text-gray-700">
                 <li><a href="#demo" className="hover:text-gray-900">Schedule a Demo</a></li>
+                <li><a href="/blog" className="hover:text-gray-900">Field Notes Blog</a></li>
                 <li><a href="#modules" className="hover:text-gray-900">Feature Tour</a></li>
                 <li><a href="#case-study" className="hover:text-gray-900">Customer Stories</a></li>
                 <li><a href="/privacy" className="hover:text-gray-900">Privacy</a></li>
