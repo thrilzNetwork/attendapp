@@ -13,7 +13,8 @@ export default function CallAroundView({ hotelId }: { hotelId: string }) {
   const [showForm, setShowForm] = useState(false);
 
   const load = async () => setLogs(await getCallAroundLogs(hotelId, date));
-  useEffect(() => { load(); }, [date]);
+  useEffect(() => { load(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
 
   const handleCreate = async () => {
     if (!form.handed_off_by || !form.received_by) return;

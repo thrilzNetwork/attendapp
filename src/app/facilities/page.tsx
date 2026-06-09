@@ -13,10 +13,13 @@ export default function FacilitiesPage() {
   const [brandColor, setBrandColor] = useState('#6B1D3C');
 
   useEffect(() => {
+    let cancelled = false;
     getHotelConfig().then(cfg => {
+      if (cancelled) return;
       setConfig(cfg);
       if (cfg?.brandColor) setBrandColor(cfg.brandColor);
-    });
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   const wifiName = config?.wifiName || 'Hotel-WiFi';

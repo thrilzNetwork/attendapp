@@ -13,7 +13,8 @@ export default function BankCountView({ hotelId }: { hotelId: string }) {
   const [showForm, setShowForm] = useState(false);
 
   const load = async () => setCounts(await getBankCounts(hotelId, date));
-  useEffect(() => { load(); }, [date]);
+  useEffect(() => { load(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
 
   const handleCreate = async () => {
     if (!form.counted_by) return;

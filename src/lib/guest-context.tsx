@@ -251,7 +251,9 @@ export function goBackToHotel(router: ReturnType<typeof import('next/navigation'
 
 // Staff-only helpers
 export async function getAllRequests(): Promise<RequestItem[]> {
-  const data = await getAllRequestsSupabase();
+  const config = await getSupabaseHotelConfig();
+  const hotelId = config?.id || '';
+  const data = await getAllRequestsSupabase(hotelId);
   return data.map(r => ({
     id: r.id,
     guestName: r.guestName,

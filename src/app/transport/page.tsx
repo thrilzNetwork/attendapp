@@ -20,10 +20,12 @@ export default function TransportPage() {
   }, []);
 
   useEffect(() => {
-    (async () => {
-      const cfg = await getHotelConfig();
+    let cancelled = false;
+    getHotelConfig().then(cfg => {
+      if (cancelled) return;
       if (cfg?.brandColor) setBrandColor(cfg.brandColor);
-    })();
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   return (
@@ -73,20 +75,23 @@ function ShuttleScheduleView({ brandColor }: { brandColor: string }) {
   const [booked, setBooked] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      const h = await getHotelConfig();
+    let cancelled = false;
+    getHotelConfig().then(async (h) => {
+      if (cancelled) return;
       setHotel(h);
       if (h?.id) {
         const [s, c] = await Promise.all([
           getAllShuttleSlotsForHotel(h.id),
           getCruiseSchedules(h.id),
         ]);
+        if (cancelled) return;
         setSlots(s);
         setCruises(c);
         if (c.length > 0) setActiveTab('cruise');
       }
       setLoading(false);
-    })();
+    }).catch(() => { setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   const handleBook = async () => {
@@ -317,13 +322,17 @@ function OnDemandRequest({ brandColor }: { brandColor: string }) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     getHotelConfig().then(async (h) => {
+      if (cancelled) return;
       if (h?.id) {
         const r = await getShuttleRoutes(h.id);
+        if (cancelled) return;
         setRoutes(r);
         if (r.length > 0) setForm(f => ({ ...f, destination: r[0].name }));
       }
-    });
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   const handleSubmit = async () => {

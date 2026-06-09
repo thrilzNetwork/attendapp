@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, verifySession, isSuperAdmin } from '@/lib/supabase-admin';
+import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
 const SUPABASE_URL = 'https://bdmmstatrsenidlgjock.supabase.co';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export async function POST(req: NextRequest) {
   try {
+    // Require shared API key
+    if (!validateApiKey(req)) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Origin check
+    const origin = req.headers.get('origin');
+    const referer = req.headers.get('referer');
+    if (!isAllowedOrigin(origin, referer)) {
+      return originBlocked();
+    }
+
     const { action, email, password, name, pin, hotelSlug, token } = await req.json();
 
     if (action === 'setup') {
@@ -168,6 +181,66 @@ export async function POST(req: NextRequest) {
       if (!isAdmin) return NextResponse.json({ ok: false }, { status: 403 });
 
       return NextResponse.json({ ok: true, user });
+    }
+
+    if (action === 'verify_pin') {
+      // Server-side PIN verification — no client-side staff_accounts queries needed
+      if (!pin) {
+        return NextResponse.json({ ok: false, error: 'PIN required.' }, { status: 400 });
+      }
+
+      let staffQuery = supabaseAdmin
+        .from('staff_accounts')
+        .select('*, hotels!inner(slug, name)')
+        .eq('pin_code', pin)
+        .eq('active', true)
+        .maybeSingle();
+
+      if (hotelSlug) {
+        staffQuery = supabaseAdmin
+          .from('staff_accounts')
+          .select('*, hotels!inner(slug, name)')
+          .eq('pin_code', pin)
+          .eq('active', true)
+          .eq('hotels.slug', hotelSlug)
+          .maybeSingle();
+      }
+
+      const { data: staff } = await staffQuery;
+      if (!staff) {
+        return NextResponse.json({ ok: false, error: 'Invalid PIN.' }, { status: 401 });
+      }
+
+      return NextResponse.json({
+        ok: true,
+        staff: {
+          id: staff.id,
+          hotel_id: staff.hotel_id,
+          name: staff.name,
+          role: staff.role,
+          email: staff.email || '',
+          hotel_slug: staff.hotels?.slug || hotelSlug,
+          hotel_name: staff.hotels?.name || '',
+        },
+      });
+    }
+
+    if (action === 'verify_superadmin_pin') {
+      // Server-side superadmin PIN verification
+      const adminPin = process.env.NEXT_PUBLIC_SUPERADMIN_PIN;
+      if (!adminPin || pin !== adminPin) {
+        return NextResponse.json({ ok: false, error: 'Invalid admin PIN.' }, { status: 401 });
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === 'verify_admin_pin') {
+      // Server-side admin PIN verification
+      const adminPin = process.env.NEXT_PUBLIC_ADMIN_PIN;
+      if (!adminPin || pin !== adminPin) {
+        return NextResponse.json({ ok: false, error: 'Invalid admin PIN.' }, { status: 401 });
+      }
+      return NextResponse.json({ ok: true });
     }
 
     return NextResponse.json({ ok: false, error: 'Unknown action.' }, { status: 400 });

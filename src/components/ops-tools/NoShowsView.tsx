@@ -14,7 +14,8 @@ export default function NoShowsView({ hotelId }: { hotelId: string }) {
   const [showForm, setShowForm] = useState(false);
 
   const load = async () => setItems(await getNoShows(hotelId, date));
-  useEffect(() => { load(); }, [date]);
+  useEffect(() => { load(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
 
   const handleCreate = async () => {
     if (!form.guest_name || !form.room) return;

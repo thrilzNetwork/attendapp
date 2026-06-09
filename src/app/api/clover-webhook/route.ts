@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       if (!id || !state) return NextResponse.json({ ok: true });
       const newStatus = state === 'locked' || state === 'paid' ? 'completed' : 'in-progress';
 
-      await supabase
+      await supabaseAdmin
         .from('requests')
         .update({ status: newStatus })
         .filter('details', 'ilike', `%Clover #${id}%`);

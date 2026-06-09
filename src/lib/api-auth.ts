@@ -36,10 +36,20 @@ export function originBlocked() {
 
 /**
  * Validates the x-superadmin-key header against the expected value.
+ * - Browser requests (with origin/referer) skip this check — the origin
+ *   gate already protects against external abuse.
+ * - API clients (curl, scripts) must provide the key.
  */
 export function validateApiKey(req: Request): boolean {
   const apiKey = req.headers.get('x-superadmin-key');
   const expectedKey = process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY;
-  if (!expectedKey || apiKey !== expectedKey) return false;
-  return true;
+  // No key configured in env — allow all (dev/test mode)
+  if (!expectedKey) return true;
+  // Browser-originated requests skip the key check (origin gate handles them)
+  const origin = req.headers.get('origin');
+  const referer = req.headers.get('referer');
+  if (origin || referer) return true;
+  // API clients must provide the key
+  if (!apiKey) return false;
+  return apiKey === expectedKey;
 }

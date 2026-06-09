@@ -15,9 +15,12 @@ export default function ReviewPage() {
   const [brandColor, setBrandColor] = useState('#6B1D3C');
 
   useEffect(() => {
+    let cancelled = false;
     getHotelConfig().then(cfg => {
+      if (cancelled) return;
       if (cfg?.brandColor) setBrandColor(cfg.brandColor);
-    });
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   const handleStarClick = (val: number) => {

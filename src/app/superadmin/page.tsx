@@ -110,9 +110,22 @@ interface PlatformHealth {
     finally { setHealthLoading(false); }
   }, []);
 
-  const checkSlot = async () => {
-    const { data } = await supabase.from('superadmin_config').select('user_id, email').maybeSingle();
-    return data as { user_id: string; email: string } | null;
+  const checkSlot = async (token?: string) => {
+    if (token) {
+      // Authenticated check via API (bypasses RLS)
+      const res = await fetch('/api/superadmin-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.ok && data.existing) return { user_id: data.user_id, email: data.email };
+      return null;
+    }
+    // Unauthenticated check — just see if slot exists
+    const res = await fetch('/api/superadmin-setup');
+    const data = await res.json();
+    return data.exists ? { user_id: '__exists__', email: '' } as { user_id: string; email: string } : null;
   };
 
     const goToDashboard = useCallback((userEmail: string) => {
@@ -122,24 +135,21 @@ interface PlatformHealth {
     loadHealth();
   }, [loadHotels, loadHealth]);
 
-  const registerAndEnter = useCallback(async (userId: string, userEmail: string) => {
-    const { error: insertErr } = await supabase.from('superadmin_config').insert({
-      user_id: userId,
-      email: userEmail,
+  const registerAndEnter = useCallback(async (userId: string, userEmail: string, sessionToken: string) => {
+    const res = await fetch('/api/superadmin-setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
+      body: JSON.stringify({ action: 'register' }),
     });
-    if (!insertErr) {
+    const data = await res.json();
+    if (data.ok) {
       goToDashboard(userEmail);
       return;
     }
-    // Insert failed — might be a race; check if the slot is now ours
-    const slot = await checkSlot();
-    if (slot?.user_id === userId) {
-      goToDashboard(userEmail);
-    } else {
-      await supabase.auth.signOut();
-      setError('Setup error. Please try again.');
-      setMode('signup');
-    }
+    // Setup failed
+    await supabase.auth.signOut();
+    setError('Setup error. Please try again.');
+    setMode('signup');
   }, [goToDashboard]);
 
   useEffect(() => {
@@ -147,13 +157,13 @@ interface PlatformHealth {
       // Use getSession() so the hash fragment (#access_token) is already parsed
       const { data: { session } } = await supabase.auth.getSession();
       const currentUser = session?.user;
-      const slot = await checkSlot();
+      const slot = await checkSlot(session?.access_token);
 
       if (!slot && !currentUser) { setMode('signup'); return; }
 
       if (!slot && currentUser) {
         // Confirmed email redirect — register and enter
-        await registerAndEnter(currentUser.id, currentUser.email!);
+        await registerAndEnter(currentUser.id, currentUser.email!, session!.access_token);
         return;
       }
 
@@ -198,7 +208,7 @@ interface PlatformHealth {
       if (authErr) throw authErr;
       if (data.session) {
         // Auto-confirm is ON — register immediately
-        await registerAndEnter(data.user!.id, email);
+        await registerAndEnter(data.user!.id, email, data.session!.access_token);
       } else {
         setMode('confirm');
       }
@@ -217,7 +227,7 @@ interface PlatformHealth {
     try {
       const { data, error: authErr } = await supabase.auth.signInWithPassword({ email, password });
       if (authErr) throw authErr;
-      const slot = await checkSlot();
+      const slot = await checkSlot(data.session?.access_token);
       if (data.user?.id !== slot?.user_id) {
         await supabase.auth.signOut();
         setError('This account is not the platform superadmin.');

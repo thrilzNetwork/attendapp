@@ -31,8 +31,9 @@ export default function MessagePage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   // Load hotel config + guest session on mount
   useEffect(() => {
-    (async () => {
-      const config = await getHotelConfig();
+    let cancelled = false;
+    getHotelConfig().then(config => {
+      if (cancelled) return;
       if (config?.brandColor) setBrandColor(config.brandColor);
       if (config?.id) setHotelId(config.id);
 
@@ -46,11 +47,13 @@ export default function MessagePage() {
           localStorage.removeItem('guestSession');
         }
       }
-    })();
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   // Load staff replies from DB
   useEffect(() => {
+    let cancelled = false;
     if (!hotelId) return;
     const loadReplies = async () => {
       const { data } = await supabase
@@ -61,6 +64,7 @@ export default function MessagePage() {
         .eq('room', guestRoom)
         .eq('sender', 'staff')
         .order('created_at', { ascending: true });
+      if (cancelled) return;
       if (data && data.length > 0) {
         setMessages(prev => {
           const existingIds = new Set(prev.filter(m => m.id).map(m => m.id));
@@ -90,8 +94,8 @@ export default function MessagePage() {
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [hotelId, guestName, guestRoom, supabase]);
+    return () => { supabase.removeChannel(ch); cancelled = true; };
+  }, [hotelId, guestName, guestRoom]);
 
   // Auto-scroll on new messages
   useEffect(() => {

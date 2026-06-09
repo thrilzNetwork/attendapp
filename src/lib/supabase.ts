@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://bdmmstatrsenidlgjock.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbW1zdGF0cnNlbmlkbGdqb2NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MTE5MjAsImV4cCI6MjA5NDE4NzkyMH0.1pnioO5Y_3pW2LTaYc9aliRwTkGhX2cTNLrK9jI1P-4';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbW1zdGF0cnNlbmlkbGdqb2NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MTE5MjAsImV4cCI6MjA5NDE4NzkyMH0.1pnioO5Y_3pW2LTaYc9aliRwTkGhX2cTNLrK9jI1P-4';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -165,12 +165,12 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
 }
 
 // Request helpers
-export async function getAllRequests(hotelId?: string): Promise<RequestItem[]> {
-  let query = supabase.from('requests').select('*').order('created_at', { ascending: false });
-  if (hotelId) {
-    query = query.eq('hotel_id', hotelId);
-  }
-  const { data, error } = await query;
+export async function getAllRequests(hotelId: string): Promise<RequestItem[]> {
+  const { data, error } = await supabase
+    .from('requests')
+    .select('*')
+    .eq('hotel_id', hotelId)
+    .order('created_at', { ascending: false });
   if (error) throw error;
   return (data || []).map((r: Record<string, unknown>) => ({
     id: r.id as string,
@@ -237,14 +237,26 @@ export async function deleteRequest(id: string) {
   if (error) throw error;
 }
 
-// Staff account helpers
-export async function getStaffAccounts(hotelId?: string): Promise<StaffAccount[]> {
-  let query = supabase.from('staff_accounts').select('*');
-  if (hotelId) {
-    query = query.eq('hotel_id', hotelId);
-  }
-  const { data, error } = await query;
-  if (error) throw error;
+// Staff account helpers — routed through /api/staff-crud (bypasses RLS with service_role)
+const STAFF_API_HEADERS = () => ({
+  'Content-Type': 'application/json',
+  'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '',
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function callStaffApi(body: Record<string, unknown>): Promise<any> {
+  const res = await fetch('/api/staff-crud', {
+    method: 'POST',
+    headers: STAFF_API_HEADERS(),
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Staff API error');
+  return json;
+}
+
+export async function getStaffAccounts(hotelId: string): Promise<StaffAccount[]> {
+  const { data } = await callStaffApi({ action: 'list', hotelId });
   return (data || []).map((s: Record<string, unknown>) => ({
     id: s.id as string,
     name: s.name as string,
@@ -255,25 +267,19 @@ export async function getStaffAccounts(hotelId?: string): Promise<StaffAccount[]
 }
 
 export async function createStaffAccount(staff: Partial<StaffAccount>) {
-  const { data, error } = await supabase.from('staff_accounts').insert({
-    name: staff.name,
-    role: staff.role || 'staff',
-    pin_code: staff.pin_code,
-    active: true,
-  }).select().single();
-  if (error) throw error;
+  const { data } = await callStaffApi({ action: 'create', staff });
   return data;
 }
 
 export async function deleteStaffAccount(id: string) {
-  const { error } = await supabase.from('staff_accounts').delete().eq('id', id);
-  if (error) throw error;
+  await callStaffApi({ action: 'delete', staffId: id });
 }
 
 // Real-time subscription helper
 export function subscribeToRequests(hotelId: string | null, callback: (payload: Record<string, unknown>) => void) {
+  const channelName = hotelId ? `requests-changes-${hotelId}` : 'requests-changes-all';
   const channel = supabase
-    .channel('requests-changes');
+    .channel(channelName);
   if (hotelId) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (channel as any).on('postgres_changes', { event: '*', schema: 'public', table: 'requests', filter: `hotel_id=eq.${hotelId}` }, (payload: Record<string, unknown>) => {
@@ -290,8 +296,9 @@ export function subscribeToRequests(hotelId: string | null, callback: (payload: 
 }
 
 export function subscribeToMessages(hotelId: string | null, callback: (payload?: Record<string, unknown>) => void) {
+  const channelName = hotelId ? `messages-live-${hotelId}` : 'messages-live-all';
   const channel = supabase
-    .channel('messages-live');
+    .channel(channelName);
   if (hotelId) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (channel as any).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `hotel_id=eq.${hotelId}` }, callback);
@@ -739,12 +746,10 @@ export async function deleteCruiseSchedule(id: string) {
   await supabase.from('cruise_schedules').update({ active: false }).eq('id', id);
 }
 
-// ─── Enhanced Staff CRUD ────────────────────────────────────
+// ─── Enhanced Staff CRUD (routed through API to bypass RLS) ──
 
 export async function getStaffAccountsForHotel(hotelId: string): Promise<StaffAccount[]> {
-  const { data, error } = await supabase.from('staff_accounts').select('*')
-    .eq('hotel_id', hotelId).order('name');
-  if (error) throw error;
+  const { data } = await callStaffApi({ action: 'list', hotelId });
   return (data || []).map((s: Record<string, unknown>) => ({
     id: s.id as string,
     hotel_id: s.hotel_id as string,
@@ -768,35 +773,19 @@ export async function createStaffAccountWithDetails(staff: {
   pin_code: string; permissions?: string[]; vendor_type?: string; department?: string;
   hire_date?: string; pto_used?: number; min_hours?: number; employment_type?: string;
 }) {
-  const { data, error } = await supabase.from('staff_accounts').insert({
-    name: staff.name,
-    role: staff.role || 'staff',
-    hotel_id: staff.hotel_id,
-    email: staff.email || '',
-    phone: staff.phone || '',
-    pin_code: staff.pin_code,
-    permissions: staff.permissions || ['orders', 'messages', 'shuttle'],
-    vendor_type: staff.vendor_type || null,
-    department: staff.department || null,
-    hire_date: staff.hire_date || null,
-    pto_used: staff.pto_used || 0,
-    min_hours: staff.min_hours || 0,
-    employment_type: staff.employment_type || null,
-    active: true,
-  }).select().single();
-  if (error) throw error;
+  const { data } = await callStaffApi({ action: 'create', staff });
   return data;
 }
 
 export async function updateStaffPermissions(id: string, permissions: string[]) {
-  await supabase.from('staff_accounts').update({ permissions }).eq('id', id);
+  await callStaffApi({ action: 'update', staffId: id, updates: { permissions } });
 }
 
 export async function updateStaffDetails(id: string, updates: {
   name?: string; email?: string; phone?: string; permissions?: string[]; active?: boolean;
   department?: string; hire_date?: string; pto_used?: number; min_hours?: number; employment_type?: string;
 }) {
-  await supabase.from('staff_accounts').update(updates).eq('id', id);
+  await callStaffApi({ action: 'update', staffId: id, updates });
 }
 
 // ─── Knowledge Base ──────────────────────────────────────
@@ -965,23 +954,24 @@ export async function getGuestValidations(hotelId: string): Promise<{ name: stri
 }
 
 export async function getStaffAccountByEmail(email: string): Promise<StaffAccount | null> {
-  const { data } = await supabase.from('staff_accounts').select('*')
-    .eq('email', email)
-    .eq('active', true)
-    .maybeSingle();
-  if (!data) return null;
-  return {
-    id: data.id,
-    hotel_id: data.hotel_id,
-    name: data.name,
-    role: data.role,
-    email: data.email || '',
-    phone: data.phone || '',
-    pin_code: data.pin_code,
-    active: data.active,
-    permissions: data.permissions || ['orders', 'messages', 'shuttle'],
-    vendor_type: data.vendor_type || undefined,
-  };
+  try {
+    const { data } = await callStaffApi({ action: 'get_by_email', email });
+    if (!data) return null;
+    return {
+      id: data.id,
+      hotel_id: data.hotel_id,
+      name: data.name,
+      role: data.role,
+      email: data.email || '',
+      phone: data.phone || '',
+      pin_code: data.pin_code,
+      active: data.active,
+      permissions: data.permissions || ['orders', 'messages', 'shuttle'],
+      vendor_type: data.vendor_type || undefined,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function getStaffAccountByPin(pin: string, hotelSlug?: string): Promise<StaffAccount | null> {
