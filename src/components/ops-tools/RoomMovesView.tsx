@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getRoomMoves, createRoomMove, deleteRoomMove, type RoomMove } from '@/lib/supabase';
 import { Trash2, ArrowRight } from 'lucide-react';
 
@@ -13,8 +13,8 @@ export default function RoomMovesView({ hotelId }: { hotelId: string }) {
   const [form, setForm] = useState({ guest_name: '', from_room: '', to_room: '', reason: '', initiated_by: '', notes: '' });
   const [showForm, setShowForm] = useState(false);
 
-  const load = async () => setMoves(await getRoomMoves(hotelId, date));
-  useEffect(() => { load(); }, [date]);
+  const load = useCallback(async () => setMoves(await getRoomMoves(hotelId, date)), [hotelId, date]);
+  useEffect(() => { load(); }, [load]);
 
   const handleCreate = async () => {
     if (!form.guest_name || !form.from_room || !form.to_room) return;

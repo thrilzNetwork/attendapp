@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getDailyLogs, createDailyLog, type DailyLogEntry } from '@/lib/supabase';
 
 const TEAL = '#0D9488';
@@ -14,8 +14,8 @@ export default function DailyLogsView({ hotelId }: { hotelId: string }) {
   const [form, setForm] = useState({ author: '', shift: 'AM', category: 'General', content: '' });
   const [showForm, setShowForm] = useState(false);
 
-  const load = async () => setLogs(await getDailyLogs(hotelId, date));
-  useEffect(() => { load(); }, [date]);
+  const load = useCallback(async () => setLogs(await getDailyLogs(hotelId, date)), [hotelId, date]);
+  useEffect(() => { load(); }, [load]);
 
   const handleCreate = async () => {
     if (!form.author || !form.content) return;

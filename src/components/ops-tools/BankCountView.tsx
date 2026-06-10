@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getBankCounts, createBankCount, type BankCount } from '@/lib/supabase';
 
 const TEAL = '#0D9488';
@@ -12,8 +12,8 @@ export default function BankCountView({ hotelId }: { hotelId: string }) {
   const [form, setForm] = useState({ shift: 'AM', counted_by: '', cash_total: 0, card_total: 0, room_charges: 0, discrepancies: '', notes: '' });
   const [showForm, setShowForm] = useState(false);
 
-  const load = async () => setCounts(await getBankCounts(hotelId, date));
-  useEffect(() => { load(); }, [date]);
+  const load = useCallback(async () => setCounts(await getBankCounts(hotelId, date)), [hotelId, date]);
+  useEffect(() => { load(); }, [load]);
 
   const handleCreate = async () => {
     if (!form.counted_by) return;
