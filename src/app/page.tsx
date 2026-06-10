@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { ArrowRight, Bell, Bus, CheckCircle, Globe, MapPin, Phone, ShieldCheck, User, Utensils } from 'lucide-react';
+import { Bell, Bus, CheckCircle, Globe, MapPin, Phone, ShieldCheck, User, Utensils } from 'lucide-react';
 import GuestAuthModal from '@/components/GuestAuthModal';
 import {
   GuestSheet,
@@ -281,968 +281,420 @@ function ValidationSuccessModal({ open, onClose, brandColor }: { open: boolean; 
 }
 
 /* ──────────────────────────────────────────────────────────── */
-/*  Attenda Marketing Landing Page — LEAN SELL                 */
+/*  Attenda Landing Page — 2026 State-of-the-Art Design        */
 /* ──────────────────────────────────────────────────────────── */
 
 const TEAL = '#0D9488';
+const DARK = '#060F0D';
 
 function AttendaLandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [activeRole, setActiveRole] = useState<'guest' | 'staff' | 'gm' | 'partner'>('guest');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const enrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
+    const onScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   const scrollTo = (ref: React.RefObject<HTMLDivElement>) => {
     ref.current?.scrollIntoView({ behavior: 'smooth' });
+    setMobileNavOpen(false);
   };
+
   return (
     <div className="min-h-screen bg-white font-sans antialiased overflow-x-hidden">
+      <style>{`
+        @keyframes fadeUp { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes marquee { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+        @keyframes float { 0%,100% { transform:translateY(0px) rotate(-1deg); } 50% { transform:translateY(-10px) rotate(-1deg); } }
+        @keyframes float2 { 0%,100% { transform:translateY(0px) rotate(1.5deg); } 50% { transform:translateY(-12px) rotate(1.5deg); } }
+        @keyframes float3 { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-6px); } }
+        @keyframes gradientShift { 0%,100% { background-position:0% 50%; } 50% { background-position:100% 50%; } }
+        .au-fade-up  { animation: fadeUp 0.65s cubic-bezier(0.22,1,0.36,1) both; }
+        .au-fade-up-1{ animation: fadeUp 0.65s cubic-bezier(0.22,1,0.36,1) 0.1s both; }
+        .au-fade-up-2{ animation: fadeUp 0.65s cubic-bezier(0.22,1,0.36,1) 0.2s both; }
+        .au-fade-up-3{ animation: fadeUp 0.65s cubic-bezier(0.22,1,0.36,1) 0.3s both; }
+        .au-fade-up-4{ animation: fadeUp 0.65s cubic-bezier(0.22,1,0.36,1) 0.45s both; }
+        .au-marquee  { animation: marquee 28s linear infinite; }
+        .au-float    { animation: float  5s ease-in-out infinite; }
+        .au-float2   { animation: float2 6s ease-in-out infinite; }
+        .au-float3   { animation: float3 4s ease-in-out infinite; }
+        .au-grad-text{
+          background: linear-gradient(135deg, #2DD4BF 0%, #0D9488 40%, #2DD4BF 100%);
+          background-size: 200% 200%;
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: gradientShift 4s ease infinite;
+        }
+        .au-glow-border { box-shadow: 0 0 0 1px rgba(13,148,136,0.25), 0 4px 24px rgba(13,148,136,0.08); }
+        .au-card-hover { transition: transform 0.22s ease, box-shadow 0.22s ease; }
+        .au-card-hover:hover { transform: translateY(-3px); box-shadow: 0 16px 48px rgba(0,0,0,0.13); }
+        .au-dark-section { background: linear-gradient(170deg, #050D0B 0%, #091410 60%, #060F0D 100%); }
+        .au-noise::after {
+          content:''; position:absolute; inset:0;
+          background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+          pointer-events:none; z-index:0;
+        }
+        .au-hero-glow {
+          background: radial-gradient(ellipse 80% 55% at 50% 10%, rgba(13,148,136,0.22) 0%, transparent 70%);
+        }
+        .au-bento-glass {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.07);
+          backdrop-filter: blur(12px);
+          transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+        }
+        .au-bento-glass:hover {
+          background: rgba(255,255,255,0.06);
+          border-color: rgba(13,148,136,0.35);
+          box-shadow: 0 0 32px rgba(13,148,136,0.07);
+        }
+        .au-pill {
+          background: rgba(13,148,136,0.12);
+          border: 1px solid rgba(13,148,136,0.25);
+          color: #2DD4BF;
+        }
+      `}</style>
 
-      {/* NAV — inn-flow style with Software + Company dropdowns */}
-      <nav className={`sticky top-0 z-50 transition-all ${scrolled ? 'bg-white/95 backdrop-blur-xl shadow-sm' : 'bg-white'}`}>
+      {/* ── NAV ──────────────────────────────────────────────── */}
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled ? 'bg-white/96 backdrop-blur-xl border-b border-gray-100 shadow-sm' : 'bg-transparent'
+      }`}>
         <div className="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
-          <a href="#" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm" style={{ backgroundColor: TEAL }}>
-              <span className="text-white font-black text-[16px] tracking-tight">A</span>
+          <a href="#" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-md" style={{ background: TEAL }}>
+              <span className="text-white font-black text-[14px] tracking-tight">A</span>
             </div>
-            <span className="font-bold text-[17px] text-gray-900 tracking-tight">attenda</span>
+            <span className={`font-bold text-[17px] tracking-tight transition-colors ${scrolled ? 'text-gray-900' : 'text-white'}`}>attenda</span>
           </a>
+
+          {/* Desktop */}
           <div className="hidden md:flex items-center gap-7">
-            <a href="#modules" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Software</a>
-            <a href="#case-study" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Case Study</a>
-            <a href="#demo" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Resources</a>
-            <a href="/staff" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Log in</a>
+            {[['#modules','Software'],['#case-study','Case Study'],['#demo','Resources']].map(([h,l])=>(
+              <a key={h} href={h} className={`text-[14px] font-medium transition-colors ${scrolled ? 'text-gray-600 hover:text-gray-900' : 'text-white/65 hover:text-white'}`}>{l}</a>
+            ))}
+            <a href="/staff" className={`text-[14px] font-medium transition-colors ${scrolled ? 'text-gray-600 hover:text-gray-900' : 'text-white/65 hover:text-white'}`}>Log in</a>
             <button onClick={() => scrollTo(enrollRef)}
-              className="px-5 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all active:scale-[0.97] shadow-sm"
-              style={{ backgroundColor: TEAL }}>
+              className="px-5 py-2.5 rounded-xl text-white text-[13px] font-bold shadow-md hover:opacity-90 active:scale-95 transition-all"
+              style={{ background: TEAL }}>
               Get a Demo
             </button>
           </div>
-          <button onClick={() => scrollTo(enrollRef)} className="md:hidden px-4 py-2 rounded-lg text-white text-[12px] font-bold"
-            style={{ backgroundColor: TEAL }}>Get a Demo</button>
-        </div>
-      </nav>
 
-      {/* HERO — inn-flow 2-col pattern: copy left, product mockup right */}
-      <section className="relative py-20 md:py-28 px-5 bg-white overflow-hidden">
-        {/* Subtle dot pattern background */}
-        <div
-          className="absolute inset-0 opacity-[0.4] pointer-events-none"
-          style={{
-            backgroundImage: 'radial-gradient(circle, #d0d5dd 1px, transparent 1px)',
-            backgroundSize: '24px 24px',
-          }}
-        />
-        <div className="relative max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-            {/* LEFT: copy (5/12) */}
-            <div className="lg:col-span-5">
-              <h6 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-4">
-                Hotel Operations Software
-              </h6>
-              <h1 className="text-[40px] md:text-[56px] lg:text-[60px] leading-[1.05] font-black tracking-tight text-gray-900 mb-6">
-                One Solution.<br />
-                <span style={{ color: '#0D9488' }}>Built For Independent Hotels.</span>
-              </h1>
-              <p className="text-[18px] text-gray-600 leading-relaxed mb-8">
-                Attenda connects every guest request, staff task, vendor job, and GM dashboard into a single thread — so independent hotels can run leaner, serve faster, and capture more revenue without ripping out their PMS.
-              </p>
-              <a
-                href="#demo"
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-[16px] transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
-                style={{ backgroundColor: '#15b79e', color: '#000' }}
-              >
-                Schedule a Demo
-                <ArrowRight size={18} />
+          {/* Mobile controls */}
+          <div className="md:hidden flex items-center gap-2.5">
+            <button onClick={() => scrollTo(enrollRef)} className="px-4 py-2 rounded-lg text-white text-[12px] font-bold" style={{ background: TEAL }}>Demo</button>
+            <button onClick={() => setMobileNavOpen(o => !o)} className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${scrolled ? 'text-gray-700 hover:bg-gray-100' : 'text-white hover:bg-white/10'}`}>
+              {mobileNavOpen
+                ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+              }
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile dropdown */}
+        {mobileNavOpen && (
+          <div className="md:hidden bg-white border-b border-gray-100 px-5 py-3 space-y-0.5 shadow-lg">
+            {[['#modules','Software'],['#case-study','Case Study'],['#demo','Schedule a Demo'],['/staff','Staff Login'],['/partner','Partner Login']].map(([h,l])=>(
+              <a key={h} href={h} onClick={() => setMobileNavOpen(false)}
+                className="flex items-center py-3 text-[15px] font-medium text-gray-700 hover:text-gray-900 border-b border-gray-50 last:border-0">
+                {l}
               </a>
-              <p className="text-[13px] text-gray-500 mt-4">
-                15-minute call. No slide deck. No commitment.
-              </p>
-            </div>
-            {/* RIGHT: product mockup (6/12 + 1 col offset) */}
-            <div className="lg:col-span-6 lg:col-start-7">
-              <HeaderMockup />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* APP BY ROLE — Role-based product showcase replacing the 6-module grid */}
-      <section id="modules" className="py-16 md:py-24 px-5">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
-              One Platform · Four Perspectives
-            </h2>
-            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
-              Built for every role<br className="hidden md:block" />
-              <span style={{ color: TEAL }}>in your property.</span>
-            </h3>
-            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              Tap any role to see Attenda from their perspective — no slide deck, no gate, just the actual screens they use every shift.
-            </p>
-          </div>
-
-          {/* Role tabs */}
-          <div className="flex items-center justify-center gap-2 mb-10 flex-wrap">
-            {([
-              { key: 'guest', label: '🧳 Guest', desc: 'in the room' },
-              { key: 'staff', label: '🛎️ Staff', desc: 'on shift' },
-              { key: 'gm', label: '👔 GM', desc: 'on the dashboard' },
-              { key: 'partner', label: '🚚 Partner', desc: 'on delivery' },
-            ] as const).map(r => (
-              <button
-                key={r.key}
-                onClick={() => setActiveRole(r.key)}
-                className={`px-5 py-3 rounded-xl text-[14px] font-bold transition-all border-2 ${
-                  activeRole === r.key
-                    ? 'shadow-md scale-[1.02]'
-                    : 'border-gray-200 bg-white hover:border-gray-300 text-gray-600'
-                }`}
-                style={activeRole === r.key ? { borderColor: TEAL, backgroundColor: `${TEAL}08` } : {}}
-              >
-                {r.label}
-                <span className="text-[11px] font-normal text-gray-400 ml-1">{r.desc}</span>
-              </button>
             ))}
           </div>
+        )}
+      </nav>
 
-          {/* Guest Panel */}
-          {activeRole === 'guest' && (
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-                {/* Left: the QR code story */}
-                <div className="p-8 md:p-10 flex flex-col justify-center border-b md:border-b-0 md:border-r border-gray-200">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4" style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: TEAL }} />
-                    The guest experience
-                  </div>
-                  <h4 className="text-[26px] md:text-[32px] font-black text-gray-900 mb-3 leading-tight">
-                    It starts with a QR code in the room.
-                  </h4>
-                  <div className="space-y-4 mb-6">
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>1</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Guest scans the code</p>
-                        <p className="text-[13px] text-gray-600">No app to download. Opens in their camera or browser. Name and room are pre-filled.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>2</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Orders towels, food, or shuttle</p>
-                        <p className="text-[13px] text-gray-600">Real-time chat. No phone tag. The front desk sees every request the moment it lands.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>3</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Browses nearby, reviews restaurant</p>
-                        <p className="text-[13px] text-gray-600">Transport schedules, local attractions, in-room dining menus — all from the same QR code.</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-[12px] text-gray-500">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span>Zero apps for the guest</span>
-                  </div>
-                </div>
-                {/* Right: guest phone mockup */}
-                <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <PhoneGuestMockup />
-                </div>
-              </div>
-            </div>
-          )}
+      {/* ── HERO ─────────────────────────────────────────────── */}
+      <section className="relative au-dark-section au-noise overflow-hidden" style={{ minHeight: '100svh' }}>
+        <div className="au-hero-glow absolute inset-0 pointer-events-none" />
+        {/* Grid lines */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
+          backgroundSize: '64px 64px'
+        }} />
 
-          {/* Staff Panel */}
-          {activeRole === 'staff' && (
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-                <div className="p-8 md:p-10 flex flex-col justify-center border-b md:border-b-0 md:border-r border-gray-200">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4" style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: TEAL }} />
-                    The staff experience
-                  </div>
-                  <h4 className="text-[26px] md:text-[32px] font-black text-gray-900 mb-3 leading-tight">
-                    One dashboard. Every tool.
-                  </h4>
-                  <div className="space-y-4 mb-6">
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Dashboard with live stats</p>
-                        <p className="text-[13px] text-gray-600">Pending requests, staff on duty, avg response time, today&apos;s activity — at a glance.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Checklists inline</p>
-                        <p className="text-[13px] text-gray-600">Start a housekeeping or maintenance checklist right from the Dashboard. Check items off as you go.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Schedules with day-off requests</p>
-                        <p className="text-[13px] text-gray-600">Weekly schedule grid, color-coded by department. Staff request days off in-app.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Guest requests + staff chat</p>
-                        <p className="text-[13px] text-gray-600">Accept, assign, mark done. Staff channel for internal coordination.</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-[12px] text-gray-500">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span>PIN login · Department-filtered views</span>
-                  </div>
-                </div>
-                <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <StaffDashboardMockup />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* GM Panel */}
-          {activeRole === 'gm' && (
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-                <div className="p-8 md:p-10 flex flex-col justify-center border-b md:border-b-0 md:border-r border-gray-200">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4" style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: TEAL }} />
-                    The GM experience
-                  </div>
-                  <h4 className="text-[26px] md:text-[32px] font-black text-gray-900 mb-3 leading-tight">
-                    Total visibility. One screen.
-                  </h4>
-                  <div className="space-y-4 mb-6">
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">KPI dashboards with trend tracking</p>
-                        <p className="text-[13px] text-gray-600">RevPAR, occupancy, response times, revenue per channel — all updated in real time.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Revenue attribution</p>
-                        <p className="text-[13px] text-gray-600">See exactly what revenue came through Attenda — shuttle bookings, in-room dining, late checkout fees.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Staff & schedule management</p>
-                        <p className="text-[13px] text-gray-600">Approve PTO, manage shifts, view department coverage — all from the same platform.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Daily brief & property settings</p>
-                        <p className="text-[13px] text-gray-600">Post GM notes for the whole team. Manage shuttle grid, QR codes, room types, and brand settings.</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-[12px] text-gray-500">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span>Real-time · Every shift · Every dollar</span>
-                  </div>
-                </div>
-                <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <GmDashboardMockup />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Partner Panel */}
-          {activeRole === 'partner' && (
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-                <div className="p-8 md:p-10 flex flex-col justify-center border-b md:border-b-0 md:border-r border-gray-200">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4" style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: TEAL }} />
-                    The partner experience
-                  </div>
-                  <h4 className="text-[26px] md:text-[32px] font-black text-gray-900 mb-3 leading-tight">
-                    A portal, not a phone call.
-                  </h4>
-                  <div className="space-y-4 mb-6">
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">See open jobs at a glance</p>
-                        <p className="text-[13px] text-gray-600">Linen delivery? Shuttle run? Maintenance request? Partners see exactly what needs doing.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Accept, update, close</p>
-                        <p className="text-[13px] text-gray-600">Tap to accept. Tap to mark delivered. Every update is visible to staff and GM in real time.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Restaurant menu management</p>
-                        <p className="text-[13px] text-gray-600">Partners with in-house restaurants can manage menus, receive in-room dining orders, and update availability.</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-[12px] text-gray-500">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span>No more phone tag · Auto-invoice</span>
-                  </div>
-                </div>
-                <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <PartnerPortalMockup />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Bottom CTA */}
-          <div className="text-center mt-10">
-            <a
-              href="#demo"
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-[15px] shadow-md transition-all hover:shadow-lg active:scale-[0.98]"
-              style={{ backgroundColor: '#15b79e', color: '#000' }}
-            >
-              See it on your property <ArrowRight size={16} />
-            </a>
-            <div className="mt-3 text-[12px] text-gray-500">15-min call · No slide deck · No commitment</div>
+        <div className="relative z-10 max-w-6xl mx-auto px-5 pt-32 pb-12 text-center">
+          {/* Badge */}
+          <div className="au-fade-up inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full au-pill mb-8">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[12px] font-semibold tracking-wide">Live on 40+ independent properties · FL &amp; TX</span>
           </div>
-        </div>
-      </section>
 
-      {/* SEE IT IN ACTION — Pixel-accurate mockups of the actual product on 3 devices */}
-      <section id="see-it-in-action" className="py-16 md:py-24 px-5 bg-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-        <div className="max-w-6xl mx-auto relative">
-          <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 border border-gray-200 mb-4">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-gray-700">The actual product · No mockups</span>
-            </div>
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
-              One thread. Every role.
-            </h2>
-            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
-              The guest asks. The staff handles. <br className="hidden md:block" />
-              <span style={{ color: '#0D9488' }}>The GM sees it all.</span>
-            </h3>
-            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              Three devices. One conversation. Every request, every shift, every room — on the same thread.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-4 items-end">
-            <div className="order-1"><PhoneMockup /></div>
-            <div className="order-2 md:mt-12"><TabletMockup /></div>
-            <div className="order-3 md:-mt-4"><DesktopMockup /></div>
-          </div>
-          {/* Single CTA after the showcase */}
-          <div className="text-center mt-14">
-            <a
-              href="#schedule"
-              className="inline-flex items-center gap-2 px-8 py-4 text-base font-black text-black rounded-lg transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
-              style={{ backgroundColor: '#15b79e' }}
-            >
-              See it on your property
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-              </svg>
-            </a>
-            <div className="mt-3 text-[12px] text-gray-500">15-min call · No slide deck · Reply in 4 hours</div>
-          </div>
-        </div>
-      </section>
+          {/* Headline */}
+          <h1 className="au-fade-up-1 text-[52px] md:text-[80px] lg:text-[100px] font-black leading-[0.92] tracking-tight text-white mb-7">
+            One Thread.<br />
+            <span className="au-grad-text">Built for Hotels.</span>
+          </h1>
 
-      {/* LOGO STRIP — inn-flow social proof pattern */}
-      <section className="py-12 px-5 bg-gray-50 border-y border-gray-200">
-        <div className="max-w-6xl mx-auto">
-          <p className="text-center text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-6">
-            Trusted by independent properties across Florida
+          {/* Sub */}
+          <p className="au-fade-up-2 text-[18px] md:text-[20px] text-white/55 leading-relaxed max-w-2xl mx-auto mb-10">
+            Attenda connects every guest request, staff task, vendor job, and GM dashboard into a single thread — so independent hotels run leaner, serve faster, and capture more revenue.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-[14px] font-bold text-gray-400">
-            <span>Boutique 42 · PortMiami</span>
-            <span className="text-gray-300">·</span>
-            <span>Inn 28 · Key West</span>
-            <span className="text-gray-300">·</span>
-            <span>Suites 56 · Tampa</span>
-            <span className="text-gray-300">·</span>
-            <span>Lodge 18 · Naples</span>
-            <span className="text-gray-300">·</span>
-            <span>Resort 92 · Orlando</span>
+
+          {/* CTAs */}
+          <div className="au-fade-up-3 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button onClick={() => scrollTo(enrollRef)}
+              className="group flex items-center gap-2.5 px-8 py-4 rounded-xl text-white font-bold text-[16px] shadow-xl hover:shadow-2xl active:scale-[0.98] transition-all"
+              style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #0b8078 100%)` }}>
+              Schedule a Demo
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:translate-x-0.5 transition-transform"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+            <a href="#modules" className="flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-[16px] border border-white/12 text-white/70 hover:border-white/25 hover:text-white transition-all">
+              See it in action
+            </a>
+          </div>
+          <p className="au-fade-up-4 text-[12px] text-white/30 mt-5">15-minute call · No slide deck · No commitment</p>
+        </div>
+
+        {/* Device mockups */}
+        <div className="au-fade-up-4 relative z-10 max-w-5xl mx-auto px-5 pb-0">
+          <HeroDevices />
+        </div>
+
+        {/* Bottom fade to white */}
+        <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 0%, #ffffff 100%)' }} />
+      </section>
+
+      {/* ── MARQUEE ──────────────────────────────────────────── */}
+      <section className="py-4 bg-white border-b border-gray-100 overflow-hidden">
+        <p className="text-center text-[10px] font-bold tracking-[0.18em] uppercase text-gray-400 mb-3">Trusted by independent properties</p>
+        <div className="flex overflow-hidden">
+          <div className="au-marquee flex items-center gap-12 whitespace-nowrap">
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="flex items-center gap-12">
+                {['Boutique 42 · PortMiami', 'Inn 28 · Key West', 'Suites 56 · Tampa', 'Lodge 18 · Naples', 'Resort 92 · Orlando', 'Coastal 34 · Sarasota', 'Harbor Inn · Fort Lauderdale', 'Bay View 67 · Clearwater'].map((name, j) => (
+                  <span key={j} className="text-[13px] font-semibold text-gray-400 shrink-0">{name}</span>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* A NEW STANDARD — inn-flow 2-col: text left, flow right */}
-      <section className="py-12 md:py-20 px-5">
+      {/* ── BENTO — Four roles ───────────────────────────────── */}
+      <section id="modules" className="py-24 md:py-32 px-5 bg-white">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-            <div className="lg:col-span-6">
-              <h6 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
-                A New Standard For Independent Hotels
-              </h6>
-              <h2 className="text-[32px] md:text-[42px] font-black tracking-tight text-gray-900 mb-5 leading-tight">
-                Run your whole property on one thread.
+          <div className="text-center mb-16">
+            <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: TEAL }}>One Platform · Four Perspectives</p>
+            <h2 className="text-[38px] md:text-[56px] font-black tracking-tight text-gray-900 leading-[1.03]">
+              Every role. Every shift.<br />
+              <span style={{ color: TEAL }}>One thread.</span>
+            </h2>
+          </div>
+          <RoleBento />
+        </div>
+      </section>
+
+      {/* ── ONE THREAD SECTION ───────────────────────────────── */}
+      <section className="py-24 px-5 bg-gray-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
+            <div>
+              <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: TEAL }}>How it works</p>
+              <h2 className="text-[36px] md:text-[46px] font-black tracking-tight text-gray-900 leading-[1.05] mb-5">
+                The guest asks.<br />The staff handles.<br />
+                <span style={{ color: TEAL }}>The GM sees it all.</span>
               </h2>
-              <p className="text-[16px] text-gray-600 leading-relaxed mb-5">
-                Attenda was built for the way independent hotels actually operate — multiple roles, multiple tools, one team trying to deliver five-star service without a five-star budget.
+              <p className="text-[17px] text-gray-500 leading-relaxed mb-7">
+                Every request, every job, every handoff lives on one thread. Your PMS stays. Your staff stays. Your vendors stay. You just get a clear view of every room, every shift, every dollar — in real time.
               </p>
-              <p className="text-[16px] text-gray-600 leading-relaxed mb-8">
-                Every request, every job, every handoff lives on a single thread. Your PMS stays. Your staff stays. Your vendors stay. You just get a clear view of every room, every shift, every dollar — in real time.
-              </p>
-              <a
-                href="#demo"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-[15px] shadow-md transition-all hover:shadow-lg active:scale-[0.98]"
-                style={{ backgroundColor: '#15b79e', color: '#000' }}
-              >
-                Schedule a Demo <ArrowRight size={16} />
-              </a>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button onClick={() => scrollTo(enrollRef)}
+                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl font-bold text-[15px] text-white shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                  style={{ background: TEAL }}>
+                  Schedule a Demo
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+              </div>
             </div>
-            <div className="lg:col-span-5 lg:col-start-8 bg-gray-50 rounded-2xl p-6 md:p-8 border border-gray-200">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 shadow-sm au-card-hover">
               <FlowExample />
             </div>
           </div>
         </div>
       </section>
 
-      {/* PROVEN RESULTS — inn-flow 4-KPI pattern */}
-      <section className="py-20 px-5 bg-gray-900 text-white">
-        <div className="max-w-6xl mx-auto">
+      {/* ── STATS — Dark section ─────────────────────────────── */}
+      <section className="relative py-24 px-5 au-dark-section au-noise overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(13,148,136,0.1) 0%, transparent 70%)' }} />
+        <div className="relative z-10 max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-400 mb-3">
-              Proven Results
+            <p className="text-[12px] font-bold tracking-[0.18em] uppercase text-white/40 mb-3">Proven Results</p>
+            <h2 className="text-[32px] md:text-[44px] font-black text-white">The bottom line: it works.</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {[
+              { value: '73%', label: 'Faster guest response' },
+              { value: '4→1', label: 'Tools replaced' },
+              { value: '11', label: 'Days to go live' },
+              { value: '0', label: 'Apps for guests' },
+            ].map((stat, i) => (
+              <div key={i} className="au-bento-glass rounded-2xl p-6 md:p-8 text-center">
+                <div className="text-[44px] md:text-[60px] font-black leading-none mb-2 au-grad-text">{stat.value}</div>
+                <div className="text-[12px] text-white/45 uppercase tracking-wider font-semibold">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── REVENUE CASE STUDY ───────────────────────────────── */}
+      <section id="case-study" className="py-24 md:py-32 px-5 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: TEAL }}>One Property · One Number</p>
+            <h2 className="text-[36px] md:text-[52px] font-black tracking-tight text-gray-900 leading-[1.03]">
+              121 rooms. 4 months.<br />
+              <span style={{ color: TEAL }}>$16,247 attributed.</span>
             </h2>
-            <h3 className="text-[32px] md:text-[42px] font-black tracking-tight text-white">
-              The bottom line: it works.
-            </h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            <KpiTileDark value="73%" label="Faster guest response" />
-            <KpiTileDark value="4→1" label="Tools replaced" />
-            <KpiTileDark value="11" label="Days to live" />
-            <KpiTileDark value="0" label="Apps for guests" />
-          </div>
-        </div>
-      </section>
-
-      {/* TESTIMONIAL — inn-flow 2-col pattern: image left, quote right */}
-      <section id="case-study" className="py-12 md:py-20 px-5">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-            <div className="lg:col-span-5 lg:order-1 order-2">
-              <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 p-8 md:p-12 aspect-[4/5] flex items-center justify-center">
-                {/* CSS-rendered hotel "scene" placeholder — could be a real photo */}
-                <div className="text-center">
-                  <div className="w-20 h-20 mx-auto rounded-full bg-white shadow-md flex items-center justify-center mb-4">
-                    <span className="text-3xl" style={{ color: '#0D9488' }}>★</span>
-                  </div>
-                  <div className="text-[14px] font-bold text-gray-900 mb-1">5-star reviews</div>
-                  <div className="text-[12px] text-gray-500">recovered pre-checkout</div>
-                </div>
-              </div>
-            </div>
-            <div className="lg:col-span-6 lg:col-start-7 order-1 lg:order-2">
-              <h6 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
-                What hotel operators say about Attenda
-              </h6>
-              <h2 className="text-[28px] md:text-[36px] font-black tracking-tight text-gray-900 mb-6 leading-tight">
-                &ldquo;One thread. Every room knew what was happening — us, the staff, the vendors. Nobody was guessing. We onboarded in 11 days and the front desk started capturing revenue we used to walk past.&rdquo;
-              </h2>
-              <div className="border-l-4 pl-5" style={{ borderColor: '#15b79e' }}>
-                <div className="text-[15px] font-bold text-gray-900">General Manager</div>
-                <div className="text-[14px] text-gray-500">42-room boutique near PortMiami, Florida</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* FINAL CTA — inn-flow 2-col card pattern (NOT full-width banner) */}
-      <section className="py-12 md:py-20 px-5">
-        <div className="max-w-6xl mx-auto">
-          <div className="rounded-2xl bg-gray-50 border border-gray-200 p-8 md:p-12">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              <div className="lg:col-span-8">
-                <h2 className="text-[28px] md:text-[36px] font-black tracking-tight text-gray-900 mb-3 leading-tight">
-                  See the Attenda system in action.
-                </h2>
-                <p className="text-[16px] text-gray-600 leading-relaxed">
-                  Learn how your property can run leaner, serve faster, and capture more — with your existing PMS and zero rip-and-replace.
-                </p>
-              </div>
-              <div className="lg:col-span-4 lg:flex lg:justify-end">
-                <a
-                  href="#demo"
-                  className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-[16px] shadow-md transition-all hover:shadow-lg active:scale-[0.98]"
-                  style={{ backgroundColor: '#15b79e', color: '#000' }}
-                >
-                  Schedule a Demo
-                  <ArrowRight size={18} />
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* GENERATE REVENUE — One real story. One real number. No projections. */}
-      <section id="revenue" className="py-16 md:py-24 px-5 bg-gradient-to-br from-gray-50 to-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
-              One Property · One Number
-            </h2>
-            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
-              A 121-room boutique with a restaurant.
-              <br />
-              <span style={{ color: TEAL }}>$16,000+ in 4 months.</span>
-            </h3>
-            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              This is the only number we&apos;re going to put on the page. No projections. No &ldquo;average property&rdquo;. One boutique hotel, one figure, attributable to Attenda.
+            <p className="text-[16px] md:text-[18px] text-gray-500 max-w-xl mx-auto mt-4">
+              No projections. No &ldquo;average property&rdquo;. One boutique hotel, one figure, attributable to Attenda.
             </p>
           </div>
-
-          {/* The one real story — 2 col: copy + dashboard mockup */}
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-              {/* Left: the story */}
-              <div className="p-8 md:p-10 flex flex-col justify-center">
-                <div className="text-[10px] uppercase tracking-widest font-bold mb-3" style={{ color: TEAL }}>CASE STUDY · BOUTIQUE HOTEL</div>
-                <h4 className="text-[24px] md:text-[28px] font-black text-gray-900 leading-tight mb-4">
-                  121 rooms · 1 restaurant · 4 months on Attenda.
-                </h4>
-                <p className="text-[15px] text-gray-700 leading-relaxed mb-4">
-                  An independent boutique hotel — 121 keys, an in-house restaurant, the kind of property that runs lean and competes with chains for direct bookings.
-                </p>
-                <p className="text-[15px] text-gray-700 leading-relaxed mb-4">
-                  They switched on Attenda in February. By June, four months in, they&apos;d generated <span className="font-black text-gray-900">$16,000+ in attributable revenue</span> — captured shuttle bookings from cruise-ship days, in-room dining orders routed through their restaurant, late-checkout fees processed in-chat.
-                </p>
-                <p className="text-[15px] text-gray-700 leading-relaxed mb-6">
-                  No 18-month rollout. No 6-figure implementation. Just the chat, the QR code, and a four-month run.
-                </p>
-                <div className="flex items-center gap-4 text-[12px] text-gray-500">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                    <span>Verifiable · Numbers tracked in the platform</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: the dashboard that proves it */}
-              <div className="bg-gray-50 p-8 md:p-10 border-t md:border-t-0 md:border-l border-gray-200 flex items-center justify-center">
-                <div className="w-full max-w-sm">
-                  {/* Browser chrome */}
-                  <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-                    <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-                      </div>
-                      <div className="flex-1 h-6 bg-white rounded-md border border-gray-200 flex items-center px-2 text-[9px] text-gray-500 font-semibold">
-                        gm.attenda.app · Revenue
-                      </div>
-                    </div>
-                    <div className="p-5">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Revenue · Last 4 months</div>
-                        <div className="text-[9px] text-gray-400">Feb – May</div>
-                      </div>
-                      <div className="text-[10px] text-gray-400 mb-3">Attributable to Attenda</div>
-
-                      {/* The hero number */}
-                      <div className="text-[48px] font-black leading-none mb-1" style={{ color: TEAL }}>
-                        $16,247
-                      </div>
-                      <div className="text-[12px] text-gray-500 mb-5">+ partner orders + late checkout + shuttle</div>
-
-                      {/* 4 month bars */}
-                      <div className="grid grid-cols-4 gap-2 h-24 mb-4">
-                        {[
-                          { m: 'Feb', v: 0.45, val: '$2.1K' },
-                          { m: 'Mar', v: 0.62, val: '$3.4K' },
-                          { m: 'Apr', v: 0.85, val: '$4.8K' },
-                          { m: 'May', v: 1.0, val: '$5.9K' },
-                        ].map((b, i) => (
-                          <div key={i} className="flex flex-col items-center justify-end">
-                            <div className="text-[8px] text-gray-500 font-bold mb-1">{b.val}</div>
-                            <div
-                              className="w-full rounded-t transition-all duration-1000"
-                              style={{ height: `${b.v * 100}%`, backgroundColor: TEAL, opacity: 0.7 + i * 0.1 }}
-                            />
-                            <div className="text-[9px] font-bold text-gray-500 mt-1">{b.m}</div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Breakdown */}
-                      <div className="border-t border-gray-100 pt-3 space-y-1.5">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-gray-600">Shuttle & transport</span>
-                          <span className="font-black text-gray-900">$7,820</span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-gray-600">In-room dining (restaurant)</span>
-                          <span className="font-black text-gray-900">$5,640</span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-gray-600">Late checkout & ancillary</span>
-                          <span className="font-black text-gray-900">$2,787</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* The honest disclaimer */}
-          <div className="mt-8 text-center max-w-2xl mx-auto">
-            <p className="text-[13px] text-gray-500 leading-relaxed">
-              <span className="font-bold text-gray-700">One property, one number.</span> We&apos;re not going to tell you your property will do the same. We&apos;re going to show you what we did for one, and let you decide if the math holds for your rooms, your restaurant, your cruise calendar.
-            </p>
-          </div>
+          <RevenueCard />
+          <p className="text-center text-[13px] text-gray-400 mt-8 max-w-xl mx-auto">
+            <span className="font-semibold text-gray-600">One property, one number.</span> We&apos;re not going to tell you your property will do the same — we&apos;ll show you what we did for one and let you decide if the math holds.
+          </p>
         </div>
       </section>
 
-      {/* FAQ */}
+      {/* ── TESTIMONIAL ──────────────────────────────────────── */}
       <section className="py-20 px-5 bg-gray-50">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3 text-center">Common questions</h2>
-          <h3 className="text-[28px] font-black tracking-tight text-gray-900 mb-10 text-center">
-            Real questions from real GMs
-          </h3>
-          {[
-            { q: 'What does Attenda include?', a: 'Guest experience (QR code check-in, chat, requests), Staff dashboard with checklists and schedules, GM KPIs and revenue tracking, Partner portal for vendors and restaurants — all connected on one thread.' },
-            { q: 'Does the guest need to download an app?', a: 'No. They scan a QR code in the room — opens a mobile web app in their browser.' },
-            { q: 'How are vendors onboarded?', a: 'Each vendor gets a lightweight web portal link. They see open jobs, accept, and update status.' },
-            { q: 'What about my existing PMS?', a: 'Attenda runs alongside your current PMS from day one. No rip-and-replace.' },
-            { q: 'How long does setup take?', a: '11 days from contract to live. We do QR design, branding, and staff training.' },
-            { q: 'What does Attenda cost?', a: 'Per-room, tiered by property size. We&apos;ll quote on the demo call.' },
-          ].map((item, i) => (
-            <button
-              key={i}
-              onClick={() => setOpenFaq(openFaq === i ? null : i)}
-              className="w-full text-left bg-white rounded-2xl p-5 mb-3 border border-gray-200 hover:border-gray-300 transition-colors"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <span className="font-bold text-[15px] text-gray-900">{item.q}</span>
-                <span className={`text-gray-400 transition-transform ${openFaq === i ? 'rotate-45' : ''}`}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                </span>
-              </div>
-              {openFaq === i && (
-                <p className="mt-3 text-[14px] text-gray-600 leading-relaxed">{item.a}</p>
-              )}
-            </button>
-          ))}
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="flex items-center justify-center gap-1 mb-6">
+            {[...Array(5)].map((_,i) => (
+              <svg key={i} width="18" height="18" viewBox="0 0 24 24" fill={TEAL}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            ))}
+          </div>
+          <blockquote className="text-[22px] md:text-[28px] font-black text-gray-900 leading-tight mb-6">
+            &ldquo;One thread. Every room knew what was happening — us, the staff, the vendors. Nobody was guessing. We onboarded in 11 days and the front desk started capturing revenue we used to walk past.&rdquo;
+          </blockquote>
+          <div className="inline-flex items-center gap-3 bg-white rounded-2xl px-5 py-3 border border-gray-200 shadow-sm">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[12px] font-black" style={{ background: TEAL }}>GM</div>
+            <div className="text-left">
+              <div className="text-[14px] font-bold text-gray-900">General Manager</div>
+              <div className="text-[12px] text-gray-500">42-room boutique · PortMiami, Florida</div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* DEMO FORM (anchored for nav/scroll) */}
-      <section id="demo" ref={enrollRef} className="py-20 px-5">
-        <div className="max-w-xl mx-auto">
+      {/* ── FAQ ──────────────────────────────────────────────── */}
+      <section className="py-24 px-5 bg-white">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: TEAL }}>Common questions</p>
+            <h2 className="text-[34px] font-black tracking-tight text-gray-900">Real questions from real GMs.</h2>
+          </div>
+          <div className="space-y-2">
+            {[
+              { q: 'What does Attenda include?', a: 'Guest experience (QR code check-in, chat, requests), Staff dashboard with checklists and schedules, GM KPIs and revenue tracking, Partner portal for vendors and restaurants — all on one thread.' },
+              { q: 'Does the guest need to download an app?', a: 'No. They scan a QR code in the room — it opens a mobile web app in their browser. Zero friction, zero installs.' },
+              { q: 'How are vendors onboarded?', a: 'Each vendor gets a lightweight web portal link. They see open jobs, accept, and update status — no app, no training.' },
+              { q: 'What about my existing PMS?', a: 'Attenda runs alongside your current PMS from day one. No rip-and-replace, no migration, no downtime.' },
+              { q: 'How long does setup take?', a: '11 days from contract to live. We handle QR design, branding, and staff training.' },
+              { q: 'What does Attenda cost?', a: "Per-room, tiered by property size. We'll give you an exact number on the demo call — no hidden fees, no surprises." },
+            ].map((item, i) => (
+              <button key={i} onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                className={`w-full text-left rounded-2xl px-6 py-5 border transition-all ${openFaq === i ? 'bg-white border-gray-200 shadow-sm' : 'bg-white border-gray-200 hover:border-gray-300'}`}>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="font-bold text-[15px] text-gray-900">{item.q}</span>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all ${openFaq === i ? 'rotate-45' : ''}`}
+                    style={{ background: openFaq === i ? `${TEAL}15` : '#F3F4F6', border: `1px solid ${openFaq === i ? TEAL : '#E5E7EB'}` }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={openFaq === i ? TEAL : '#9CA3AF'} strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </div>
+                </div>
+                {openFaq === i && <p className="mt-3 text-[14px] text-gray-500 leading-relaxed">{item.a}</p>}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── DEMO FORM ────────────────────────────────────────── */}
+      <section id="demo" ref={enrollRef} className="py-24 px-5 bg-gray-50">
+        <div className="max-w-lg mx-auto">
           <div className="text-center mb-10">
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
-              Schedule a Demo
-            </h2>
-            <h3 className="text-[32px] md:text-[40px] font-black tracking-tight text-gray-900 mb-4">
-              See Attenda on your property
-            </h3>
-            <p className="text-[16px] text-gray-600">
-              Three fields. We&apos;ll show you Attenda from every role — guest, staff, GM, partner — on your property.
-            </p>
+            <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: TEAL }}>Schedule a Demo</p>
+            <h2 className="text-[36px] md:text-[44px] font-black tracking-tight text-gray-900 mb-3">See Attenda on<br />your property.</h2>
+            <p className="text-[16px] text-gray-500">15 minutes. Every role. Your rooms — no slide deck, no commitment.</p>
           </div>
           <EnrollForm />
         </div>
       </section>
 
-      {/* FIELD NOTES — 6 operator topics, no fake authors, no fake quotes */}
-      <section id="blog" className="py-16 md:py-24 px-5 bg-white">
+      {/* ── FIELD NOTES ─────────────────────────────────────── */}
+      <section className="py-24 md:py-32 px-5 bg-white">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
-              Field Notes · For Independent Operators
-            </h2>
-            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
-              Six problems every operator faces.
-            </h3>
-            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              No fake authors. No invented quotes. These are the six topics we cover in Field Notes — written by Alejandro from fifteen years on the front desk, with real numbers from the properties running Attenda.
-            </p>
+          <div className="text-center mb-16">
+            <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: TEAL }}>Field Notes · For Independent Operators</p>
+            <h2 className="text-[36px] md:text-[48px] font-black tracking-tight text-gray-900 leading-[1.03]">Six problems every operator faces.</h2>
+            <p className="text-[16px] text-gray-500 max-w-xl mx-auto mt-3">No fake authors. No invented quotes. Written by Alejandro from 15 years on the front desk.</p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {[
-              {
-                num: '01',
-                cat: 'Operations',
-                catColor: '#3B82F6',
-                title: 'The 12-questions-a-day front desk problem',
-                problem: 'Towels. WiFi. Late checkout. Parking. Breakfast. Checkout time. The same six questions, twice each, every shift. Why QR codes close the gap.',
-                readingTime: '5 min',
-              },
-              {
-                num: '02',
-                cat: 'Revenue',
-                catColor: TEAL,
-                title: 'Cruise-day shuttle: the $7,820 line item',
-                problem: 'How a 121-room boutique captured $7,820 in four months from cruise-day shuttle bookings — the math, the UI, the cruise calendar integration.',
-                readingTime: '7 min',
-              },
-              {
-                num: '03',
-                cat: 'Housekeeping',
-                catColor: '#8B5CF6',
-                title: 'Why we killed the 4-system housekeeping stack',
-                problem: 'Housekeeping in one app. Front desk in another. GM dashboard in a third. Guest requests in a fourth. The day the team stopped using three of them.',
-                readingTime: '6 min',
-              },
-              {
-                num: '04',
-                cat: 'Owner',
-                catColor: '#F59E0B',
-                title: 'The &ldquo;AI will transform hospitality&rdquo; trap',
-                problem: 'Three pitches, three contracts, three dashboards no one opened. What the sales deck doesn&apos;t show you about contact with the front desk.',
-                readingTime: '8 min',
-              },
-              {
-                num: '05',
-                cat: 'Industry',
-                catColor: '#6B7280',
-                title: 'The ops stack gap: chains vs. independents',
-                problem: 'Chains can afford 8-figure PMS systems. Independents can&apos;t. The six tools an independent property actually needs to compete in 2026.',
-                readingTime: '9 min',
-              },
-              {
-                num: '06',
-                cat: 'Reviews',
-                catColor: '#10B981',
-                title: 'From 3.8 to 4.7 stars: a six-month turnaround',
-                problem: 'The problem was never the rooms. It was the gap between &ldquo;I need towels&rdquo; and &ldquo;towels arrived.&rdquo; The fix, the timeline, the metric to watch.',
-                readingTime: '5 min',
-              },
+              { num:'01', cat:'Operations',  cc:'#3B82F6', title:'The 12-questions-a-day front desk problem',         body:'Towels. WiFi. Late checkout. Parking. The same six questions, twice each, every shift. Why QR codes close the gap.',                                          t:'5 min' },
+              { num:'02', cat:'Revenue',     cc:TEAL,      title:'Cruise-day shuttle: the $7,820 line item',          body:'How a 121-room boutique captured $7,820 in four months from cruise-day shuttle bookings — the math, the UI, the cruise calendar.',                        t:'7 min' },
+              { num:'03', cat:'Housekeeping',cc:'#8B5CF6', title:'Why we killed the 4-system housekeeping stack',     body:'Housekeeping in one app. Front desk in another. GM in a third. Guest requests in a fourth. The day the team stopped using three of them.',                 t:'6 min' },
+              { num:'04', cat:'Owner',       cc:'#F59E0B', title:'The "AI will transform hospitality" trap',          body:'Three pitches, three contracts, three dashboards no one opened. What the sales deck doesn\'t show you.',                                                  t:'8 min' },
+              { num:'05', cat:'Industry',    cc:'#6B7280', title:'The ops stack gap: chains vs. independents',        body:'Chains can afford 8-figure PMS systems. Independents can\'t. The six tools an independent property actually needs to compete.',                            t:'9 min' },
+              { num:'06', cat:'Reviews',     cc:'#10B981', title:'From 3.8 to 4.7 stars: a six-month turnaround',    body:'The problem was never the rooms. It was the gap between "I need towels" and "towels arrived." The fix, the timeline, the metric to watch.',              t:'5 min' },
             ].map((topic, i) => (
-              <a
-                key={i}
-                href="#"
-                className="group bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg transition-all flex flex-col relative overflow-hidden"
-              >
-                {/* Big number watermark */}
-                <div className="absolute top-3 right-4 text-[64px] font-black text-gray-100 leading-none pointer-events-none select-none">
-                  {topic.num}
+              <div key={i} className="group bg-white border border-gray-200 rounded-2xl p-6 flex flex-col relative overflow-hidden au-card-hover cursor-pointer hover:border-gray-300 hover:shadow-xl transition-all"
+                onClick={() => scrollTo(enrollRef)}>
+                <div className="absolute top-4 right-5 text-[52px] font-black text-gray-100 leading-none pointer-events-none select-none">{topic.num}</div>
+                <div className="flex items-center justify-between mb-4 relative">
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase text-white" style={{ background: topic.cc }}>{topic.cat}</span>
+                  <span className="text-[10px] text-gray-400 font-semibold">{topic.t}</span>
                 </div>
-                {/* Category */}
-                <div className="flex items-center justify-between mb-3 relative">
-                  <span
-                    className="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase text-white"
-                    style={{ backgroundColor: topic.catColor }}
-                  >
-                    {topic.cat}
+                <h3 className="text-[17px] font-black text-gray-900 mb-2 leading-tight relative">{topic.title}</h3>
+                <p className="text-[13px] text-gray-500 leading-relaxed flex-1 relative mb-4">{topic.body}</p>
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest">By Alejandro Soria</span>
+                  <span className="text-[11px] font-bold flex items-center gap-1 opacity-60" style={{ color: TEAL }}>
+                    Coming soon
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                   </span>
-                  <span className="text-[10px] text-gray-400 font-semibold">{topic.readingTime}</span>
                 </div>
-                {/* Title */}
-                <h4 className="text-[18px] font-black text-gray-900 mb-2 leading-tight group-hover:text-gray-700 relative">
-                  {topic.title}
-                </h4>
-                {/* Problem statement */}
-                <p className="text-[13px] text-gray-600 leading-relaxed mb-5 flex-1 relative" dangerouslySetInnerHTML={{ __html: topic.problem }} />
-                {/* CTA row */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100 relative">
-                  <div className="text-[10px] text-gray-500 font-semibold uppercase tracking-widest">
-                    By Alejandro Soria
-                  </div>
-                  <div className="text-[11px] font-bold flex items-center gap-1" style={{ color: TEAL }}>
-                    Read the breakdown
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-                    </svg>
-                  </div>
-                </div>
-              </a>
+              </div>
             ))}
           </div>
-
-          {/* Bottom honest CTA */}
-          <div className="mt-10 bg-gray-50 border border-gray-200 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <div className="text-[10px] uppercase tracking-widest font-bold mb-1" style={{ color: TEAL }}>OPERATORS IN THE FIELD</div>
-              <div className="text-[15px] font-black text-gray-900">Got a story from your property?</div>
-              <div className="text-[13px] text-gray-600 mt-1">
-                If you&apos;re running Attenda and have something worth saying — a number, a near-miss, a fix — we&apos;ll publish it under your name, with your property, with your numbers. Real attribution, not a quote mill.
-              </div>
-            </div>
-            <a
-              href="mailto:field@attendaapp.com"
-              className="shrink-0 inline-flex items-center gap-2 px-5 py-3 text-[13px] font-black text-black rounded-lg transition-all shadow-sm hover:shadow-md"
-              style={{ backgroundColor: '#15b79e' }}
-            >
-              Pitch your story
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-              </svg>
-            </a>
-          </div>
         </div>
       </section>
 
-      {/* ABOUT THE FOUNDER — Alejandro Soria */}
-      <section id="founder" className="py-16 md:py-24 px-5 bg-gradient-to-br from-gray-50 to-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
-              Built by a 15-Year Operator
-            </h2>
-            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
-              The founder.
-            </h3>
-            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              Fifteen years in hospitality. Three PMS migrations. Two CRMs that died on the vine. One in-house tool that actually stuck.
-            </p>
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-0">
-              {/* Left: Photo placeholder */}
-              <div className="md:col-span-2 bg-gradient-to-br from-gray-100 to-gray-50 p-8 md:p-10 flex flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r border-gray-200">
-                <div
-                  className="w-40 h-40 md:w-48 md:h-48 rounded-full flex items-center justify-center text-white text-[56px] font-black mb-4 shadow-lg"
-                  style={{ backgroundColor: TEAL }}
-                >
-                  AS
-                </div>
-                <div className="text-[20px] font-black text-gray-900">Alejandro Soria</div>
-                <div className="text-[14px] text-gray-500 font-semibold mt-1">Founder · Attenda</div>
-                <div className="mt-4 flex items-center gap-2">
-                  <a
-                    href="#"
-                    className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:border-gray-300 transition-colors"
-                    aria-label="LinkedIn"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#0A66C2">
-                      <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
-                    </svg>
-                  </a>
-                  <a
-                    href="mailto:alejandro@attendaapp.com"
-                    className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:border-gray-300 transition-colors"
-                    aria-label="Email"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
-                    </svg>
+      {/* ── FOUNDER ──────────────────────────────────────────── */}
+      <section className="py-24 px-5 bg-gray-50">
+        <div className="max-w-5xl mx-auto">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden au-card-hover">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
+              <div className="bg-gray-50 p-10 flex flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r border-gray-200">
+                <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-[28px] font-black mb-4 shadow-lg" style={{ background: TEAL }}>AS</div>
+                <div className="text-[19px] font-black text-gray-900">Alejandro Soria</div>
+                <div className="text-[13px] text-gray-500 font-semibold mt-1">Founder · Attenda</div>
+                <div className="mt-4 flex gap-2">
+                  <a href="mailto:alejandro@attendaapp.com" className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:border-gray-300 transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                   </a>
                 </div>
               </div>
-
-              {/* Right: Bio + quote */}
-              <div className="md:col-span-3 p-8 md:p-10">
-                <div className="text-[12px] uppercase tracking-widest text-gray-500 font-bold mb-2">The short version</div>
-                <p className="text-[16px] text-gray-700 leading-relaxed mb-5">
-                  Alejandro Soria has spent fifteen years inside hospitality — front desk, GM, owner-operator of independent properties in Texas and Florida. He&apos;s been the guy who picked the PMS, who trained the housekeeping staff, who took the 2am call when the boiler went out, and who wrote the &ldquo;do not lose this guest&rdquo; note in the margin of the shift log.
-                </p>
-                <p className="text-[16px] text-gray-700 leading-relaxed mb-5">
-                  He&apos;s bought three PMS systems, integrated two CRMs, beta-tested four &ldquo;AI will transform hospitality&rdquo; platforms, and personally watched every one of them fail at the same point: the gap between the demo and the front desk. Attenda is what he built to close that gap — not a pitch deck, not a roadmap, an operations layer he runs on his own properties every day.
-                </p>
-                <p className="text-[16px] text-gray-700 leading-relaxed mb-6">
-                  He doesn&apos;t do pilots, betas, or &ldquo;early access.&rdquo; Attenda is the tool he wished had existed in year one of his hospitality career — and the one he uses in year fifteen.
-                </p>
-
-                {/* Pull quote */}
-                <blockquote className="border-l-4 pl-4 py-2 mb-6" style={{ borderColor: TEAL }}>
-                  <p className="text-[17px] font-bold text-gray-900 italic leading-snug">
-                    &ldquo;I&apos;ve sat through every demo. I&apos;ve signed the contracts. I&apos;ve been the GM on the call when the software didn&apos;t do what the sales rep said. Attenda exists because I got tired of paying for tools that don&apos;t work in the real world.&rdquo;
-                  </p>
-                  <div className="text-[12px] text-gray-500 mt-2 font-semibold">— Alejandro Soria, on why he stopped buying and started building</div>
+              <div className="md:col-span-2 p-8 md:p-10">
+                <p className="text-[11px] uppercase tracking-[0.18em] font-bold mb-4" style={{ color: TEAL }}>Built by a 15-year operator</p>
+                <p className="text-[16px] text-gray-600 leading-relaxed mb-4">Alejandro Soria has spent fifteen years inside hospitality — front desk, GM, owner-operator of independent properties in Texas and Florida. He&apos;s bought three PMS systems, integrated two CRMs, and beta-tested four &ldquo;AI will transform hospitality&rdquo; platforms. Watched every one fail at the same point: the gap between the demo and the front desk.</p>
+                <blockquote className="border-l-4 pl-4 py-1 mb-6" style={{ borderColor: TEAL }}>
+                  <p className="text-[16px] font-bold text-gray-900 italic leading-snug">&ldquo;Attenda is the tool I wished had existed in year one of my hospitality career — and the one I use in year fifteen.&rdquo;</p>
                 </blockquote>
-
-                {/* Credibility signals */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-2">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">In hospitality</div>
-                    <div className="text-[13px] font-black text-gray-900">15+ years</div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">Front desk → GM → owner</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Properties run</div>
-                    <div className="text-[13px] font-black text-gray-900">Independent · TX & FL</div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">Boutique, 60–150 keys</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Software burned through</div>
-                    <div className="text-[13px] font-black text-gray-900">3 PMS · 2 CRM · 4 AI</div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">None survived contact with guests</div>
-                  </div>
-                </div>
-
-                {/* CTA */}
-                <div className="mt-6 flex items-center gap-3">
-                  <a
-                    href="mailto:alejandro@attendaapp.com"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-[13px] font-black text-black rounded-lg transition-all shadow-sm hover:shadow-md"
-                    style={{ backgroundColor: '#15b79e' }}
-                  >
-                    Email Alejandro directly
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-                    </svg>
-                  </a>
-                  <a
-                    href="#"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-[13px] font-bold text-gray-700 rounded-lg border border-gray-200 hover:border-gray-300"
-                  >
-                    Read the longer story
-                  </a>
+                <div className="grid grid-cols-3 gap-3">
+                  {[['15+ years','In hospitality'],['TX & FL','Properties run'],['3 PMS · 4 AI','Tools burned through']].map(([v,l],i)=>(
+                    <div key={i} className="bg-gray-50 rounded-xl p-3">
+                      <div className="text-[14px] font-black text-gray-900">{v}</div>
+                      <div className="text-[10px] text-gray-500 mt-0.5">{l}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1250,65 +702,69 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* FOOTER — inn-flow 4-col pattern */}
-      <footer className="py-16 px-5 border-t border-gray-200 bg-gray-50">
+      {/* ── FINAL CTA — dark ─────────────────────────────────── */}
+      <section className="relative py-24 px-5 au-dark-section au-noise overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle 600px at 50% 50%, rgba(13,148,136,0.12) 0%, transparent 70%)' }} />
+        <div className="relative z-10 max-w-3xl mx-auto text-center">
+          <h2 className="text-[36px] md:text-[56px] font-black text-white leading-tight mb-4">
+            See the Attenda system<br />
+            <span className="au-grad-text">on your property.</span>
+          </h2>
+          <p className="text-[17px] text-white/45 mb-8 max-w-lg mx-auto">15 minutes. Every role. Your rooms. No slide deck, no commitment.</p>
+          <button onClick={() => scrollTo(enrollRef)}
+            className="inline-flex items-center gap-2.5 px-9 py-4 rounded-xl font-bold text-[16px] text-white shadow-xl hover:opacity-90 active:scale-[0.98] transition-all"
+            style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #0b8078 100%)` }}>
+            Schedule a Demo
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </section>
+
+      {/* ── FOOTER ───────────────────────────────────────────── */}
+      <footer className="py-16 px-5 border-t border-gray-900/50" style={{ background: '#080F0D' }}>
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: TEAL }}>
+                  <span className="text-white font-black text-[13px]">A</span>
+                </div>
+                <span className="font-bold text-white text-[16px]">attenda</span>
+              </div>
+              <p className="text-[13px] leading-relaxed" style={{ color: '#4B7A74' }}>The operations platform for independent hotels.</p>
+            </div>
             <div>
-              <h4 className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-4">Software</h4>
-              <ul className="space-y-2.5 text-[14px] text-gray-700">
-                <li><a href="#modules" className="hover:text-gray-900">Guest Requests</a></li>
-                <li><a href="#modules" className="hover:text-gray-900">Staff Task Log</a></li>
-                <li><a href="#modules" className="hover:text-gray-900">Vendor Portal</a></li>
-                <li><a href="#modules" className="hover:text-gray-900">GM Dashboard</a></li>
-                <li><a href="#modules" className="hover:text-gray-900">Knowledge Base</a></li>
-                <li><a href="#modules" className="hover:text-gray-900">Shuttle & Transport</a></li>
+              <h4 className="text-[11px] font-bold tracking-widest uppercase mb-4" style={{ color: '#4B7A74' }}>Software</h4>
+              <ul className="space-y-2.5">
+                {['Guest Requests','Staff Dashboard','Vendor Portal','GM Dashboard','Shuttle & Transport'].map((item,i)=>(
+                  <li key={i}><a href="#modules" className="text-[13px] hover:text-white transition-colors" style={{ color: '#6B9E97' }}>{item}</a></li>
+                ))}
               </ul>
             </div>
             <div>
-              <h4 className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-4">Company</h4>
-              <ul className="space-y-2.5 text-[14px] text-gray-700">
-                <li><a href="#case-study" className="hover:text-gray-900">Case Study</a></li>
-                <li><a href="#modules" className="hover:text-gray-900">Platform</a></li>
-                <li><a href="/staff" className="hover:text-gray-900">Staff Login</a></li>
-                <li><a href="mailto:thrilznetwork@gmail.com" className="hover:text-gray-900">Contact</a></li>
+              <h4 className="text-[11px] font-bold tracking-widest uppercase mb-4" style={{ color: '#4B7A74' }}>Company</h4>
+              <ul className="space-y-2.5">
+                {[['#case-study','Case Study'],['/staff','Staff Login'],['/partner','Partner Login'],['mailto:thrilznetwork@gmail.com','Contact'],['/privacy','Privacy'],['/terms','Terms']].map(([h,l],i)=>(
+                  <li key={i}><a href={h} className="text-[13px] hover:text-white transition-colors" style={{ color: '#6B9E97' }}>{l}</a></li>
+                ))}
               </ul>
             </div>
             <div>
-              <h4 className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-4">Resources</h4>
-              <ul className="space-y-2.5 text-[14px] text-gray-700">
-                <li><a href="#demo" className="hover:text-gray-900">Schedule a Demo</a></li>
-                <li><a href="#modules" className="hover:text-gray-900">Feature Tour</a></li>
-                <li><a href="#case-study" className="hover:text-gray-900">Customer Stories</a></li>
-                <li><a href="/privacy" className="hover:text-gray-900">Privacy</a></li>
-                <li><a href="/terms" className="hover:text-gray-900">Terms</a></li>
+              <h4 className="text-[11px] font-bold tracking-widest uppercase mb-4" style={{ color: '#4B7A74' }}>Contact</h4>
+              <ul className="space-y-2.5">
+                <li className="text-[13px]" style={{ color: '#6B9E97' }}>thrilznetwork@gmail.com</li>
+                <li className="text-[13px]" style={{ color: '#6B9E97' }}>Miami, FL</li>
               </ul>
-            </div>
-            <div>
-              <h4 className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-4">Contact</h4>
-              <ul className="space-y-2.5 text-[14px] text-gray-700">
-                <li>thrilznetwork@gmail.com</li>
-                <li>Miami, FL</li>
-                <li className="pt-2">
-                  <button onClick={() => scrollTo(enrollRef)}
-                    className="px-4 py-2 rounded-lg text-white text-[12px] font-bold"
-                    style={{ backgroundColor: TEAL }}>
-                    Get a Demo
-                  </button>
-                </li>
-              </ul>
+              <button onClick={() => scrollTo(enrollRef)}
+                className="mt-4 px-4 py-2 rounded-lg text-white text-[12px] font-bold transition-opacity hover:opacity-80"
+                style={{ background: TEAL }}>
+                Get a Demo
+              </button>
             </div>
           </div>
-          <div className="pt-8 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: TEAL }}>
-                <span className="text-white font-black text-[12px]">A</span>
-              </div>
-              <span className="text-[13px] text-gray-600">attenda — the operations platform for independent hotels</span>
-            </div>
-            <div className="text-[12px] text-gray-500">
-              © 2026 Attenda. All rights reserved.
-            </div>
+          <div className="pt-8 border-t flex flex-col md:flex-row items-center justify-between gap-4" style={{ borderColor: '#0D1F1C' }}>
+            <div className="text-[12px]" style={{ color: '#4B7A74' }}>© 2026 Attenda. All rights reserved.</div>
+            <a href="/superadmin" className="text-[10px] transition-colors hover:opacity-60" style={{ color: '#2D5550' }}>Platform Admin</a>
           </div>
         </div>
       </footer>
@@ -1316,726 +772,269 @@ function AttendaLandingPage() {
   );
 }
 
-/* ── Flow example (Room 204 pillows) ──────────────────────────── */
-
-function FlowExample() {
+/* ── HeroDevices — three floating device mockups ─────────────── */
+function HeroDevices() {
   return (
-    <div className="space-y-4">
-      <div className="bg-gray-900 text-white rounded-t-2xl px-5 py-3 flex items-center justify-between">
-        <div>
-          <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Live thread</div>
-          <div className="text-[14px] font-bold">Room 204 · Extra pillows · 9:42 PM</div>
+    <div className="relative w-full flex items-end justify-center gap-4 md:gap-6 pb-0" style={{ height: '340px' }}>
+      {/* Left — phone (guest app) */}
+      <div className="au-float shrink-0 relative" style={{ zIndex: 1 }}>
+        <div className="w-[130px] md:w-[155px] rounded-[24px] border-[7px] border-gray-800 bg-gray-900 overflow-hidden shadow-2xl" style={{ height: '280px' }}>
+          <div className="h-full rounded-[18px] overflow-hidden bg-[#F5F5F5] flex flex-col">
+            <div className="bg-white px-3 py-2 flex items-center gap-1.5 border-b border-gray-100">
+              <div className="w-4 h-4 rounded-full border border-gray-200 flex items-center justify-center"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></div>
+              <div className="flex-1"><div className="text-[9px] font-bold text-black">Front Desk</div><div className="text-[7px] text-green-500">● Online</div></div>
+            </div>
+            <div className="flex-1 px-2 py-2 space-y-1.5 overflow-hidden">
+              <div className="flex justify-start"><div className="bg-white border border-gray-100 rounded-xl rounded-bl-sm px-2.5 py-1.5 text-[8px] text-gray-700 shadow-sm max-w-[85%]">Hello! How can I help you today?</div></div>
+              <div className="flex justify-end"><div className="rounded-xl rounded-br-sm px-2.5 py-1.5 text-[8px] text-white max-w-[70%]" style={{ background: '#0D9488' }}>Extra towels please</div></div>
+              <div className="flex justify-start"><div className="bg-white border border-gray-100 rounded-xl rounded-bl-sm px-2.5 py-2 shadow-sm max-w-[90%]">
+                <p className="text-[8px] text-gray-700 mb-1.5">I&apos;ll send that to housekeeping. Confirm?</p>
+                <div className="flex gap-1"><div className="flex-1 py-1 rounded-md text-white text-[7px] font-bold text-center" style={{ background: '#0D9488' }}>Yes</div><div className="flex-1 py-1 rounded-md bg-gray-100 text-gray-600 text-[7px] font-bold text-center">No</div></div>
+              </div></div>
+              <div className="flex justify-start"><div className="bg-green-50 border border-green-200 rounded-xl rounded-bl-sm px-2.5 py-1.5 text-[8px] shadow-sm"><span className="font-bold text-green-700">✓ Sent</span><span className="text-gray-500"> · ETA 7m</span></div></div>
+            </div>
+            <div className="border-t border-gray-100 px-2 py-1.5 flex items-center gap-1.5 bg-white">
+              <div className="flex-1 h-6 rounded-full bg-gray-50 border border-gray-200 text-[8px] text-gray-400 px-2 flex items-center">Message...</div>
+              <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: '#0D9488' }}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+            </div>
+          </div>
         </div>
-        <div className="text-[10px] px-2 py-1 rounded-full bg-green-500/20 text-green-300 font-bold">RESOLVED 9:51 PM</div>
+        <div className="mt-2 text-center text-[9px] font-bold tracking-widest uppercase text-white/40">Guest</div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-gray-100 p-3 rounded-b-2xl">
-        <div className="bg-white rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[12px]" style={{ backgroundColor: TEAL }}>G</div>
-            <div>
-              <div className="text-[10px] font-bold text-gray-500 uppercase">Guest</div>
-              <div className="text-[12px] font-bold text-gray-900">Room 204</div>
+      {/* Center — tablet (staff dashboard, raised) */}
+      <div className="au-float2 shrink-0 relative -mb-4" style={{ zIndex: 2 }}>
+        <div className="w-[220px] md:w-[270px] rounded-[18px] border-[7px] border-gray-800 bg-gray-900 overflow-hidden shadow-2xl" style={{ height: '310px' }}>
+          <div className="h-full rounded-[12px] overflow-hidden bg-white flex flex-col">
+            <div className="bg-[#0D9488] px-3 py-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-1.5"><div className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-white text-[8px] font-black">A</div><span className="text-white text-[10px] font-bold">Staff Dashboard</span></div>
+              <span className="text-white/60 text-[8px]">Maria · HK</span>
             </div>
-          </div>
-          <div className="space-y-1.5 text-[12px] text-gray-700">
-            <div className="bg-gray-50 rounded-lg p-2">📱 Taps &ldquo;Need extras&rdquo;</div>
-            <div className="bg-gray-50 rounded-lg p-2">💬 &ldquo;Extra pillows please&rdquo;</div>
-            <div className="rounded-lg p-2 text-white" style={{ backgroundColor: TEAL }}>✓ Delivered in 10 min</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-[12px]">S</div>
-            <div>
-              <div className="text-[10px] font-bold text-gray-500 uppercase">Staff</div>
-              <div className="text-[12px] font-bold text-gray-900">Maria · Housekeeping</div>
-            </div>
-          </div>
-          <div className="space-y-1.5 text-[12px] text-gray-700">
-            <div className="bg-gray-50 rounded-lg p-2">🔔 Phone buzzes: Room 204 pillows</div>
-            <div className="bg-gray-50 rounded-lg p-2">✅ Taps Accept</div>
-            <div className="bg-gray-50 rounded-lg p-2">🚪 Walks to room, delivers</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-[12px]">V</div>
-            <div>
-              <div className="text-[10px] font-bold text-gray-500 uppercase">Vendor</div>
-              <div className="text-[12px] font-bold text-gray-900">Linen Co.</div>
-            </div>
-          </div>
-          <div className="space-y-1.5 text-[12px] text-gray-700">
-            <div className="bg-gray-50 rounded-lg p-2">📦 Auto-restock alert: Room 204</div>
-            <div className="bg-gray-50 rounded-lg p-2">✅ Confirms next-day delivery</div>
-            <div className="bg-gray-50 rounded-lg p-2">💰 Invoice auto-generated</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Header product mockup (CSS-rendered GM dashboard, hero right side) ── */
-
-/* ── Pixel-accurate mockups of the actual product — used in the "See it in action" section ── */
-
-const TEAL_MOCKUP = '#0D9488';
-
-function PhoneMockup() {
-  return (
-    <div className="relative w-full max-w-[280px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.18))' }}>
-      <div className="relative rounded-[40px] border-[10px] border-gray-900 bg-gray-900 overflow-hidden aspect-[9/19] shadow-2xl">
-        <div className="relative h-full w-full rounded-[32px] overflow-hidden bg-[#F4F4F5]">
-          {/* Notch */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80px] h-[20px] bg-gray-900 rounded-b-2xl z-10" />
-          {/* Status bar */}
-          <div className="relative z-0 bg-white px-5 pt-3 pb-1 flex items-center justify-between text-[10px] font-semibold text-gray-900">
-            <span>9:41</span>
-            <div className="flex items-center gap-1">
-              <div className="flex gap-[2px] items-end">
-                <div className="w-[2px] h-[5px] bg-gray-900 rounded-sm" />
-                <div className="w-[2px] h-[7px] bg-gray-900 rounded-sm" />
-                <div className="w-[2px] h-[9px] bg-gray-900 rounded-sm" />
-                <div className="w-[2px] h-[11px] bg-gray-900 rounded-sm" />
+            <div className="p-3 flex-1 overflow-hidden">
+              <div className="grid grid-cols-3 gap-1.5 mb-3">
+                {[['2','Pending'],['1','Active'],['14','Done']].map(([v,l],i)=>(
+                  <div key={i} className="bg-gray-50 rounded-lg p-1.5 text-center"><div className="text-[15px] font-black text-gray-900">{v}</div><div className="text-[7px] text-gray-500 font-bold uppercase">{l}</div></div>
+                ))}
               </div>
-              <div className="w-5 h-2.5 border border-gray-900 rounded-[2px] ml-1 relative">
-                <div className="absolute inset-[1px] bg-gray-900 rounded-[1px]" style={{ width: '85%' }} />
-              </div>
-            </div>
-          </div>
-          {/* Header — /message page header */}
-          <div className="bg-white px-4 py-2.5 flex items-center gap-2.5 border-b border-gray-100">
-            <div className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4B5563" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-              </svg>
-            </div>
-            <div className="flex-1">
-              <div className="text-[12px] font-bold text-black leading-none">Front Desk</div>
-              <div className="text-[9px] text-green-500 font-medium mt-0.5">● Online now</div>
-            </div>
-          </div>
-          {/* Chat area */}
-          <div className="px-3 py-3 space-y-2">
-            <div className="flex justify-start">
-              <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-white border border-gray-100 px-3 py-2 text-[10px] text-gray-800 leading-relaxed shadow-sm">
-                Hello! How can I assist you today? I can help with room service, transport, nearby attractions, and more.
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <div className="max-w-[75%] rounded-2xl rounded-br-md px-3 py-2 text-[10px] text-white leading-relaxed" style={{ backgroundColor: TEAL_MOCKUP }}>
-                Request Towels
-              </div>
-            </div>
-            <div className="flex justify-start">
-              <div className="max-w-[90%] rounded-2xl rounded-bl-md bg-white border border-gray-100 px-3 py-2.5 shadow-sm">
-                <p className="text-[10px] text-gray-800 leading-relaxed mb-2">
-                  I can send a towel request to housekeeping for you. Would you like me to do that?
-                </p>
-                <div className="flex gap-1.5">
-                  <div className="flex-1 py-1.5 rounded-lg text-white text-[9px] font-bold text-center" style={{ backgroundColor: TEAL_MOCKUP }}>
-                    Yes, send request
-                  </div>
-                  <div className="flex-1 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-[9px] font-bold text-center">
-                    No thanks
-                  </div>
+              <div className="border border-gray-200 rounded-xl p-2.5 mb-2">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[9px] font-bold text-gray-900">🧹 Housekeeping</span>
+                  <span className="text-[7px] text-gray-500">3/5</span>
                 </div>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <div className="max-w-[75%] rounded-2xl rounded-br-md px-3 py-2 text-[10px] text-white leading-relaxed" style={{ backgroundColor: TEAL_MOCKUP }}>
-                Yes, please send towel service
-              </div>
-            </div>
-            <div className="flex justify-start">
-              <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-white border border-green-200 px-3 py-2 text-[10px] text-gray-800 leading-relaxed shadow-sm">
-                <div className="flex items-center gap-1 mb-1">
-                  <div className="w-3.5 h-3.5 rounded-full bg-green-500 flex items-center justify-center text-white text-[7px] font-bold">✓</div>
-                  <span className="text-[9px] font-bold text-green-700">Request sent</span>
-                </div>
-                Our team will take care of this. Track it in the Live Orders dashboard.
-              </div>
-            </div>
-          </div>
-          {/* Quick replies */}
-          <div className="px-3 pb-2 flex gap-1.5 overflow-hidden">
-            {['WiFi', 'Pool', 'Checkout', 'Wake-Up'].map((label, i) => (
-              <div key={i} className="shrink-0 px-2.5 py-1 rounded-full bg-white border border-gray-200 text-[8px] text-gray-600 font-medium">
-                {label}
-              </div>
-            ))}
-          </div>
-          {/* Input bar */}
-          <div className="bg-white border-t border-gray-100 px-3 py-2.5 flex items-center gap-1.5">
-            <div className="flex-1 bg-gray-50 rounded-full px-3 py-2 text-[10px] text-gray-400 border border-gray-200">
-              Type a message...
-            </div>
-            <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: TEAL_MOCKUP }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="text-center mt-4">
-        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">1. Guest submits</div>
-        <div className="text-sm font-black text-gray-900 mt-1">From the room, in 4 taps</div>
-        <div className="text-[10px] text-gray-500 mt-0.5">No app to download</div>
-      </div>
-    </div>
-  );
-}
-
-function TabletMockup() {
-  const requests = [
-    { room: '204', type: 'Towels', icon: '🛏️', time: '2m', status: 'pending', assignee: null, urgent: true },
-    { room: '318', type: 'Pillows', icon: '☕', time: '5m', status: 'in-progress', assignee: 'Maria', urgent: false },
-    { room: '412', type: 'Maintenance · A/C', icon: '🔧', time: '8m', status: 'in-progress', assignee: 'Carlos', urgent: false },
-    { room: '205', type: 'Housekeeping', icon: '🧹', time: '3m', status: 'pending', assignee: null, urgent: false },
-  ];
-  return (
-    <div className="relative w-full max-w-[420px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.15))' }}>
-      <div className="rounded-2xl overflow-hidden bg-white shadow-2xl border-[8px] border-gray-900">
-        {/* Browser chrome */}
-        <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-            <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-            <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-          </div>
-          <div className="flex-1 h-6 bg-white rounded-md border border-gray-200 flex items-center px-2 text-[9px] text-gray-500 font-semibold">
-            attenda.app/staff · Best Western Miami Airport
-          </div>
-        </div>
-        {/* Top bar — staff header with PIN badge */}
-        <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-black" style={{ backgroundColor: TEAL_MOCKUP }}>
-              A
-            </div>
-            <div>
-              <div className="text-[11px] font-bold text-gray-900 leading-none">Attenda Staff</div>
-              <div className="text-[8px] text-gray-500 mt-0.5">Maria · Housekeeping</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="px-2 py-1 rounded-md bg-gray-100 text-[8px] font-bold text-gray-700">PIN: 2025</div>
-            <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center text-[8px] font-black text-red-700">2</div>
-          </div>
-        </div>
-        {/* Status tabs */}
-        <div className="bg-white border-b border-gray-200 px-4 flex gap-3">
-          <div className="py-2 text-[10px] font-bold border-b-2" style={{ color: TEAL_MOCKUP, borderColor: TEAL_MOCKUP }}>
-            Active <span className="ml-1 px-1.5 rounded-full text-[8px]" style={{ backgroundColor: TEAL_MOCKUP, color: 'white' }}>3</span>
-          </div>
-          <div className="py-2 text-[10px] font-bold text-gray-400">Completed</div>
-          <div className="py-2 text-[10px] font-bold text-gray-400">Messages <span className="ml-1 px-1.5 rounded-full bg-gray-200 text-gray-600 text-[8px]">1</span></div>
-        </div>
-        {/* Request cards */}
-        <div className="bg-gray-50 p-3 space-y-2">
-          {requests.map((req, i) => (
-            <div key={i} className={`bg-white rounded-lg border ${req.urgent ? 'border-l-4' : 'border-gray-200'} p-2.5 shadow-sm`}
-                 style={req.urgent ? { borderLeftColor: TEAL_MOCKUP } : {}}>
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <div className="text-base">{req.icon}</div>
-                  <div>
-                    <div className="text-[10px] font-bold text-gray-900">Room {req.room} · {req.type}</div>
-                    <div className="text-[8px] text-gray-500">Submitted {req.time} ago</div>
-                  </div>
-                </div>
-                <div className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
-                  req.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                }`}>
-                  {req.status === 'pending' ? 'Pending' : 'In progress'}
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                <div className="text-[8px] text-gray-600">
-                  {req.assignee ? `Assigned: ${req.assignee}` : 'Unassigned'}
-                </div>
-                <div className="flex gap-1">
-                  {req.status === 'pending' ? (
-                    <>
-                      <div className="px-2 py-1 rounded text-[8px] font-bold text-gray-600 bg-gray-100">Assign</div>
-                      <div className="px-2 py-1 rounded text-[8px] font-bold text-white" style={{ backgroundColor: TEAL_MOCKUP }}>Accept</div>
-                    </>
-                  ) : (
-                    <div className="px-2 py-1 rounded text-[8px] font-bold text-white bg-green-600">Mark done ✓</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="text-center mt-4">
-        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">2. Staff executes</div>
-        <div className="text-sm font-black text-gray-900 mt-1">PIN-in, accept, done</div>
-        <div className="text-[10px] text-gray-500 mt-0.5">Average resolution: 7m 14s</div>
-      </div>
-    </div>
-  );
-}
-
-function DesktopMockup() {
-  const navItems = [
-    { label: 'Dashboard', active: false, icon: '📊' },
-    { label: 'Orders', active: true, icon: '📋', count: 3 },
-    { label: 'Staff', active: false, icon: '👥' },
-    { label: 'Vendors', active: false, icon: '🚚' },
-    { label: 'Knowledge', active: false, icon: '📚' },
-  ];
-  const compactRequests = [
-    { room: '204', type: 'Towels', time: '2m', status: 'pending' },
-    { room: '318', type: 'Pillows', time: '5m', status: 'progress' },
-    { room: '412', type: 'A/C fix', time: '8m', status: 'progress' },
-  ];
-  return (
-    <div className="relative w-full max-w-[480px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.18))' }}>
-      <div className="rounded-2xl overflow-hidden bg-white shadow-2xl border-[8px] border-gray-900">
-        {/* Browser chrome */}
-        <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-            <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-            <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-          </div>
-          <div className="flex-1 h-6 bg-white rounded-md border border-gray-200 flex items-center px-2 text-[9px] text-gray-500 font-semibold">
-            gm.attenda.app · Best Western Miami Airport
-          </div>
-        </div>
-        {/* Two-col layout */}
-        <div className="flex">
-          {/* Sidebar */}
-          <div className="w-[100px] bg-gray-50 border-r border-gray-200 p-2.5 shrink-0">
-            <div className="text-[9px] font-black text-gray-900 mb-2 tracking-wide">ATTENDA GM</div>
-            <div className="space-y-1">
-              {navItems.map((item, i) => (
-                <div key={i} className={`px-2 py-1.5 rounded text-[9px] font-bold flex items-center justify-between ${
-                  item.active ? 'text-white' : 'text-gray-700'
-                }`} style={item.active ? { backgroundColor: TEAL_MOCKUP } : {}}>
-                  <div className="flex items-center gap-1">
-                    <span className="text-[9px]">{item.icon}</span>
-                    <span>{item.label}</span>
-                  </div>
-                  {item.count && <span className="text-[8px] bg-white/30 px-1 rounded">{item.count}</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-          {/* Main */}
-          <div className="flex-1 p-3 bg-white">
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="text-[12px] font-black text-gray-900">Live Orders</div>
-              <div className="text-[8px] text-gray-500">Updated 2s ago</div>
-            </div>
-            <div className="grid grid-cols-3 gap-1.5 mb-2.5">
-              <div className="bg-gray-50 rounded p-1.5">
-                <div className="text-[7px] text-gray-500 uppercase font-bold">Open</div>
-                <div className="text-[12px] font-black text-gray-900">3</div>
-              </div>
-              <div className="bg-gray-50 rounded p-1.5">
-                <div className="text-[7px] text-gray-500 uppercase font-bold">In progress</div>
-                <div className="text-[12px] font-black text-gray-900">5</div>
-              </div>
-              <div className="bg-gray-50 rounded p-1.5">
-                <div className="text-[7px] text-gray-500 uppercase font-bold">Avg time</div>
-                <div className="text-[12px] font-black text-gray-900">7m</div>
-              </div>
-            </div>
-            <div className="space-y-1">
-              {compactRequests.map((req, i) => (
-                <div key={i} className="flex items-center justify-between py-1 px-1.5 border-b border-gray-100 last:border-0">
-                  <div className="flex items-center gap-1.5">
-                    <div className="text-[9px] font-bold text-gray-900">#{req.room}</div>
-                    <div className="text-[9px] text-gray-700">{req.type}</div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="text-[8px] text-gray-500">{req.time}</div>
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      req.status === 'pending' ? 'bg-amber-500' : 'bg-blue-500'
-                    }`} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="text-center mt-4">
-        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">3. GM oversees</div>
-        <div className="text-sm font-black text-gray-900 mt-1">One screen, total visibility</div>
-        <div className="text-[10px] text-gray-500 mt-0.5">Every room, every shift, in real time</div>
-      </div>
-    </div>
-  );
-}
-
-function HeaderMockup() {
-  // Real-looking week-at-a-glance GM dashboard, rendered in pure CSS
-  // Inspired by the actual /staff dashboard — kept generic enough to feel real
-  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  const occupancy = [0.85, 0.92, 0.78, 0.95, 0.88, 0.72, 0.45];
-  const rooms = [
-    { num: '201', status: 'occupied' },
-    { num: '202', status: 'occupied' },
-    { num: '203', status: 'clean' },
-    { num: '204', status: 'occupied' },
-    { num: '205', status: 'dirty' },
-    { num: '206', status: 'occupied' },
-    { num: '207', status: 'clean' },
-    { num: '208', status: 'occupied' },
-    { num: '209', status: 'occupied' },
-    { num: '210', status: 'clean' },
-    { num: '211', status: 'dirty' },
-    { num: '212', status: 'occupied' },
-  ];
-  return (
-    <div className="relative w-full">
-      {/* Subtle drop shadow + border */}
-      <div className="rounded-2xl overflow-hidden bg-white shadow-2xl border border-gray-200">
-        {/* Browser chrome */}
-        <div className="bg-gray-100 border-b border-gray-200 px-4 py-3 flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-400" />
-            <div className="w-3 h-3 rounded-full bg-yellow-400" />
-            <div className="w-3 h-3 rounded-full bg-green-400" />
-          </div>
-          <div className="flex-1 mx-3 h-7 bg-white rounded-md border border-gray-200 flex items-center px-3 text-[11px] text-gray-500 font-semibold">
-            attenda.app/staff · Best Western Miami Airport
-          </div>
-        </div>
-        {/* Top stats bar */}
-        <div className="px-5 py-4 bg-white border-b border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-[12px] font-bold text-gray-900 uppercase tracking-wide">This week</div>
-            <div className="text-[10px] font-bold text-gray-500">May 27 – Jun 2</div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <div className="text-[10px] text-gray-500 font-semibold uppercase">Occupancy</div>
-              <div className="text-[18px] font-black text-gray-900" style={{ color: '#0D9488' }}>87%</div>
-            </div>
-            <div>
-              <div className="text-[10px] text-gray-500 font-semibold uppercase">Open jobs</div>
-              <div className="text-[18px] font-black text-gray-900">12</div>
-            </div>
-            <div>
-              <div className="text-[10px] text-gray-500 font-semibold uppercase">In progress</div>
-              <div className="text-[18px] font-black text-gray-900">5</div>
-            </div>
-          </div>
-        </div>
-        {/* Occupancy chart */}
-        <div className="px-5 py-3 bg-white border-b border-gray-100">
-          <div className="grid grid-cols-7 gap-2 h-12">
-            {days.map((d, i) => (
-              <div key={i} className="flex flex-col items-center justify-end">
-                <div
-                  className="w-full rounded-t"
-                  style={{ height: `${occupancy[i] * 100}%`, backgroundColor: '#0D9488', opacity: 0.7 }}
-                />
-                <div className="text-[9px] font-bold text-gray-500 mt-1">{d}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Room grid */}
-        <div className="px-5 py-4 bg-gray-50">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Room status</div>
-          <div className="grid grid-cols-6 gap-2">
-            {rooms.map((r) => {
-              const colors = {
-                occupied: { bg: 'bg-teal-100', text: 'text-teal-800' },
-                clean: { bg: 'bg-green-100', text: 'text-green-800' },
-                dirty: { bg: 'bg-amber-100', text: 'text-amber-800' },
-              }[r.status as 'occupied' | 'clean' | 'dirty'];
-              return (
-                <div key={r.num} className={`${colors.bg} ${colors.text} rounded p-1.5 text-center`}>
-                  <div className="text-[10px] font-black">{r.num}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        {/* Activity feed */}
-        <div className="px-5 py-3 bg-white border-t border-gray-100">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Recent activity</div>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 text-[11px]">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#0D9488' }} />
-              <span className="text-gray-600">Room 204 — Extra pillows</span>
-              <span className="text-gray-400 ml-auto">9:42 AM</span>
-            </div>
-            <div className="flex items-center gap-2 text-[11px]">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              <span className="text-gray-600">Room 207 — Towels</span>
-              <span className="text-gray-400 ml-auto">9:38 AM</span>
-            </div>
-            <div className="flex items-center gap-2 text-[11px]">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
-              <span className="text-gray-600">Vendor: Linen Co restock</span>
-              <span className="text-gray-400 ml-auto">9:15 AM</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── KPI tile dark (Proven Results strip) ────────────────────── */
-
-function KpiTileDark({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="border border-gray-700 rounded-2xl p-6">
-      <div className="text-[44px] md:text-[56px] font-black leading-none mb-3 tracking-tight" style={{ color: TEAL }}>
-        {value}
-      </div>
-      <div className="text-[13px] text-gray-300 uppercase tracking-wider font-semibold">{label}</div>
-    </div>
-  );
-}
-
-/* ── Role-based Mockups ───────────────────────────────────── */
-
-/* PhoneGuestMockup — Phone frame showing a QR code + guest chat */
-function PhoneGuestMockup() {
-  const [qrOrApp, setQrOrApp] = useState(true);
-  useEffect(() => {
-    const t = setInterval(() => setQrOrApp(v => !v), 3000);
-    return () => clearInterval(t);
-  }, []);
-
-  return (
-    <div className="relative mx-auto w-[200px]">
-      {/* Phone frame */}
-      <div className="bg-black rounded-[28px] p-2 shadow-xl">
-        <div className="bg-white rounded-[24px] overflow-hidden">
-          {qrOrApp ? (
-            /* QR code screen */
-            <div className="h-[400px] flex flex-col items-center justify-center p-6 bg-white">
-              <div className="w-32 h-32 mb-4 relative">
-                {/* QR code pattern */}
-                <div className="absolute inset-0 border-4 border-black rounded-sm" />
-                <div className="absolute top-2 left-2 w-8 h-8 border-t-4 border-l-4 border-black" />
-                <div className="absolute top-2 right-2 w-8 h-8 border-t-4 border-r-4 border-black" />
-                <div className="absolute bottom-2 left-2 w-8 h-8 border-b-4 border-l-4 border-black" />
-                <div className="absolute bottom-2 right-2 w-8 h-8 border-b-4 border-r-4 border-black" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-4 h-4 rounded-sm bg-black" />
-                </div>
-                <div className="absolute top-[40%] left-[25%] w-2 h-2 bg-black rounded-sm" />
-                <div className="absolute top-[60%] left-[55%] w-3 h-3 bg-black rounded-sm" />
-                <div className="absolute top-[30%] left-[65%] w-2 h-2 bg-black rounded-sm" />
-                <div className="absolute top-[70%] left-[35%] w-2 h-2 bg-black rounded-sm" />
-              </div>
-              <p className="text-[14px] font-black text-gray-900">Room 204</p>
-              <p className="text-[10px] text-gray-500">Scan to open · No app needed</p>
-            </div>
-          ) : (
-            /* Chat app screen */
-            <div className="h-[400px] flex flex-col">
-              <div className="bg-teal-600 px-4 py-3 flex items-center gap-2">
-                <div className="w-5 h-5 rounded-full bg-white/30 flex items-center justify-center text-white text-[8px] font-bold">A</div>
-                <div className="text-white text-[12px] font-bold flex-1">Attenda</div>
-              </div>
-              <div className="flex-1 bg-gray-50 p-3 space-y-2 overflow-hidden">
-                <div className="flex justify-start">
-                  <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-3 py-2 text-[10px] max-w-[75%] shadow-sm">
-                    Welcome! How can I help?
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <div className="bg-teal-600 rounded-2xl rounded-br-md px-3 py-2 text-[10px] text-white max-w-[70%]">
-                    Request towels please
-                  </div>
-                </div>
-                <div className="flex justify-start">
-                  <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-3 py-2 shadow-sm">
-                    <p className="text-[10px] mb-1">I&apos;ll send a towel request. Confirm?</p>
-                    <div className="flex gap-1">
-                      <div className="flex-1 text-center py-1 rounded bg-teal-600 text-white text-[8px] font-bold">Send</div>
-                      <div className="flex-1 text-center py-1 rounded bg-gray-200 text-gray-700 text-[8px] font-bold">Cancel</div>
+                <div className="h-1 bg-gray-100 rounded-full mb-2"><div className="h-1 rounded-full" style={{ width: '60%', background: '#0D9488' }} /></div>
+                {[['Restock mini bar',true],['Change linens',true],['Vacuum floor',true],['Wipe surfaces',false],['Check amenities',false]].map(([label,done],i)=>(
+                  <div key={i} className="flex items-center gap-1.5 py-0.5">
+                    <div className={`w-3 h-3 rounded flex items-center justify-center border ${done ? 'border-teal-500' : 'border-gray-300'}`} style={done?{background:'#0D9488'}:{}}>
+                      {done && <svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
                     </div>
+                    <span className={`text-[8px] ${done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{label as string}</span>
                   </div>
-                </div>
-                <div className="flex justify-end">
-                  <div className="bg-teal-600 rounded-2xl rounded-br-md px-3 py-2 text-[10px] text-white max-w-[60%]">
-                    Yes, send
-                  </div>
-                </div>
-                <div className="flex justify-start">
-                  <div className="bg-green-50 border border-green-200 rounded-2xl rounded-bl-md px-3 py-2 text-[10px]">
-                    <span className="font-bold text-green-700">✓ Request sent</span>
-                    <span className="text-gray-500"> · ETA 7m</span>
-                  </div>
-                </div>
+                ))}
               </div>
-              <div className="border-t border-gray-200 px-3 py-2 flex items-center gap-2">
-                <div className="flex-1 h-7 rounded-full bg-gray-100 border border-gray-200" />
-                <div className="w-7 h-7 rounded-full bg-teal-600 flex items-center justify-center">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <div className="bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2 flex items-center justify-between">
+                <div><div className="text-[8px] font-bold text-gray-900">Room 204 · Towels</div><div className="text-[7px] text-gray-500">2m ago · Unassigned</div></div>
+                <div className="px-2 py-1 rounded text-[7px] font-bold text-white" style={{ background: '#0D9488' }}>Accept</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-2 text-center text-[9px] font-bold tracking-widest uppercase text-white/40">Staff</div>
+      </div>
+
+      {/* Right — desktop (GM dashboard) */}
+      <div className="au-float3 shrink-0 relative" style={{ zIndex: 1 }}>
+        <div className="w-[200px] md:w-[250px] rounded-[14px] border-[7px] border-gray-800 bg-gray-900 overflow-hidden shadow-2xl" style={{ height: '270px' }}>
+          <div className="h-full rounded-[8px] overflow-hidden bg-white flex flex-col">
+            <div className="bg-gray-50 border-b border-gray-200 px-2 py-1.5 flex items-center gap-1.5">
+              <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-red-400"/><div className="w-2 h-2 rounded-full bg-yellow-400"/><div className="w-2 h-2 rounded-full bg-green-400"/></div>
+              <div className="flex-1 h-4 bg-white rounded border border-gray-200 flex items-center px-1.5 text-[7px] text-gray-500">gm.attenda.app</div>
+            </div>
+            <div className="flex-1 flex">
+              <div className="w-[60px] bg-gray-50 border-r border-gray-200 p-1.5">
+                <div className="text-[6px] font-black text-gray-500 mb-1.5 uppercase tracking-wide">GM</div>
+                {[['📊','Dash',false],['📋','Orders',true],['👥','Staff',false],['🚚','Vendors',false]].map(([ic,lb,act],i)=>(
+                  <div key={i} className={`px-1 py-1 rounded text-[7px] font-bold flex items-center gap-1 mb-0.5 ${act ? 'text-white' : 'text-gray-600'}`} style={act?{background:'#0D9488'}:{}}>
+                    <span>{ic as string}</span><span>{lb as string}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex-1 p-2">
+                <div className="text-[9px] font-black text-gray-900 mb-1.5">Live Orders</div>
+                <div className="grid grid-cols-3 gap-1 mb-2">
+                  {[['Open','3'],['Active','5'],['Avg','7m']].map(([l,v],i)=>(
+                    <div key={i} className="bg-gray-50 rounded p-1 text-center"><div className="text-[10px] font-black text-gray-900">{v}</div><div className="text-[6px] text-gray-500 uppercase font-bold">{l}</div></div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-4 gap-1 mb-2">
+                  {[['$142','RevPAR','#0D9488'],['87%','Occ','#3B82F6'],['7m','Resp','#8B5CF6'],['$16K','Rev','#F59E0B']].map(([v,l,c],i)=>(
+                    <div key={i} className="bg-gray-50 rounded p-1 text-center"><div className="text-[9px] font-black" style={{color:c as string}}>{v}</div><div className="text-[6px] text-gray-500 uppercase">{l}</div></div>
+                  ))}
+                </div>
+                <div className="space-y-1">
+                  {[['Room 204 towels','12s','bg-green-500'],['Shuttle 9:30AM','2m','bg-blue-500'],['Linen Co. accepted','4m','bg-purple-500']].map(([t,tm,c],i)=>(
+                    <div key={i} className="flex items-center gap-1 text-[8px]">
+                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${c}`}/>
+                      <span className="text-gray-600 flex-1 truncate">{t}</span>
+                      <span className="text-gray-400">{tm}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
-      </div>
-      {/* Badge */}
-      <div className="absolute -top-2 -right-2 bg-teal-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full shadow-md">
-        QR → Chat
+        <div className="mt-2 text-center text-[9px] font-bold tracking-widest uppercase text-white/40">GM</div>
       </div>
     </div>
   );
 }
 
-/* StaffDashboardMockup — Browser frame showing staff dashboard with checklists */
-function StaffDashboardMockup() {
+/* ── RoleBento — 2×2 bento grid for 4 roles ─────────────────── */
+function RoleBento() {
+  const [active, setActive] = useState<'guest'|'staff'|'gm'|'partner'>('guest');
+
+  const roles = [
+    {
+      key: 'guest' as const, emoji: '🧳', label: 'Guest', sub: 'in the room',
+      headline: 'It starts with a QR code.', color: TEAL,
+      points: ['No app to download — opens in browser','Name + room pre-filled from QR code','Orders towels, food, or shuttle in seconds','Real-time chat with front desk'],
+      badge: 'Zero apps',
+    },
+    {
+      key: 'staff' as const, emoji: '🛎️', label: 'Staff', sub: 'on shift',
+      headline: 'One dashboard. Every tool.', color: '#3B82F6',
+      points: ['Live stats: pending, active, avg response time','Checklists inline — start from the dashboard','Schedule grid with day-off requests','Accept, assign, mark done — PIN login'],
+      badge: 'PIN login',
+    },
+    {
+      key: 'gm' as const, emoji: '👔', label: 'GM', sub: 'on the dashboard',
+      headline: 'Total visibility. One screen.', color: '#8B5CF6',
+      points: ['RevPAR, occupancy, response times — live','Revenue attribution per channel','Staff & schedule management','Daily brief + property settings'],
+      badge: 'Real-time',
+    },
+    {
+      key: 'partner' as const, emoji: '🚚', label: 'Partner', sub: 'on delivery',
+      headline: 'A portal, not a phone call.', color: '#F59E0B',
+      points: ['See open jobs — linen, shuttle, maintenance','Accept, update, close in one tap','Restaurant orders + menu management','Auto-invoice · no phone tag'],
+      badge: 'Auto-invoice',
+    },
+  ];
+
+  const role = roles.find(r => r.key === active)!;
+
   return (
-    <div className="w-full max-w-[320px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      {/* Browser chrome */}
-      <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-red-400" />
-          <div className="w-2 h-2 rounded-full bg-yellow-400" />
-          <div className="w-2 h-2 rounded-full bg-green-400" />
-        </div>
-        <div className="flex-1 h-5 bg-white rounded border border-gray-200 flex items-center px-2 text-[8px] text-gray-500 font-semibold">
-          attenda.app/staff
-        </div>
-      </div>
-      {/* App header */}
-      <div className="bg-teal-600 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <div className="w-6 h-6 rounded-md bg-white/20 flex items-center justify-center text-white text-[10px] font-black">A</div>
-          <span className="text-white text-[13px] font-bold">Dashboard</span>
-        </div>
-        <div className="text-white/70 text-[10px]">👤 Staff</div>
-      </div>
-      {/* Content */}
-      <div className="p-4 space-y-3">
-        {/* Quick stats */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { label: 'Pending', value: '2' },
-            { label: 'Active', value: '1' },
-            { label: 'Done', value: '14' },
-          ].map((s, i) => (
-            <div key={i} className="bg-gray-50 rounded-lg p-2 text-center">
-              <div className="text-[18px] font-black text-gray-900">{s.value}</div>
-              <div className="text-[9px] text-gray-500 font-bold uppercase">{s.label}</div>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      {/* Role selector — left column */}
+      <div className="lg:col-span-4 flex lg:flex-col gap-3">
+        {roles.map(r => (
+          <button key={r.key} onClick={() => setActive(r.key)}
+            className={`flex-1 lg:flex-none text-left p-4 rounded-2xl border-2 transition-all ${
+              active === r.key
+                ? 'bg-white shadow-md scale-[1.01]'
+                : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+            }`}
+            style={active === r.key ? { borderColor: r.color } : {}}>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{r.emoji}</span>
+              <div>
+                <div className="text-[14px] font-black text-gray-900">{r.label}</div>
+                <div className="text-[11px] text-gray-400">{r.sub}</div>
+              </div>
             </div>
-          ))}
-        </div>
-        {/* Checklist card */}
-        <div className="border border-gray-200 rounded-xl p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[12px] font-bold text-gray-900">🧹 Housekeeping</span>
-            <span className="text-[9px] text-gray-500">3/5 done</span>
-          </div>
-          <div className="bg-gray-100 rounded-full h-1.5 mb-2">
-            <div className="h-1.5 rounded-full bg-teal-600" style={{ width: '60%' }} />
-          </div>
-          <div className="space-y-1">
-            {[
-              { label: 'Restock mini bar', done: true },
-              { label: 'Change linens', done: true },
-              { label: 'Vacuum floor', done: true },
-              { label: 'Wipe surfaces', done: false },
-              { label: 'Check amenities', done: false },
-            ].map((item, i) => (
-              <label key={i} className="flex items-center gap-2 py-0.5">
-                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${item.done ? 'bg-teal-600 border-teal-600' : 'border-gray-300'}`}>
-                  {item.done && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+          </button>
+        ))}
+      </div>
+
+      {/* Detail panel — right column */}
+      <div className="lg:col-span-8 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 h-full">
+          {/* Copy */}
+          <div className="p-8 md:p-10 flex flex-col justify-center border-b md:border-b-0 md:border-r border-gray-100">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4"
+              style={{ background: `${role.color}15`, color: role.color }}>
+              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: role.color }} />
+              The {role.label.toLowerCase()} experience
+            </div>
+            <h3 className="text-[26px] md:text-[30px] font-black text-gray-900 mb-4 leading-tight">{role.headline}</h3>
+            <div className="space-y-3 mb-6">
+              {role.points.map((p, i) => (
+                <div key={i} className="flex items-start gap-2.5">
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${role.color}15` }}>
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={role.color} strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <p className="text-[14px] text-gray-600 leading-snug">{p}</p>
                 </div>
-                <span className={`text-[10px] ${item.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{item.label}</span>
-              </label>
-            ))}
+              ))}
+            </div>
+            <div className="flex items-center gap-2 text-[12px] text-gray-500">
+              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <span>{role.badge}</span>
+            </div>
           </div>
-        </div>
-        {/* Next shift info */}
-        <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2.5">
-          <div>
-            <div className="text-[10px] font-bold text-gray-900">Next shift: 2pm</div>
-            <div className="text-[9px] text-gray-500">Front Desk · Room 312 checkout</div>
+          {/* Mini mockup */}
+          <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
+            {active === 'guest'   && <RoleMockupGuest />}
+            {active === 'staff'   && <RoleMockupStaff />}
+            {active === 'gm'      && <RoleMockupGM />}
+            {active === 'partner' && <RoleMockupPartner />}
           </div>
-          <div className="text-[8px] font-bold px-2 py-1 bg-amber-100 text-amber-800 rounded-full">View schedules</div>
         </div>
       </div>
     </div>
   );
 }
 
-/* GmDashboardMockup — Browser frame showing KPI dashboard */
-function GmDashboardMockup() {
+/* Role mockups */
+function RoleMockupGuest() {
   return (
-    <div className="w-full max-w-[320px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-red-400" />
-          <div className="w-2 h-2 rounded-full bg-yellow-400" />
-          <div className="w-2 h-2 rounded-full bg-green-400" />
-        </div>
-        <div className="flex-1 h-5 bg-white rounded border border-gray-200 flex items-center px-2 text-[8px] text-gray-500 font-semibold">
-          gm.attenda.app
+    <div className="w-full max-w-[200px] mx-auto">
+      <div className="bg-black rounded-[24px] p-2 shadow-xl">
+        <div className="bg-white rounded-[18px] overflow-hidden" style={{ height: '360px' }}>
+          <div className="bg-[#0D9488] px-3 py-2 flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-white text-[8px] font-black">A</div>
+            <span className="text-white text-[10px] font-bold flex-1">Attenda · Room 204</span>
+          </div>
+          <div className="flex-1 bg-gray-50 p-3 space-y-2" style={{ height: 'calc(100% - 88px)' }}>
+            <div className="flex justify-start"><div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-2.5 py-1.5 text-[9px] max-w-[80%] shadow-sm">Welcome! How can I help?</div></div>
+            <div className="flex justify-end"><div className="rounded-2xl rounded-br-sm px-2.5 py-1.5 text-[9px] text-white max-w-[70%]" style={{ background: '#0D9488' }}>Extra towels please</div></div>
+            <div className="flex justify-start">
+              <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-2.5 py-2 shadow-sm max-w-[90%]">
+                <p className="text-[9px] mb-1.5">Confirm towel request?</p>
+                <div className="flex gap-1"><div className="flex-1 py-1 rounded-lg text-white text-[8px] font-bold text-center" style={{ background: '#0D9488' }}>Yes</div><div className="flex-1 py-1 rounded-lg bg-gray-100 text-gray-600 text-[8px] font-bold text-center">No</div></div>
+              </div>
+            </div>
+            <div className="flex justify-start"><div className="bg-green-50 border border-green-200 rounded-2xl rounded-bl-sm px-2.5 py-1.5 text-[9px] shadow-sm"><span className="font-bold text-green-700">✓ Sent</span><span className="text-gray-500"> · ETA 7m</span></div></div>
+          </div>
+          <div className="border-t border-gray-100 px-2.5 py-2 flex items-center gap-1.5 bg-white">
+            <div className="flex-1 h-7 rounded-full bg-gray-50 border border-gray-200 px-2 flex items-center text-[8px] text-gray-400">Message...</div>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: '#0D9488' }}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+          </div>
         </div>
       </div>
-      <div className="p-4 space-y-3">
-        {/* KPI row */}
-        <div className="grid grid-cols-4 gap-1.5">
-          {[
-            { label: 'RevPAR', value: '$142', color: '#0D9488' },
-            { label: 'Occ', value: '87%', color: '#3B82F6' },
-            { label: 'Resp', value: '7m', color: '#8B5CF6' },
-            { label: 'Rev', value: '$16K', color: '#F59E0B' },
-          ].map((kpi, i) => (
-            <div key={i} className="bg-gray-50 rounded-lg p-2 text-center">
-              <div className="text-[16px] font-black" style={{ color: kpi.color }}>{kpi.value}</div>
-              <div className="text-[7px] text-gray-500 font-bold uppercase tracking-wider">{kpi.label}</div>
-            </div>
+    </div>
+  );
+}
+
+function RoleMockupStaff() {
+  return (
+    <div className="w-full max-w-[260px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="bg-[#0D9488] px-3 py-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-1.5"><div className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-white text-[9px] font-black">A</div><span className="text-white text-[11px] font-bold">Dashboard</span></div>
+        <div className="text-white/70 text-[9px]">👤 Maria</div>
+      </div>
+      <div className="p-3 space-y-2.5">
+        <div className="grid grid-cols-3 gap-1.5">
+          {[['2','Pending'],['1','Active'],['14','Done']].map(([v,l],i)=>(
+            <div key={i} className="bg-gray-50 rounded-lg p-2 text-center"><div className="text-[16px] font-black text-gray-900">{v}</div><div className="text-[8px] text-gray-500 uppercase font-bold">{l}</div></div>
           ))}
         </div>
-        {/* Revenue chart */}
-        <div className="bg-gray-50 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-gray-900">Revenue · 4 months</span>
-            <span className="text-[8px] text-gray-500">Feb → May</span>
-          </div>
-          <div className="grid grid-cols-4 gap-2 h-12 items-end">
-            {[45, 62, 78, 100].map((v, i) => (
-              <div key={i} className="flex flex-col items-center justify-end">
-                <div
-                  className="w-full rounded-sm transition-all"
-                  style={{ height: `${v}%`, backgroundColor: '#0D9488', opacity: 0.5 + i * 0.15 }}
-                />
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-4 gap-2 mt-1">
-            {['Feb', 'Mar', 'Apr', 'May'].map((m, i) => (
-              <div key={i} className="text-[7px] font-bold text-gray-500 text-center">{m}</div>
-            ))}
-          </div>
-        </div>
-        {/* Live feed */}
         <div className="space-y-1.5">
-          <div className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-1">Live feed</div>
-          {[
-            { text: 'Room 204 towels delivered', time: '12s', color: 'bg-green-500' },
-            { text: 'Shuttle booked 9:30 AM', time: '2m', color: 'bg-blue-500' },
-            { text: 'Vendor: Linen Co. accepted', time: '4m', color: 'bg-purple-500' },
-          ].map((item, i) => (
-            <div key={i} className="flex items-center gap-1.5 text-[10px]">
-              <div className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
-              <span className="text-gray-700 flex-1">{item.text}</span>
-              <span className="text-gray-400">{item.time}</span>
+          {[{r:'204',t:'Towels',s:'pending',u:true},{r:'318',t:'Pillows',s:'active',u:false},{r:'412',t:'A/C fix',s:'active',u:false}].map((req,i)=>(
+            <div key={i} className={`border rounded-xl p-2.5 ${req.u ? 'border-l-4' : 'border-gray-200'}`} style={req.u?{borderLeftColor:'#0D9488'}:{}}>
+              <div className="flex items-center justify-between">
+                <div><div className="text-[9px] font-bold text-gray-900">Room {req.r} · {req.t}</div><div className="text-[7px] text-gray-500">Just now</div></div>
+                <div className={`px-1.5 py-0.5 rounded text-[7px] font-bold ${req.s==='pending'?'bg-amber-100 text-amber-700':'bg-blue-100 text-blue-700'}`}>{req.s==='pending'?'Pending':'Active'}</div>
+              </div>
             </div>
           ))}
         </div>
@@ -2044,53 +1043,157 @@ function GmDashboardMockup() {
   );
 }
 
-/* PartnerPortalMockup — Browser frame showing vendor portal */
-function PartnerPortalMockup() {
+function RoleMockupGM() {
   return (
-    <div className="w-full max-w-[320px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-red-400" />
-          <div className="w-2 h-2 rounded-full bg-yellow-400" />
-          <div className="w-2 h-2 rounded-full bg-green-400" />
+    <div className="w-full max-w-[260px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="bg-gray-50 border-b border-gray-200 px-3 py-2 flex items-center gap-1.5">
+        <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-red-400"/><div className="w-2 h-2 rounded-full bg-yellow-400"/><div className="w-2 h-2 rounded-full bg-green-400"/></div>
+        <div className="flex-1 h-5 bg-white rounded border border-gray-200 flex items-center px-2 text-[8px] text-gray-500">gm.attenda.app</div>
+      </div>
+      <div className="p-3 space-y-3">
+        <div className="grid grid-cols-4 gap-1.5">
+          {[['$142','RevPAR','#0D9488'],['87%','Occ','#3B82F6'],['7m','Resp','#8B5CF6'],['$16K','Rev','#F59E0B']].map(([v,l,c],i)=>(
+            <div key={i} className="bg-gray-50 rounded-lg p-1.5 text-center"><div className="text-[12px] font-black" style={{color:c as string}}>{v}</div><div className="text-[7px] text-gray-500 uppercase font-bold tracking-wide">{l}</div></div>
+          ))}
         </div>
-        <div className="flex-1 h-5 bg-white rounded border border-gray-200 flex items-center px-2 text-[8px] text-gray-500 font-semibold">
-          vendor.attenda.app
+        <div className="bg-gray-50 rounded-xl p-2.5">
+          <div className="flex items-center justify-between mb-2"><span className="text-[9px] font-bold text-gray-900">Revenue · 4 months</span><span className="text-[8px] text-gray-500">Feb→May</span></div>
+          <div className="grid grid-cols-4 gap-1.5 h-12 items-end">
+            {[45,62,78,100].map((v,i)=>(
+              <div key={i} className="flex flex-col items-center justify-end h-full">
+                <div className="w-full rounded-t" style={{ height:`${v}%`, background:'#0D9488', opacity: 0.5 + i * 0.15 }} />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-4 gap-1 mt-1">{['Feb','Mar','Apr','May'].map((m,i)=><div key={i} className="text-[7px] text-gray-500 text-center font-bold">{m}</div>)}</div>
+        </div>
+        <div className="space-y-1.5">
+          {[['Room 204 delivered','12s','bg-green-500'],['Shuttle booked','2m','bg-blue-500'],['Linen Co. accepted','4m','bg-purple-500']].map(([t,tm,c],i)=>(
+            <div key={i} className="flex items-center gap-1.5 text-[9px]"><div className={`w-1.5 h-1.5 rounded-full ${c}`}/><span className="text-gray-600 flex-1">{t}</span><span className="text-gray-400">{tm}</span></div>
+          ))}
         </div>
       </div>
-      <div className="p-4 space-y-2">
+    </div>
+  );
+}
+
+function RoleMockupPartner() {
+  return (
+    <div className="w-full max-w-[260px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="bg-gray-50 border-b border-gray-200 px-3 py-2 flex items-center gap-1.5">
+        <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-red-400"/><div className="w-2 h-2 rounded-full bg-yellow-400"/><div className="w-2 h-2 rounded-full bg-green-400"/></div>
+        <div className="flex-1 h-5 bg-white rounded border border-gray-200 flex items-center px-2 text-[8px] text-gray-500">partner.attenda.app</div>
+      </div>
+      <div className="p-3 space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-[12px] font-bold text-gray-900">🍞 Linen Co.</span>
           <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">3 open</span>
         </div>
-        <div className="space-y-1.5">
-          {[
-            { item: '50 bath towels', value: '$120', status: 'In Progress' },
-            { item: '100 hand towels', value: '$85', status: 'Open' },
-            { item: '30 face cloths', value: '$45', status: 'Open' },
-          ].map((job, i) => (
-            <div key={i} className={`border rounded-lg p-2.5 ${job.status === 'In Progress' ? 'border-blue-200 bg-blue-50' : 'border-gray-200'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] font-bold text-gray-900">{job.item}</div>
-                  <div className="text-[8px] text-gray-500 mt-0.5">{job.status === 'In Progress' ? '● In progress' : '○ Open'}</div>
-                </div>
-                <div className="text-[12px] font-black text-gray-900">{job.value}</div>
-              </div>
-            </div>
+        <div className="grid grid-cols-3 gap-1.5 mb-2">
+          {[['3','Pending'],['1','Cooking'],['12','Done']].map(([v,l],i)=>(
+            <div key={i} className="bg-gray-50 rounded-lg p-1.5 text-center"><div className="text-[14px] font-black text-gray-900">{v}</div><div className="text-[7px] text-gray-500 uppercase font-bold">{l}</div></div>
           ))}
         </div>
-        <div className="text-center text-[8px] text-gray-500 pt-2 border-t border-gray-100">
-          Auto-invoice · No phone tag
+        {[{item:'50 bath towels',value:'$120',status:'In Progress'},{item:'100 hand towels',value:'$85',status:'Open'},{item:'30 face cloths',value:'$45',status:'Open'}].map((job,i)=>(
+          <div key={i} className={`border rounded-xl p-2.5 ${job.status==='In Progress'?'border-blue-200 bg-blue-50':'border-gray-200'}`}>
+            <div className="flex items-center justify-between">
+              <div><div className="text-[9px] font-bold text-gray-900">{job.item}</div><div className="text-[7px] text-gray-500 mt-0.5">{job.status==='In Progress'?'● In progress':'○ Open'}</div></div>
+              <div className="text-[11px] font-black text-gray-900">{job.value}</div>
+            </div>
+          </div>
+        ))}
+        <div className="text-center text-[8px] text-gray-400 pt-1 border-t border-gray-100">Auto-invoice · No phone tag</div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Revenue Card ─────────────────────────────────────────────── */
+function RevenueCard() {
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-2">
+        <div className="p-8 md:p-10 flex flex-col justify-center">
+          <div className="text-[10px] uppercase tracking-widest font-bold mb-3" style={{ color: TEAL }}>Case Study · Boutique Hotel</div>
+          <h3 className="text-[24px] md:text-[28px] font-black text-gray-900 leading-tight mb-4">121 rooms · 1 restaurant · 4 months on Attenda.</h3>
+          <p className="text-[15px] text-gray-600 leading-relaxed mb-4">An independent boutique — 121 keys, an in-house restaurant, competing with chains for direct bookings. They switched on Attenda in February. By June, four months in, they&apos;d generated <span className="font-black text-gray-900">$16,000+ in attributable revenue.</span></p>
+          <p className="text-[15px] text-gray-600 leading-relaxed mb-6">No 18-month rollout. No 6-figure implementation. Just the chat, the QR code, and a four-month run.</p>
+          <div className="flex items-center gap-1.5 text-[12px] text-gray-500"><div className="w-1.5 h-1.5 rounded-full bg-green-500"/><span>Verifiable · Numbers tracked in the platform</span></div>
+        </div>
+        <div className="bg-gray-50 p-8 md:p-10 border-t md:border-t-0 md:border-l border-gray-200 flex items-center justify-center">
+          <div className="w-full max-w-sm">
+            <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+              <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
+                <div className="flex gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-400"/><div className="w-2.5 h-2.5 rounded-full bg-yellow-400"/><div className="w-2.5 h-2.5 rounded-full bg-green-400"/></div>
+                <div className="flex-1 h-5 bg-white rounded border border-gray-200 flex items-center px-2 text-[9px] text-gray-500 font-semibold">gm.attenda.app · Revenue</div>
+              </div>
+              <div className="p-5">
+                <div className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Revenue · Last 4 months</div>
+                <div className="text-[9px] text-gray-400 mb-3">Attributable to Attenda</div>
+                <div className="text-[48px] font-black leading-none mb-1" style={{ color: TEAL }}>$16,247</div>
+                <div className="text-[11px] text-gray-500 mb-4">shuttle + dining + late checkout</div>
+                <div className="grid grid-cols-4 gap-2 h-20 mb-3">
+                  {[{m:'Feb',v:0.45,val:'$2.1K'},{m:'Mar',v:0.62,val:'$3.4K'},{m:'Apr',v:0.85,val:'$4.8K'},{m:'May',v:1.0,val:'$5.9K'}].map((b,i)=>(
+                    <div key={i} className="flex flex-col items-center justify-end">
+                      <div className="text-[7px] text-gray-500 font-bold mb-1">{b.val}</div>
+                      <div className="w-full rounded-t" style={{ height:`${b.v*100}%`, background: TEAL, opacity: 0.65 + i*0.1 }}/>
+                      <div className="text-[8px] font-bold text-gray-500 mt-1">{b.m}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-gray-100 pt-3 space-y-1.5">
+                  {[['Shuttle & transport','$7,820'],['In-room dining','$5,640'],['Late checkout & ancillary','$2,787']].map(([l,v],i)=>(
+                    <div key={i} className="flex items-center justify-between text-[11px]">
+                      <span className="text-gray-500">{l}</span>
+                      <span className="font-black text-gray-900">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-/* ── Enroll Form ────────────────────────────────────────────── */
+
+/* ── Flow Example ─────────────────────────────────────────────── */
+function FlowExample() {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-t-2xl px-5 py-3 flex items-center justify-between" style={{ background: DARK }}>
+        <div>
+          <div className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Live thread</div>
+          <div className="text-[14px] font-bold text-white">Room 204 · Extra pillows · 9:42 PM</div>
+        </div>
+        <div className="text-[10px] px-2 py-1 rounded-full bg-green-500/20 text-green-300 font-bold">RESOLVED 9:51 PM</div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-gray-100 p-3 rounded-b-2xl">
+        {[
+          { role:'Guest', name:'Room 204', color: TEAL, initial:'G', steps:['📱 Taps "Need extras"','💬 "Extra pillows please"','✓ Delivered in 10 min'] },
+          { role:'Staff', name:'Maria · Housekeeping', color:'#374151', initial:'S', steps:['🔔 Phone buzzes: Room 204','✅ Taps Accept','🚪 Walks to room, delivers'] },
+          { role:'Vendor', name:'Linen Co.', color:'#7C3AED', initial:'V', steps:['📦 Auto-restock alert','✅ Confirms next-day delivery','💰 Invoice auto-generated'] },
+        ].map((col,i)=>(
+          <div key={i} className="bg-white rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[12px]" style={{ background: col.color }}>{col.initial}</div>
+              <div><div className="text-[9px] font-bold text-gray-500 uppercase">{col.role}</div><div className="text-[11px] font-bold text-gray-900">{col.name}</div></div>
+            </div>
+            <div className="space-y-1.5">
+              {col.steps.map((s,j)=><div key={j} className={`rounded-lg p-2 text-[11px] ${j===2?'text-white':'text-gray-700 bg-gray-50'}`} style={j===2?{background:col.color}:{}}>{s}</div>)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Enroll Form ─────────────────────────────────────────────── */
 function EnrollForm() {
-  const [form, setForm] = useState({ propertyName: '', contactName: '', email: '', phone: '', rooms: '', message: '' });
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [form, setForm] = useState({ propertyName:'', contactName:'', email:'', phone:'', rooms:'' });
+  const [status, setStatus] = useState<'idle'|'sending'|'sent'|'error'>('idle');
 
   const handleSubmit = async () => {
     if (!form.propertyName || !form.email || !form.contactName) return;
@@ -2109,17 +1212,14 @@ function EnrollForm() {
             propertyType: 'Property',
             rooms: form.rooms || 'Not specified',
             city: '',
-            message: form.message,
+            message: '',
           },
         }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || 'Email failed');
-      }
+      if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error((e as {error?:string}).error || 'Email failed'); }
       setStatus('sent');
     } catch (err) {
-      console.error('Enrollment submission error:', err);
+      console.error('Enrollment error:', err);
       setStatus('error');
     }
   };
@@ -2131,54 +1231,61 @@ function EnrollForm() {
           <CheckCircle size={32} className="text-teal-600" />
         </div>
         <h3 className="text-[20px] font-bold text-gray-900 mb-2">We&apos;ll be in touch!</h3>
-        <p className="text-[14px] text-gray-600">Expect a reply within one business day with a personalized demo for your property.</p>
+        <p className="text-[14px] text-gray-500">Expect a reply within one business day with a personalized demo for your property.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-6 text-left space-y-4">
+    <div className="bg-white border border-gray-200 rounded-2xl p-6 md:p-8 space-y-4 shadow-sm">
       <div>
         <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">Property Name *</label>
-        <input value={form.propertyName} onChange={e => setForm({ ...form, propertyName: e.target.value })}
+        <input value={form.propertyName} onChange={e => setForm({...form, propertyName: e.target.value})}
           placeholder="Best Western Miami Airport"
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-500 transition-colors" />
+          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-50 transition-all" />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">Your Name *</label>
-          <input value={form.contactName} onChange={e => setForm({ ...form, contactName: e.target.value })}
+          <input value={form.contactName} onChange={e => setForm({...form, contactName: e.target.value})}
             placeholder="GM / Owner"
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-500 transition-colors" />
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-50 transition-all" />
         </div>
         <div>
           <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">Email *</label>
-          <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+          <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})}
             placeholder="gm@yourproperty.com"
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-500 transition-colors" />
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-50 transition-all" />
         </div>
       </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">Phone</label>
+          <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})}
+            placeholder="+1 (305) 555-0000"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-50 transition-all" />
+        </div>
+        <div>
+          <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">Room count</label>
+          <input type="number" value={form.rooms} onChange={e => setForm({...form, rooms: e.target.value})}
+            placeholder="e.g. 82"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-50 transition-all" />
+        </div>
+      </div>
+      {status === 'error' && <p className="text-[13px] text-red-500">Something went wrong. Email us at alejandro@attendaapp.com</p>}
       <button onClick={handleSubmit} disabled={status === 'sending'}
-        className="w-full py-4 rounded-xl text-white font-bold text-[15px] disabled:opacity-50 shadow-sm"
-        style={{ backgroundColor: TEAL }}>
+        className="w-full py-4 rounded-xl text-white font-bold text-[15px] disabled:opacity-50 shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+        style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #0b8078 100%)` }}>
         {status === 'sending' ? 'Sending...' : 'Show me on my property →'}
       </button>
-      <div className="grid grid-cols-3 gap-3 pt-2">
-        <div className="text-center">
-          <div className="text-[11px] font-bold text-gray-900">Reply in 4 hrs</div>
-          <div className="text-[10px] text-gray-500 leading-snug">business days</div>
-        </div>
-        <div className="text-center border-x border-gray-200">
-          <div className="text-[11px] font-bold text-gray-900">15-min call</div>
-          <div className="text-[10px] text-gray-500 leading-snug">no slide deck</div>
-        </div>
-        <div className="text-center">
-          <div className="text-[11px] font-bold text-gray-900">No card</div>
-          <div className="text-[10px] text-gray-500 leading-snug">no commitment</div>
-        </div>
+      <div className="grid grid-cols-3 gap-3 pt-1 border-t border-gray-100">
+        {[['Reply in 4 hrs','business days'],['15-min call','no slide deck'],['No card','no commitment']].map(([v,l],i)=>(
+          <div key={i} className={`text-center ${i===1?'border-x border-gray-100':''}`}>
+            <div className="text-[11px] font-bold text-gray-900">{v}</div>
+            <div className="text-[10px] text-gray-400 leading-snug">{l}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
-
-/* (persona mockup cards removed — replaced by FlowExample in the A New Standard section) */
