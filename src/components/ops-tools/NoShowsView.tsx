@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getNoShows, createNoShow, deleteNoShow, type NoShow } from '@/lib/supabase';
 import { Trash2 } from 'lucide-react';
 
@@ -13,8 +13,8 @@ export default function NoShowsView({ hotelId }: { hotelId: string }) {
   const [form, setForm] = useState({ guest_name: '', room: '', reservation_ref: '', reason: '', notes: '' });
   const [showForm, setShowForm] = useState(false);
 
-  const load = async () => setItems(await getNoShows(hotelId, date));
-  useEffect(() => { load(); }, [date]);
+  const load = useCallback(async () => setItems(await getNoShows(hotelId, date)), [hotelId, date]);
+  useEffect(() => { load(); }, [load]);
 
   const handleCreate = async () => {
     if (!form.guest_name || !form.room) return;

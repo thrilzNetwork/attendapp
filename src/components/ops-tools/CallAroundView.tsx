@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getCallAroundLogs, createCallAroundLog, type CallAroundLog } from '@/lib/supabase';
 
 const TEAL = '#0D9488';
@@ -12,8 +12,8 @@ export default function CallAroundView({ hotelId }: { hotelId: string }) {
   const [form, setForm] = useState({ shift: 'AM', handed_off_by: '', received_by: '', occupancy: 0, arrivals: 0, departures: 0, notes: '' });
   const [showForm, setShowForm] = useState(false);
 
-  const load = async () => setLogs(await getCallAroundLogs(hotelId, date));
-  useEffect(() => { load(); }, [date]);
+  const load = useCallback(async () => setLogs(await getCallAroundLogs(hotelId, date)), [hotelId, date]);
+  useEffect(() => { load(); }, [load]);
 
   const handleCreate = async () => {
     if (!form.handed_off_by || !form.received_by) return;

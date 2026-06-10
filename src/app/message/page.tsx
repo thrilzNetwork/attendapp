@@ -91,7 +91,8 @@ export default function MessagePage() {
       )
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [hotelId, guestName, guestRoom, supabase]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotelId, guestName, guestRoom]);
 
   // Auto-scroll on new messages
   useEffect(() => {
