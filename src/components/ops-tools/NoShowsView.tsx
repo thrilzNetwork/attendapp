@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getNoShows, createNoShow, deleteNoShow, type NoShow } from '@/lib/supabase';
 import { Trash2 } from 'lucide-react';
 

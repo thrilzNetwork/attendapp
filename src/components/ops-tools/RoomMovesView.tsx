@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getRoomMoves, createRoomMove, deleteRoomMove, type RoomMove } from '@/lib/supabase';
 import { Trash2, ArrowRight } from 'lucide-react';
 
