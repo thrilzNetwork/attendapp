@@ -609,41 +609,55 @@ function AttendaLandingPage() {
                     The partner experience
                   </div>
                   <h4 className="text-[26px] md:text-[32px] font-black text-gray-900 mb-3 leading-tight">
-                    A portal, not a phone call.
+                    What you pay. <span style={{ color: TEAL }}>What you get.</span>
                   </h4>
-                  <div className="space-y-4 mb-6">
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">See open jobs at a glance</p>
-                        <p className="text-[13px] text-gray-600">Linen delivery? Shuttle run? Maintenance request? Partners see exactly what needs doing.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Accept, update, close</p>
-                        <p className="text-[13px] text-gray-600">Tap to accept. Tap to mark delivered. Every update is visible to staff and GM in real time.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${TEAL}15` }}>
-                        <span className="text-[11px] font-black" style={{ color: TEAL }}>✓</span>
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-gray-900">Restaurant menu management</p>
-                        <p className="text-[13px] text-gray-600">Partners with in-house restaurants can manage menus, receive in-room dining orders, and update availability.</p>
-                      </div>
+                  <p className="text-[13px] text-gray-600 mb-5 leading-relaxed">
+                    No tiers. No hidden fees. No sliding scales. This is the complete offer — every restaurant on the Attenda Network gets the same terms, the same tools, the same support.
+                  </p>
+
+                  {/* Fee comparison table */}
+                  <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden mb-5">
+                    <div className="grid grid-cols-3 gap-0 text-[11px]">
+                      <div className="p-2.5 font-bold text-gray-400 uppercase tracking-wider">Fee</div>
+                      <div className="p-2.5 font-bold text-red-500 uppercase tracking-wider">UberEats</div>
+                      <div className="p-2.5 font-bold text-gray-900 uppercase tracking-wider" style={{ color: TEAL }}>Attenda</div>
+                      {/* Row 1 */}
+                      <div className="p-2.5 border-t border-gray-200 text-gray-600">Commission</div>
+                      <div className="p-2.5 border-t border-gray-200 text-red-500 font-black">25–30%</div>
+                      <div className="p-2.5 border-t border-gray-200 font-black" style={{ color: TEAL }}>10%</div>
+                      {/* Row 2 */}
+                      <div className="p-2.5 border-t border-gray-200 text-gray-600">Driver cost</div>
+                      <div className="p-2.5 border-t border-gray-200 text-red-500 font-black">Platform takes cut</div>
+                      <div className="p-2.5 border-t border-gray-200 font-black" style={{ color: TEAL }}>$0 — we provide</div>
+                      {/* Row 3 */}
+                      <div className="p-2.5 border-t border-gray-200 text-gray-600">Card fees</div>
+                      <div className="p-2.5 border-t border-gray-200 text-red-500 font-black">2.9% + $0.30</div>
+                      <div className="p-2.5 border-t border-gray-200 font-black" style={{ color: TEAL }}>3% / 0% debit</div>
+                      {/* Row 4 */}
+                      <div className="p-2.5 border-t border-gray-200 text-gray-600">Setup & software</div>
+                      <div className="p-2.5 border-t border-gray-200 text-red-500 font-black">Marketplace fee</div>
+                      <div className="p-2.5 border-t border-gray-200 font-black" style={{ color: TEAL }}>$0 — free</div>
+                      {/* Row 5 — total */}
+                      <div className="p-2.5 border-t-2 border-gray-300 text-gray-900 font-bold text-[12px]">You keep on $100</div>
+                      <div className="p-2.5 border-t-2 border-gray-300 text-red-500 font-black text-[15px]">~$67</div>
+                      <div className="p-2.5 border-t-2 border-gray-300 font-black text-[18px]" style={{ color: TEAL }}>~$90</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-[12px] text-gray-500">
+
+                  <p className="text-[12px] text-gray-500 leading-relaxed">
+                    <strong className="text-gray-700">Why we can do this:</strong> We own the full stack — built in-house, not white-labeled. No middlemen, no marketplace fees to pay. That&apos;s how we charge 10% when everyone else charges 25–30%.
+                  </p>
+                  <div className="flex items-center gap-2 text-[12px] text-gray-500 mt-3">
                     <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span>No more phone tag · Auto-invoice</span>
+                    <span>What you see is what you pay · No surprises</span>
                   </div>
+                  <a
+                    href="/partner"
+                    className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-xl text-white font-bold text-[13px] transition-all hover:shadow-md self-start"
+                    style={{ backgroundColor: TEAL }}
+                  >
+                    Apply to join <ArrowRight size={14} />
+                  </a>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
                   <PartnerPortalMockup />
@@ -673,7 +687,7 @@ function AttendaLandingPage() {
           <div className="text-center mb-14">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 border border-gray-200 mb-4">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-gray-700">The actual product · No mockups</span>
+              <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-gray-700">Three devices · One platform</span>
             </div>
             <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
               One thread. Every role.
@@ -958,6 +972,310 @@ function AttendaLandingPage() {
               <span className="font-bold text-gray-700">One property, one number.</span> We&apos;re not going to tell you your property will do the same. We&apos;re going to show you what we did for one, and let you decide if the math holds for your rooms, your restaurant, your cruise calendar.
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* RESTAURANT PARTNER PROGRAM — Professional B2B partner page */}
+
+      {/* --- Partner hero --- */}
+      <section className="border-y border-gray-200 bg-[#F9FAFB]">
+        <div className="max-w-6xl mx-auto px-5 py-20 md:py-28">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm mb-6">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-[11px] font-bold tracking-wider text-gray-600 uppercase">Restaurant Partner Program</span>
+            </div>
+            <h2 className="text-[40px] md:text-[56px] font-black tracking-tight text-gray-900 leading-[1.05] mb-5">
+              A private channel into<br />
+              <span style={{ color: TEAL }}>every hotel on Attenda.</span>
+            </h2>
+            <p className="text-[17px] text-gray-600 leading-relaxed max-w-2xl mb-8">
+              Attenda connects your kitchen directly to hotel guests — no third-party app, no algorithm, no bidding against 50 other restaurants for a customer. Every order comes from a guest who&apos;s already checked in and hungry.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="/partner"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-[14px] shadow-sm hover:shadow-md transition-all"
+                style={{ backgroundColor: TEAL }}
+              >
+                Apply to join <ArrowRight size={16} />
+              </a>
+              <a
+                href="#partner-how"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold text-[14px] hover:bg-gray-50 transition-all"
+              >
+                See how it works
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- How it works - 3 steps --- */}
+      <section id="partner-how" className="py-20 md:py-24 px-5 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-[13px] font-bold tracking-[0.2em] uppercase text-gray-500 mb-3">How it works</p>
+            <h3 className="text-[30px] md:text-[40px] font-black tracking-tight text-gray-900 leading-[1.1] mb-4">
+              Your restaurant.<br className="sm:hidden" /> Three steps to live.
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
+            {[
+              {
+                num: '01',
+                title: 'Apply & connect',
+                desc: 'Tell us about your restaurant. We verify, activate your free ordering portal, and connect it to nearby Attenda hotels. Takes 48 hours.',
+              },
+              {
+                num: '02',
+                title: 'Guests order direct',
+                desc: 'Hotel guests scan a QR code in their room, browse your menu, and order. The ticket lands in your kitchen instantly. No app, no middleman.',
+              },
+              {
+                num: '03',
+                title: 'Cook. We deliver. You earn.',
+                desc: 'You prepare the order. Our insured driver picks it up and delivers to the guest&apos;s room. At 10%, you keep ~$90 of every $100 order.',
+              },
+            ].map((s, i) => (
+              <div key={i} className="text-center">
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 text-[22px] font-black shadow-sm"
+                  style={{ backgroundColor: `${TEAL}10`, color: TEAL }}
+                >
+                  {s.num}
+                </div>
+                <h4 className="text-[17px] font-black text-gray-900 mb-2">{s.title}</h4>
+                <p className="text-[14px] text-gray-600 leading-relaxed max-w-xs mx-auto">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* --- Offer terms — 4-up card grid --- */}
+      <section className="py-16 md:py-20 px-5 bg-[#F9FAFB] border-y border-gray-200">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-[13px] font-bold tracking-[0.2em] uppercase text-gray-500 mb-3">Simple terms</p>
+            <h3 className="text-[30px] md:text-[40px] font-black tracking-tight text-gray-900 leading-[1.1] mb-4">
+              What you pay. What you get.
+            </h3>
+            <p className="text-[16px] text-gray-600 max-w-xl mx-auto">
+              No hidden fees. No tiered commissions. No setup costs. This is the complete offer.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                stat: '10%',
+                label: 'Commission',
+                sub: 'per order. Firm, direct.',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                ),
+              },
+              {
+                stat: 'Free',
+                label: 'Delivery driver',
+                sub: 'We bring it to the guest.',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+                  </svg>
+                ),
+              },
+              {
+                stat: '3% / 0%',
+                label: 'Card processing',
+                sub: 'Credit = 3%. Debit = 0%.',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+                  </svg>
+                ),
+              },
+              {
+                stat: '$0',
+                label: 'Setup & software',
+                sub: 'Free ordering system included.',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                  </svg>
+                ),
+              },
+            ].map((c, i) => (
+              <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 text-center shadow-sm hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: `${TEAL}10` }}>
+                  {c.icon}
+                </div>
+                <p className="text-[32px] font-black text-gray-900 leading-none mb-1">{c.stat}</p>
+                <p className="text-[13px] font-bold text-gray-700 mb-0.5">{c.label}</p>
+                <p className="text-[12px] text-gray-500">{c.sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* --- The comparison: Delivery platforms vs Attenda --- */}
+      <section className="py-20 md:py-24 px-5 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-[13px] font-bold tracking-[0.2em] uppercase text-gray-500 mb-3">Side by side</p>
+            <h3 className="text-[30px] md:text-[40px] font-black tracking-tight text-gray-900 leading-[1.1] mb-4">
+              Delivery platforms vs. Attenda.
+            </h3>
+            <p className="text-[16px] text-gray-600 max-w-xl mx-auto">
+              We&apos;re not asking you to leave UberEats or DoorDash. This is an additional channel — one that keeps more of every dollar.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+            {/* Header row — Delivery */}
+            <div className="bg-gray-50 p-6 border-b border-gray-200 lg:border-b-0 lg:border-r border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                  <span className="text-red-500 font-black text-[14px]">✕</span>
+                </div>
+                <div>
+                  <p className="text-[15px] font-bold text-gray-900">Delivery Platforms</p>
+                  <p className="text-[11px] text-gray-500">UberEats · DoorDash · Grubhub</p>
+                </div>
+              </div>
+            </div>
+            {/* Header row — Attenda */}
+            <div className="p-6 border-b lg:border-b-0 border-gray-200" style={{ backgroundColor: `${TEAL}04` }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${TEAL}15` }}>
+                  <span className="font-black text-[16px]" style={{ color: TEAL }}>A</span>
+                </div>
+                <div>
+                  <p className="text-[15px] font-bold text-gray-900">Attenda Network</p>
+                  <p className="text-[11px] text-gray-500">Direct hotel channel</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Row 1: Commission */}
+            <div className="bg-gray-50 p-5 border-b border-gray-200 lg:border-r border-gray-200 flex items-center justify-between">
+              <span className="text-[13px] text-gray-500">Commission</span>
+              <span className="text-[14px] font-bold text-red-500">25–30%</span>
+            </div>
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}>
+              <span className="text-[13px] text-gray-500">Commission</span>
+              <span className="text-[18px] font-black" style={{ color: TEAL }}>10%</span>
+            </div>
+
+            {/* Row 2: Driver */}
+            <div className="bg-gray-50 p-5 border-b border-gray-200 lg:border-r border-gray-200 flex items-center justify-between">
+              <span className="text-[13px] text-gray-500">Driver</span>
+              <span className="text-[13px] text-gray-700">Platform provides</span>
+            </div>
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}>
+              <span className="text-[13px] text-gray-500">Driver</span>
+              <span className="text-[13px] font-bold text-gray-900">We provide · Insured</span>
+            </div>
+
+            {/* Row 3: Card fees */}
+            <div className="bg-gray-50 p-5 border-b border-gray-200 lg:border-r border-gray-200 flex items-center justify-between">
+              <span className="text-[13px] text-gray-500">Card fees</span>
+              <span className="text-[13px] text-gray-700">2.9% + $0.30</span>
+            </div>
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}>
+              <span className="text-[13px] text-gray-500">Card fees</span>
+              <span className="text-[13px] font-bold text-gray-900">3% credit · <span className="text-teal-600">0% debit</span></span>
+            </div>
+
+            {/* Row 4: Market */}
+            <div className="bg-gray-50 p-5 border-b border-gray-200 lg:border-r border-gray-200 flex items-center justify-between">
+              <span className="text-[13px] text-gray-500">Market</span>
+              <span className="text-[13px] text-gray-700">General public</span>
+            </div>
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}>
+              <span className="text-[13px] text-gray-500">Market</span>
+              <span className="text-[13px] font-bold text-gray-900">Captive hotel guests</span>
+            </div>
+
+            {/* Row 5: You keep */}
+            <div className="bg-gray-50 p-5 border-b lg:border-b-0 border-gray-200 lg:border-r border-gray-200 flex items-center justify-between">
+              <span className="text-[13px] text-gray-500">On $100, you keep</span>
+              <span className="text-[16px] font-black text-red-500">~$67</span>
+            </div>
+            <div className="p-5 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}>
+              <span className="text-[13px] text-gray-500">On $100, you keep</span>
+              <span className="text-[22px] font-black" style={{ color: TEAL }}>~$90</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- Differentiators --- */}
+      <section className="py-16 md:py-20 px-5 bg-[#F9FAFB] border-y border-gray-200">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                title: 'We own the full stack',
+                desc: 'Built and operated in-house — not white-labeled, not resold. No middleman margin. That&apos;s how our rates stay low.',
+                icon: (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                  </svg>
+                ),
+              },
+              {
+                title: 'Certified & approved',
+                desc: 'Compliant with major card networks. All drivers insured and vetted. Every transaction protected.',
+                icon: (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                ),
+              },
+              {
+                title: 'A network, not a marketplace',
+                desc: 'Hotels direct guests to your restaurant. No ads. No rankings. No bidding for visibility. Just consistent, daily volume from a channel your competitors can&apos;t access.',
+                icon: (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                ),
+              },
+            ].map((d, i) => (
+              <div key={i}>
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ backgroundColor: `${TEAL}10` }}>
+                  {d.icon}
+                </div>
+                <h4 className="text-[16px] font-black text-gray-900 mb-2">{d.title}</h4>
+                <p className="text-[14px] text-gray-600 leading-relaxed">{d.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* --- Final CTA --- */}
+      <section className="py-20 md:py-24 px-5 bg-white">
+        <div className="max-w-2xl mx-auto text-center">
+          <h3 className="text-[28px] md:text-[36px] font-black tracking-tight text-gray-900 leading-[1.1] mb-4">
+            Keep your delivery apps.<br />
+            <span style={{ color: TEAL }}>Add the hotel channel.</span>
+          </h3>
+          <p className="text-[15px] text-gray-600 leading-relaxed mb-8 max-w-lg mx-auto">
+            UberEats, DoorDash, Grubhub — you should stay on all of them. Then add Attenda for the hotel guests they can&apos;t reach. Higher margin. Steadier volume. Zero setup cost.
+          </p>
+          <a
+            href="/partner"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-bold text-[15px] shadow-sm hover:shadow-md transition-all"
+            style={{ backgroundColor: TEAL }}
+          >
+            Apply to join the network <ArrowRight size={18} />
+          </a>
+          <p className="text-[12px] text-gray-400 mt-4">Approved restaurants go live in 48 hours</p>
         </div>
       </section>
 
@@ -1397,125 +1715,33 @@ function FlowExample() {
 
 /* ── Pixel-accurate mockups of the actual product — used in the "See it in action" section ── */
 
-const TEAL_MOCKUP = '#0D9488';
-
 function PhoneMockup() {
   return (
     <div className="relative w-full max-w-[280px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.18))' }}>
-      <div className="relative rounded-[40px] border-[10px] border-gray-900 bg-gray-900 overflow-hidden aspect-[9/19] shadow-2xl">
-        <div className="relative h-full w-full rounded-[32px] overflow-hidden bg-[#F4F4F5]">
-          {/* Notch */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80px] h-[20px] bg-gray-900 rounded-b-2xl z-10" />
-          {/* Status bar */}
-          <div className="relative z-0 bg-white px-5 pt-3 pb-1 flex items-center justify-between text-[10px] font-semibold text-gray-900">
-            <span>9:41</span>
-            <div className="flex items-center gap-1">
-              <div className="flex gap-[2px] items-end">
-                <div className="w-[2px] h-[5px] bg-gray-900 rounded-sm" />
-                <div className="w-[2px] h-[7px] bg-gray-900 rounded-sm" />
-                <div className="w-[2px] h-[9px] bg-gray-900 rounded-sm" />
-                <div className="w-[2px] h-[11px] bg-gray-900 rounded-sm" />
-              </div>
-              <div className="w-5 h-2.5 border border-gray-900 rounded-[2px] ml-1 relative">
-                <div className="absolute inset-[1px] bg-gray-900 rounded-[1px]" style={{ width: '85%' }} />
-              </div>
-            </div>
-          </div>
-          {/* Header — /message page header */}
-          <div className="bg-white px-4 py-2.5 flex items-center gap-2.5 border-b border-gray-100">
-            <div className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4B5563" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-              </svg>
-            </div>
-            <div className="flex-1">
-              <div className="text-[12px] font-bold text-black leading-none">Front Desk</div>
-              <div className="text-[9px] text-green-500 font-medium mt-0.5">● Online now</div>
-            </div>
-          </div>
-          {/* Chat area */}
-          <div className="px-3 py-3 space-y-2">
-            <div className="flex justify-start">
-              <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-white border border-gray-100 px-3 py-2 text-[10px] text-gray-800 leading-relaxed shadow-sm">
-                Hello! How can I assist you today? I can help with room service, transport, nearby attractions, and more.
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <div className="max-w-[75%] rounded-2xl rounded-br-md px-3 py-2 text-[10px] text-white leading-relaxed" style={{ backgroundColor: TEAL_MOCKUP }}>
-                Request Towels
-              </div>
-            </div>
-            <div className="flex justify-start">
-              <div className="max-w-[90%] rounded-2xl rounded-bl-md bg-white border border-gray-100 px-3 py-2.5 shadow-sm">
-                <p className="text-[10px] text-gray-800 leading-relaxed mb-2">
-                  I can send a towel request to housekeeping for you. Would you like me to do that?
-                </p>
-                <div className="flex gap-1.5">
-                  <div className="flex-1 py-1.5 rounded-lg text-white text-[9px] font-bold text-center" style={{ backgroundColor: TEAL_MOCKUP }}>
-                    Yes, send request
-                  </div>
-                  <div className="flex-1 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-[9px] font-bold text-center">
-                    No thanks
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <div className="max-w-[75%] rounded-2xl rounded-br-md px-3 py-2 text-[10px] text-white leading-relaxed" style={{ backgroundColor: TEAL_MOCKUP }}>
-                Yes, please send towel service
-              </div>
-            </div>
-            <div className="flex justify-start">
-              <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-white border border-green-200 px-3 py-2 text-[10px] text-gray-800 leading-relaxed shadow-sm">
-                <div className="flex items-center gap-1 mb-1">
-                  <div className="w-3.5 h-3.5 rounded-full bg-green-500 flex items-center justify-center text-white text-[7px] font-bold">✓</div>
-                  <span className="text-[9px] font-bold text-green-700">Request sent</span>
-                </div>
-                Our team will take care of this. Track it in the Live Orders dashboard.
-              </div>
-            </div>
-          </div>
-          {/* Quick replies */}
-          <div className="px-3 pb-2 flex gap-1.5 overflow-hidden">
-            {['WiFi', 'Pool', 'Checkout', 'Wake-Up'].map((label, i) => (
-              <div key={i} className="shrink-0 px-2.5 py-1 rounded-full bg-white border border-gray-200 text-[8px] text-gray-600 font-medium">
-                {label}
-              </div>
-            ))}
-          </div>
-          {/* Input bar */}
-          <div className="bg-white border-t border-gray-100 px-3 py-2.5 flex items-center gap-1.5">
-            <div className="flex-1 bg-gray-50 rounded-full px-3 py-2 text-[10px] text-gray-400 border border-gray-200">
-              Type a message...
-            </div>
-            <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: TEAL_MOCKUP }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
-            </div>
-          </div>
-        </div>
+      <div className="relative rounded-[40px] border-[10px] border-gray-900 bg-gray-900 overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80px] h-[20px] bg-gray-900 rounded-b-2xl z-10" />
+        <Image
+          src="/images/guest-app.png"
+          alt="Guest app screenshot"
+          width={280}
+          height={607}
+          className="w-full h-auto block"
+          priority
+        />
       </div>
       <div className="text-center mt-4">
-        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">1. Guest submits</div>
-        <div className="text-sm font-black text-gray-900 mt-1">From the room, in 4 taps</div>
-        <div className="text-[10px] text-gray-500 mt-0.5">No app to download</div>
+        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">1. Guest lands</div>
+        <div className="text-sm font-black text-gray-900 mt-1">Every service. One place. Zero apps.</div>
+        <div className="text-[10px] text-gray-500 mt-0.5">Scan QR at check-in or table</div>
       </div>
     </div>
   );
 }
 
 function TabletMockup() {
-  const requests = [
-    { room: '204', type: 'Towels', icon: '🛏️', time: '2m', status: 'pending', assignee: null, urgent: true },
-    { room: '318', type: 'Pillows', icon: '☕', time: '5m', status: 'in-progress', assignee: 'Maria', urgent: false },
-    { room: '412', type: 'Maintenance · A/C', icon: '🔧', time: '8m', status: 'in-progress', assignee: 'Carlos', urgent: false },
-    { room: '205', type: 'Housekeeping', icon: '🧹', time: '3m', status: 'pending', assignee: null, urgent: false },
-  ];
   return (
     <div className="relative w-full max-w-[420px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.15))' }}>
       <div className="rounded-2xl overflow-hidden bg-white shadow-2xl border-[8px] border-gray-900">
-        {/* Browser chrome */}
         <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
@@ -1526,94 +1752,27 @@ function TabletMockup() {
             attenda.app/staff · Best Western Miami Airport
           </div>
         </div>
-        {/* Top bar — staff header with PIN badge */}
-        <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-black" style={{ backgroundColor: TEAL_MOCKUP }}>
-              A
-            </div>
-            <div>
-              <div className="text-[11px] font-bold text-gray-900 leading-none">Attenda Staff</div>
-              <div className="text-[8px] text-gray-500 mt-0.5">Maria · Housekeeping</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="px-2 py-1 rounded-md bg-gray-100 text-[8px] font-bold text-gray-700">PIN: 2025</div>
-            <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center text-[8px] font-black text-red-700">2</div>
-          </div>
-        </div>
-        {/* Status tabs */}
-        <div className="bg-white border-b border-gray-200 px-4 flex gap-3">
-          <div className="py-2 text-[10px] font-bold border-b-2" style={{ color: TEAL_MOCKUP, borderColor: TEAL_MOCKUP }}>
-            Active <span className="ml-1 px-1.5 rounded-full text-[8px]" style={{ backgroundColor: TEAL_MOCKUP, color: 'white' }}>3</span>
-          </div>
-          <div className="py-2 text-[10px] font-bold text-gray-400">Completed</div>
-          <div className="py-2 text-[10px] font-bold text-gray-400">Messages <span className="ml-1 px-1.5 rounded-full bg-gray-200 text-gray-600 text-[8px]">1</span></div>
-        </div>
-        {/* Request cards */}
-        <div className="bg-gray-50 p-3 space-y-2">
-          {requests.map((req, i) => (
-            <div key={i} className={`bg-white rounded-lg border ${req.urgent ? 'border-l-4' : 'border-gray-200'} p-2.5 shadow-sm`}
-                 style={req.urgent ? { borderLeftColor: TEAL_MOCKUP } : {}}>
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <div className="text-base">{req.icon}</div>
-                  <div>
-                    <div className="text-[10px] font-bold text-gray-900">Room {req.room} · {req.type}</div>
-                    <div className="text-[8px] text-gray-500">Submitted {req.time} ago</div>
-                  </div>
-                </div>
-                <div className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
-                  req.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                }`}>
-                  {req.status === 'pending' ? 'Pending' : 'In progress'}
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                <div className="text-[8px] text-gray-600">
-                  {req.assignee ? `Assigned: ${req.assignee}` : 'Unassigned'}
-                </div>
-                <div className="flex gap-1">
-                  {req.status === 'pending' ? (
-                    <>
-                      <div className="px-2 py-1 rounded text-[8px] font-bold text-gray-600 bg-gray-100">Assign</div>
-                      <div className="px-2 py-1 rounded text-[8px] font-bold text-white" style={{ backgroundColor: TEAL_MOCKUP }}>Accept</div>
-                    </>
-                  ) : (
-                    <div className="px-2 py-1 rounded text-[8px] font-bold text-white bg-green-600">Mark done ✓</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <Image
+          src="/images/staff-orders.png"
+          alt="Staff dashboard screenshot"
+          width={420}
+          height={622}
+          className="w-full h-auto block"
+        />
       </div>
       <div className="text-center mt-4">
-        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">2. Staff executes</div>
-        <div className="text-sm font-black text-gray-900 mt-1">PIN-in, accept, done</div>
-        <div className="text-[10px] text-gray-500 mt-0.5">Average resolution: 7m 14s</div>
+        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">2. Staff handles</div>
+        <div className="text-sm font-black text-gray-900 mt-1">Real-time requests. No missed calls.</div>
+        <div className="text-[10px] text-gray-500 mt-0.5">PIN login · Department views · Live orders</div>
       </div>
     </div>
   );
 }
 
 function DesktopMockup() {
-  const navItems = [
-    { label: 'Dashboard', active: false, icon: '📊' },
-    { label: 'Orders', active: true, icon: '📋', count: 3 },
-    { label: 'Staff', active: false, icon: '👥' },
-    { label: 'Vendors', active: false, icon: '🚚' },
-    { label: 'Knowledge', active: false, icon: '📚' },
-  ];
-  const compactRequests = [
-    { room: '204', type: 'Towels', time: '2m', status: 'pending' },
-    { room: '318', type: 'Pillows', time: '5m', status: 'progress' },
-    { room: '412', type: 'A/C fix', time: '8m', status: 'progress' },
-  ];
   return (
-    <div className="relative w-full max-w-[480px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.18))' }}>
+    <div className="relative w-full max-w-[420px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.15))' }}>
       <div className="rounded-2xl overflow-hidden bg-white shadow-2xl border-[8px] border-gray-900">
-        {/* Browser chrome */}
         <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
@@ -1621,71 +1780,21 @@ function DesktopMockup() {
             <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
           </div>
           <div className="flex-1 h-6 bg-white rounded-md border border-gray-200 flex items-center px-2 text-[9px] text-gray-500 font-semibold">
-            gm.attenda.app · Best Western Miami Airport
+            attenda.app/gm · Best Western Miami Airport
           </div>
         </div>
-        {/* Two-col layout */}
-        <div className="flex">
-          {/* Sidebar */}
-          <div className="w-[100px] bg-gray-50 border-r border-gray-200 p-2.5 shrink-0">
-            <div className="text-[9px] font-black text-gray-900 mb-2 tracking-wide">ATTENDA GM</div>
-            <div className="space-y-1">
-              {navItems.map((item, i) => (
-                <div key={i} className={`px-2 py-1.5 rounded text-[9px] font-bold flex items-center justify-between ${
-                  item.active ? 'text-white' : 'text-gray-700'
-                }`} style={item.active ? { backgroundColor: TEAL_MOCKUP } : {}}>
-                  <div className="flex items-center gap-1">
-                    <span className="text-[9px]">{item.icon}</span>
-                    <span>{item.label}</span>
-                  </div>
-                  {item.count && <span className="text-[8px] bg-white/30 px-1 rounded">{item.count}</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-          {/* Main */}
-          <div className="flex-1 p-3 bg-white">
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="text-[12px] font-black text-gray-900">Live Orders</div>
-              <div className="text-[8px] text-gray-500">Updated 2s ago</div>
-            </div>
-            <div className="grid grid-cols-3 gap-1.5 mb-2.5">
-              <div className="bg-gray-50 rounded p-1.5">
-                <div className="text-[7px] text-gray-500 uppercase font-bold">Open</div>
-                <div className="text-[12px] font-black text-gray-900">3</div>
-              </div>
-              <div className="bg-gray-50 rounded p-1.5">
-                <div className="text-[7px] text-gray-500 uppercase font-bold">In progress</div>
-                <div className="text-[12px] font-black text-gray-900">5</div>
-              </div>
-              <div className="bg-gray-50 rounded p-1.5">
-                <div className="text-[7px] text-gray-500 uppercase font-bold">Avg time</div>
-                <div className="text-[12px] font-black text-gray-900">7m</div>
-              </div>
-            </div>
-            <div className="space-y-1">
-              {compactRequests.map((req, i) => (
-                <div key={i} className="flex items-center justify-between py-1 px-1.5 border-b border-gray-100 last:border-0">
-                  <div className="flex items-center gap-1.5">
-                    <div className="text-[9px] font-bold text-gray-900">#{req.room}</div>
-                    <div className="text-[9px] text-gray-700">{req.type}</div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="text-[8px] text-gray-500">{req.time}</div>
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      req.status === 'pending' ? 'bg-amber-500' : 'bg-blue-500'
-                    }`} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <Image
+          src="/images/gm-dashboard.png"
+          alt="GM dashboard screenshot"
+          width={420}
+          height={580}
+          className="w-full h-auto block"
+        />
       </div>
       <div className="text-center mt-4">
-        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">3. GM oversees</div>
-        <div className="text-sm font-black text-gray-900 mt-1">One screen, total visibility</div>
-        <div className="text-[10px] text-gray-500 mt-0.5">Every room, every shift, in real time</div>
+        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">3. GM sees all</div>
+        <div className="text-sm font-black text-gray-900 mt-1">The full picture. Every shift.</div>
+        <div className="text-[10px] text-gray-500 mt-0.5">KPI dashboard · Revenue attribution · Staff log</div>
       </div>
     </div>
   );
@@ -1910,11 +2019,10 @@ function PhoneGuestMockup() {
   );
 }
 
-/* StaffDashboardMockup — Browser frame showing staff dashboard with checklists */
+/* StaffDashboardMockup — Browser frame showing actual staff dashboard */
 function StaffDashboardMockup() {
   return (
     <div className="w-full max-w-[320px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      {/* Browser chrome */}
       <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-red-400" />
@@ -1925,69 +2033,18 @@ function StaffDashboardMockup() {
           attenda.app/staff
         </div>
       </div>
-      {/* App header */}
-      <div className="bg-teal-600 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <div className="w-6 h-6 rounded-md bg-white/20 flex items-center justify-center text-white text-[10px] font-black">A</div>
-          <span className="text-white text-[13px] font-bold">Dashboard</span>
-        </div>
-        <div className="text-white/70 text-[10px]">👤 Staff</div>
-      </div>
-      {/* Content */}
-      <div className="p-4 space-y-3">
-        {/* Quick stats */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { label: 'Pending', value: '2' },
-            { label: 'Active', value: '1' },
-            { label: 'Done', value: '14' },
-          ].map((s, i) => (
-            <div key={i} className="bg-gray-50 rounded-lg p-2 text-center">
-              <div className="text-[18px] font-black text-gray-900">{s.value}</div>
-              <div className="text-[9px] text-gray-500 font-bold uppercase">{s.label}</div>
-            </div>
-          ))}
-        </div>
-        {/* Checklist card */}
-        <div className="border border-gray-200 rounded-xl p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[12px] font-bold text-gray-900">🧹 Housekeeping</span>
-            <span className="text-[9px] text-gray-500">3/5 done</span>
-          </div>
-          <div className="bg-gray-100 rounded-full h-1.5 mb-2">
-            <div className="h-1.5 rounded-full bg-teal-600" style={{ width: '60%' }} />
-          </div>
-          <div className="space-y-1">
-            {[
-              { label: 'Restock mini bar', done: true },
-              { label: 'Change linens', done: true },
-              { label: 'Vacuum floor', done: true },
-              { label: 'Wipe surfaces', done: false },
-              { label: 'Check amenities', done: false },
-            ].map((item, i) => (
-              <label key={i} className="flex items-center gap-2 py-0.5">
-                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${item.done ? 'bg-teal-600 border-teal-600' : 'border-gray-300'}`}>
-                  {item.done && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
-                </div>
-                <span className={`text-[10px] ${item.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{item.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        {/* Next shift info */}
-        <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2.5">
-          <div>
-            <div className="text-[10px] font-bold text-gray-900">Next shift: 2pm</div>
-            <div className="text-[9px] text-gray-500">Front Desk · Room 312 checkout</div>
-          </div>
-          <div className="text-[8px] font-bold px-2 py-1 bg-amber-100 text-amber-800 rounded-full">View schedules</div>
-        </div>
-      </div>
+      <Image
+        src="/images/staff-app.png"
+        alt="Staff dashboard"
+        width={320}
+        height={500}
+        className="w-full h-auto block"
+      />
     </div>
   );
 }
 
-/* GmDashboardMockup — Browser frame showing KPI dashboard */
+/* GmDashboardMockup — Browser frame showing actual GM dashboard */
 function GmDashboardMockup() {
   return (
     <div className="w-full max-w-[320px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
@@ -2001,102 +2058,154 @@ function GmDashboardMockup() {
           gm.attenda.app
         </div>
       </div>
-      <div className="p-4 space-y-3">
-        {/* KPI row */}
-        <div className="grid grid-cols-4 gap-1.5">
-          {[
-            { label: 'RevPAR', value: '$142', color: '#0D9488' },
-            { label: 'Occ', value: '87%', color: '#3B82F6' },
-            { label: 'Resp', value: '7m', color: '#8B5CF6' },
-            { label: 'Rev', value: '$16K', color: '#F59E0B' },
-          ].map((kpi, i) => (
-            <div key={i} className="bg-gray-50 rounded-lg p-2 text-center">
-              <div className="text-[16px] font-black" style={{ color: kpi.color }}>{kpi.value}</div>
-              <div className="text-[7px] text-gray-500 font-bold uppercase tracking-wider">{kpi.label}</div>
-            </div>
-          ))}
-        </div>
-        {/* Revenue chart */}
-        <div className="bg-gray-50 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-gray-900">Revenue · 4 months</span>
-            <span className="text-[8px] text-gray-500">Feb → May</span>
-          </div>
-          <div className="grid grid-cols-4 gap-2 h-12 items-end">
-            {[45, 62, 78, 100].map((v, i) => (
-              <div key={i} className="flex flex-col items-center justify-end">
-                <div
-                  className="w-full rounded-sm transition-all"
-                  style={{ height: `${v}%`, backgroundColor: '#0D9488', opacity: 0.5 + i * 0.15 }}
-                />
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-4 gap-2 mt-1">
-            {['Feb', 'Mar', 'Apr', 'May'].map((m, i) => (
-              <div key={i} className="text-[7px] font-bold text-gray-500 text-center">{m}</div>
-            ))}
-          </div>
-        </div>
-        {/* Live feed */}
-        <div className="space-y-1.5">
-          <div className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-1">Live feed</div>
-          {[
-            { text: 'Room 204 towels delivered', time: '12s', color: 'bg-green-500' },
-            { text: 'Shuttle booked 9:30 AM', time: '2m', color: 'bg-blue-500' },
-            { text: 'Vendor: Linen Co. accepted', time: '4m', color: 'bg-purple-500' },
-          ].map((item, i) => (
-            <div key={i} className="flex items-center gap-1.5 text-[10px]">
-              <div className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
-              <span className="text-gray-700 flex-1">{item.text}</span>
-              <span className="text-gray-400">{item.time}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Image
+        src="/images/gm-dashboard.png"
+        alt="GM dashboard"
+        width={320}
+        height={480}
+        className="w-full h-auto block"
+      />
     </div>
   );
 }
 
-/* PartnerPortalMockup — Browser frame showing vendor portal */
+/* PartnerPortalMockup — Guest ordering experience (the real sell) */
 function PartnerPortalMockup() {
+  const [scanned, setScanned] = useState(false);
+  const [orderMade, setOrderMade] = useState(false);
+  const items = [
+    { name: 'Margherita Pizza', price: 14.50, desc: 'San Marzano tomato, fresh mozzarella, basil' },
+    { name: 'Pepperoni Pizza', price: 16.00, desc: 'Grande pepperoni, house mozzarella blend' },
+    { name: 'Caesar Salad', price: 9.50, desc: 'Romaine, parmesan, house croutons, caesar dressing' },
+    { name: 'Garlic Bread', price: 5.00, desc: 'Toasted ciabatta, garlic butter, herbs' },
+    { name: 'Tiramisu', price: 7.00, desc: 'Classic Italian — espresso-soaked ladyfingers' },
+  ];
+  const total = items.reduce((s, i) => s + i.price, 0);
+
   return (
-    <div className="w-full max-w-[320px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-red-400" />
-          <div className="w-2 h-2 rounded-full bg-yellow-400" />
-          <div className="w-2 h-2 rounded-full bg-green-400" />
-        </div>
-        <div className="flex-1 h-5 bg-white rounded border border-gray-200 flex items-center px-2 text-[8px] text-gray-500 font-semibold">
-          vendor.attenda.app
+    <div className="w-full max-w-[280px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.18))' }}>
+      {/* Phone frame */}
+      <div className="relative rounded-[40px] border-[10px] border-gray-900 bg-gray-900 overflow-hidden">
+        <div className="relative w-full bg-[#F4F4F5]" style={{ minHeight: '540px' }}>
+          {/* Notch */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80px] h-[20px] bg-gray-900 rounded-b-2xl z-10" />
+          
+          {!scanned ? (
+            <>
+              {/* Status bar */}
+              <div className="relative z-0 bg-white px-5 pt-3 pb-1 flex items-center justify-between text-[10px] font-semibold text-gray-900">
+                <span>9:41</span>
+                <div className="flex items-center gap-1">
+                  <svg width="16" height="12" viewBox="0 0 24 14" fill="none"><rect x="1" y="1" width="22" height="12" rx="2.5" stroke="#111" strokeWidth="1.5"/><rect x="4" y="4" width="12" height="6" fill="#111"/><circle cx="20" cy="7" r="1.5" fill="#111"/></svg>
+                </div>
+              </div>
+              {/* Camera shutter animation */}
+              <div className="flex flex-col items-center justify-center px-6 pt-6 pb-4">
+                <div className="w-20 h-20 rounded-2xl border-2 border-dashed mb-4 flex items-center justify-center relative" style={{ borderColor: TEAL }}>
+                  <div className="absolute inset-0 rounded-2xl opacity-10" style={{ backgroundColor: TEAL }} />
+                  <div className="w-12 h-12 rounded-lg border-2 flex items-center justify-center" style={{ borderColor: TEAL }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                      <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                  </div>
+                </div>
+                <p className="text-[11px] font-bold text-gray-800 mb-1">Scan table QR to order</p>
+                <p className="text-[8px] text-gray-500 text-center leading-relaxed">
+                  Open your camera · Point at the QR on the table · No app download needed
+                </p>
+                {/* Animated scan line */}
+                <div className="w-full max-w-[160px] h-0.5 rounded-full mx-auto mt-4 animate-pulse" style={{ backgroundColor: TEAL }} />
+              </div>
+              {/* Table selection */}
+              <div className="px-4 pb-4">
+                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Scan or tap your table</div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {['201', '202', '203', '204', '205', '206', '207', '208'].map((t, i) => (
+                    <button key={t}
+                      onClick={() => { if (i === 3) setScanned(true); }}
+                      className={`py-2 rounded-lg text-[9px] font-bold transition-all ${
+                        i === 3
+                          ? 'text-white shadow-sm' + ` animate-pulse`
+                          : 'bg-gray-100 text-gray-500'
+                      }`}
+                      style={i === 3 ? { backgroundColor: TEAL } : {}}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Status bar */}
+              <div className="relative z-0 bg-white px-5 pt-3 pb-1 flex items-center justify-between text-[10px] font-semibold text-gray-900">
+                <span>9:41</span>
+                <div className="flex items-center gap-1">
+                  <svg width="16" height="12" viewBox="0 0 24 14" fill="none"><rect x="1" y="1" width="22" height="12" rx="2.5" stroke="#111" strokeWidth="1.5"/><rect x="4" y="4" width="12" height="6" fill="#111"/><circle cx="20" cy="7" r="1.5" fill="#111"/></svg>
+                </div>
+              </div>
+              {/* Restaurant header */}
+              <div className="bg-white px-4 py-2.5 border-b border-gray-100 flex items-center gap-2.5">
+                <button onClick={() => setScanned(false)} className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center shrink-0">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                </button>
+                <div className="flex-1">
+                  <div className="text-[11px] font-bold text-gray-900 leading-none">Luigi&apos;s Pizzeria</div>
+                  <div className="text-[7px] text-gray-500 mt-0.5">Table 204 · Ordering for 2</div>
+                </div>
+                <div className="w-2 h-2 rounded-full bg-green-500" />
+              </div>
+
+              {/* Menu items */}
+              <div className="px-3 py-2 space-y-1.5 max-h-[300px] overflow-y-auto">
+                {items.map((item, i) => (
+                  <div key={i} className="bg-white rounded-lg border border-gray-100 p-2.5 flex items-start gap-2 shadow-sm">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-gray-900">{item.name}</span>
+                        <span className="text-[9px] font-bold text-gray-900">${item.price.toFixed(2)}</span>
+                      </div>
+                      <p className="text-[7px] text-gray-500 mt-0.5 leading-tight">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Order total + CTA */}
+              <div className="bg-white border-t border-gray-200 px-4 py-2.5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] text-gray-500">Total</span>
+                  <span className="text-[11px] font-black text-gray-900">${total.toFixed(2)}</span>
+                </div>
+                {!orderMade ? (
+                  <button
+                    onClick={() => setOrderMade(true)}
+                    className="w-full py-2.5 rounded-lg text-white text-[10px] font-bold transition-all shadow-sm"
+                    style={{ backgroundColor: TEAL }}
+                  >
+                    Order to Room 204 — ${total.toFixed(2)}
+                  </button>
+                ) : (
+                  <div className="w-full py-2.5 rounded-lg bg-green-50 border border-green-200 flex items-center justify-center gap-1.5">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    <span className="text-[10px] font-bold text-green-700">Order sent to kitchen!</span>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
-      <div className="p-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[12px] font-bold text-gray-900">🍞 Linen Co.</span>
-          <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">3 open</span>
-        </div>
-        <div className="space-y-1.5">
-          {[
-            { item: '50 bath towels', value: '$120', status: 'In Progress' },
-            { item: '100 hand towels', value: '$85', status: 'Open' },
-            { item: '30 face cloths', value: '$45', status: 'Open' },
-          ].map((job, i) => (
-            <div key={i} className={`border rounded-lg p-2.5 ${job.status === 'In Progress' ? 'border-blue-200 bg-blue-50' : 'border-gray-200'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] font-bold text-gray-900">{job.item}</div>
-                  <div className="text-[8px] text-gray-500 mt-0.5">{job.status === 'In Progress' ? '● In progress' : '○ Open'}</div>
-                </div>
-                <div className="text-[12px] font-black text-gray-900">{job.value}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="text-center text-[8px] text-gray-500 pt-2 border-t border-gray-100">
-          Auto-invoice · No phone tag
-        </div>
+      <div className="text-center mt-4">
+        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">Guests order in under 30s</div>
+        <div className="text-sm font-black text-gray-900 mt-1">Scan. Browse. Order. Eat.</div>
+        <div className="text-[10px] text-gray-500 mt-0.5">No app · No download · No account</div>
       </div>
     </div>
   );

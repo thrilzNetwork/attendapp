@@ -3,8 +3,32 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Wifi, Check, Coffee, Dumbbell, Printer, WashingMachine, Car, Bus, IceCream } from 'lucide-react';
-import { getHotelConfig, HotelConfig } from '@/lib/supabase';
+import { getHotelConfig, HotelConfig, FacilitiesAmenity } from '@/lib/supabase';
 import { goBackToHotel } from '@/lib/guest-context';
+
+// Icon map: resolves string icon names from DB to Lucide components
+const iconMap: Record<string, React.ReactNode> = {
+  Coffee: <Coffee size={20} />,
+  Dumbbell: <Dumbbell size={20} />,
+  Printer: <Printer size={20} />,
+  WashingMachine: <WashingMachine size={20} />,
+  IceCream: <IceCream size={20} />,
+  Car: <Car size={20} />,
+  Bus: <Bus size={20} />,
+  Wifi: <Wifi size={20} />,
+  Check: <Check size={20} />,
+};
+
+/** Fallback defaults used when DB content is empty or unavailable */
+const defaultAmenities: FacilitiesAmenity[] = [
+  { icon: 'Coffee', title: 'Complimentary Breakfast', description: '6:30 AM — 9:30 AM daily. Hot & continental options.' },
+  { icon: 'Dumbbell', title: 'Pool & Fitness Center', description: 'Open 6:00 AM — 10:00 PM. Towels provided at front desk.' },
+  { icon: 'Printer', title: 'Business Center', description: '24-hour access. Printing, fax, and computer stations available.' },
+  { icon: 'WashingMachine', title: 'Guest Laundry', description: 'Coin-operated washers & dryers on 2nd floor. Detergent available at front desk.' },
+  { icon: 'IceCream', title: 'Ice & Vending', description: 'Ice machines on every floor. Snack & beverage vending in lobby.' },
+  { icon: 'Car', title: 'Complimentary Parking', description: 'Free parking for hotel guests. Oversized vehicle spots available.' },
+  { icon: 'Bus', title: 'Airport / Cruise Shuttle', description: 'Scheduled shuttle to MIA & Port of Miami. Book 24hrs in advance.' },
+];
 
 export default function FacilitiesPage() {
   const router = useRouter();
@@ -31,15 +55,10 @@ export default function FacilitiesPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const amenities = [
-    { icon: <Coffee size={20} />, title: 'Complimentary Breakfast', desc: '6:30 AM — 9:30 AM daily. Hot & continental options.' },
-    { icon: <Dumbbell size={20} />, title: 'Pool & Fitness Center', desc: 'Open 6:00 AM — 10:00 PM. Towels provided at front desk.' },
-    { icon: <Printer size={20} />, title: 'Business Center', desc: '24-hour access. Printing, fax, and computer stations available.' },
-    { icon: <WashingMachine size={20} />, title: 'Guest Laundry', desc: 'Coin-operated washers & dryers on 2nd floor. Detergent available at front desk.' },
-    { icon: <IceCream size={20} />, title: 'Ice & Vending', desc: 'Ice machines on every floor. Snack & beverage vending in lobby.' },
-    { icon: <Car size={20} />, title: 'Complimentary Parking', desc: 'Free parking for hotel guests. Oversized vehicle spots available.' },
-    { icon: <Bus size={20} />, title: 'Airport / Cruise Shuttle', desc: 'Scheduled shuttle to MIA & Port of Miami. Book 24hrs in advance.' },
-  ];
+  const amenities: FacilitiesAmenity[] =
+    config?.facilitiesContent && config.facilitiesContent.length > 0
+      ? config.facilitiesContent
+      : defaultAmenities;
 
   return (
     <div className="h-dvh w-full bg-[#F4F4F5] flex flex-col overflow-hidden">
@@ -93,11 +112,11 @@ export default function FacilitiesPage() {
               {amenities.map((a, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${brandColor}10`, color: brandColor }}>
-                    {a.icon}
+                    {iconMap[a.icon] ?? <Coffee size={20} />}
                   </div>
                   <div>
                     <p className="text-[13px] font-semibold text-gray-800">{a.title}</p>
-                    <p className="text-[12px] text-gray-500">{a.desc}</p>
+                    <p className="text-[12px] text-gray-500">{a.description}</p>
                   </div>
                 </div>
               ))}

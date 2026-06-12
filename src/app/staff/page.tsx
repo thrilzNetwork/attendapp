@@ -30,7 +30,7 @@ import {
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
-  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign,
+  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign, ShieldCheck, MapPin,
 } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
@@ -2237,6 +2237,8 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   const [editingDept, setEditingDept] = useState<string | null>(null);
   const [editingDeptValue, setEditingDeptValue] = useState('');
   const [sendInvite, setSendInvite] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const ALL_PERMS = ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes'];
 
   const adminFetch = async (action: string, body: any) => {
@@ -2252,45 +2254,57 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
 
   const handleAdd = async () => {
     setPinError('');
-    if (!form.name || !form.pin) return;
+    setSaveError('');
+    if (!form.name || !form.pin) {
+      setSaveError('Name and PIN are required.');
+      return;
+    }
     if (!/^\d{4,6}$/.test(form.pin)) {
       setPinError('PIN must be 4–6 digits.');
       return;
     }
-    await adminFetch('create_staff', {
-      hotel_id: hotelId, name: form.name, role: form.role,
-      email: form.email, phone: form.phone, pin_code: form.pin,
-      permissions: form.role === 'vendor' ? [] : ['orders', 'messages', 'shuttle'],
-      vendor_type: form.role === 'vendor' ? form.vendor_type || 'shuttle' : undefined,
-      department: form.department || undefined,
-      hire_date: form.hire_date || undefined,
-      min_hours: Number(form.min_hours) || 0,
-      employment_type: form.employment_type || 'full_time',
-    });
+    setSaving(true);
+    try {
+      await adminFetch('create_staff', {
+        hotel_id: hotelId, name: form.name, role: form.role,
+        email: form.email, phone: form.phone, pin_code: form.pin,
+        permissions: form.role === 'vendor' ? [] : ['orders', 'messages', 'shuttle'],
+        vendor_type: form.role === 'vendor' ? form.vendor_type || 'shuttle' : undefined,
+        department: form.department || undefined,
+        hire_date: form.hire_date || undefined,
+        min_hours: Number(form.min_hours) || 0,
+        employment_type: form.employment_type || 'full_time',
+      });
 
-    // Send invitation email with setup link
-    if (form.email && sendInvite) {
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://attendaapp.com';
-      fetch('/api/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-        body: JSON.stringify({
-          type: 'staff_invitation',
-          data: {
-            staffEmail: form.email,
-            staffName: form.name,
-            staffRole: form.role,
-            hotelName,
-            hotelSlug,
-            pin: form.pin,
-            setupUrl: `${baseUrl}/staff/setup?email=${encodeURIComponent(form.email)}&hotel=${encodeURIComponent(hotelSlug)}&mode=setup`,
-          },
-        }),
-      }).catch(() => {});
+      // Send invitation email with setup link
+      if (form.email && sendInvite) {
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://attendaapp.com';
+        fetch('/api/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+          body: JSON.stringify({
+            type: 'staff_invitation',
+            data: {
+              staffEmail: form.email,
+              staffName: form.name,
+              staffRole: form.role,
+              hotelName,
+              hotelSlug,
+              pin: form.pin,
+              setupUrl: `${baseUrl}/staff/setup?email=${encodeURIComponent(form.email)}&hotel=${encodeURIComponent(hotelSlug)}&mode=setup`,
+            },
+          }),
+        }).catch(() => {});
+      }
+
+      setForm({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '', hire_date: '', min_hours: 0, employment_type: 'full_time' });
+      onRefresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save staff';
+      setSaveError(msg);
+    } finally {
+      setSaving(false);
     }
-
-    setForm({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '', hire_date: '', min_hours: 0, employment_type: 'full_time' });
-    onRefresh();
   };
 
   const handlePermToggle = async (staffId: string, perm: string, current: string[]) => {
@@ -2402,7 +2416,8 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
               </div>
               {pinError && <p className="text-[11px] text-red-500 mt-1">{pinError}</p>}
             </div>
-            <button onClick={handleAdd} className="w-full py-3 rounded-xl text-white font-semibold text-[13px]" style={{ backgroundColor: '#0D9488' }}>ADD STAFF MEMBER</button>
+            {saveError && <p className="text-[11px] text-red-500 bg-red-50 px-3 py-2 rounded-lg">{saveError}</p>}
+            <button onClick={handleAdd} disabled={saving} className="w-full py-3 rounded-xl text-white font-semibold text-[13px] disabled:opacity-50" style={{ backgroundColor: '#0D9488' }}>{saving ? 'Saving...' : 'ADD STAFF MEMBER'}</button>
             {form.email && (
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={sendInvite} onChange={e => setSendInvite(e.target.checked)} className="w-4 h-4 rounded" style={{ accentColor: '#0D9488' }} />
@@ -2904,6 +2919,82 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
             onChange={v => setForm({ ...form, notificationEmail: v })}
             placeholder="frontdesk@yourhotel.com"
           />
+        </Section>
+
+        <Section title="Guest Content — Facilities" Icon={Bell}>
+          <p className="text-[11px] text-gray-400 -mt-1">Amenities guests see on the Facilities screen. Add, edit, or remove items.</p>
+          <div className="space-y-3 mt-3">
+            {(form.facilitiesContent || []).map((amenity, idx) => (
+              <div key={idx} className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Item {idx + 1}</span>
+                  <button onClick={() => {
+                    const updated = (form.facilitiesContent || []).filter((_, i) => i !== idx);
+                    setForm({ ...form, facilitiesContent: updated });
+                  }} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                </div>
+                <input value={amenity.icon} onChange={e => {
+                  const updated = [...(form.facilitiesContent || [])];
+                  updated[idx] = { ...updated[idx], icon: e.target.value };
+                  setForm({ ...form, facilitiesContent: updated });
+                }} placeholder="Icon name (e.g. Coffee, Wifi, Dumbbell)" className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                <input value={amenity.title} onChange={e => {
+                  const updated = [...(form.facilitiesContent || [])];
+                  updated[idx] = { ...updated[idx], title: e.target.value };
+                  setForm({ ...form, facilitiesContent: updated });
+                }} placeholder="Title (e.g. Complimentary Breakfast)" className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                <textarea value={amenity.description} onChange={e => {
+                  const updated = [...(form.facilitiesContent || [])];
+                  updated[idx] = { ...updated[idx], description: e.target.value };
+                  setForm({ ...form, facilitiesContent: updated });
+                }} rows={2} placeholder="Description" className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none resize-none" />
+              </div>
+            ))}
+            <button onClick={() => setForm({ ...form, facilitiesContent: [...(form.facilitiesContent || []), { icon: 'Coffee', title: '', description: '' }] })} className="flex items-center gap-1.5 text-[12px] font-medium text-teal-600 hover:text-teal-700"><Plus size={14} /> Add Amenity</button>
+          </div>
+        </Section>
+
+        <Section title="Guest Content — Safety" Icon={ShieldCheck}>
+          <p className="text-[11px] text-gray-400 -mt-1">Safety info guests see. Leave empty sections to use defaults.</p>
+          <div className="space-y-3 mt-3">
+            <Field label="Emergency Message" value={form.safetyContent?.emergency_message || ''} onChange={v => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_message: v } })} placeholder="Remain calm. Call 911, then notify front desk." />
+            <Field label="Closing Message" value={form.safetyContent?.closing_message || ''} onChange={v => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), closing_message: v } })} placeholder="Contact front desk anytime for safety concerns." />
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Emergency Contacts</p>
+            {((form.safetyContent?.emergency_contacts) || []).map((contact, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <input value={contact.label || ''} onChange={e => {
+                  const updated = [...((form.safetyContent?.emergency_contacts) || [])];
+                  updated[idx] = { ...updated[idx], label: e.target.value };
+                  setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_contacts: updated } });
+                }} placeholder="Label (e.g. Front Desk)" className="flex-[2] bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                <input value={contact.number || ''} onChange={e => {
+                  const updated = [...((form.safetyContent?.emergency_contacts) || [])];
+                  updated[idx] = { ...updated[idx], number: e.target.value };
+                  setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_contacts: updated } });
+                }} placeholder="Number" className="flex-1 bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                <button onClick={() => {
+                  const updated = ((form.safetyContent?.emergency_contacts) || []).filter((_, i) => i !== idx);
+                  setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_contacts: updated } });
+                }} className="text-red-400"><Trash2 size={14} /></button>
+              </div>
+            ))}
+            <button onClick={() => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_contacts: [...((form.safetyContent?.emergency_contacts) || []), { label: '', number: '' }] } })} className="flex items-center gap-1.5 text-[12px] font-medium text-teal-600"><Plus size={14} /> Add Contact</button>
+          </div>
+        </Section>
+
+        <Section title="Guest Content — Transport" Icon={Bus}>
+          <p className="text-[11px] text-gray-400 -mt-1">Custom message shown on the Transport page.</p>
+          <Field label="Pickup Note" value={form.transportContent?.pickup_note || ''} onChange={v => setForm({ ...form, transportContent: { ...(form.transportContent || {}), pickup_note: v } })} placeholder="Pickup requests are confirmed by staff. Contact front desk for immediate needs." />
+        </Section>
+
+        <Section title="Guest Content — Food" Icon={UtensilsCrossed}>
+          <p className="text-[11px] text-gray-400 -mt-1">Intro text shown on the Food tab.</p>
+          <textarea value={form.foodContent?.intro_text || ''} onChange={e => setForm({ ...form, foodContent: { ...(form.foodContent || {}), intro_text: e.target.value } })} rows={3} className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none" placeholder="Explore our local partner restaurants and order delivery right to your room." />
+        </Section>
+
+        <Section title="Guest Content — Nearby" Icon={MapPin}>
+          <p className="text-[11px] text-gray-400 -mt-1">Intro text shown on the Nearby page.</p>
+          <textarea value={form.nearbyIntro?.intro_text || ''} onChange={e => setForm({ ...form, nearbyIntro: { ...(form.nearbyIntro || {}), intro_text: e.target.value } })} rows={3} className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none" placeholder="Discover restaurants, attractions, and services near our hotel." />
         </Section>
 
         {/* Shuttle Management section removed per admin request */}
@@ -5995,11 +6086,6 @@ function AdminCalloutsView({ hotelId }: { hotelId: string }) {
 }
 
 // Inline helpers for SVG icons not in lucide
-const MapPin = ({ size, style }: { size: number; style?: React.CSSProperties }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
-    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
-  </svg>
-);
 const Phone = ({ size, style }: { size: number; style?: React.CSSProperties }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />

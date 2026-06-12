@@ -6,10 +6,12 @@ import {
   X, Send, CheckCircle, Wifi, Check, Coffee, Dumbbell, Printer,
   WashingMachine, IceCream, Car, Bus, Flame, AlertTriangle,
   AlarmSmoke, Crosshair, ShieldCheck, Phone, Star, ExternalLink,
-  Plane, UserCheck,
+  Plane, UserCheck, MapPin, Utensils, ShoppingBag, Bell, Globe,
+  User, Clock, DoorOpen, TrendingUp,
 } from 'lucide-react';
 import {
   supabase, getHotelConfig, HotelConfig,
+  FacilitiesAmenity,
   getAllShuttleSlotsForHotel, bookShuttleSlot, createShuttleRequest,
   getShuttleRoutes, getCruiseSchedules,
   ShuttleSlot, ShuttleRoute, CruiseSchedule,
@@ -432,6 +434,7 @@ function ShuttleScheduleInner() {
 function OnDemandInner() {
   const [direction, setDirection] = useState<'arrival' | 'departure'>('departure');
   const [form, setForm] = useState({ guestName: '', room: '', date: '', time: '', airline: '', flight: '', destination: '', pax: 1, notes: '' });
+  const [config, setConfig] = useState<HotelConfig | null>(null);
   const [routes, setRoutes] = useState<ShuttleRoute[]>([]);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
@@ -439,6 +442,7 @@ function OnDemandInner() {
 
   useEffect(() => {
     getHotelConfig().then(async h => {
+      setConfig(h);
       if (h?.id) { const r = await getShuttleRoutes(h.id); setRoutes(r); if (r.length > 0) setForm(f => ({ ...f, destination: r[0].name })); }
     });
     try {
@@ -505,7 +509,7 @@ function OnDemandInner() {
         {submitting ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting…</> : 'Submit Request'}
       </button>
       <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-        <p className="text-[11px] text-amber-700">Pickup requests are confirmed by staff. Contact front desk at ext. 0 for immediate needs.</p>
+        <p className="text-[11px] text-amber-700">{config?.transportContent?.pickup_note || 'Pickup requests are confirmed by staff. Contact front desk at ext. 0 for immediate needs.'}</p>
       </div>
     </div>
   );
@@ -521,7 +525,35 @@ export function FacilitiesSheetContent() {
   const wifiPassword = config?.wifiPassword || '';
   const copyWiFi = () => { navigator.clipboard.writeText(wifiPassword || wifiName); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
-  const amenities = [
+  const iconMap: Record<string, React.ReactNode> = {
+    Coffee: <Coffee size={18} />,
+    Dumbbell: <Dumbbell size={18} />,
+    Printer: <Printer size={18} />,
+    WashingMachine: <WashingMachine size={18} />,
+    IceCream: <IceCream size={18} />,
+    Car: <Car size={18} />,
+    Bus: <Bus size={18} />,
+    Wifi: <Wifi size={18} />,
+    Check: <Check size={18} />,
+    MapPin: <MapPin size={18} />,
+    Phone: <Phone size={18} />,
+    Utensils: <Utensils size={18} />,
+    ShoppingBag: <ShoppingBag size={18} />,
+    Star: <Star size={18} />,
+    Bell: <Bell size={18} />,
+    ShieldCheck: <ShieldCheck size={18} />,
+    Globe: <Globe size={18} />,
+    User: <User size={18} />,
+    Plane: <Plane size={18} />,
+    Clock: <Clock size={18} />,
+    DoorOpen: <DoorOpen size={18} />,
+    Flame: <Flame size={18} />,
+    AlarmSmoke: <AlarmSmoke size={18} />,
+    Crosshair: <Crosshair size={18} />,
+    TrendingUp: <TrendingUp size={18} />,
+  };
+
+  const defaultAmenities = [
     { icon: <Coffee size={18} />, title: 'Complimentary Breakfast', desc: '6:30 AM — 9:30 AM daily. Hot & continental options.' },
     { icon: <Dumbbell size={18} />, title: 'Pool & Fitness Center', desc: 'Open 6:00 AM — 10:00 PM. Towels at front desk.' },
     { icon: <Printer size={18} />, title: 'Business Center', desc: '24-hour access. Printing, fax, and computer stations.' },
@@ -530,6 +562,14 @@ export function FacilitiesSheetContent() {
     { icon: <Car size={18} />, title: 'Complimentary Parking', desc: 'Free for hotel guests. Oversized spots available.' },
     { icon: <Bus size={18} />, title: 'Airport / Cruise Shuttle', desc: 'Scheduled shuttle to MIA & Port of Miami. Book 24hrs ahead.' },
   ];
+
+  const amenities = (config?.facilitiesContent && config.facilitiesContent.length > 0)
+    ? config.facilitiesContent.map((a: FacilitiesAmenity) => ({
+        icon: iconMap[a.icon] || <span className="text-[12px] font-bold">?</span>,
+        title: a.title,
+        desc: a.description,
+      }))
+    : defaultAmenities;
 
   return (
     <div className="overflow-y-auto px-5 pt-2 pb-8 space-y-3">
@@ -565,20 +605,61 @@ export function FacilitiesSheetContent() {
 }
 
 /* ── Safety ────────────────────────────────────────────────── */
+const DEFAULT_EMERGENCY_MSG = "Remain calm. Call 911 for immediate emergency response, then notify the front desk at";
+const DEFAULT_CONTACTS: { label: string; number: string }[] = [
+  { label: 'Emergency (Police, Fire, Medical)', number: '911' },
+];
+const DEFAULT_FIRE_ITEMS = [
+  'Smoke detectors in every room, tested monthly.',
+  'Know your nearest fire exit — posted on your door.',
+  'In case of fire: Do not use elevators. Use stairs.',
+  'If trapped: Seal door cracks, signal from window, call 911.',
+  'Assembly point is in the front parking lot.',
+];
+const DEFAULT_CO_ITEMS = [
+  'CO detectors on every floor and inside every room.',
+  'Chirping sound = notify front desk. Do not silence it.',
+  'CO symptoms: headache, dizziness, nausea — seek fresh air and call 911.',
+  'Smoke alarms are interconnected — one triggers all.',
+  'Do not tamper with detectors.',
+];
+const DEFAULT_SECURITY_ITEMS = [
+  'Exterior doors locked 10 PM – 6 AM. Use room key.',
+  'Security cameras in public areas, parking, and hallways.',
+  'Report suspicious activity to front desk.',
+  'Lock door and use deadbolt when inside.',
+  'Use in-room safe or front desk deposit for valuables.',
+];
+const DEFAULT_CLOSING_MSG = 'Contact the front desk at any time for safety concerns. Your wellbeing is our top priority.';
+
 export function SafetySheetContent() {
   const [config, setConfig] = useState<HotelConfig | null>(null);
   useEffect(() => { getHotelConfig().then(setConfig); }, []);
   const frontDesk = config?.frontDeskPhone || 'Ext. 0';
+  const sc = config?.safetyContent;
+
+  const emergencyMessage = sc?.emergency_message ?? DEFAULT_EMERGENCY_MSG;
+  const emergencyContacts = sc?.emergency_contacts?.length
+    ? sc.emergency_contacts
+    : [
+        ...DEFAULT_CONTACTS,
+        { label: 'Front Desk', number: frontDesk },
+        { label: 'Hotel Security', number: 'Ext. 0' },
+      ];
+  const fireItems = sc?.fire_safety_items?.length ? sc.fire_safety_items : DEFAULT_FIRE_ITEMS;
+  const coItems = sc?.co_items?.length ? sc.co_items : DEFAULT_CO_ITEMS;
+  const securityItems = sc?.security_items?.length ? sc.security_items : DEFAULT_SECURITY_ITEMS;
+  const closingMessage = sc?.closing_message ?? DEFAULT_CLOSING_MSG;
 
   return (
     <div className="overflow-y-auto px-5 pt-2 pb-8 space-y-3">
       <div className="bg-red-50 rounded-2xl p-4 border border-red-100 flex items-start gap-3">
         <AlertTriangle size={20} className="text-red-600 shrink-0 mt-0.5" />
-        <div><p className="text-[13px] font-bold text-red-800 mb-1">In Case of Emergency</p><p className="text-[12px] text-red-700 leading-relaxed">Remain calm. Call 911 for immediate emergency response, then notify the front desk at {frontDesk}.</p></div>
+        <div><p className="text-[13px] font-bold text-red-800 mb-1">In Case of Emergency</p><p className="text-[12px] text-red-700 leading-relaxed">{emergencyMessage} {frontDesk}.</p></div>
       </div>
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
         <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-3 font-semibold">Emergency Contacts</p>
-        {[{ label: 'Emergency (Police, Fire, Medical)', number: '911' }, { label: 'Front Desk', number: frontDesk }, { label: 'Hotel Security', number: 'Ext. 0' }].map((e, i) => (
+        {emergencyContacts.map((e, i) => (
           <a key={i} href={`tel:${e.number.replace(/[^0-9]/g, '')}`} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 active:bg-gray-100 mb-1.5">
             <div className="flex items-center gap-3"><Phone size={16} style={{ color: BURGUNDY }} /><p className="text-[13px] font-semibold text-gray-800">{e.label}</p></div>
             <span className="text-[14px] font-bold" style={{ color: BURGUNDY }}>{e.number}</span>
@@ -586,9 +667,9 @@ export function SafetySheetContent() {
         ))}
       </div>
       {[
-        { icon: <Flame size={17} className="text-orange-500" />, title: 'Fire Safety', items: ['Smoke detectors in every room, tested monthly.', 'Know your nearest fire exit — posted on your door.', 'In case of fire: Do not use elevators. Use stairs.', 'If trapped: Seal door cracks, signal from window, call 911.', 'Assembly point is in the front parking lot.'] },
-        { icon: <AlarmSmoke size={17} style={{ color: BURGUNDY }} />, title: 'CO & Smoke Detection', items: ['CO detectors on every floor and inside every room.', 'Chirping sound = notify front desk. Do not silence it.', 'CO symptoms: headache, dizziness, nausea — seek fresh air and call 911.', 'Smoke alarms are interconnected — one triggers all.', 'Do not tamper with detectors.'] },
-        { icon: <Crosshair size={17} style={{ color: BURGUNDY }} />, title: 'Property Security', items: ['Exterior doors locked 10 PM – 6 AM. Use room key.', 'Security cameras in public areas, parking, and hallways.', 'Report suspicious activity to front desk.', 'Lock door and use deadbolt when inside.', 'Use in-room safe or front desk deposit for valuables.'] },
+        { icon: <Flame size={17} className="text-orange-500" />, title: 'Fire Safety', items: fireItems },
+        { icon: <AlarmSmoke size={17} style={{ color: BURGUNDY }} />, title: 'CO & Smoke Detection', items: coItems },
+        { icon: <Crosshair size={17} style={{ color: BURGUNDY }} />, title: 'Property Security', items: securityItems },
       ].map(section => (
         <div key={section.title} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-3">{section.icon}<p className="text-[14px] font-bold text-gray-800">{section.title}</p></div>
@@ -601,7 +682,7 @@ export function SafetySheetContent() {
         </div>
       ))}
       <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-        <p className="text-[11px] text-amber-700 text-center">Contact the front desk at any time for safety concerns. Your wellbeing is our top priority.</p>
+        <p className="text-[11px] text-amber-700 text-center">{closingMessage}</p>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Bell, RefreshCw, LogOut, Hotel as HotelIcon } from 'lucide-react';
+import { Bell, RefreshCw, LogOut, Hotel as HotelIcon, ArrowRight, CheckCircle, XCircle, DollarSign, Truck, CreditCard, Smartphone } from 'lucide-react';
 import {
   supabase, subscribeToRequests, updateRequestStatus,
 } from '@/lib/supabase';
@@ -19,6 +19,274 @@ interface Request {
 
 const TEAL = '#0D9488';
 
+/* ──────────────────────────────────────────────────────────── */
+/*  Restaurant Landing Page (shown to new visitors)             */
+/* ──────────────────────────────────────────────────────────── */
+function RestaurantLandingPage() {
+  const [showApply, setShowApply] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applied, setApplied] = useState(false);
+  const [form, setForm] = useState({ name: '', contact: '', phone: '', email: '', hotel: '' });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setApplying(true);
+    try {
+      const res = await fetch('/api/partner-apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        setApplied(true);
+        setForm({ name: '', contact: '', phone: '', email: '', hotel: '' });
+      }
+    } catch {
+      // Silently handle — form submit failure is non-blocking
+    }
+    setApplying(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Hero */}
+      <section className="px-6 pt-20 pb-16 max-w-4xl mx-auto text-center">
+        <div className="inline-flex items-center gap-2 bg-teal-50 text-teal-700 text-[11px] font-bold px-3 py-1.5 rounded-full mb-6 uppercase tracking-wider">
+          <HotelIcon size={12} /> Hotel Channel Partner Program
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight mb-4">
+          Your restaurant.<br />In front of hotel guests.
+        </h1>
+        <p className="text-[15px] text-gray-600 max-w-2xl mx-auto leading-relaxed mb-8">
+          We are not UberEats. Not DoorDash. Not Grubhub. We don&apos;t compete with delivery platforms — we open a channel you can&apos;t access on your own: <strong className="text-gray-900">hotel guests ordering directly from you</strong>.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            onClick={() => setShowApply(true)}
+            className="px-8 py-3.5 rounded-xl text-white font-bold text-[14px] flex items-center justify-center gap-2"
+            style={{ backgroundColor: TEAL }}
+          >
+            Apply Now <ArrowRight size={16} />
+          </button>
+          <a href="#how-it-works" className="px-8 py-3.5 rounded-xl border border-gray-200 text-gray-700 font-semibold text-[14px] hover:bg-gray-50 transition-colors text-center">
+            How It Works
+          </a>
+        </div>
+      </section>
+
+      {/* Market gap */}
+      <section className="px-6 py-16 bg-gray-50">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid sm:grid-cols-2 gap-8 items-center">
+            <div>
+              <h2 className="text-2xl font-black text-gray-900 mb-4">A market you can&apos;t reach alone</h2>
+              <p className="text-[14px] text-gray-600 leading-relaxed mb-4">
+                Hotels are a closed ecosystem. You can&apos;t walk in and start serving guests. Traditional delivery platforms don&apos;t bridge this gap either — they build apps for the general public, not for a hotel&apos;s front desk.
+              </p>
+              <p className="text-[14px] text-gray-600 leading-relaxed">
+                <strong className="text-gray-900">Attenda</strong> is the operations system hotels already use — for checklists, chat, guest requests, and revenue tracking. When a guest wants food, they order <strong className="text-gray-900">through their hotel&apos;s Attenda page</strong>, and it lands in your kitchen.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                  <XCircle size={20} className="text-red-400" />
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold text-red-500">Delivery Platforms</p>
+                  <p className="text-[11px] text-gray-400">UberEats, DoorDash, Grubhub</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center">
+                  <CheckCircle size={20} className="text-teal-500" />
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold text-teal-600">Attenda Network</p>
+                  <p className="text-[11px] text-gray-400">Direct line to hotel guests</p>
+                </div>
+              </div>
+              <div className="mt-6 space-y-2 text-[13px] text-gray-500">
+                <p className="flex items-center gap-2"><XCircle size={12} className="text-red-300 shrink-0" />Charge 25-30% per order</p>
+                <p className="flex items-center gap-2"><XCircle size={12} className="text-red-300 shrink-0" />No access to hotel-only demand</p>
+                <p className="flex items-center gap-2"><CheckCircle size={12} className="text-teal-400 shrink-0" />We take 10% — firm, direct</p>
+                <p className="flex items-center gap-2"><CheckCircle size={12} className="text-teal-400 shrink-0" />We bring the driver</p>
+                <p className="flex items-center gap-2"><CheckCircle size={12} className="text-teal-400 shrink-0" />We give you the ordering system free</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* The offer */}
+      <section id="how-it-works" className="px-6 py-16 max-w-4xl mx-auto">
+        <h2 className="text-2xl font-black text-gray-900 text-center mb-10">The Offer</h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+            <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+              <DollarSign size={22} className="text-teal-600" />
+            </div>
+            <p className="text-[28px] font-black text-gray-900">10%</p>
+            <p className="text-[12px] text-gray-500 mt-1">Commission per order</p>
+            <p className="text-[11px] text-gray-400 mt-2">Firm and direct. No hidden fees, no sliding scales.</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+            <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+              <Truck size={22} className="text-teal-600" />
+            </div>
+            <p className="text-[28px] font-black text-gray-900">Delivery</p>
+            <p className="text-[12px] text-gray-500 mt-1">We provide the driver</p>
+            <p className="text-[11px] text-gray-400 mt-2">Your kitchen cooks. We handle getting it to the guest.</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+            <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+              <CreditCard size={22} className="text-teal-600" />
+            </div>
+            <p className="text-[28px] font-black text-gray-900">3%</p>
+            <p className="text-[12px] text-gray-500 mt-1">Credit card fee</p>
+            <p className="text-[11px] text-gray-400 mt-2"><strong className="text-gray-700">Debit cards: 0%</strong> — no charge at all.</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+            <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+              <Smartphone size={22} className="text-teal-600" />
+            </div>
+            <p className="text-[28px] font-black text-gray-900">Free</p>
+            <p className="text-[12px] text-gray-500 mt-1">Online ordering system</p>
+            <p className="text-[11px] text-gray-400 mt-2">Fully integrated. Hotel ↔ Restaurant in one thread.</p>
+          </div>
+        </div>
+
+        <div className="bg-teal-50 rounded-2xl p-6 sm:p-8 border border-teal-100">
+          <p className="text-[14px] text-teal-900 leading-relaxed font-semibold">
+            <strong>The math is simple:</strong> If your restaurant agrees to these terms, we activate your free ordering system, connect you to every hotel on Attenda near you, and start sending guests your way. No setup costs. No long-term lock-in.
+          </p>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="px-6 py-16 bg-gray-900 text-center">
+        <div className="max-w-2xl mx-auto">
+          <h2 className="text-2xl font-black text-white mb-4">Ready to start?</h2>
+          <p className="text-[14px] text-gray-400 mb-8 max-w-lg mx-auto">
+            Fill in your details and we&apos;ll get back to you within 24 hours to activate your restaurant on the Attenda network.
+          </p>
+          <button
+            onClick={() => setShowApply(true)}
+            className="px-10 py-4 rounded-xl text-white font-bold text-[15px] flex items-center gap-2 mx-auto"
+            style={{ backgroundColor: TEAL }}
+          >
+            Apply Now <ArrowRight size={18} />
+          </button>
+          <p className="text-[12px] text-gray-500 mt-4">
+            Already a partner? <a href="#partner-login" className="text-teal-400 underline">Log in to your dashboard</a>
+          </p>
+        </div>
+      </section>
+
+      {/* Apply Modal */}
+      {showApply && !applied && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-5" onClick={() => setShowApply(false)}>
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Apply to Join</h3>
+            <p className="text-[13px] text-gray-500 mb-6">We&apos;ll reach out within 24 hours.</p>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="text-[12px] font-semibold text-gray-600 block mb-1">Restaurant Name</label>
+                <input
+                  required
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                  placeholder="e.g. Luigi's Pizzeria"
+                />
+              </div>
+              <div>
+                <label className="text-[12px] font-semibold text-gray-600 block mb-1">Contact Name</label>
+                <input
+                  required
+                  value={form.contact}
+                  onChange={e => setForm(f => ({ ...f, contact: e.target.value }))}
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                  placeholder="Your name"
+                />
+              </div>
+              <div>
+                <label className="text-[12px] font-semibold text-gray-600 block mb-1">Phone</label>
+                <input
+                  required
+                  type="tel"
+                  value={form.phone}
+                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                  placeholder="(954) 555-0123"
+                />
+              </div>
+              <div>
+                <label className="text-[12px] font-semibold text-gray-600 block mb-1">Email</label>
+                <input
+                  required
+                  type="email"
+                  value={form.email}
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                  placeholder="chef@luigis.com"
+                />
+              </div>
+              <div>
+                <label className="text-[12px] font-semibold text-gray-600 block mb-1">Nearest Hotel (optional)</label>
+                <input
+                  value={form.hotel}
+                  onChange={e => setForm(f => ({ ...f, hotel: e.target.value }))}
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                  placeholder="e.g. Best Western Fort Lauderdale"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={applying}
+                className="w-full py-3.5 rounded-xl text-white font-bold text-[14px] disabled:opacity-50"
+                style={{ backgroundColor: TEAL }}
+              >
+                {applying ? 'Sending...' : 'Submit Application'}
+              </button>
+              <button type="button" onClick={() => setShowApply(false)} className="w-full text-[13px] text-gray-500 py-2">
+                Cancel
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Applied success */}
+      {showApply && applied && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-5" onClick={() => { setShowApply(false); setApplied(false); }}>
+          <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-xl text-center" onClick={e => e.stopPropagation()}>
+            <CheckCircle size={48} className="text-teal-500 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Application Sent!</h3>
+            <p className="text-[13px] text-gray-500 mb-6">We&apos;ll review and get back to you within 24 hours.</p>
+            <button
+              onClick={() => { setShowApply(false); setApplied(false); }}
+              className="px-6 py-3 rounded-xl text-white font-bold text-[14px]"
+              style={{ backgroundColor: TEAL }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Existing partner login anchor */}
+      <div id="partner-login" className="px-6 py-12 text-center border-t border-gray-100">
+        <p className="text-[13px] text-gray-400 mb-2">Already have a partner account?</p>
+        <a href="?restaurant=login" className="text-teal-600 font-bold text-[14px] underline">Log in to your dashboard →</a>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────── */
+/*  Existing Partner Dashboard                                  */
+/* ──────────────────────────────────────────────────────────── */
 function PartnerContent() {
   const searchParams = useSearchParams();
   const partnerId = searchParams.get('restaurant');
@@ -32,7 +300,6 @@ function PartnerContent() {
 
   const reload = useCallback(async () => {
     if (!partnerId) return;
-    // Fetch this partner's food orders — filtered to the partner's hotel
     let query = supabase
       .from('requests')
       .select('*')
@@ -54,7 +321,6 @@ function PartnerContent() {
 
   const handleLogin = async () => {
     setPinError('');
-    // Check partner PIN
     const { data } = await supabase
       .from('partners')
       .select('*')
@@ -66,7 +332,6 @@ function PartnerContent() {
       return;
     }
 
-    // For now, use a simple PIN check — partner PIN stored or use default
     const restaurantPin = data.pin_code || '2025';
     if (pin === restaurantPin) {
       setPartnerName(data.name);
@@ -78,14 +343,9 @@ function PartnerContent() {
     }
   };
 
-  if (!partnerId) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
-        <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
-          <p className="text-[14px] text-gray-500">No restaurant specified. Use <code className="bg-gray-100 px-1.5 py-0.5 rounded">?restaurant=ID</code></p>
-        </div>
-      </div>
-    );
+  // No partner ID → show the landing page
+  if (!partnerId || partnerId === 'login') {
+    return <RestaurantLandingPage />;
   }
 
   if (!authenticated) {
@@ -114,6 +374,9 @@ function PartnerContent() {
           >
             VIEW ORDERS
           </button>
+          <a href="/partner" className="block text-center text-[12px] text-teal-600 mt-4 underline">
+            ← Back to partner info
+          </a>
         </div>
       </div>
     );
@@ -124,7 +387,6 @@ function PartnerContent() {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col">
-      {/* Header */}
       <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-[18px] font-bold text-gray-900">{partnerName || 'Restaurant'}</h1>
@@ -143,7 +405,6 @@ function PartnerContent() {
         </div>
       </header>
 
-      {/* Stats */}
       <div className="shrink-0 px-6 py-4 grid grid-cols-3 gap-3">
         {[
           { label: 'Pending', count: requests.filter(r => r.status === 'pending').length, color: 'text-amber-600' },
@@ -157,7 +418,6 @@ function PartnerContent() {
         ))}
       </div>
 
-      {/* Orders list */}
       <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3">
         <h2 className="text-[14px] font-bold text-gray-500 uppercase tracking-wider mt-2">Active Orders</h2>
         {active.length === 0 && (

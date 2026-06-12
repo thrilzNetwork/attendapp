@@ -105,6 +105,11 @@ export async function POST(req: NextRequest) {
         google_review_url: cfg.googleReviewUrl,
         tripadvisor_url: cfg.tripadvisorUrl,
         yelp_url: cfg.yelpUrl,
+        facilities_content: cfg.facilitiesContent || [],
+        safety_content: cfg.safetyContent || {},
+        transport_content: cfg.transportContent || {},
+        food_content: cfg.foodContent || {},
+        nearby_intro: cfg.nearbyIntro || {},
       };
       for (const [k, v] of Object.entries(knownCols)) {
         if (v !== null && v !== undefined) updateData[k] = v;

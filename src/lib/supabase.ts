@@ -1,5 +1,38 @@
 import { createClient } from '@supabase/supabase-js';
 
+export interface FacilitiesAmenity {
+  icon: string; // lucide icon name
+  title: string;
+  description: string;
+}
+
+export interface SafetyContact {
+  label: string;
+  number: string;
+}
+
+export interface SafetyContent {
+  emergency_message?: string;
+  emergency_contacts?: SafetyContact[];
+  fire_safety_items?: string[];
+  co_items?: string[];
+  security_items?: string[];
+  closing_message?: string;
+}
+
+export interface TransportContent {
+  pickup_note?: string;
+}
+
+export interface FoodContent {
+  intro_text?: string;
+}
+
+export interface NearbyIntro {
+  intro_text?: string;
+}
+
+
 const SUPABASE_URL = 'https://bdmmstatrsenidlgjock.supabase.co';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbW1zdGF0cnNlbmlkbGdqb2NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MTE5MjAsImV4cCI6MjA5NDE4NzkyMH0.1pnioO5Y_3pW2LTaYc9aliRwTkGhX2cTNLrK9jI1P-4';
 
@@ -14,6 +47,12 @@ export interface ReviewLink {
 }
 
 export interface HotelConfig {
+  facilitiesContent?: FacilitiesAmenity[];
+  safetyContent?: SafetyContent;
+  transportContent?: TransportContent;
+  foodContent?: FoodContent;
+  nearbyIntro?: NearbyIntro;
+
   id?: string;
   slug: string;
   name: string;
@@ -126,6 +165,11 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     weekStartsOn: data.week_starts_on || 'Sunday',
     paymentType: data.payment_type || '',
     lastPayment: data.last_payment || '',
+    facilitiesContent: data.facilities_content || [],
+    safetyContent: data.safety_content || {},
+    transportContent: data.transport_content || {},
+    foodContent: data.food_content || {},
+    nearbyIntro: data.nearby_intro || {},
   };
 }
 
@@ -159,6 +203,11 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       week_starts_on: config.weekStartsOn || 'Sunday',
       payment_type: config.paymentType || '',
       last_payment: config.lastPayment || '',
+      facilities_content: config.facilitiesContent || [],
+      safety_content: config.safetyContent || {},
+      transport_content: config.transportContent || {},
+      food_content: config.foodContent || {},
+      nearby_intro: config.nearbyIntro || {},
     }, { onConflict: 'slug' });
   if (error) throw error;
   return data;
