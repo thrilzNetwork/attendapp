@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { getCallAroundLogs, createCallAroundLog, type CallAroundLog } from '@/lib/supabase';
 
 const TEAL = '#0D9488';
