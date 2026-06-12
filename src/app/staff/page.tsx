@@ -178,15 +178,12 @@ export default function Dashboard() {
   const [session, setSession] = useState<Session | null>(null);
   const [tab, setTab] = useState<NavTab>('dailybrief');
   // Auth state
-  const [authMode, setAuthMode] = useState<'email' | 'pin' | 'authenticated'>('pin');
+  const [authMode, setAuthMode] = useState<'email' | 'authenticated'>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
-  const [pin, setPin] = useState('');
-  const [pinError, setPinError] = useState('');
-  const [pendingAuthUser, setPendingAuthUser] = useState<{ name: string; role: Role; vendorType?: string } | null>(null);
   const [allHotels, setAllHotels] = useState<{ id: string; slug: string; name: string }[]>([]);
   const [showHotelPicker, setShowHotelPicker] = useState(false);
   const [requests, setRequests] = useState<Request[]>([]);
@@ -234,21 +231,7 @@ export default function Dashboard() {
         return;
       }
 
-      // If they have a PIN set, require PIN 2FA
-      if (staff.pin_code && staff.pin_code.length >= 4) {
-        setPendingAuthUser({
-          name: staff.name,
-          role: (staff.role === 'manager' || staff.role === 'admin' ? 'admin' : staff.role === 'vendor' ? 'vendor' : 'staff') as Role,
-          vendorType: staff.vendor_type || undefined,
-        });
-        setAuthMode('pin');
-        setPin('');
-        setPinError('');
-        setAuthLoading(false);
-        return;
-      }
-
-      // No PIN — log in directly
+      // Log in directly — no PIN 2FA needed
       const role: Role = staff.role === 'manager' || staff.role === 'admin' ? 'admin' : staff.role === 'vendor' ? 'vendor' : 'staff';
       setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined });
       setAuthMode('authenticated');
@@ -264,106 +247,7 @@ export default function Dashboard() {
     }
   };
 
-  const handlePin2FA = async () => {
-    setPinError('');
-    if (!pin || !pendingAuthUser) return;
-    try {
-      const res = await fetch('/api/staff-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-        body: JSON.stringify({ action: 'verify_pin', pin }),
-      });
-      const json = await res.json();
-      if (json.ok) {
-        setSession(pendingAuthUser);
-        setPendingAuthUser(null);
-        setAuthMode('authenticated');
-      } else {
-        // Check if it's a superadmin/admin PIN
-        const adminRes = await fetch('/api/staff-auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-          body: JSON.stringify({ action: 'verify_superadmin_pin', pin }),
-        });
-        const adminJson = await adminRes.json();
-        if (adminJson.ok) {
-          setSession(pendingAuthUser);
-          setPendingAuthUser(null);
-          setAuthMode('authenticated');
-        } else {
-          setPinError('Incorrect PIN. Try again.');
-          setPin('');
-        }
-      }
-    } catch {
-      setPinError('Verification failed. Try again.');
-      setPin('');
-    }
-  };
-
-  const handlePinOnlyFallback = async () => {
-    setPinError('');
-    try {
-      // First try superadmin PIN
-      const superRes = await fetch('/api/staff-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-        body: JSON.stringify({ action: 'verify_superadmin_pin', pin }),
-      });
-      const superJson = await superRes.json();
-      if (superJson.ok) {
-        setSession({ name: 'Super Admin', role: 'superadmin' });
-        setAuthMode('authenticated');
-        return;
-      }
-
-      // Then try admin PIN
-      const adminRes = await fetch('/api/staff-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-        body: JSON.stringify({ action: 'verify_admin_pin', pin }),
-      });
-      const adminJson = await adminRes.json();
-      if (adminJson.ok) {
-        // Load all hotels so admin can pick one
-        const { data } = await supabase.from('hotels').select('id,slug,name').order('name');
-        setAllHotels(data || []);
-        if (data && data.length === 1) {
-          // Only one hotel — skip picker
-          localStorage.setItem('attenda_hotel_slug', data[0].slug);
-          setSession({ name: 'Admin', role: 'admin' });
-          setAuthMode('authenticated');
-        } else {
-          setShowHotelPicker(true);
-          setAuthMode('authenticated');
-          // Session set in pickHotel callback
-        }
-        return;
-      }
-
-      // Then try staff PIN via server API
-      const staffRes = await fetch('/api/staff-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-        body: JSON.stringify({ action: 'verify_pin', pin }),
-      });
-      const staffJson = await staffRes.json();
-      if (staffJson.ok) {
-        const staff = staffJson.staff;
-        const role: Role =
-          staff.role === 'manager' || staff.role === 'admin' ? 'admin' :
-          staff.role === 'vendor' ? 'vendor' : 'staff';
-        setSession({ name: staff.name, role, department: staff.department || undefined });
-        setAuthMode('authenticated');
-      } else {
-        setPinError('Incorrect PIN. Try again.');
-        setPin('');
-      }
-    } catch {
-      setPinError('Verification failed. Try again.');
-      setPin('');
-    }
-  };
+  // PIN login removed — email+password only
 
   const pickHotel = async (slug: string) => {
     localStorage.setItem('attenda_hotel_slug', slug);
@@ -466,79 +350,30 @@ export default function Dashboard() {
 
   /* ── Login screen ─────────────────────────────────── */
   if (!session) {
-    if (authMode === 'pin') {
-      return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
-          <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: `${TEAL}18` }}>
-              <Lock size={24} style={{ color: TEAL }} />
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
+        <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: `${TEAL}18` }}>
+            <Mail size={24} style={{ color: TEAL }} />
+          </div>
+          <h1 className="text-xl font-bold text-center mb-1">Staff Dashboard</h1>
+          <p className="text-sm text-gray-400 text-center mb-6">Sign in with your email and password</p>
+          <div className="space-y-3">
+            <input type="email" value={email} onChange={e => { setEmail(e.target.value); setAuthError(''); }} placeholder="Email address" onKeyDown={e => e.key === 'Enter' && handleEmailLogin()} autoComplete="email" className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400" />
+            <div className="relative">
+              <input type={showPass ? 'text' : 'password'} value={password} onChange={e => { setPassword(e.target.value); setAuthError(''); }} placeholder="Password" onKeyDown={e => e.key === 'Enter' && handleEmailLogin()} autoComplete="current-password" className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400 pr-11" />
+              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400">{showPass ? <EyeOff size={17} /> : <Eye size={17} />}</button>
             </div>
-            <h1 className="text-xl font-bold text-center mb-1">Staff Dashboard</h1>
-            {pendingAuthUser ? (
-              <p className="text-sm text-gray-400 text-center mb-6">{pendingAuthUser.name} — enter your PIN to continue</p>
-            ) : (
-              <p className="text-sm text-gray-400 text-center mb-6">Enter your PIN</p>
-            )}
-            <input
-              type="password"
-              value={pin}
-              onChange={e => { setPin(e.target.value); setPinError(''); }}
-              onKeyDown={e => e.key === 'Enter' && (pendingAuthUser ? handlePin2FA() : handlePinOnlyFallback())}
-              placeholder="PIN"
-              maxLength={6} autoFocus
-              className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[15px] border border-gray-100 focus:outline-none text-center tracking-[0.3em] font-mono mb-2"
-            />
-            {pinError && <p className="text-red-500 text-[12px] text-center mb-2">{pinError}</p>}
-            <button onClick={pendingAuthUser ? handlePin2FA : handlePinOnlyFallback}
-              className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px]" style={{ backgroundColor: TEAL }}>
-              {pendingAuthUser ? 'CONFIRM' : 'ACCESS DASHBOARD'}
+            {authError && <p className="text-red-500 text-[12px] text-center bg-red-50 py-2 rounded-lg">{authError}</p>}
+            <button onClick={handleEmailLogin} disabled={authLoading} className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundColor: TEAL }}>
+              {authLoading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Lock size={16} />}
+              {authLoading ? 'Signing in...' : 'SIGN IN'}
             </button>
-            {!pendingAuthUser && (
-              <div className="mt-5 border-t border-gray-100 pt-4">
-                <p className="text-center text-[12px] text-gray-400 mb-3">Need email sign in?</p>
-                <button onClick={() => setAuthMode('email')} className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-600 font-semibold text-[12px] hover:bg-gray-200">
-                  Sign in with email instead
-                </button>
-              </div>
-            )}
-            <p className="text-center mt-4 text-[12px] text-gray-400">
-              Platform admin?{' '}
-              <a href="/superadmin" className="font-semibold underline" style={{ color: TEAL }}>Super Admin →</a>
-            </p>
           </div>
+          <p className="text-center mt-4 text-[12px] text-gray-400">Platform admin? <a href="/superadmin" className="font-semibold underline" style={{ color: TEAL }}>Super Admin →</a></p>
         </div>
-      );
-    }
-    if (authMode === 'email') {
-      return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
-          <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: `${TEAL}18` }}>
-              <Mail size={24} style={{ color: TEAL }} />
-            </div>
-            <h1 className="text-xl font-bold text-center mb-1">Staff Dashboard</h1>
-            <p className="text-sm text-gray-400 text-center mb-6">Sign in with your email and password</p>
-            <div className="space-y-3">
-              <input type="email" value={email} onChange={e => { setEmail(e.target.value); setAuthError(''); }} placeholder="Email address" onKeyDown={e => e.key === 'Enter' && handleEmailLogin()} autoComplete="email" className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400" />
-              <div className="relative">
-                <input type={showPass ? 'text' : 'password'} value={password} onChange={e => { setPassword(e.target.value); setAuthError(''); }} placeholder="Password" onKeyDown={e => e.key === 'Enter' && handleEmailLogin()} autoComplete="current-password" className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400 pr-11" />
-                <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400">{showPass ? <EyeOff size={17} /> : <Eye size={17} />}</button>
-              </div>
-              {authError && <p className="text-red-500 text-[12px] text-center bg-red-50 py-2 rounded-lg">{authError}</p>}
-              <button onClick={handleEmailLogin} disabled={authLoading} className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundColor: TEAL }}>
-                {authLoading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Lock size={16} />}
-                {authLoading ? 'Signing in...' : 'SIGN IN'}
-              </button>
-            </div>
-            <div className="mt-5 border-t border-gray-100 pt-4">
-              <p className="text-center text-[12px] text-gray-400 mb-3">Need access?</p>
-              <button onClick={() => setAuthMode('pin')} className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-600 font-semibold text-[12px] hover:bg-gray-200">Sign in with PIN instead</button>
-            </div>
-            <p className="text-center mt-4 text-[12px] text-gray-400">Platform admin? <a href="/superadmin" className="font-semibold underline" style={{ color: TEAL }}>Super Admin →</a></p>
-          </div>
-        </div>
-      );
-    }
+      </div>
+    );
   }
 
   /* ── Hotel Picker (for PIN 2025 admins with multiple properties) ─── */
@@ -560,7 +395,7 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
-          <button onClick={() => { setShowHotelPicker(false); setAuthMode('pin'); setSession(null); }}
+          <button onClick={() => { setShowHotelPicker(false); setSession(null); }}
             className="w-full mt-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-semibold text-[12px] hover:bg-gray-200">
             ← Back to login
           </button>
@@ -636,7 +471,7 @@ export default function Dashboard() {
             </p>
           </div>
           <button
-            onClick={() => { supabase.auth.signOut(); setSession(null); setAuthMode('email'); setPin(''); setTab('orders'); }}
+            onClick={() => { supabase.auth.signOut(); setSession(null); setAuthMode('email'); setTab('orders'); }}
             className="flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-red-500 transition-colors"
           >
             <LogOut size={14} />
@@ -776,7 +611,7 @@ export default function Dashboard() {
 
         <div className="p-4 border-t border-gray-200/60">
           <button
-            onClick={() => { supabase.auth.signOut(); setSession(null); setAuthMode('email'); setPin(''); setTab('orders'); }}
+            onClick={() => { supabase.auth.signOut(); setSession(null); setAuthMode('email'); setTab('orders'); }}
             className="flex items-center gap-2 text-[12px] text-gray-500 hover:text-red-500 transition-colors"
           >
             <LogOut size={14} /> Sign Out
@@ -2230,9 +2065,7 @@ function GeneralVendorView({ hotelId, vendorName, vendorType }: { hotelId: strin
 
 /* ── Enhanced Staff View ─────────────────────────────────── */
 function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelId: string; hotelName: string; hotelSlug: string; staff: StaffAccount[]; onRefresh: () => void }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '', hire_date: '', min_hours: 0, employment_type: 'full_time' });
-  const [showPin, setShowPin] = useState(false);
-  const [pinError, setPinError] = useState('');
+  const [form, setForm] = useState({ name: '', email: '', phone: '', role: 'staff', vendor_type: '', department: '', hire_date: '', min_hours: 0, employment_type: 'full_time' });
   const [editingPerms, setEditingPerms] = useState<string | null>(null);
   const [editingDept, setEditingDept] = useState<string | null>(null);
   const [editingDeptValue, setEditingDeptValue] = useState('');
@@ -2253,21 +2086,16 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   };
 
   const handleAdd = async () => {
-    setPinError('');
     setSaveError('');
-    if (!form.name || !form.pin) {
-      setSaveError('Name and PIN are required.');
-      return;
-    }
-    if (!/^\d{4,6}$/.test(form.pin)) {
-      setPinError('PIN must be 4–6 digits.');
+    if (!form.name) {
+      setSaveError('Name is required.');
       return;
     }
     setSaving(true);
     try {
       await adminFetch('create_staff', {
         hotel_id: hotelId, name: form.name, role: form.role,
-        email: form.email, phone: form.phone, pin_code: form.pin,
+        email: form.email, phone: form.phone,
         permissions: form.role === 'vendor' ? [] : ['orders', 'messages', 'shuttle'],
         vendor_type: form.role === 'vendor' ? form.vendor_type || 'shuttle' : undefined,
         department: form.department || undefined,
@@ -2290,14 +2118,14 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
               staffRole: form.role,
               hotelName,
               hotelSlug,
-              pin: form.pin,
+              pin: '',
               setupUrl: `${baseUrl}/staff/setup?email=${encodeURIComponent(form.email)}&hotel=${encodeURIComponent(hotelSlug)}&mode=setup`,
             },
           }),
         }).catch(() => {});
       }
 
-      setForm({ name: '', email: '', phone: '', pin: '', role: 'staff', vendor_type: '', department: '', hire_date: '', min_hours: 0, employment_type: 'full_time' });
+      setForm({ name: '', email: '', phone: '', role: 'staff', vendor_type: '', department: '', hire_date: '', min_hours: 0, employment_type: 'full_time' });
       onRefresh();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save staff';
@@ -2406,15 +2234,6 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                   <option value="part_time">Part Time</option>
                 </select>
               </div>
-            </div>
-            <div>
-              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">PIN Code *</label>
-              <div className="relative">
-                <input type={showPin ? 'text' : 'password'} value={form.pin} onChange={e => { setForm({ ...form, pin: e.target.value }); setPinError(''); }} maxLength={6} placeholder="4-6 digits"
-                  className={`w-full bg-gray-50 rounded-xl px-3 py-2.5 border text-[13px] outline-none pr-10 ${pinError ? 'border-red-400' : 'border-gray-200'}`} />
-                <button onClick={() => setShowPin(!showPin)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">{showPin ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-              </div>
-              {pinError && <p className="text-[11px] text-red-500 mt-1">{pinError}</p>}
             </div>
             {saveError && <p className="text-[11px] text-red-500 bg-red-50 px-3 py-2 rounded-lg">{saveError}</p>}
             <button onClick={handleAdd} disabled={saving} className="w-full py-3 rounded-xl text-white font-semibold text-[13px] disabled:opacity-50" style={{ backgroundColor: '#0D9488' }}>{saving ? 'Saving...' : 'ADD STAFF MEMBER'}</button>

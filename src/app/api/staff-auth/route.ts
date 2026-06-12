@@ -19,11 +19,11 @@ export async function POST(req: NextRequest) {
       return originBlocked();
     }
 
-    const { action, email, password, name, pin, hotelSlug, token } = await req.json();
+    const { action, email, password, name, hotelSlug, token } = await req.json();
 
     if (action === 'setup') {
       // First-time staff setup: create auth user with hotel_id in metadata
-      if (!email || !password || !name || !pin || !hotelSlug) {
+      if (!email || !password || !name || !hotelSlug) {
         return NextResponse.json({ ok: false, error: 'Missing required fields.' }, { status: 400 });
       }
       if (password.length < 6) {
@@ -59,7 +59,6 @@ export async function POST(req: NextRequest) {
         hotel_id: hotel.id,
         name,
         role: 'staff',
-        pin_code: pin,
         active: true,
         email,
       });
@@ -106,53 +105,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, user: data.user, session: data.session });
     }
 
-    if (action === 'pin_login') {
-      // PIN-based login — server-side lookup using service_role (bypasses RLS)
-      if (!pin) {
-        return NextResponse.json({ ok: false, error: 'PIN required.' }, { status: 400 });
-      }
-
-      let staffQuery = supabaseAdmin
-        .from('staff_accounts')
-        .select('*, hotels!inner(slug, name)')
-        .eq('pin_code', pin)
-        .eq('active', true)
-        .maybeSingle();
-
-      if (hotelSlug) {
-        staffQuery = supabaseAdmin
-          .from('staff_accounts')
-          .select('*, hotels!inner(slug, name)')
-          .eq('pin_code', pin)
-          .eq('active', true)
-          .eq('hotels.slug', hotelSlug)
-          .maybeSingle();
-      }
-
-      const { data: staff } = await staffQuery;
-      if (!staff) {
-        return NextResponse.json({ ok: false, error: 'Invalid PIN or staff not found.' }, { status: 401 });
-      }
-
-      return NextResponse.json({
-        ok: true,
-        staff: {
-          id: staff.id,
-          hotel_id: staff.hotel_id,
-          name: staff.name,
-          role: staff.role,
-          email: staff.email || '',
-          phone: staff.phone || '',
-          pin_code: staff.pin_code,
-          active: staff.active,
-          permissions: staff.permissions || ['orders', 'messages', 'shuttle'],
-          vendor_type: staff.vendor_type || undefined,
-          hotel_slug: staff.hotels?.slug || hotelSlug,
-          hotel_name: staff.hotels?.name || '',
-        },
-      });
-    }
-
     if (action === 'check_session') {
       // Verify a session token
       const tokenStr = token || req.headers.get('authorization')?.replace('Bearer ', '');
@@ -181,66 +133,6 @@ export async function POST(req: NextRequest) {
       if (!isAdmin) return NextResponse.json({ ok: false }, { status: 403 });
 
       return NextResponse.json({ ok: true, user });
-    }
-
-    if (action === 'verify_pin') {
-      // Server-side PIN verification — no client-side staff_accounts queries needed
-      if (!pin) {
-        return NextResponse.json({ ok: false, error: 'PIN required.' }, { status: 400 });
-      }
-
-      let staffQuery = supabaseAdmin
-        .from('staff_accounts')
-        .select('*, hotels!inner(slug, name)')
-        .eq('pin_code', pin)
-        .eq('active', true)
-        .maybeSingle();
-
-      if (hotelSlug) {
-        staffQuery = supabaseAdmin
-          .from('staff_accounts')
-          .select('*, hotels!inner(slug, name)')
-          .eq('pin_code', pin)
-          .eq('active', true)
-          .eq('hotels.slug', hotelSlug)
-          .maybeSingle();
-      }
-
-      const { data: staff } = await staffQuery;
-      if (!staff) {
-        return NextResponse.json({ ok: false, error: 'Invalid PIN.' }, { status: 401 });
-      }
-
-      return NextResponse.json({
-        ok: true,
-        staff: {
-          id: staff.id,
-          hotel_id: staff.hotel_id,
-          name: staff.name,
-          role: staff.role,
-          email: staff.email || '',
-          hotel_slug: staff.hotels?.slug || hotelSlug,
-          hotel_name: staff.hotels?.name || '',
-        },
-      });
-    }
-
-    if (action === 'verify_superadmin_pin') {
-      // Server-side superadmin PIN verification
-      const adminPin = process.env.NEXT_PUBLIC_SUPERADMIN_PIN;
-      if (!adminPin || pin !== adminPin) {
-        return NextResponse.json({ ok: false, error: 'Invalid admin PIN.' }, { status: 401 });
-      }
-      return NextResponse.json({ ok: true });
-    }
-
-    if (action === 'verify_admin_pin') {
-      // Server-side admin PIN verification
-      const adminPin = process.env.NEXT_PUBLIC_ADMIN_PIN;
-      if (!adminPin || pin !== adminPin) {
-        return NextResponse.json({ ok: false, error: 'Invalid admin PIN.' }, { status: 401 });
-      }
-      return NextResponse.json({ ok: true });
     }
 
     return NextResponse.json({ ok: false, error: 'Unknown action.' }, { status: 400 });

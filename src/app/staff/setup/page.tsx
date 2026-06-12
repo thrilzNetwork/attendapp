@@ -16,7 +16,6 @@ function SetupContent() {
   const [showPass, setShowPass] = useState(false);
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -27,9 +26,8 @@ function SetupContent() {
   }, [hotel]);
 
   const handleSetup = async () => {
-    if (!password || !name || !pin) { setError('All fields required.'); return; }
+    if (!password || !name) { setError('All fields required.'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
-    if (!/^\d{4,6}$/.test(pin)) { setError('PIN must be 4–6 digits.'); return; }
 
     setLoading(true);
     setError('');
@@ -116,17 +114,6 @@ function SetupContent() {
               onChange={e => { setName(e.target.value); setError(''); }}
               placeholder="Your full name"
               className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">PIN Code</label>
-            <input
-              type="password"
-              value={pin}
-              onChange={e => { setPin(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); }}
-              placeholder="4–6 digit PIN"
-              maxLength={6}
-              className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none text-center tracking-[0.3em] font-mono"
             />
           </div>
           <div>

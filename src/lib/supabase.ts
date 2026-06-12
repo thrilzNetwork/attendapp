@@ -98,7 +98,6 @@ export interface StaffAccount {
   role: string;
   email?: string;
   phone?: string;
-  pin_code: string;
   active: boolean;
   department?: string;
   permissions?: string[]; // ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes']
@@ -310,7 +309,6 @@ export async function getStaffAccounts(hotelId: string): Promise<StaffAccount[]>
     id: s.id as string,
     name: s.name as string,
     role: s.role as string,
-    pin_code: s.pin_code as string,
     active: s.active as boolean,
   }));
 }
@@ -806,7 +804,6 @@ export async function getStaffAccountsForHotel(hotelId: string): Promise<StaffAc
     role: s.role as string,
     email: s.email as string || '',
     phone: s.phone as string || '',
-    pin_code: s.pin_code as string,
     active: s.active as boolean,
     permissions: (s.permissions as string[]) || ['orders', 'messages', 'shuttle'],
     vendor_type: s.vendor_type as string || undefined,
@@ -819,7 +816,7 @@ export async function getStaffAccountsForHotel(hotelId: string): Promise<StaffAc
 
 export async function createStaffAccountWithDetails(staff: {
   hotel_id: string; name: string; role: string; email?: string; phone?: string;
-  pin_code: string; permissions?: string[]; vendor_type?: string; department?: string;
+  permissions?: string[]; vendor_type?: string; department?: string;
   hire_date?: string; pto_used?: number; min_hours?: number; employment_type?: string;
 }) {
   const { data } = await callStaffApi({ action: 'create', staff });
@@ -1013,7 +1010,6 @@ export async function getStaffAccountByEmail(email: string): Promise<StaffAccoun
       role: data.role,
       email: data.email || '',
       phone: data.phone || '',
-      pin_code: data.pin_code,
       active: data.active,
       permissions: data.permissions || ['orders', 'messages', 'shuttle'],
       vendor_type: data.vendor_type || undefined,
@@ -1021,22 +1017,6 @@ export async function getStaffAccountByEmail(email: string): Promise<StaffAccoun
   } catch {
     return null;
   }
-}
-
-export async function getStaffAccountByPin(pin: string, hotelSlug?: string): Promise<StaffAccount | null> {
-  let query = supabase.from('staff_accounts').select('*').eq('pin_code', pin).eq('active', true).maybeSingle();
-  if (hotelSlug) {
-    const hotel = await getHotelConfig(hotelSlug);
-    if (hotel?.id) query = supabase.from('staff_accounts').select('*').eq('pin_code', pin).eq('active', true).eq('hotel_id', hotel.id).maybeSingle();
-  }
-  const { data } = await query;
-  if (!data) return null;
-  return {
-    id: data.id, hotel_id: data.hotel_id, name: data.name, role: data.role,
-    email: data.email || '', phone: data.phone || '', pin_code: data.pin_code,
-    active: data.active, permissions: data.permissions || ['orders', 'messages', 'shuttle'],
-    vendor_type: data.vendor_type || undefined,
-  };
 }
 
 // ─── Staff Checklists ───────────────────────────────────────

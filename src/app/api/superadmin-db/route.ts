@@ -54,7 +54,6 @@ export async function POST(req: NextRequest) {
         ['role', data.role || 'staff'],
         ['email', data.email || ''],
         ['phone', data.phone || ''],
-        ['pin_code', data.pin_code],
         ['permissions', data.permissions || ['orders', 'messages', 'shuttle']],
         ['vendor_type', data.vendor_type],
         ['hire_date', data.hire_date],

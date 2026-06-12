@@ -58,9 +58,9 @@ async function runBootstrap(admin: ReturnType<typeof getSupabaseAdmin>) {
 
   // 3. Create staff accounts
   const staffToCreate = [
-    { name: 'Alejandro Soria', role: 'general_manager', pin_code: '1111', permissions: ['orders', 'messages', 'shuttle', 'staff_management', 'checklists', 'schedules', 'reports'] },
-    { name: 'Front Desk Agent', role: 'front_desk', pin_code: '2222', permissions: ['orders', 'messages', 'shuttle'] },
-    { name: 'Housekeeping', role: 'housekeeping', pin_code: '3333', permissions: ['orders'] },
+    { name: 'Alejandro Soria', role: 'general_manager', permissions: ['orders', 'messages', 'shuttle', 'staff_management', 'checklists', 'schedules', 'reports'] },
+    { name: 'Front Desk Agent', role: 'front_desk', permissions: ['orders', 'messages', 'shuttle'] },
+    { name: 'Housekeeping', role: 'housekeeping', permissions: ['orders'] },
   ];
   const createdStaff: unknown[] = [];
   for (const s of staffToCreate) {
@@ -68,7 +68,6 @@ async function runBootstrap(admin: ReturnType<typeof getSupabaseAdmin>) {
       hotel_id: hotel.id,
       name: s.name,
       role: s.role,
-      pin_code: s.pin_code,
       permissions: s.permissions,
       active: true,
     }).select().single();
@@ -106,48 +105,40 @@ export async function POST(req: NextRequest) {
 
     const admin = getSupabaseAdmin();
 
-    // ─── Quick setup: authenticate via superadmin PIN ──────────
-    if (action === 'quick_setup') {
-      const expectedPin = process.env.NEXT_PUBLIC_SUPERADMIN_PIN;
-      if (!expectedPin || token !== expectedPin) {
-        return NextResponse.json({ ok: false, error: 'Invalid setup key' }, { status: 401 });
-      }
-    } else {
-      // ─── Regular session-based auth ────────────────────────────
-      const user = await verifySession(token);
-      if (!user) {
-        return NextResponse.json({ ok: false, error: 'Invalid session' }, { status: 401 });
-      }
+    // ─── Regular session-based auth ────────────────────────────
+    const user = await verifySession(token);
+    if (!user) {
+      return NextResponse.json({ ok: false, error: 'Invalid session' }, { status: 401 });
+    }
 
-      // ─── Superadmin registration ───────────────────────────────
-      if (action === 'register') {
-        const { data: existing } = await admin
-          .from('superadmin_config')
-          .select('id, user_id, email')
-          .maybeSingle();
+    // ─── Superadmin registration ───────────────────────────────
+    if (action === 'register') {
+      const { data: existing } = await admin
+        .from('superadmin_config')
+        .select('id, user_id, email')
+        .maybeSingle();
 
-        if (existing) {
-          if (existing.user_id === user.id) {
-            return NextResponse.json({ ok: true, existing: true, email: existing.email, user_id: existing.user_id });
-          }
-          return NextResponse.json({ ok: false, error: 'Super admin already exists' }, { status: 403 });
+      if (existing) {
+        if (existing.user_id === user.id) {
+          return NextResponse.json({ ok: true, existing: true, email: existing.email, user_id: existing.user_id });
         }
-
-        const { error: insertErr } = await admin
-          .from('superadmin_config')
-          .insert({ user_id: user.id, email: user.email });
-
-        if (insertErr) {
-          return NextResponse.json({ ok: false, error: insertErr.message }, { status: 500 });
-        }
-
-        return NextResponse.json({ ok: true, existing: false, email: user.email, user_id: user.id });
+        return NextResponse.json({ ok: false, error: 'Super admin already exists' }, { status: 403 });
       }
 
-      // ─── Admin check for other actions ─────────────────────────
-      if (!(await isAdmin(user.id))) {
-        return NextResponse.json({ ok: false, error: 'Not authorized' }, { status: 403 });
+      const { error: insertErr } = await admin
+        .from('superadmin_config')
+        .insert({ user_id: user.id, email: user.email });
+
+      if (insertErr) {
+        return NextResponse.json({ ok: false, error: insertErr.message }, { status: 500 });
       }
+
+      return NextResponse.json({ ok: true, existing: false, email: user.email, user_id: user.id });
+    }
+
+    // ─── Admin check for other actions ─────────────────────────
+    if (!(await isAdmin(user.id))) {
+      return NextResponse.json({ ok: false, error: 'Not authorized' }, { status: 403 });
     }
 
     // No action — return existing config (used by checkSlot)
@@ -210,7 +201,6 @@ export async function POST(req: NextRequest) {
         ['role', params.role || 'staff'],
         ['email', params.email || ''],
         ['phone', params.phone || ''],
-        ['pin_code', params.pin_code],
         ['permissions', params.permissions || ['orders', 'messages', 'shuttle']],
         ['vendor_type', params.vendor_type || null],
         ['hire_date', params.hire_date || null],

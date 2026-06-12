@@ -1711,7 +1711,7 @@ function FlowExample() {
   );
 }
 
-/* ── Header product mockup (CSS-rendered GM dashboard, hero right side) ── */
+/* ── Header product mockup (real screenshot, hero right side) ── */
 
 /* ── Pixel-accurate mockups of the actual product — used in the "See it in action" section ── */
 
@@ -1749,7 +1749,7 @@ function TabletMockup() {
             <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
           </div>
           <div className="flex-1 h-6 bg-white rounded-md border border-gray-200 flex items-center px-2 text-[9px] text-gray-500 font-semibold">
-            attenda.app/staff · Best Western Miami Airport
+            attenda.app/staff · Your Property
           </div>
         </div>
         <Image
@@ -1780,7 +1780,7 @@ function DesktopMockup() {
             <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
           </div>
           <div className="flex-1 h-6 bg-white rounded-md border border-gray-200 flex items-center px-2 text-[9px] text-gray-500 font-semibold">
-            attenda.app/gm · Best Western Miami Airport
+            attenda.app/gm · Your Property
           </div>
         </div>
         <Image
@@ -1801,29 +1801,9 @@ function DesktopMockup() {
 }
 
 function HeaderMockup() {
-  // Real-looking week-at-a-glance GM dashboard, rendered in pure CSS
-  // Inspired by the actual /staff dashboard — kept generic enough to feel real
-  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  const occupancy = [0.85, 0.92, 0.78, 0.95, 0.88, 0.72, 0.45];
-  const rooms = [
-    { num: '201', status: 'occupied' },
-    { num: '202', status: 'occupied' },
-    { num: '203', status: 'clean' },
-    { num: '204', status: 'occupied' },
-    { num: '205', status: 'dirty' },
-    { num: '206', status: 'occupied' },
-    { num: '207', status: 'clean' },
-    { num: '208', status: 'occupied' },
-    { num: '209', status: 'occupied' },
-    { num: '210', status: 'clean' },
-    { num: '211', status: 'dirty' },
-    { num: '212', status: 'occupied' },
-  ];
   return (
     <div className="relative w-full">
-      {/* Subtle drop shadow + border */}
       <div className="rounded-2xl overflow-hidden bg-white shadow-2xl border border-gray-200">
-        {/* Browser chrome */}
         <div className="bg-gray-100 border-b border-gray-200 px-4 py-3 flex items-center gap-2">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-red-400" />
@@ -1831,83 +1811,17 @@ function HeaderMockup() {
             <div className="w-3 h-3 rounded-full bg-green-400" />
           </div>
           <div className="flex-1 mx-3 h-7 bg-white rounded-md border border-gray-200 flex items-center px-3 text-[11px] text-gray-500 font-semibold">
-            attenda.app/staff · Best Western Miami Airport
+            attenda.app/staff · Your Property
           </div>
         </div>
-        {/* Top stats bar */}
-        <div className="px-5 py-4 bg-white border-b border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-[12px] font-bold text-gray-900 uppercase tracking-wide">This week</div>
-            <div className="text-[10px] font-bold text-gray-500">May 27 – Jun 2</div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <div className="text-[10px] text-gray-500 font-semibold uppercase">Occupancy</div>
-              <div className="text-[18px] font-black text-gray-900" style={{ color: '#0D9488' }}>87%</div>
-            </div>
-            <div>
-              <div className="text-[10px] text-gray-500 font-semibold uppercase">Open jobs</div>
-              <div className="text-[18px] font-black text-gray-900">12</div>
-            </div>
-            <div>
-              <div className="text-[10px] text-gray-500 font-semibold uppercase">In progress</div>
-              <div className="text-[18px] font-black text-gray-900">5</div>
-            </div>
-          </div>
-        </div>
-        {/* Occupancy chart */}
-        <div className="px-5 py-3 bg-white border-b border-gray-100">
-          <div className="grid grid-cols-7 gap-2 h-12">
-            {days.map((d, i) => (
-              <div key={i} className="flex flex-col items-center justify-end">
-                <div
-                  className="w-full rounded-t"
-                  style={{ height: `${occupancy[i] * 100}%`, backgroundColor: '#0D9488', opacity: 0.7 }}
-                />
-                <div className="text-[9px] font-bold text-gray-500 mt-1">{d}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Room grid */}
-        <div className="px-5 py-4 bg-gray-50">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Room status</div>
-          <div className="grid grid-cols-6 gap-2">
-            {rooms.map((r) => {
-              const colors = {
-                occupied: { bg: 'bg-teal-100', text: 'text-teal-800' },
-                clean: { bg: 'bg-green-100', text: 'text-green-800' },
-                dirty: { bg: 'bg-amber-100', text: 'text-amber-800' },
-              }[r.status as 'occupied' | 'clean' | 'dirty'];
-              return (
-                <div key={r.num} className={`${colors.bg} ${colors.text} rounded p-1.5 text-center`}>
-                  <div className="text-[10px] font-black">{r.num}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        {/* Activity feed */}
-        <div className="px-5 py-3 bg-white border-t border-gray-100">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Recent activity</div>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 text-[11px]">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#0D9488' }} />
-              <span className="text-gray-600">Room 204 — Extra pillows</span>
-              <span className="text-gray-400 ml-auto">9:42 AM</span>
-            </div>
-            <div className="flex items-center gap-2 text-[11px]">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              <span className="text-gray-600">Room 207 — Towels</span>
-              <span className="text-gray-400 ml-auto">9:38 AM</span>
-            </div>
-            <div className="flex items-center gap-2 text-[11px]">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
-              <span className="text-gray-600">Vendor: Linen Co restock</span>
-              <span className="text-gray-400 ml-auto">9:15 AM</span>
-            </div>
-          </div>
-        </div>
+        <Image
+          src="/images/staff-desktop.png"
+          alt="Staff desktop dashboard showing real-time requests, room status, and activity feed"
+          width={640}
+          height={400}
+          className="w-full h-auto block"
+          priority
+        />
       </div>
     </div>
   );
@@ -1928,92 +1842,24 @@ function KpiTileDark({ value, label }: { value: string; label: string }) {
 
 /* ── Role-based Mockups ───────────────────────────────────── */
 
-/* PhoneGuestMockup — Phone frame showing a QR code + guest chat */
+/* PhoneGuestMockup — Phone frame showing the REAL guest app 2x2 grid */
 function PhoneGuestMockup() {
-  const [qrOrApp, setQrOrApp] = useState(true);
-  useEffect(() => {
-    const t = setInterval(() => setQrOrApp(v => !v), 3000);
-    return () => clearInterval(t);
-  }, []);
-
   return (
-    <div className="relative mx-auto w-[200px]">
-      {/* Phone frame */}
+    <div className="relative mx-auto w-[200px]" style={{ filter: 'drop-shadow(0 10px 25px rgba(0,0,0,0.15))' }}>
       <div className="bg-black rounded-[28px] p-2 shadow-xl">
-        <div className="bg-white rounded-[24px] overflow-hidden">
-          {qrOrApp ? (
-            /* QR code screen */
-            <div className="h-[400px] flex flex-col items-center justify-center p-6 bg-white">
-              <div className="w-32 h-32 mb-4 relative">
-                {/* QR code pattern */}
-                <div className="absolute inset-0 border-4 border-black rounded-sm" />
-                <div className="absolute top-2 left-2 w-8 h-8 border-t-4 border-l-4 border-black" />
-                <div className="absolute top-2 right-2 w-8 h-8 border-t-4 border-r-4 border-black" />
-                <div className="absolute bottom-2 left-2 w-8 h-8 border-b-4 border-l-4 border-black" />
-                <div className="absolute bottom-2 right-2 w-8 h-8 border-b-4 border-r-4 border-black" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-4 h-4 rounded-sm bg-black" />
-                </div>
-                <div className="absolute top-[40%] left-[25%] w-2 h-2 bg-black rounded-sm" />
-                <div className="absolute top-[60%] left-[55%] w-3 h-3 bg-black rounded-sm" />
-                <div className="absolute top-[30%] left-[65%] w-2 h-2 bg-black rounded-sm" />
-                <div className="absolute top-[70%] left-[35%] w-2 h-2 bg-black rounded-sm" />
-              </div>
-              <p className="text-[14px] font-black text-gray-900">Room 204</p>
-              <p className="text-[10px] text-gray-500">Scan to open · No app needed</p>
-            </div>
-          ) : (
-            /* Chat app screen */
-            <div className="h-[400px] flex flex-col">
-              <div className="bg-teal-600 px-4 py-3 flex items-center gap-2">
-                <div className="w-5 h-5 rounded-full bg-white/30 flex items-center justify-center text-white text-[8px] font-bold">A</div>
-                <div className="text-white text-[12px] font-bold flex-1">Attenda</div>
-              </div>
-              <div className="flex-1 bg-gray-50 p-3 space-y-2 overflow-hidden">
-                <div className="flex justify-start">
-                  <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-3 py-2 text-[10px] max-w-[75%] shadow-sm">
-                    Welcome! How can I help?
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <div className="bg-teal-600 rounded-2xl rounded-br-md px-3 py-2 text-[10px] text-white max-w-[70%]">
-                    Request towels please
-                  </div>
-                </div>
-                <div className="flex justify-start">
-                  <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-3 py-2 shadow-sm">
-                    <p className="text-[10px] mb-1">I&apos;ll send a towel request. Confirm?</p>
-                    <div className="flex gap-1">
-                      <div className="flex-1 text-center py-1 rounded bg-teal-600 text-white text-[8px] font-bold">Send</div>
-                      <div className="flex-1 text-center py-1 rounded bg-gray-200 text-gray-700 text-[8px] font-bold">Cancel</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <div className="bg-teal-600 rounded-2xl rounded-br-md px-3 py-2 text-[10px] text-white max-w-[60%]">
-                    Yes, send
-                  </div>
-                </div>
-                <div className="flex justify-start">
-                  <div className="bg-green-50 border border-green-200 rounded-2xl rounded-bl-md px-3 py-2 text-[10px]">
-                    <span className="font-bold text-green-700">✓ Request sent</span>
-                    <span className="text-gray-500"> · ETA 7m</span>
-                  </div>
-                </div>
-              </div>
-              <div className="border-t border-gray-200 px-3 py-2 flex items-center gap-2">
-                <div className="flex-1 h-7 rounded-full bg-gray-100 border border-gray-200" />
-                <div className="w-7 h-7 rounded-full bg-teal-600 flex items-center justify-center">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="relative bg-white rounded-[24px] overflow-hidden">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60px] h-[16px] bg-black rounded-b-xl z-10" />
+          <Image
+            src="/images/guest-app.png"
+            alt="Guest app with 2x2 grid: Welcome, Transport, Facilities, Safety, Nearby, Food, Review, Message Us"
+            width={200}
+            height={432}
+            className="w-full h-auto block"
+          />
         </div>
       </div>
-      {/* Badge */}
-      <div className="absolute -top-2 -right-2 bg-teal-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full shadow-md">
-        QR → Chat
+      <div className="text-center mt-2">
+        <div className="text-[8px] uppercase tracking-[0.15em] text-gray-500 font-bold">THE ACTUAL GUEST APP</div>
       </div>
     </div>
   );
@@ -2069,137 +1915,20 @@ function GmDashboardMockup() {
   );
 }
 
-/* PartnerPortalMockup — Guest ordering experience (the real sell) */
+/* PartnerPortalMockup — Real guest ordering screenshot */
 function PartnerPortalMockup() {
-  const [scanned, setScanned] = useState(false);
-  const [orderMade, setOrderMade] = useState(false);
-  const items = [
-    { name: 'Margherita Pizza', price: 14.50, desc: 'San Marzano tomato, fresh mozzarella, basil' },
-    { name: 'Pepperoni Pizza', price: 16.00, desc: 'Grande pepperoni, house mozzarella blend' },
-    { name: 'Caesar Salad', price: 9.50, desc: 'Romaine, parmesan, house croutons, caesar dressing' },
-    { name: 'Garlic Bread', price: 5.00, desc: 'Toasted ciabatta, garlic butter, herbs' },
-    { name: 'Tiramisu', price: 7.00, desc: 'Classic Italian — espresso-soaked ladyfingers' },
-  ];
-  const total = items.reduce((s, i) => s + i.price, 0);
-
   return (
     <div className="w-full max-w-[280px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.18))' }}>
-      {/* Phone frame */}
       <div className="relative rounded-[40px] border-[10px] border-gray-900 bg-gray-900 overflow-hidden">
-        <div className="relative w-full bg-[#F4F4F5]" style={{ minHeight: '540px' }}>
-          {/* Notch */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80px] h-[20px] bg-gray-900 rounded-b-2xl z-10" />
-          
-          {!scanned ? (
-            <>
-              {/* Status bar */}
-              <div className="relative z-0 bg-white px-5 pt-3 pb-1 flex items-center justify-between text-[10px] font-semibold text-gray-900">
-                <span>9:41</span>
-                <div className="flex items-center gap-1">
-                  <svg width="16" height="12" viewBox="0 0 24 14" fill="none"><rect x="1" y="1" width="22" height="12" rx="2.5" stroke="#111" strokeWidth="1.5"/><rect x="4" y="4" width="12" height="6" fill="#111"/><circle cx="20" cy="7" r="1.5" fill="#111"/></svg>
-                </div>
-              </div>
-              {/* Camera shutter animation */}
-              <div className="flex flex-col items-center justify-center px-6 pt-6 pb-4">
-                <div className="w-20 h-20 rounded-2xl border-2 border-dashed mb-4 flex items-center justify-center relative" style={{ borderColor: TEAL }}>
-                  <div className="absolute inset-0 rounded-2xl opacity-10" style={{ backgroundColor: TEAL }} />
-                  <div className="w-12 h-12 rounded-lg border-2 flex items-center justify-center" style={{ borderColor: TEAL }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                      <circle cx="12" cy="13" r="4"/>
-                    </svg>
-                  </div>
-                </div>
-                <p className="text-[11px] font-bold text-gray-800 mb-1">Scan table QR to order</p>
-                <p className="text-[8px] text-gray-500 text-center leading-relaxed">
-                  Open your camera · Point at the QR on the table · No app download needed
-                </p>
-                {/* Animated scan line */}
-                <div className="w-full max-w-[160px] h-0.5 rounded-full mx-auto mt-4 animate-pulse" style={{ backgroundColor: TEAL }} />
-              </div>
-              {/* Table selection */}
-              <div className="px-4 pb-4">
-                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Scan or tap your table</div>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {['201', '202', '203', '204', '205', '206', '207', '208'].map((t, i) => (
-                    <button key={t}
-                      onClick={() => { if (i === 3) setScanned(true); }}
-                      className={`py-2 rounded-lg text-[9px] font-bold transition-all ${
-                        i === 3
-                          ? 'text-white shadow-sm' + ` animate-pulse`
-                          : 'bg-gray-100 text-gray-500'
-                      }`}
-                      style={i === 3 ? { backgroundColor: TEAL } : {}}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Status bar */}
-              <div className="relative z-0 bg-white px-5 pt-3 pb-1 flex items-center justify-between text-[10px] font-semibold text-gray-900">
-                <span>9:41</span>
-                <div className="flex items-center gap-1">
-                  <svg width="16" height="12" viewBox="0 0 24 14" fill="none"><rect x="1" y="1" width="22" height="12" rx="2.5" stroke="#111" strokeWidth="1.5"/><rect x="4" y="4" width="12" height="6" fill="#111"/><circle cx="20" cy="7" r="1.5" fill="#111"/></svg>
-                </div>
-              </div>
-              {/* Restaurant header */}
-              <div className="bg-white px-4 py-2.5 border-b border-gray-100 flex items-center gap-2.5">
-                <button onClick={() => setScanned(false)} className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center shrink-0">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="15 18 9 12 15 6"/>
-                  </svg>
-                </button>
-                <div className="flex-1">
-                  <div className="text-[11px] font-bold text-gray-900 leading-none">Luigi&apos;s Pizzeria</div>
-                  <div className="text-[7px] text-gray-500 mt-0.5">Table 204 · Ordering for 2</div>
-                </div>
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-              </div>
-
-              {/* Menu items */}
-              <div className="px-3 py-2 space-y-1.5 max-h-[300px] overflow-y-auto">
-                {items.map((item, i) => (
-                  <div key={i} className="bg-white rounded-lg border border-gray-100 p-2.5 flex items-start gap-2 shadow-sm">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-gray-900">{item.name}</span>
-                        <span className="text-[9px] font-bold text-gray-900">${item.price.toFixed(2)}</span>
-                      </div>
-                      <p className="text-[7px] text-gray-500 mt-0.5 leading-tight">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Order total + CTA */}
-              <div className="bg-white border-t border-gray-200 px-4 py-2.5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[9px] text-gray-500">Total</span>
-                  <span className="text-[11px] font-black text-gray-900">${total.toFixed(2)}</span>
-                </div>
-                {!orderMade ? (
-                  <button
-                    onClick={() => setOrderMade(true)}
-                    className="w-full py-2.5 rounded-lg text-white text-[10px] font-bold transition-all shadow-sm"
-                    style={{ backgroundColor: TEAL }}
-                  >
-                    Order to Room 204 — ${total.toFixed(2)}
-                  </button>
-                ) : (
-                  <div className="w-full py-2.5 rounded-lg bg-green-50 border border-green-200 flex items-center justify-center gap-1.5">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    <span className="text-[10px] font-bold text-green-700">Order sent to kitchen!</span>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80px] h-[20px] bg-gray-900 rounded-b-2xl z-10" />
+        <div className="relative">
+          <Image
+            src="/images/guest-food.png"
+            alt="Guest food ordering screen — browse menu, add items, order to room"
+            width={280}
+            height={607}
+            className="w-full h-auto block"
+          />
         </div>
       </div>
       <div className="text-center mt-4">
@@ -2264,7 +1993,7 @@ function EnrollForm() {
       <div>
         <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">Property Name *</label>
         <input value={form.propertyName} onChange={e => setForm({ ...form, propertyName: e.target.value })}
-          placeholder="Best Western Miami Airport"
+          placeholder="Your Property Name"
           className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-500 transition-colors" />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
