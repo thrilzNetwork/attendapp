@@ -43,6 +43,11 @@ export type OpRecordType =
   | 'schedule_change_request'// staff request to change a shift
   | 'learning_content'       // HR/learning material
   | 'hr_document'            // HR document
+  | 'course'                 // training course
+  | 'course_module'          // module within a course
+  | 'quiz_question'          // quiz question for a module
+  | 'module_completion'      // staff completed a module
+  | 'quiz_attempt'           // staff quiz score
   | 'shuttle_config'         // hotel's free-shuttle config + recurring slots
   | 'shuttle_slot'           // single shuttle time slot (Sun–Sat × time)
   | 'shuttle_booking'        // guest booking
@@ -410,6 +415,108 @@ export async function createHrDocument(
 
 export async function deleteHrDocument(id: string): Promise<boolean> {
   return deleteOps(id);
+}
+
+// =====================================================================
+// Training Courses (state-of-the-art learning platform)
+// =====================================================================
+
+export interface Course {
+  title: string;
+  description: string;
+  category: 'Brand Standards' | 'Attenda Platform' | 'Safety' | 'Hospitality' | 'SOP' | 'Leadership';
+  required_for: string[];  // department/position keys
+  estimated_hours: number;
+  published: boolean;
+}
+
+export interface CourseModule {
+  course_id: string;
+  title: string;
+  body: string;
+  order: number;
+  estimated_minutes: number;
+  media_url?: string;
+}
+
+export interface QuizQuestion {
+  module_id: string;
+  question: string;
+  options: string[];
+  correct_index: number;
+  order: number;
+}
+
+export interface ModuleCompletion {
+  staff_name: string;
+  module_id: string;
+  course_id: string;
+  completed_at: string;
+}
+
+export interface QuizAttempt {
+  staff_name: string;
+  module_id: string;
+  course_id: string;
+  score: number;
+  total: number;
+  passed: boolean;
+  attempted_at: string;
+  answers: number[];
+}
+
+export async function listCourses(hotelId: string): Promise<OpRecord[]> {
+  return listOps(hotelId, 'course', {});
+}
+
+export async function createCourse(hotelId: string, c: Course): Promise<OpRecord | null> {
+  return createOps(hotelId, 'course', c, c.published ? 'active' : 'draft');
+}
+
+export async function deleteCourse(id: string): Promise<boolean> {
+  return deleteOps(id);
+}
+
+export async function listModules(hotelId: string, courseId: string): Promise<OpRecord[]> {
+  const all = await listOps(hotelId, 'course_module', {});
+  return all.filter(m => (m.details as any).course_id === courseId).sort((a, b) => ((a.details as any).order || 0) - ((b.details as any).order || 0));
+}
+
+export async function createModule(hotelId: string, m: CourseModule): Promise<OpRecord | null> {
+  return createOps(hotelId, 'course_module', m, 'active');
+}
+
+export async function deleteModule(id: string): Promise<boolean> {
+  return deleteOps(id);
+}
+
+export async function listQuizQuestions(hotelId: string, moduleId: string): Promise<OpRecord[]> {
+  const all = await listOps(hotelId, 'quiz_question', {});
+  return all.filter(q => (q.details as any).module_id === moduleId).sort((a, b) => ((a.details as any).order || 0) - ((b.details as any).order || 0));
+}
+
+export async function createQuizQuestion(hotelId: string, q: QuizQuestion): Promise<OpRecord | null> {
+  return createOps(hotelId, 'quiz_question', q, 'active');
+}
+
+export async function deleteQuizQuestion(id: string): Promise<boolean> {
+  return deleteOps(id);
+}
+
+export async function listModuleCompletions(hotelId: string): Promise<OpRecord[]> {
+  return listOps(hotelId, 'module_completion', {});
+}
+
+export async function recordModuleCompletion(hotelId: string, c: ModuleCompletion): Promise<OpRecord | null> {
+  return createOps(hotelId, 'module_completion', c, 'completed');
+}
+
+export async function listQuizAttempts(hotelId: string): Promise<OpRecord[]> {
+  return listOps(hotelId, 'quiz_attempt', {});
+}
+
+export async function recordQuizAttempt(hotelId: string, a: QuizAttempt): Promise<OpRecord | null> {
+  return createOps(hotelId, 'quiz_attempt', a, a.passed ? 'completed' : 'failed');
 }
 
 // =====================================================================
