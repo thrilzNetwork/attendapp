@@ -154,7 +154,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   // ── OPERATIONS — property tools ──
   { tab: 'shuttle',         label: 'Shuttle',            icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'kpis',            label: 'KPIs',               icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'knowledge',       label: 'Knowledge Base',     icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'knowledge',       label: 'Write Answers',     icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'learning_hr',     label: 'Learning & HR',      icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'property_info',   label: 'Property Info',      icon: HotelIcon,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
 
@@ -5997,10 +5997,14 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
   if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
 
   const categories = [
+    { key: 'SOP', label: 'SOP', icon: '📋' },
+    { key: 'Best Practice', label: 'Best Practice', icon: '✅' },
+    { key: 'GM Guidance', label: 'GM Guidance', icon: '🎯' },
     { key: 'Complaint', label: 'Complaint', icon: '⚠️' },
-    { key: 'Praise', label: 'Praise', icon: '⭐' },
     { key: 'Service', label: 'Service', icon: '💬' },
-    { key: 'Safety', label: 'Incident', icon: '🚨' },
+    { key: 'Procedures', label: 'Procedures', icon: '⚙️' },
+    { key: 'Safety', label: 'Safety', icon: '🚨' },
+    { key: 'General', label: 'General', icon: '📌' },
   ];
 
   const visible = filter === 'all'
@@ -6012,14 +6016,14 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto">
       <div className="mb-4">
-        <h1 className="text-[20px] font-extrabold text-gray-900">Knowledge Base</h1>
-        <p className="text-[12px] text-gray-500">Ask the KB · log incidents · admin approves · team searches</p>
+        <h1 className="text-[20px] font-extrabold text-gray-900">Write Answers</h1>
+        <p className="text-[12px] text-gray-500">Knowledge base · best practices · SOPs · GM guidance · what to do in any situation</p>
       </div>
 
       {/* Ask the KB — chatbot-style search bar */}
       <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm mb-4">
         <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5">
-          <Search size={11} /> Ask the KB
+          <Search size={11} /> Search answers
         </label>
         <div className="flex gap-2 mt-1.5">
           <input
@@ -6027,7 +6031,7 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
             value={ask}
             onChange={e => { setAsk(e.target.value); if (!e.target.value) { setAskResult(null); setAskNotFound(false); } }}
             onKeyDown={e => { if (e.key === 'Enter') askKb(); }}
-            placeholder="e.g. guest complaint about noise, late checkout fee..."
+            placeholder="Search: check-in, breakfast, noise complaint, late checkout..."
             className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100"
           />
           <button onClick={askKb} disabled={!ask.trim()} className="px-4 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
@@ -6055,28 +6059,28 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
 
         {askNotFound && ask.trim() && (
           <div className="mt-3 bg-gray-50 rounded-xl p-3 text-[12px] text-gray-600">
-            No approved KB entry matches "{ask}". {isAdmin ? 'Review the Pending tab below — entries awaiting your approval.' : 'Paste the situation in the form below to log a new incident for admin review.'}
+            No match found for "{ask}". {isAdmin ? 'Check the Pending tab below.' : 'Let your manager know or log a new entry below for admin review.'}
           </div>
         )}
       </div>
 
-      {/* Submit a new incident */}
+      {/* Submit a new entry */}
       <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm mb-4">
         <div className="flex items-center gap-2 mb-2">
           <Plus size={14} className="text-gray-700" />
-          <p className="text-[14px] font-bold text-gray-900">Log a new incident</p>
+          <p className="text-[14px] font-bold text-gray-900">Add a new answer</p>
         </div>
-        <p className="text-[11px] text-gray-500 mb-3">Staff submissions are saved as <span className="font-semibold">Pending</span>. Admins review and approve to add to the searchable KB.</p>
+        <p className="text-[11px] text-gray-500 mb-3">SOPs, best practices, procedures, and GM guidance. Staff submissions go to <span className="font-semibold">Pending</span> for admin review. Admins can publish directly.</p>
         <label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
-        <div className="grid grid-cols-4 gap-1 mt-1 mb-3">
+        <div className="flex flex-wrap gap-1 mt-1 mb-3">
           {categories.map(c => (
-            <button key={c.key} onClick={() => setCategory(c.key)} className={`py-2 rounded-xl text-[11px] font-bold border ${category === c.key ? 'text-white border-transparent' : 'bg-white border-gray-200 text-gray-600'}`} style={category === c.key ? { backgroundColor: TEAL } : {}}>
+            <button key={c.key} onClick={() => setCategory(c.key)} className={`px-3 py-1.5 rounded-full text-[11px] font-bold border ${category === c.key ? 'text-white border-transparent' : 'bg-white border-gray-200 text-gray-600'}`} style={category === c.key ? { backgroundColor: TEAL } : {}}>
               <span className="mr-1">{c.icon}</span>{c.label}
             </button>
           ))}
         </div>
-        <label className="text-[10px] font-bold text-gray-500 uppercase">What happened?</label>
-        <textarea value={incident} onChange={e => setIncident(e.target.value)} rows={3} placeholder="e.g. Guest in 312 complained about noise from the room above at 1am..." className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
+        <label className="text-[10px] font-bold text-gray-500 uppercase">Situation / Topic</label>
+        <textarea value={incident} onChange={e => setIncident(e.target.value)} rows={3} placeholder="e.g. How to handle a late checkout, breakfast hours, noise complaint procedure..." className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
         <button onClick={generateSuggestion} disabled={!incident} className="mt-3 w-full py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
           ✨ Suggest Response
         </button>
@@ -6109,10 +6113,10 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
         <div className="bg-gray-50 rounded-2xl p-8 text-center">
           <BookOpen size={32} className="text-gray-300 mx-auto mb-3" />
           <p className="text-[14px] text-gray-500 font-medium">
-            {filter === 'pending' ? 'No pending entries' : filter === 'rejected' ? 'No rejected entries' : 'No KB entries yet'}
+            {filter === 'pending' ? 'No pending entries' : filter === 'rejected' ? 'No rejected entries' : 'No answers yet'}
           </p>
           <p className="text-[12px] text-gray-400 mt-1">
-            {filter === 'pending' ? 'New staff submissions will appear here for your review.' : 'Submit an incident above to start the KB.'}
+            {filter === 'pending' ? 'New staff submissions will appear here for your review.' : 'Share what you know below to start adding answers.'}
           </p>
         </div>
       ) : (
