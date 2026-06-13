@@ -421,57 +421,8 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* THE 60-SECOND LOOP */}
-      <section className="py-16 md:py-24 px-5 bg-gray-50 border-y border-gray-200">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-gray-200 mb-4">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-gray-700">One request flow</span>
-            </div>
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">The 60-Second Loop</h2>
-            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
-              Guest asks. Staff handles.<br />
-              <span style={{ color: TEAL }}>The GM sees it. Revenue flows.</span>
-            </h3>
-            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              From QR scan to resolution in under a minute. No phone tag, no radio calls, no missed requests.
-            </p>
-          </div>
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 md:gap-3">
-            {[
-              { icon: QrCode, label: 'Guest scans QR', desc: 'No app, no download. Opens in their browser.' },
-              { icon: ClipboardList, label: 'Hits staff board', desc: 'Real-time. Pending. Staff phone buzzes instantly.' },
-              { icon: CheckCircle, label: 'Staff executes', desc: 'Accepts, completes, logs. Every action timestamped.' },
-              { icon: Users, label: 'GM sees it', desc: 'Dashboard updates live. Resolved in minutes.' },
-              { icon: DollarSign, label: 'Revenue captured', desc: 'Food, shuttle, late checkout &mdash; hotel earns.' },
-            ].map((step, i) => {
-              const StepIcon = step.icon;
-              return (
-                <div key={i} className="flex flex-row md:flex-col items-center md:text-center gap-3 md:gap-3 flex-1">
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm border border-gray-200 bg-white">
-                    <StepIcon size={20} style={{ color: TEAL }} />
-                  </div>
-                  <div className="relative flex-1 md:text-center">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black mb-1 text-white md:mx-auto" style={{ backgroundColor: TEAL }}>
-                      {i + 1}
-                    </div>
-                    <h4 className="text-[13px] font-black text-gray-900">{step.label}</h4>
-                    <p className="text-[11px] text-gray-600 leading-relaxed">{step.desc}</p>
-                  </div>
-                  {i < 4 && <div className="hidden md:block w-6 h-0.5 bg-gray-200 shrink-0" />}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
       {/* FULL PLATFORM INVENTORY — 6 tabbed cards */}
       <PlatformTabs />
-
-      {/* REVENUE MATH — one visual, real numbers */}
-      <MoneyMath />
 
       {/* APP BY ROLE — existing showcase (keep) */}
       <section id="modules" className="py-16 md:py-24 px-5">
@@ -755,58 +706,51 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* LOGO STRIP */}
-      <section className="py-12 px-5 bg-gray-50 border-y border-gray-200">
-        <div className="max-w-6xl mx-auto">
-          <p className="text-center text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-6">
-            Trusted by independent properties across Florida
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-[14px] font-bold text-gray-400">
-            <span>Boutique 42 &middot; PortMiami</span>
-            <span className="text-gray-300">&middot;</span>
-            <span>Inn 28 &middot; Key West</span>
-            <span className="text-gray-300">&middot;</span>
-            <span>Suites 56 &middot; Tampa</span>
-            <span className="text-gray-300">&middot;</span>
-            <span>Lodge 18 &middot; Naples</span>
-            <span className="text-gray-300">&middot;</span>
-            <span>Resort 92 &middot; Orlando</span>
+      {/* PRICING — inline */}
+      <section className="py-16 md:py-24 px-5 bg-white" id="pricing">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Simple Pricing</h2>
+            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
+              Flat &amp; transparent.
+            </h3>
+            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
+              No contracts. No per-room games. No hidden fees.
+            </p>
           </div>
-        </div>
-      </section>
-
-      {/* A NEW STANDARD */}
-      <section className="py-12 md:py-20 px-5">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-            <div className="lg:col-span-6">
-              <h6 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
-                A New Standard For Independent Hotels
-              </h6>
-              <h2 className="text-[32px] md:text-[42px] font-black tracking-tight text-gray-900 mb-5 leading-tight">
-                Run your whole property on one thread.
-              </h2>
-              <p className="text-[16px] text-gray-600 leading-relaxed mb-5">
-                Attenda was built for the way independent hotels actually operate &mdash; multiple roles, multiple tools, one team trying to deliver five-star service without a five-star budget.
-              </p>
-              <p className="text-[16px] text-gray-600 leading-relaxed mb-8">
-                Every request, every job, every handoff lives on a single thread. Your PMS stays. Your staff stays. Your vendors stay. You just get a clear view of every room, every shift, every dollar &mdash; in real time.
-              </p>
-              <a href="#demo"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-[15px] shadow-md transition-all hover:shadow-lg active:scale-[0.98]"
-                style={{ backgroundColor: '#15b79e', color: '#000' }}>
-                Schedule a Demo <ArrowRight size={16} />
-              </a>
-            </div>
-            <div className="lg:col-span-5 lg:col-start-8 bg-gray-50 rounded-2xl p-6 md:p-8 border border-gray-200">
-              <FlowExample />
+          <div className="max-w-lg mx-auto">
+            <div className="bg-white border-2 rounded-2xl overflow-hidden shadow-md" style={{ borderColor: TEAL }}>
+              <div className="px-8 py-6 text-center" style={{ backgroundColor: `${TEAL}06` }}>
+                <div className="text-[11px] font-bold tracking-widest uppercase mb-2" style={{ color: TEAL }}>Attenda Platform</div>
+                <div className="text-[44px] font-black text-gray-900 leading-none mb-1">Flat monthly</div>
+                <div className="text-[15px] text-gray-600">+ variable ordering revenue share</div>
+              </div>
+              <div className="px-8 py-6">
+                <ul className="space-y-3.5">
+                  {[
+                    'No per-room pricing &mdash; same flat regardless of size',
+                    'No contracts. Cancel anytime.',
+                    'All modules included &mdash; no upsells or tier unlocks',
+                    'Onboarding & QR setup &mdash; $0',
+                    'Revenue share only on orders that flow through the platform',
+                  ].map(item => (
+                    <li key={item} className="flex items-start gap-3 text-[14px] text-gray-700">
+                      <Check size={16} className="mt-0.5 shrink-0" style={{ color: TEAL_BRIGHT }} />
+                      <span dangerouslySetInnerHTML={{ __html: item }} />
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-6">
+                  <a href="#demo" className="w-full block text-center py-4 rounded-xl text-white font-bold text-[15px] shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: TEAL }}>
+                    Get a quote on the demo call
+                  </a>
+                  <p className="text-[11px] text-gray-400 mt-2 text-center">We&apos;ll show your number, not a slide</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
-
-      {/* PRICING */}
-      <PricingSection />
 
       {/* PROVEN RESULTS */}
       <section className="py-20 px-5 bg-gray-900 text-white">
@@ -966,7 +910,33 @@ function AttendaLandingPage() {
       </section>
 
       {/* PARTNER PROGRAM — moved after pricing */}
-      <RestaurantPartnerSection />
+      {/* PARTNER PROGRAM — single banner */}
+      <section className="border-y border-gray-200 bg-[#F9FAFB]">
+        <div className="max-w-6xl mx-auto px-5 py-16 md:py-20">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+            <div className="md:col-span-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm mb-4">
+                <span className="w-2 h-2 rounded-full bg-green-500" />
+                <span className="text-[11px] font-bold tracking-wider text-gray-600 uppercase">Restaurant Partner Program</span>
+              </div>
+              <h2 className="text-[30px] md:text-[40px] font-black tracking-tight text-gray-900 leading-[1.05] mb-3">
+                A private channel into every hotel on Attenda.
+              </h2>
+              <p className="text-[15px] text-gray-600 leading-relaxed max-w-xl">
+                10% commission. Driver network included. No setup cost. Every order from a guest who&apos;s already in the building.
+              </p>
+            </div>
+            <div className="md:col-span-3 md:col-start-10 flex flex-col gap-3">
+              <a href="/partner"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-[14px] shadow-sm hover:shadow-md transition-all"
+                style={{ backgroundColor: TEAL }}>
+                Apply to join <ArrowRight size={16} />
+              </a>
+              <p className="text-[11px] text-gray-400 text-center">Approved restaurants go live in 48 hrs</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* FAQ */}
       <section className="py-20 px-5 bg-gray-50">
@@ -1413,374 +1383,8 @@ function PlatformTabs() {
 }
 
 /* ────────────────────────────────────────────────────────────
-   REVENUE MATH — one visual, real numbers
+   KPI tile dark (Proven Results strip)
    ──────────────────────────────────────────────────────────── */
-
-function MoneyMath() {
-  return (
-    <section className="py-16 md:py-24 px-5 bg-gray-50 border-y border-gray-200">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">The Revenue Math</h2>
-          <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
-            How the hotel earns on every order.
-          </h3>
-          <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-            Guest orders $40 of food from a nearby restaurant. Here&apos;s what happens next.
-          </p>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
-            {/* Step 1 */}
-            <div className="p-6 text-center border-b md:border-b-0 md:border-r border-gray-200">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm border border-gray-200 bg-white">
-                <Utensils size={20} style={{ color: TEAL }} />
-              </div>
-              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black mb-2 text-white mx-auto" style={{ backgroundColor: TEAL }}>1</div>
-              <h4 className="text-[15px] font-black text-gray-900 mb-1">Guest orders $40</h4>
-              <p className="text-[12px] text-gray-600">From a partner restaurant via the room QR code</p>
-            </div>
-
-            {/* Arrow */}
-            <div className="hidden md:flex items-center justify-center text-gray-300">
-              <ArrowRight size={24} />
-            </div>
-
-            {/* Step 2 */}
-            <div className="p-6 text-center border-b md:border-b-0 md:border-r border-gray-200">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm border border-gray-200 bg-white">
-                <Store size={20} style={{ color: TEAL }} />
-              </div>
-              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black mb-2 text-white mx-auto" style={{ backgroundColor: TEAL }}>2</div>
-              <h4 className="text-[15px] font-black text-gray-900 mb-1">Restaurant pays 10%</h4>
-              <p className="text-[12px] text-gray-600">That&apos;s $4 on a $40 order. Not 25&ndash;30%.</p>
-            </div>
-
-            {/* Arrow */}
-            <div className="hidden md:flex items-center justify-center text-gray-300">
-              <ArrowRight size={24} />
-            </div>
-
-            {/* Step 3 */}
-            <div className="p-6 text-center">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm border border-gray-200 bg-white">
-                <DollarSign size={20} style={{ color: TEAL }} />
-              </div>
-              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black mb-2 text-white mx-auto" style={{ backgroundColor: TEAL }}>3</div>
-              <h4 className="text-[15px] font-black text-gray-900 mb-1">Hotel & Attenda split</h4>
-              <p className="text-[12px] text-gray-600">Revenue share goes to your property. Every order, tracked.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Comparison callout */}
-        <div className="mt-6 bg-red-50 border border-red-200 rounded-2xl p-5 flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-            <span className="text-red-500 font-black text-[16px]">!</span>
-          </div>
-          <div>
-            <p className="text-[13px] font-bold text-red-800 mb-1">On UberEats / DoorDash:</p>
-            <p className="text-[13px] text-red-700 leading-relaxed">
-              Restaurant pays 30% ($12), keeps ~$28, the hotel gets $0. With Attenda, the hotel earns on every order routed through its own rooms. That&apos;s revenue that walked right past the front desk before.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ────────────────────────────────────────────────────────────
-   PRICING — one simple card
-   ──────────────────────────────────────────────────────────── */
-
-function PricingSection() {
-  return (
-    <section className="py-16 md:py-24 px-5 bg-white" id="pricing">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Simple Pricing</h2>
-          <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
-            Flat &amp; transparent.
-          </h3>
-          <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-            No contracts. No per-room games. No hidden fees.
-          </p>
-        </div>
-
-        <div className="max-w-lg mx-auto">
-          <div className="bg-white border-2 rounded-2xl overflow-hidden shadow-md" style={{ borderColor: TEAL }}>
-            <div className="px-8 py-6 text-center" style={{ backgroundColor: `${TEAL}06` }}>
-              <div className="text-[11px] font-bold tracking-widest uppercase mb-2" style={{ color: TEAL }}>Attenda Platform</div>
-              <div className="text-[44px] font-black text-gray-900 leading-none mb-1">
-                Flat monthly
-              </div>
-              <div className="text-[15px] text-gray-600">+ variable ordering revenue share</div>
-            </div>
-            <div className="px-8 py-6">
-              <ul className="space-y-3.5">
-                {[
-                  'No per-room pricing &mdash; same flat regardless of size',
-                  'No contracts. Cancel anytime.',
-                  'All modules included &mdash; no upsells or tier unlocks',
-                  'Onboarding & QR setup &mdash; $0',
-                  'Revenue share only on orders that flow through the platform',
-                ].map(item => (
-                  <li key={item} className="flex items-start gap-3 text-[14px] text-gray-700">
-                    <Check size={16} className="mt-0.5 shrink-0" style={{ color: TEAL_BRIGHT }} />
-                    <span dangerouslySetInnerHTML={{ __html: item }} />
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-6">
-                <a href="#demo"
-                  className="w-full block text-center py-4 rounded-xl text-white font-bold text-[15px] shadow-sm hover:shadow-md transition-all"
-                  style={{ backgroundColor: TEAL }}>
-                  Get a quote on the demo call
-                </a>
-                <p className="text-[11px] text-gray-400 mt-2 text-center">We&apos;ll show your number, not a slide</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ────────────────────────────────────────────────────────────
-   RESTAURANT PARTNER PROGRAM — moved after pricing
-   ──────────────────────────────────────────────────────────── */
-
-function RestaurantPartnerSection() {
-  return (
-    <>
-      {/* Partner hero */}
-      <section className="border-y border-gray-200 bg-[#F9FAFB]">
-        <div className="max-w-6xl mx-auto px-5 py-20 md:py-28">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm mb-6">
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-[11px] font-bold tracking-wider text-gray-600 uppercase">Restaurant Partner Program</span>
-            </div>
-            <h2 className="text-[40px] md:text-[56px] font-black tracking-tight text-gray-900 leading-[1.05] mb-5">
-              A private channel into<br />
-              <span style={{ color: TEAL }}>every hotel on Attenda.</span>
-            </h2>
-            <p className="text-[17px] text-gray-600 leading-relaxed max-w-2xl mb-8">
-              Attenda connects your kitchen directly to hotel guests &mdash; no third-party app, no algorithm, no bidding against 50 other restaurants for a customer. Every order comes from a guest who&apos;s already checked in and hungry.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <a href="/partner" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-[14px] shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: TEAL }}>
-                Apply to join <ArrowRight size={16} />
-              </a>
-              <a href="#partner-how" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold text-[14px] hover:bg-gray-50 transition-all">
-                See how it works
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section id="partner-how" className="py-20 md:py-24 px-5 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-[13px] font-bold tracking-[0.2em] uppercase text-gray-500 mb-3">How it works</p>
-            <h3 className="text-[30px] md:text-[40px] font-black tracking-tight text-gray-900 leading-[1.1] mb-4">
-              Your restaurant.<br className="sm:hidden" /> Three steps to live.
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
-            {[
-              { num: '01', title: 'Apply & connect', desc: 'Tell us about your restaurant. We verify, activate your free ordering portal, and connect it to nearby Attenda hotels. Takes 48 hours.' },
-              { num: '02', title: 'Guests order direct', desc: 'Hotel guests scan a QR code in their room, browse your menu, and order. The ticket lands in your kitchen instantly. No app, no middleman.' },
-              { num: '03', title: 'Cook. A driver picks it up.', desc: 'You prepare the order. Delivery is dispatched through our driver network — the charge goes on the guest&apos;s bill, not yours. At 10%, you keep ~$90 of every $100 order.' },
-            ].map((s, i) => (
-              <div key={i} className="text-center">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 text-[22px] font-black shadow-sm" style={{ backgroundColor: `${TEAL}10`, color: TEAL }}>
-                  {s.num}
-                </div>
-                <h4 className="text-[17px] font-black text-gray-900 mb-2">{s.title}</h4>
-                <p className="text-[14px] text-gray-600 leading-relaxed max-w-xs mx-auto">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Offer terms */}
-      <section className="py-16 md:py-20 px-5 bg-[#F9FAFB] border-y border-gray-200">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-[13px] font-bold tracking-[0.2em] uppercase text-gray-500 mb-3">Simple terms</p>
-            <h3 className="text-[30px] md:text-[40px] font-black tracking-tight text-gray-900 leading-[1.1] mb-4">What you pay. What you get.</h3>
-            <p className="text-[16px] text-gray-600 max-w-xl mx-auto">No hidden fees. No tiered commissions. No setup costs. This is the complete offer.</p>
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { stat: '10%', label: 'Commission', sub: 'per order. Firm, direct.', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-              { stat: 'Driver network', label: 'Delivery cost', sub: 'Charged to guest. Hotel pays $0.', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> },
-              { stat: '3% / 0%', label: 'Card processing', sub: 'Credit = 3%. Debit = 0%.', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> },
-              { stat: '$0', label: 'Setup & software', sub: 'Free ordering system included.', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> },
-            ].map((c, i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 text-center shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: `${TEAL}10` }}>{c.icon}</div>
-                <p className="text-[32px] font-black text-gray-900 leading-none mb-1">{c.stat}</p>
-                <p className="text-[13px] font-bold text-gray-700 mb-0.5">{c.label}</p>
-                <p className="text-[12px] text-gray-500">{c.sub}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Comparison */}
-      <section className="py-20 md:py-24 px-5 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-[13px] font-bold tracking-[0.2em] uppercase text-gray-500 mb-3">Side by side</p>
-            <h3 className="text-[30px] md:text-[40px] font-black tracking-tight text-gray-900 leading-[1.1] mb-4">Delivery platforms vs. Attenda.</h3>
-            <p className="text-[16px] text-gray-600 max-w-xl mx-auto">We&apos;re not asking you to leave UberEats or DoorDash. This is an additional channel &mdash; one that keeps more of every dollar.</p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-            <div className="bg-gray-50 p-6 border-b border-gray-200 lg:border-b-0 lg:border-r border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center"><span className="text-red-500 font-black text-[14px]">&#10005;</span></div>
-                <div><p className="text-[15px] font-bold text-gray-900">Delivery Platforms</p><p className="text-[11px] text-gray-500">UberEats &middot; DoorDash &middot; Grubhub</p></div>
-              </div>
-            </div>
-            <div className="p-6 border-b lg:border-b-0 border-gray-200" style={{ backgroundColor: `${TEAL}04` }}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${TEAL}15` }}><span className="font-black text-[16px]" style={{ color: TEAL }}>A</span></div>
-                <div><p className="text-[15px] font-bold text-gray-900">Attenda Network</p><p className="text-[11px] text-gray-500">Direct hotel channel</p></div>
-              </div>
-            </div>
-
-            {/* Rows */}
-            <div className="bg-gray-50 p-5 border-b border-gray-200 lg:border-r border-gray-200 flex items-center justify-between"><span className="text-[13px] text-gray-500">Commission</span><span className="text-[14px] font-bold text-red-500">25&ndash;30%</span></div>
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}><span className="text-[13px] text-gray-500">Commission</span><span className="text-[18px] font-black" style={{ color: TEAL }}>10%</span></div>
-
-            <div className="bg-gray-50 p-5 border-b border-gray-200 lg:border-r border-gray-200 flex items-center justify-between"><span className="text-[13px] text-gray-500">Driver</span><span className="text-[13px] text-gray-700">Platform provides</span></div>
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}><span className="text-[13px] text-gray-500">Driver</span><span className="text-[13px] font-bold text-gray-900">Driver network &middot; Charged to guest</span></div>
-
-            <div className="bg-gray-50 p-5 border-b border-gray-200 lg:border-r border-gray-200 flex items-center justify-between"><span className="text-[13px] text-gray-500">Card fees</span><span className="text-[13px] text-gray-700">2.9% + $0.30</span></div>
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}><span className="text-[13px] text-gray-500">Card fees</span><span className="text-[13px] font-bold text-gray-900">3% credit &middot; <span className="text-teal-600">0% debit</span></span></div>
-
-            <div className="bg-gray-50 p-5 border-b border-gray-200 lg:border-r border-gray-200 flex items-center justify-between"><span className="text-[13px] text-gray-500">Market</span><span className="text-[13px] text-gray-700">General public</span></div>
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}><span className="text-[13px] text-gray-500">Market</span><span className="text-[13px] font-bold text-gray-900">Captive hotel guests</span></div>
-
-            <div className="bg-gray-50 p-5 border-b lg:border-b-0 border-gray-200 lg:border-r border-gray-200 flex items-center justify-between"><span className="text-[13px] text-gray-500">On $100, you keep</span><span className="text-[16px] font-black text-red-500">~$67</span></div>
-            <div className="p-5 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}><span className="text-[13px] text-gray-500">On $100, you keep</span><span className="text-[22px] font-black" style={{ color: TEAL }}>~$90</span></div>
-          </div>
-        </div>
-      </section>
-
-      {/* Differentiators */}
-      <section className="py-16 md:py-20 px-5 bg-[#F9FAFB] border-y border-gray-200">
-        <div className="max-w-5xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { title: 'We own the full stack', desc: 'Built and operated in-house &mdash; not white-labeled, not resold. No middleman margin. That&apos;s how our rates stay low.', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> },
-              { title: 'Certified & approved', desc: 'Compliant with major card networks. All drivers insured and vetted. Every transaction protected.', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> },
-              { title: 'A network, not a marketplace', desc: 'Hotels direct guests to your restaurant. No ads. No rankings. No bidding for visibility.', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
-            ].map((d, i) => (
-              <div key={i}>
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ backgroundColor: `${TEAL}10` }}>{d.icon}</div>
-                <h4 className="text-[16px] font-black text-gray-900 mb-2">{d.title}</h4>
-                <p className="text-[14px] text-gray-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: d.desc }} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="py-20 md:py-24 px-5 bg-white">
-        <div className="max-w-2xl mx-auto text-center">
-          <h3 className="text-[28px] md:text-[36px] font-black tracking-tight text-gray-900 leading-[1.1] mb-4">
-            Keep your delivery apps.<br />
-            <span style={{ color: TEAL }}>Add the hotel channel.</span>
-          </h3>
-          <p className="text-[15px] text-gray-600 leading-relaxed mb-8 max-w-lg mx-auto">
-            UberEats, DoorDash, Grubhub &mdash; you should stay on all of them. Then add Attenda for the hotel guests they can&apos;t reach. Higher margin. Steadier volume. Zero setup cost.
-          </p>
-          <a href="/partner" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-bold text-[15px] shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: TEAL }}>
-            Apply to join the network <ArrowRight size={18} />
-          </a>
-          <p className="text-[12px] text-gray-400 mt-4">Approved restaurants go live in 48 hours</p>
-        </div>
-      </section>
-    </>
-  );
-}
-
-function FlowExample() {
-  return (
-    <div className="space-y-4">
-      <div className="bg-gray-900 text-white rounded-t-2xl px-5 py-3 flex items-center justify-between">
-        <div>
-          <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Live thread</div>
-          <div className="text-[14px] font-bold">Room 204 · Extra pillows · 9:42 PM</div>
-        </div>
-        <div className="text-[10px] px-2 py-1 rounded-full bg-green-500/20 text-green-300 font-bold">RESOLVED 9:51 PM</div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-gray-100 p-3 rounded-b-2xl">
-        <div className="bg-white rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[12px]" style={{ backgroundColor: TEAL }}>G</div>
-            <div>
-              <div className="text-[10px] font-bold text-gray-500 uppercase">Guest</div>
-              <div className="text-[12px] font-bold text-gray-900">Room 204</div>
-            </div>
-          </div>
-          <div className="space-y-1.5 text-[12px] text-gray-700">
-            <div className="bg-gray-50 rounded-lg p-2">📱 Taps &ldquo;Need extras&rdquo;</div>
-            <div className="bg-gray-50 rounded-lg p-2">💬 &ldquo;Extra pillows please&rdquo;</div>
-            <div className="rounded-lg p-2 text-white" style={{ backgroundColor: TEAL }}>✓ Delivered in 10 min</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-[12px]">S</div>
-            <div>
-              <div className="text-[10px] font-bold text-gray-500 uppercase">Staff</div>
-              <div className="text-[12px] font-bold text-gray-900">Maria · Housekeeping</div>
-            </div>
-          </div>
-          <div className="space-y-1.5 text-[12px] text-gray-700">
-            <div className="bg-gray-50 rounded-lg p-2">🔔 Phone buzzes: Room 204 pillows</div>
-            <div className="bg-gray-50 rounded-lg p-2">✅ Taps Accept</div>
-            <div className="bg-gray-50 rounded-lg p-2">🚪 Walks to room, delivers</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-[12px]">V</div>
-            <div>
-              <div className="text-[10px] font-bold text-gray-500 uppercase">Vendor</div>
-              <div className="text-[12px] font-bold text-gray-900">Linen Co.</div>
-            </div>
-          </div>
-          <div className="space-y-1.5 text-[12px] text-gray-700">
-            <div className="bg-gray-50 rounded-lg p-2">📦 Auto-restock alert: Room 204</div>
-            <div className="bg-gray-50 rounded-lg p-2">✅ Confirms next-day delivery</div>
-            <div className="bg-gray-50 rounded-lg p-2">💰 Invoice auto-generated</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Header product mockup (real screenshot, hero right side) ── */
-
-/* ── Pixel-accurate mockups of the actual product — used in the "See it in action" section ── */
 
 function HeaderMockup() {
   return (
