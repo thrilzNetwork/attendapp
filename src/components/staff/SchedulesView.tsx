@@ -166,16 +166,26 @@ export default function SchedulesView({
 
   const getStaff = (date: string) => {
     const dayShifts = schedules.filter(s => s.shift_date === date);
-    // Group by staff name, pick earliest shift
-    const names: { name: string; shift: StaffSchedule }[] = [];
-    const seen = new Set<string>();
+    const scheduledNames = new Set(dayShifts.map(s => s.staff_name));
+
+    // Always show ALL staff from the roster, mark who has a shift
+    const result: { name: string; shift: StaffSchedule | null }[] = [];
+
+    // Add staff who have shifts
     dayShifts.forEach(s => {
-      if (!seen.has(s.staff_name)) {
-        seen.add(s.staff_name);
-        names.push({ name: s.staff_name, shift: s });
+      if (!result.find(r => r.name === s.staff_name)) {
+        result.push({ name: s.staff_name, shift: s });
       }
     });
-    return names.sort((a, b) => {
+
+    // Add staff from roster who DON'T have a shift (shown as "off")
+    staffList.forEach(s => {
+      if (!scheduledNames.has(s.name) && !result.find(r => r.name === s.name)) {
+        result.push({ name: s.name, shift: null });
+      }
+    });
+
+    return result.sort((a, b) => {
       const deptA = staffDept(a.name);
       const deptB = staffDept(b.name);
       if (deptA !== deptB) return deptA.localeCompare(deptB);
@@ -259,12 +269,6 @@ export default function SchedulesView({
           const isToday = d === today();
           const fc = forecasts.find(f => f.date === d);
           const dayStaff = getStaff(d);
-          const staffInDept: Record<string, { name: string; shift: StaffSchedule }[]> = {};
-          dayStaff.forEach(s => {
-            const dept = staffDept(s.name) || 'unassigned';
-            if (!staffInDept[dept]) staffInDept[dept] = [];
-            staffInDept[dept].push(s);
-          });
 
           return (
             <div
@@ -324,34 +328,44 @@ export default function SchedulesView({
               )}
 
               {/* Staff Shifts */}
-              <div className="px-2 py-1.5 space-y-1.5 min-h-[80px] max-h-[200px] overflow-y-auto">
-                {Object.entries(staffInDept).length === 0 ? (
+              <div className="px-2 py-1.5 space-y-1.5 min-h-[80px] max-h-[240px] overflow-y-auto">
+                {dayStaff.length === 0 ? (
                   <p className="text-[10px] text-gray-300 text-center py-4">—</p>
                 ) : (
-                  Object.entries(staffInDept).map(([dept, staffMembers]) => (
-                    <div key={dept}>
-                      {staffMembers.map(({ name, shift }) => {
-                        dept = staffDept(name) || 'unassigned';
-                        const color = shiftColor(dept);
-                        return (
-                          <div
-                            key={shift.id}
-                            className={`rounded-lg border px-2 py-1.5 text-[10px] leading-tight mb-1 ${color} ${isAdmin ? 'cursor-pointer hover:opacity-80' : ''}`}
-                            onClick={() => isAdmin && handleDelete(shift.id)}
-                            title={isAdmin ? 'Click to remove' : ''}
-                          >
-                            <p className="font-bold truncate">{name.split(' ')[0]}</p>
-                            <p className="text-[9px] opacity-80">
-                              {shift.start_time.slice(0,5)}–{shift.end_time.slice(0,5)}
-                            </p>
-                            {shift.notes && (
-                              <p className="text-[8px] opacity-60 truncate">{shift.notes}</p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))
+                  dayStaff.map(({ name, shift }) => {
+                    const dept = staffDept(name) || 'unassigned';
+                    if (shift) {
+                      const color = shiftColor(dept);
+                      return (
+                        <div
+                          key={shift.id}
+                          className={`rounded-lg border px-2 py-1.5 text-[10px] leading-tight mb-1 ${color} ${isAdmin ? 'cursor-pointer hover:opacity-80' : ''}`}
+                          onClick={() => isAdmin && handleDelete(shift.id)}
+                          title={isAdmin ? 'Click to remove' : ''}
+                        >
+                          <p className="font-bold truncate">{name.split(' ')[0]}</p>
+                          <p className="text-[9px] opacity-80">
+                            {shift.start_time.slice(0,5)}–{shift.end_time.slice(0,5)}
+                          </p>
+                          {shift.notes && (
+                            <p className="text-[8px] opacity-60 truncate">{shift.notes}</p>
+                          )}
+                        </div>
+                      );
+                    } else {
+                      // Staff off this day
+                      const color = shiftColor(dept);
+                      return (
+                        <div
+                          key={`off-${name}`}
+                          className={`rounded-lg border border-dashed px-2 py-1.5 text-[10px] leading-tight mb-1 ${color.replace('bg-', 'bg-opacity-20 bg-').replace('border-', 'border-dashed border-gray-200')}`}
+                        >
+                          <p className="font-bold truncate text-gray-400">{name.split(' ')[0]}</p>
+                          <p className="text-[9px] text-gray-300 italic">Off</p>
+                        </div>
+                      );
+                    }
+                  })
                 )}
               </div>
 
