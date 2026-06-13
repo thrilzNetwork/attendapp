@@ -68,6 +68,7 @@ import BankCountView from '@/components/ops-tools/BankCountView';
 
 const RoomsView = dynamic(() => import('@/components/staff/RoomsView'), { ssr: false });
 const SchedulesView = dynamic(() => import('@/components/staff/SchedulesView'), { ssr: false });
+const ForecastView = dynamic(() => import('@/components/staff/ForecastView'), { ssr: false });
 import {
   listOps, createOps, updateOps, deleteOps,
   listKpiDefinitions, createKpiDefinition, deleteKpiDefinition,
@@ -100,7 +101,7 @@ type NavTab =
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'checklists_tab' | 'kpis' | 'learning_hr'
-  | 'shuttle_schedule' | 'callouts' | 'sops';
+  | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops';
 
 interface Request {
   id: string;
@@ -159,6 +160,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
 
   // ── ADMIN — settings & management ──
   { tab: 'shuttle_schedule', label: 'Shuttle Grid',      icon: Bus,             roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
+  { tab: 'forecast',         label: 'Forecast',          icon: TrendingUp,      roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'callouts',         label: 'Staff Callouts',    icon: ClipboardList,   roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'], section: 'Admin' },
   { tab: 'staff_mgmt',      label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'], section: 'Admin' },
@@ -707,6 +709,9 @@ export default function Dashboard() {
         )}
         {effectiveTab === 'shuttle_schedule' && (
           <ShuttleScheduleView hotelId={config?.id || ''} isAdmin={isAdmin} />
+        )}
+        {effectiveTab === 'forecast' && (
+          <ForecastView hotelId={config?.id || ''} totalRooms={config?.roomCount || 0} />
         )}
         {effectiveTab === 'callouts' && (
           <AdminCalloutsView hotelId={config?.id || ''} />
