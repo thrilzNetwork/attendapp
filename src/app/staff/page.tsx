@@ -1433,6 +1433,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
   const [loading, setLoading] = useState(true);
   const [newRoute, setNewRoute] = useState({ name: '', type: 'airport', price: 0 });
   const [newSlot, setNewSlot] = useState<{ route_id: string; show: boolean; time: string; days: number[]; capacity: number; event_label: string; override_price: number | null }>({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null });
+  const [batch, setBatch] = useState<{ route_id: string; show: boolean; from: string; to: string; interval: number; days: number[]; capacity: number; override_price: number | null }>({ route_id: '', show: false, from: '', to: '', interval: 60, days: [1,2,3,4,5,6,7], capacity: 0, override_price: null });
   const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
   const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
 
@@ -1463,6 +1464,24 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
     if (!newSlot.time || !newSlot.route_id) return;
     await createShuttleSlot({ route_id: newSlot.route_id, departure_time: newSlot.time + ':00', days_of_week: newSlot.days, capacity: newSlot.capacity, event_label: newSlot.event_label, override_price: newSlot.override_price ?? undefined });
     setNewSlot({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null });
+    load();
+  };
+
+  const handleBatchGenerate = async () => {
+    if (!batch.from || !batch.to || !batch.route_id) return;
+    const [startH, startM] = batch.from.split(':').map(Number);
+    const [endH, endM] = batch.to.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    const generated: { route_id: string; departure_time: string; days_of_week: number[]; capacity: number; override_price?: number }[] = [];
+    for (let m = startMinutes; m <= endMinutes; m += batch.interval) {
+      const h = Math.floor(m / 60);
+      const min = m % 60;
+      const departure_time = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00`;
+      generated.push({ route_id: batch.route_id, days_of_week: batch.days, departure_time, capacity: batch.capacity, override_price: batch.override_price ?? undefined });
+    }
+    await Promise.all(generated.map(g => createShuttleSlot(g)));
+    setBatch({ route_id: '', show: false, from: '', to: '', interval: 60, days: [1,2,3,4,5,6,7], capacity: 0, override_price: null });
     load();
   };
 
@@ -1563,6 +1582,64 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                         );
                       })}
                     </div>
+                  </div>
+                )}
+
+                {/* Batch generate slots */}{isAdmin && (
+                  <div className="bg-white rounded-xl p-4 border border-gray-200 mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-bold text-[13px] text-gray-800">⚡ Generate Hours</h4>
+                      <button onClick={() => setBatch(batch.show && batch.route_id === route.id ? { ...batch, show: false } : { route_id: route.id, show: true, from: '', to: '', interval: 60, days: [1,2,3,4,5,6,7], capacity: 0, override_price: null })}
+                        className="text-[11px] font-bold text-teal-600">{batch.show && batch.route_id === route.id ? 'Close' : 'Open'}</button>
+                    </div>
+                    {batch.show && batch.route_id === route.id && (
+                      <div className="space-y-3">
+                        <p className="text-[11px] text-gray-500">Generate slots every X minutes, from start to end time.</p>
+                        <div className="flex gap-2 items-end flex-wrap">
+                          <div>
+                            <label className="text-[10px] text-gray-400 block">From</label>
+                            <input type="time" value={batch.from} onChange={e => setBatch({ ...batch, from: e.target.value })}
+                              className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none w-28" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-gray-400 block">To</label>
+                            <input type="time" value={batch.to} onChange={e => setBatch({ ...batch, to: e.target.value })}
+                              className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none w-28" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-gray-400 block">Every (min)</label>
+                            <select value={batch.interval} onChange={e => setBatch({ ...batch, interval: parseInt(e.target.value) })}
+                              className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none">
+                              <option value={30}>30 min</option>
+                              <option value={60}>1 hour</option>
+                              <option value={120}>2 hours</option>
+                              <option value={180}>3 hours</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-gray-400 block">Capacity</label>
+                            <input type="number" min="0" max="99" value={batch.capacity} onChange={e => setBatch({ ...batch, capacity: parseInt(e.target.value)||0 })}
+                              className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none w-20" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-gray-400 block">$ per person</label>
+                            <input type="number" min="0" step="0.01" value={batch.override_price ?? ''} placeholder="0" onChange={e => setBatch({ ...batch, override_price: e.target.value ? parseFloat(e.target.value) : null })}
+                              className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none w-20" />
+                          </div>
+                          <button onClick={handleBatchGenerate} className="px-4 py-2 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#0D9488' }}>Generate</button>
+                        </div>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {DAYS.map((d, i) => {
+                            const dayNum = i + 1;
+                            const active = batch.days.includes(dayNum);
+                            return (
+                              <button key={d} onClick={() => setBatch({ ...batch, days: active ? batch.days.filter(x => x !== dayNum) : [...batch.days, dayNum] })}
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${active ? 'bg-teal-600 text-white' : 'bg-gray-200 text-gray-500'}`}>{d}</button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
