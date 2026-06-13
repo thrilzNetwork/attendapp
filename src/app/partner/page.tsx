@@ -196,49 +196,143 @@ function RestaurantLandingPage({ urlType: initialUrlType }: { urlType?: string }
         </div>
       </section>
 
-      {/* The offer */}
+      {/* The offer — dynamic by type */}
       <section id="how-it-works" className="px-6 py-16 max-w-4xl mx-auto">
-        <h2 className="text-2xl font-black text-gray-900 text-center mb-10">The Offer</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
-            <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
-              <DollarSign size={22} className="text-teal-600" />
+        {partnerType === 'restaurant' && (
+          <>
+            <h2 className="text-2xl font-black text-gray-900 text-center mb-10">The Offer</h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <DollarSign size={22} className="text-teal-600" />
+                </div>
+                <p className="text-[28px] font-black text-gray-900">10%</p>
+                <p className="text-[12px] text-gray-500 mt-1">Commission per order</p>
+                <p className="text-[11px] text-gray-400 mt-2">Firm and direct. No hidden fees, no sliding scales.</p>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <Truck size={22} className="text-teal-600" />
+                </div>
+                <p className="text-[28px] font-black text-gray-900">Delivery</p>
+                <p className="text-[12px] text-gray-500 mt-1">We provide the driver</p>
+                <p className="text-[11px] text-gray-400 mt-2">Your kitchen cooks. We handle getting it to the guest.</p>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <CreditCard size={22} className="text-teal-600" />
+                </div>
+                <p className="text-[28px] font-black text-gray-900">3%</p>
+                <p className="text-[12px] text-gray-500 mt-1">Credit card fee</p>
+                <p className="text-[11px] text-gray-400 mt-2"><strong className="text-gray-700">Debit cards: 0%</strong> — no charge at all.</p>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <Smartphone size={22} className="text-teal-600" />
+                </div>
+                <p className="text-[28px] font-black text-gray-900">Free</p>
+                <p className="text-[12px] text-gray-500 mt-1">Online ordering system</p>
+                <p className="text-[11px] text-gray-400 mt-2">Fully integrated. Hotel &harr; Restaurant in one thread.</p>
+              </div>
             </div>
-            <p className="text-[28px] font-black text-gray-900">10%</p>
-            <p className="text-[12px] text-gray-500 mt-1">Commission per order</p>
-            <p className="text-[11px] text-gray-400 mt-2">Firm and direct. No hidden fees, no sliding scales.</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
-            <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
-              <Truck size={22} className="text-teal-600" />
+            <div className="bg-teal-50 rounded-2xl p-6 sm:p-8 border border-teal-100">
+              <p className="text-[14px] text-teal-900 leading-relaxed font-semibold">
+                <strong>The math is simple:</strong> If your restaurant agrees to these terms, we activate your free ordering system, connect you to every hotel on Attenda near you, and start sending guests your way. No setup costs. No long-term lock-in.
+              </p>
             </div>
-            <p className="text-[28px] font-black text-gray-900">Delivery</p>
-            <p className="text-[12px] text-gray-500 mt-1">We provide the driver</p>
-            <p className="text-[11px] text-gray-400 mt-2">Your kitchen cooks. We handle getting it to the guest.</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
-            <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
-              <CreditCard size={22} className="text-teal-600" />
-            </div>
-            <p className="text-[28px] font-black text-gray-900">3%</p>
-            <p className="text-[12px] text-gray-500 mt-1">Credit card fee</p>
-            <p className="text-[11px] text-gray-400 mt-2"><strong className="text-gray-700">Debit cards: 0%</strong> — no charge at all.</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
-            <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
-              <Smartphone size={22} className="text-teal-600" />
-            </div>
-            <p className="text-[28px] font-black text-gray-900">Free</p>
-            <p className="text-[12px] text-gray-500 mt-1">Online ordering system</p>
-            <p className="text-[11px] text-gray-400 mt-2">Fully integrated. Hotel ↔ Restaurant in one thread.</p>
-          </div>
-        </div>
+          </>
+        )}
 
-        <div className="bg-teal-50 rounded-2xl p-6 sm:p-8 border border-teal-100">
-          <p className="text-[14px] text-teal-900 leading-relaxed font-semibold">
-            <strong>The math is simple:</strong> If your restaurant agrees to these terms, we activate your free ordering system, connect you to every hotel on Attenda near you, and start sending guests your way. No setup costs. No long-term lock-in.
-          </p>
-        </div>
+        {partnerType === 'service' && (
+          <>
+            <h2 className="text-2xl font-black text-gray-900 text-center mb-10">How It Works</h2>
+            <div className="grid sm:grid-cols-3 gap-4 mb-10">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <HotelIcon size={22} className="text-teal-600" />
+                </div>
+                <p className="text-[17px] font-black text-gray-900 mb-1">Guest requests</p>
+                <p className="text-[12px] text-gray-500 mt-1">Through Attenda&apos;s room QR code &mdash; amenity, maintenance, housekeeping.</p>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <Bell size={22} className="text-teal-600" />
+                </div>
+                <p className="text-[17px] font-black text-gray-900 mb-1">Staff assigns</p>
+                <p className="text-[12px] text-gray-500 mt-1">Front desk routes the job to your vendor portal. You see it instantly.</p>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle size={22} className="text-teal-600" />
+                </div>
+                <p className="text-[17px] font-black text-gray-900 mb-1">You fulfill</p>
+                <p className="text-[12px] text-gray-500 mt-1">Complete the job. Status updates automatically. Hotel pays out.</p>
+              </div>
+            </div>
+            <div className="bg-teal-50 rounded-2xl p-6 sm:p-8 border border-teal-100">
+              <p className="text-[14px] text-teal-900 leading-relaxed font-semibold">
+                <strong>No platform fee for vendors.</strong> Hotels subscribe to Attenda. You get free access to the vendor portal, direct job routing, and payment processing. Your only cost is the standard processing fee on completed jobs.
+              </p>
+            </div>
+          </>
+        )}
+
+        {partnerType === 'experience' && (
+          <>
+            <h2 className="text-2xl font-black text-gray-900 text-center mb-10">How It Works</h2>
+            <div className="grid sm:grid-cols-3 gap-4 mb-10">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <MapPin size={22} className="text-teal-600" />
+                </div>
+                <p className="text-[17px] font-black text-gray-900 mb-1">Listed in-room</p>
+                <p className="text-[12px] text-gray-500 mt-1">Your experience appears on Attenda&apos;s guest page &mdash; right there with WiFi, facilities, and food.</p>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <CreditCard size={22} className="text-teal-600" />
+                </div>
+                <p className="text-[17px] font-black text-gray-900 mb-1">Guest books direct</p>
+                <p className="text-[12px] text-gray-500 mt-1">No third-party markup, no OTA commission. Guest pays your rate. Attenda processes the payment.</p>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <DollarSign size={22} className="text-teal-600" />
+                </div>
+                <p className="text-[17px] font-black text-gray-900 mb-1">You keep 90%</p>
+                <p className="text-[12px] text-gray-500 mt-1">10% commission. No listing fee. No monthly charge. Just the bookings we bring you.</p>
+              </div>
+            </div>
+            <div className="bg-teal-50 rounded-2xl p-6 sm:p-8 border border-teal-100">
+              <p className="text-[14px] text-teal-900 leading-relaxed font-semibold">
+                <strong>We bring the guests. You bring the experience.</strong> No upfront costs, no long-term contracts. Your listing goes live within 48 hours of approval.
+              </p>
+            </div>
+          </>
+        )}
+
+        {partnerType === 'brand' && (
+          <>
+            <h2 className="text-2xl font-black text-gray-900 text-center mb-10">How It Works</h2>
+            <div className="max-w-xl mx-auto space-y-4 mb-10">
+              {[
+                { step: '1', text: 'We identify brands that align with independent hospitality &mdash; products and services our guests already want.' },
+                { step: '2', text: 'Your brand gets featured in Attenda&apos;s guest experience, surfaced to guests who opt in, not spammed to everyone.' },
+                { step: '3', text: 'Guests engage directly. No ad spend, no middleman, no spray-and-pray. Just a relevant audience that chose to be there.' },
+              ].map((s, i) => (
+                <div key={i} className="flex items-start gap-4 bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-[15px] text-white" style={{ backgroundColor: TEAL }}>{s.step}</div>
+                  <p className="text-[14px] text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: s.text }} />
+                </div>
+              ))}
+            </div>
+            <div className="bg-teal-50 rounded-2xl p-6 sm:p-8 border border-teal-100">
+              <p className="text-[14px] text-teal-900 leading-relaxed font-semibold">
+                <strong>This is not an ad network.</strong> We don&apos;t sell impressions. We connect brands to hotel guests who already trust the platform. Partnership terms are negotiated per brand &mdash; reach out and we&apos;ll build the right model for you.
+              </p>
+            </div>
+          </>
+        )}
       </section>
 
       {/* CTA — dynamic by type */}

@@ -55,7 +55,7 @@ const STATUS_PALETTE: Record<string, { bg: string; border: string; badge: string
 };
 
 function OrdersView({
-  requests: initialRequests, onStatusChange, onRefresh, staffName,
+  requests: initialRequests, onStatusChange, onDelete, onRefresh, staffName,
 }: OrdersViewProps) {
   const [requests, setRequests] = useState<Request[]>(initialRequests);
   const [selected, setSelected] = useState<Request | null>(null);
@@ -168,6 +168,21 @@ function OrdersView({
                 className="w-full py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-[13px] font-semibold transition-all active:scale-[0.97] flex items-center justify-center gap-2"
               >
                 <X size={16} /> Close / Decline
+              </button>
+            )}
+
+            {(req.status === 'completed' || req.status === 'closed') && (
+              <button
+                onClick={() => {
+                  if (confirm(`Delete request from ${req.guest_name} (Room ${req.room})? This cannot be undone.`)) {
+                    setRequests(prev => prev.filter(r => r.id !== req.id));
+                    onDelete(req.id);
+                    setSelected(null);
+                  }
+                }}
+                className="w-full py-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-[13px] font-semibold transition-all active:scale-[0.97] flex items-center justify-center gap-2 border border-red-200"
+              >
+                <X size={16} /> Delete Request
               </button>
             )}
 
