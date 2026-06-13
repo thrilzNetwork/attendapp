@@ -379,6 +379,48 @@ function AttendaLandingPage() {
         </div>
       </section>
 
+      {/* WHY ATTENDA — 6-point grid (Inn-Flow pattern) */}
+      <section className="py-16 md:py-24 px-5 bg-gray-50 border-y border-gray-200">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-gray-200 mb-4">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-gray-700">Built for independent hotels</span>
+            </div>
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Why hotel teams choose Attenda</h2>
+            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
+              One thread. Every role.<br />
+              <span style={{ color: TEAL }}>No apps for guests.</span>
+            </h3>
+            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
+              A single platform designed around how independent hotels actually operate &mdash; not a reskinned chatbot or a white-labeled marketplace.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              { icon: QrCode, title: 'Zero apps for guests', desc: 'A QR code in the room. No download, no account, no app store. Every feature loads in the browser in under five seconds.' },
+              { icon: Users, title: 'Built by hoteliers', desc: 'Front-desk to GM workflows. Not a tech team guessing what shifts look like. Attenda runs on the founder&apos;s own properties.' },
+              { icon: DollarSign, title: 'Revenue your PMS misses', desc: 'Shuttle bookings, in-room dining, late checkout &mdash; revenue that walked past the front desk before. Now attributed and tracked.' },
+              { icon: ClipboardList, title: 'One thread for the whole property', desc: 'Guest request &rarr; staff task &rarr; vendor job &rarr; GM dashboard. No sticky notes, no radio calls, no missed handoffs.' },
+              { icon: Store, title: 'Partner-ready architecture', desc: 'Restaurants plug into Attenda, not UberEats. Hotels earn a share of every order. 10% flat vs 30% the delivery apps charge.' },
+              { icon: Globe, title: 'Works alongside your PMS', desc: 'No rip-and-replace. Attenda runs beside your current system from day one. 11 days from contract to live.' },
+            ].map((item, i) => {
+              const ItemIcon = item.icon;
+              return (
+                <div key={i} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ backgroundColor: `${TEAL}10` }}>
+                    <ItemIcon size={20} style={{ color: TEAL }} />
+                  </div>
+                  <h4 className="text-[16px] font-black text-gray-900 mb-2">{item.title}</h4>
+                  <p className="text-[14px] text-gray-600 leading-relaxed">{item.desc}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* THE 60-SECOND LOOP */}
       <section className="py-16 md:py-24 px-5 bg-gray-50 border-y border-gray-200">
         <div className="max-w-6xl mx-auto">
@@ -669,7 +711,7 @@ function AttendaLandingPage() {
                       <div className="p-2.5 border-t border-gray-200 font-black" style={{ color: TEAL }}>10%</div>
                       <div className="p-2.5 border-t border-gray-200 text-gray-600">Driver cost</div>
                       <div className="p-2.5 border-t border-gray-200 text-red-500 font-black">Platform takes cut</div>
-                      <div className="p-2.5 border-t border-gray-200 font-black" style={{ color: TEAL }}>$0 &mdash; we provide</div>
+                      <div className="p-2.5 border-t border-gray-200 font-black" style={{ color: TEAL }}>Charged to guest &mdash; hotel pays $0</div>
                       <div className="p-2.5 border-t border-gray-200 text-gray-600">Card fees</div>
                       <div className="p-2.5 border-t border-gray-200 text-red-500 font-black">2.9% + $0.30</div>
                       <div className="p-2.5 border-t border-gray-200 font-black" style={{ color: TEAL }}>3% / 0% debit</div>
@@ -1554,7 +1596,7 @@ function RestaurantPartnerSection() {
             {[
               { num: '01', title: 'Apply & connect', desc: 'Tell us about your restaurant. We verify, activate your free ordering portal, and connect it to nearby Attenda hotels. Takes 48 hours.' },
               { num: '02', title: 'Guests order direct', desc: 'Hotel guests scan a QR code in their room, browse your menu, and order. The ticket lands in your kitchen instantly. No app, no middleman.' },
-              { num: '03', title: 'Cook. We deliver. You earn.', desc: 'You prepare the order. Our insured driver picks it up and delivers to the guest&apos;s room. At 10%, you keep ~$90 of every $100 order.' },
+              { num: '03', title: 'Cook. A driver picks it up.', desc: 'You prepare the order. Delivery is dispatched through our driver network — the charge goes on the guest&apos;s bill, not yours. At 10%, you keep ~$90 of every $100 order.' },
             ].map((s, i) => (
               <div key={i} className="text-center">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 text-[22px] font-black shadow-sm" style={{ backgroundColor: `${TEAL}10`, color: TEAL }}>
@@ -1579,7 +1621,7 @@ function RestaurantPartnerSection() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { stat: '10%', label: 'Commission', sub: 'per order. Firm, direct.', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-              { stat: 'Free', label: 'Delivery driver', sub: 'We bring it to the guest.', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> },
+              { stat: 'Driver network', label: 'Delivery cost', sub: 'Charged to guest. Hotel pays $0.', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> },
               { stat: '3% / 0%', label: 'Card processing', sub: 'Credit = 3%. Debit = 0%.', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> },
               { stat: '$0', label: 'Setup & software', sub: 'Free ordering system included.', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> },
             ].map((c, i) => (
@@ -1622,7 +1664,7 @@ function RestaurantPartnerSection() {
             <div className="p-5 border-b border-gray-200 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}><span className="text-[13px] text-gray-500">Commission</span><span className="text-[18px] font-black" style={{ color: TEAL }}>10%</span></div>
 
             <div className="bg-gray-50 p-5 border-b border-gray-200 lg:border-r border-gray-200 flex items-center justify-between"><span className="text-[13px] text-gray-500">Driver</span><span className="text-[13px] text-gray-700">Platform provides</span></div>
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}><span className="text-[13px] text-gray-500">Driver</span><span className="text-[13px] font-bold text-gray-900">We provide &middot; Insured</span></div>
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}><span className="text-[13px] text-gray-500">Driver</span><span className="text-[13px] font-bold text-gray-900">Driver network &middot; Charged to guest</span></div>
 
             <div className="bg-gray-50 p-5 border-b border-gray-200 lg:border-r border-gray-200 flex items-center justify-between"><span className="text-[13px] text-gray-500">Card fees</span><span className="text-[13px] text-gray-700">2.9% + $0.30</span></div>
             <div className="p-5 border-b border-gray-200 flex items-center justify-between" style={{ backgroundColor: `${TEAL}04` }}><span className="text-[13px] text-gray-500">Card fees</span><span className="text-[13px] font-bold text-gray-900">3% credit &middot; <span className="text-teal-600">0% debit</span></span></div>
