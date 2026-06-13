@@ -5290,9 +5290,13 @@ function KpisView({ hotelId, isAdmin, userName }: { hotelId: string; isAdmin: bo
   const [logs, setLogs] = useState<OpRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ kpi_name: '', unit: '', target: 0, frequency: 'daily' as 'daily' | 'weekly' | 'monthly', category: 'Operations' });
+  const [form, setForm] = useState({ kpi_name: '', unit: '', target: 0, frequency: 'daily' as 'daily' | 'weekly' | 'monthly', category: 'Revenue' });
   const [logValues, setLogValues] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [viewingKpi, setViewingKpi] = useState<string | null>(null);
+
+  const CATEGORIES = ['Revenue', 'Operations', 'Guest Experience', 'Quality', 'Housekeeping', 'Front Desk'];
 
   useEffect(() => {
     (async () => {
@@ -5305,18 +5309,28 @@ function KpisView({ hotelId, isAdmin, userName }: { hotelId: string; isAdmin: bo
   }, [hotelId]);
 
   const today = new Date().toISOString().split('T')[0];
-  const isInWindow = (kpiId: string, freq: string): boolean => {
-    if (freq === 'daily') return !logs.some(l => (l.details as any).definition_id === kpiId && (l.details as any).shift_date === today);
+  const isInWindow = (kpiId: string, freq: string, date?: string): boolean => {
+    const d = date || selectedDate;
+    if (freq === 'daily') return !logs.some(l => (l.details as any).definition_id === kpiId && (l.details as any).shift_date === d);
     if (freq === 'weekly') {
-      const ws = getWeekStart(today);
+      const ws = getWeekStart(d);
       return !logs.some(l => (l.details as any).definition_id === kpiId && getWeekStart((l.details as any).shift_date) === ws);
     }
     if (freq === 'monthly') {
-      const m = today.substring(0, 7);
+      const m = d.substring(0, 7);
       return !logs.some(l => (l.details as any).definition_id === kpiId && (l.details as any).shift_date?.startsWith(m));
     }
     return true;
   };
+
+  const getLogsForKpi = (kpiId: string, limit = 30) => {
+    return logs
+      .filter(l => (l.details as any).definition_id === kpiId)
+      .sort((a, b) => (b.details as any).shift_date?.localeCompare((a.details as any).shift_date || ''))
+      .slice(0, limit);
+  };
+
+  const isMoney = (unit: string) => ['$', 'dollar', 'usd', 'money'].includes(unit.toLowerCase().trim());
 
   const saveKpi = async () => {
     if (!form.kpi_name) return;
@@ -5326,7 +5340,7 @@ function KpisView({ hotelId, isAdmin, userName }: { hotelId: string; isAdmin: bo
       const defs = await listKpiDefinitions(hotelId);
       setKpis(defs || []);
       setShowAdd(false);
-      setForm({ kpi_name: '', unit: '', target: 0, frequency: 'daily', category: 'Operations' });
+      setForm({ kpi_name: '', unit: '', target: 0, frequency: 'daily', category: 'Revenue' });
     } finally {
       setSubmitting(false);
     }
@@ -5338,7 +5352,7 @@ function KpisView({ hotelId, isAdmin, userName }: { hotelId: string; isAdmin: bo
     if (v === undefined) return;
     setSubmitting(true);
     try {
-      await createKpiSubmission(hotelId, { definition_id: kpi.id, kpi_name: def.kpi_name, value: v, shift_date: today, submitted_by: userName });
+      await createKpiSubmission(hotelId, { definition_id: kpi.id, kpi_name: def.kpi_name, value: v, shift_date: selectedDate, submitted_by: userName });
       const lg = await listKpiSubmissions(hotelId);
       setLogs(lg || []);
       setLogValues(p => { const n = { ...p }; delete n[kpi.id]; return n; });
@@ -5353,115 +5367,265 @@ function KpisView({ hotelId, isAdmin, userName }: { hotelId: string; isAdmin: bo
     setKpis(kpis.filter(k => k.id !== id));
   };
 
+  /** Compute the single "current" value: most recent log for the window */
+  const getCurrentValue = (kpiId: string, def: any): { value: number; date: string } | null => {
+    const kpiLogs = getLogsForKpi(kpiId, 1);
+    if (kpiLogs.length === 0) return null;
+    const last = kpiLogs[0].details as any;
+    return { value: Number(last.value), date: last.shift_date };
+  };
+
   if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
 
+  // Detail view for a single KPI
+  if (viewingKpi) {
+    const kpi = kpis.find(k => k.id === viewingKpi);
+    if (!kpi) { setViewingKpi(null); return null; }
+    const def = kpi.details as any;
+    const allLogs = getLogsForKpi(kpi.id, 100);
+    const is$ = isMoney(def.unit);
+    const fmt = (v: number) => is$ ? `$${v.toFixed(2)}` : `${v}${def.unit ? ` ${def.unit}` : ''}`;
+
+    return (
+      <div className="p-4 md:p-6 max-w-4xl mx-auto">
+        <button onClick={() => setViewingKpi(null)} className="flex items-center gap-1 text-[12px] text-teal-600 font-bold mb-4">&larr; All KPIs</button>
+
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <h2 className="text-[18px] font-extrabold text-gray-900">{def.kpi_name}</h2>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-bold capitalize">{def.frequency}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-bold">{def.category}</span>
+            </div>
+          </div>
+          <p className="text-[12px] text-gray-500">Target: <strong>{fmt(def.target)}</strong> per {def.frequency}</p>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <h3 className="font-bold text-[14px] text-gray-900 mb-3">History ({allLogs.length} entries)</h3>
+          {allLogs.length === 0 ? (
+            <p className="text-[12px] text-gray-400 text-center py-6">No entries yet.</p>
+          ) : (
+            <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+              {allLogs.map(l => {
+                const ld = l.details as any;
+                const pct = def.target > 0 ? Math.min(Math.round((Number(ld.value) / def.target) * 100), 999) : 0;
+                return (
+                  <div key={l.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] text-gray-500 font-mono w-24">{ld.shift_date}</span>
+                      <span className="text-[13px] font-extrabold text-gray-900">{fmt(Number(ld.value))}</span>
+                      {def.target > 0 && (
+                        <span className={`text-[11px] font-bold ${Number(ld.value) >= def.target ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          {pct}% of target
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-gray-400">{ld.submitted_by}</span>
+                      {isAdmin && (
+                        <button onClick={async () => { await deleteOps(l.id); const lg = await listKpiSubmissions(hotelId); setLogs(lg || []); }} className="text-red-400"><XIcon size={12} /></button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Group KPIs by category
+  const grouped = kpis.reduce((acc, k) => {
+    const cat = (k.details as any).category || 'Other';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(k);
+    return acc;
+  }, {} as Record<string, OpRecord[]>);
+
+  const categoryIcons: Record<string, string> = {
+    Revenue: '💰',
+    Operations: '⚙️',
+    'Guest Experience': '🌟',
+    Quality: '✅',
+    Housekeeping: '🧹',
+    'Front Desk': '🛎️',
+  };
+
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div>
           <h1 className="text-[20px] font-extrabold text-gray-900">KPIs</h1>
-          <p className="text-[12px] text-gray-500">Track performance metrics</p>
+          <p className="text-[12px] text-gray-500">Performance metrics · {selectedDate}</p>
         </div>
-        {isAdmin && (
-          <button onClick={() => setShowAdd(true)} className="px-3 py-2 rounded-xl text-white font-bold text-[12px] flex items-center gap-1" style={{ backgroundColor: TEAL }}>
-            <Plus size={14} /> New KPI
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+            className="bg-gray-50 rounded-xl px-3 py-2 text-[12px] border border-gray-200 outline-none w-[140px]" />
+          {isAdmin && (
+            <button onClick={() => setShowAdd(true)} className="px-3 py-2 rounded-xl text-white font-bold text-[12px] flex items-center gap-1" style={{ backgroundColor: TEAL }}>
+              <Plus size={14} /> New KPI
+            </button>
+          )}
+        </div>
       </div>
 
       {kpis.length === 0 ? (
         <div className="bg-gray-50 rounded-2xl p-8 text-center">
           <TrendingUp size={32} className="text-gray-300 mx-auto mb-3" />
           <p className="text-[14px] text-gray-500 font-medium">No KPIs yet</p>
-          <p className="text-[12px] text-gray-400 mt-1">{isAdmin ? 'Tap "New KPI" to add one' : 'Your manager will add KPIs'}</p>
+          <p className="text-[12px] text-gray-400 mt-1">{isAdmin ? 'Tap "New KPI" to add metrics like ADR, parking charges, early check-in fees' : 'Your manager will add KPIs'}</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {kpis.map(k => {
-            const def = k.details as any;
-            const due = isInWindow(k.id, def.frequency);
-            const recent = logs.filter(l => (l.details as any).definition_id === k.id).slice(0, 5);
-            return (
-              <div key={k.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[14px] font-bold text-gray-900">{def.kpi_name}</p>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold capitalize">{def.frequency}</span>
-                      {def.category && <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-semibold">{def.category}</span>}
-                    </div>
-                    <p className="text-[11px] text-gray-400 mt-1">Target: {def.target} {def.unit}</p>
-                  </div>
-                  {isAdmin && (
-                    <button onClick={() => deleteKpi(k.id)} className="p-1 text-gray-400 hover:text-gray-700"><Trash2 size={14} /></button>
-                  )}
-                </div>
-                {!isAdmin && due && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <input type="number" value={logValues[k.id] ?? ''} onChange={e => setLogValues(p => ({ ...p, [k.id]: Number(e.target.value) }))} placeholder={`Value (${def.unit})`} className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100" />
-                    <button onClick={() => submitLog(k)} disabled={submitting} className="px-3 py-2 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: TEAL }}>Log</button>
-                  </div>
-                )}
-                {!isAdmin && !due && (
-                  <p className="text-[11px] text-gray-600 mt-2 font-semibold">✓ Logged this {def.frequency.replace('ly', '')}</p>
-                )}
-                {isAdmin && recent.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Recent</p>
-                    <div className="space-y-1">
-                      {recent.map(l => {
-                        const ld = l.details as any;
-                        return (
-                          <div key={l.id} className="flex items-center justify-between text-[12px]">
-                            <span className="text-gray-600">{ld.shift_date} · {ld.submitted_by}</span>
-                            <span className="font-bold text-gray-900">{ld.value} {def.unit}</span>
+        <div className="space-y-6">
+          {Object.entries(grouped).map(([cat, catKpis]) => (
+            <div key={cat}>
+              <h2 className="text-[13px] font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                {categoryIcons[cat] || '📊'} {cat}
+              </h2>
+              <div className="space-y-3">
+                {catKpis.map(k => {
+                  const def = k.details as any;
+                  const is$ = isMoney(def.unit);
+                  const fmt = (v: number) => is$ ? `$${v.toFixed(2)}` : `${v}${def.unit ? ` ${def.unit}` : ''}`;
+                  const current = getCurrentValue(k.id, def);
+                  const due = !isAdmin && isInWindow(k.id, def.frequency);
+                  const recent = getLogsForKpi(k.id, 5);
+
+                  return (
+                    <div key={k.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setViewingKpi(k.id)}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <p className="text-[14px] font-bold text-gray-900">{def.kpi_name}</p>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-bold capitalize">{def.frequency}</span>
                           </div>
-                        );
-                      })}
+                          <p className="text-[11px] text-gray-400">Target: <strong>{fmt(def.target)}</strong></p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {current && (
+                            <div className="text-right">
+                              <p className="text-[16px] font-extrabold" style={{ color: current.value >= def.target ? '#059669' : '#D97706' }}>
+                                {fmt(current.value)}
+                              </p>
+                              <p className="text-[9px] text-gray-400">{current.date}</p>
+                            </div>
+                          )}
+                          {!current && <p className="text-[11px] text-gray-300">No data</p>}
+                          {isAdmin && (
+                            <button onClick={e => { e.stopPropagation(); deleteKpi(k.id); }} className="p-1 text-gray-300 hover:text-red-500"><Trash2 size={13} /></button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Progress bar */}
+                      {def.target > 0 && current && (
+                        <div className="mt-3">
+                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${Math.min((current.value / def.target) * 100, 100)}%`, backgroundColor: current.value >= def.target ? '#059669' : '#D97706' }} />
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-1">{Math.round((current.value / def.target) * 100)}% of {def.frequency} target</p>
+                        </div>
+                      )}
+
+                      {/* Staff: log entry form */}
+                      {!isAdmin && due && (
+                        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                          <input type="number" step={is$ ? '0.01' : '1'} value={logValues[k.id] ?? ''}
+                            onChange={e => setLogValues(p => ({ ...p, [k.id]: Number(e.target.value) }))}
+                            placeholder={`Enter ${def.unit || 'value'}...`}
+                            className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 outline-none" />
+                          <button onClick={() => submitLog(k)} disabled={submitting || logValues[k.id] === undefined}
+                            className="px-4 py-2 rounded-lg text-white font-bold text-[12px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                            {submitting ? '...' : 'Log'}
+                          </button>
+                        </div>
+                      )}
+                      {!isAdmin && !due && current && (
+                        <p className="text-[11px] text-emerald-600 font-semibold mt-2" onClick={e => e.stopPropagation()}>✓ Logged ({current.value}) this {def.frequency.replace('ly', '')}</p>
+                      )}
+
+                      {/* Recent entries (any role can see) */}
+                      {recent.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-100" onClick={e => e.stopPropagation()}>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Recent</p>
+                          <div className="space-y-1">
+                            {recent.slice(0, 3).map(l => {
+                              const ld = l.details as any;
+                              return (
+                                <div key={l.id} className="flex items-center justify-between text-[11px]">
+                                  <span className="text-gray-500">{ld.shift_date} · {ld.submitted_by}</span>
+                                  <span className="font-bold text-gray-800">{fmt(Number(ld.value))}</span>
+                                </div>
+                              );
+                            })}
+                            {recent.length > 3 && <p className="text-[10px] text-teal-600 font-bold">+{recent.length - 3} more →</p>}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
 
+      {/* New KPI modal */}
       {showAdd && isAdmin && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowAdd(false)}>
           <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
             <h2 className="text-[15px] font-bold mb-4">New KPI</h2>
             <div className="space-y-3">
-              <input value={form.kpi_name} onChange={e => setForm(p => ({ ...p, kpi_name: e.target.value }))} placeholder="KPI name (e.g. Check-in time)" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
-              <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Name</label>
+                <input value={form.kpi_name} onChange={e => setForm(p => ({ ...p, kpi_name: e.target.value }))} placeholder="e.g. ADR, Parking Charges, Early Check-in Fee"
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Target</label>
-                  <input type="number" value={form.target} onChange={e => setForm(p => ({ ...p, target: Number(e.target.value) }))} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+                  <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Target</label>
+                  <input type="number" step="0.01" value={form.target} onChange={e => setForm(p => ({ ...p, target: Number(e.target.value) }))}
+                    className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Unit</label>
-                  <input value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value }))} placeholder="min, %, $…" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
+                  <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Unit</label>
+                  <select value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value }))}
+                    className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none">
+                    <option value="$">$ (dollars)</option>
+                    <option value="%">% (percent)</option>
+                    <option value="count">Count</option>
+                    <option value="minutes">Minutes</option>
+                    <option value="score">Score</option>
+                  </select>
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Frequency</label>
-                <div className="grid grid-cols-3 gap-2 mt-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Frequency</label>
+                <div className="grid grid-cols-3 gap-2">
                   {(['daily', 'weekly', 'monthly'] as const).map(f => (
-                    <button key={f} onClick={() => setForm(p => ({ ...p, frequency: f }))} className={`py-2 rounded-xl text-[12px] font-bold border capitalize ${form.frequency === f ? 'border-gray-900 text-gray-900 bg-gray-100' : 'bg-white border-gray-200 text-gray-600'}`}>{f}</button>
+                    <button key={f} onClick={() => setForm(p => ({ ...p, frequency: f }))}
+                      className={`py-2.5 rounded-xl text-[12px] font-bold border capitalize ${form.frequency === f ? 'border-gray-900 text-gray-900 bg-gray-100' : 'bg-white border-gray-200 text-gray-600'}`}>{f}</button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
-                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1">
-                  <option>Revenue</option>
-                  <option>Operations</option>
-                  <option>Guest Experience</option>
-                  <option>Quality</option>
-                </select>
+                <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Category</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {CATEGORIES.map(c => (
+                    <button key={c} onClick={() => setForm(p => ({ ...p, category: c }))}
+                      className={`py-2.5 rounded-xl text-[11px] font-bold border ${form.category === c ? 'border-gray-900 text-gray-900 bg-gray-100' : 'bg-white border-gray-200 text-gray-600'}`}>{categoryIcons[c] || ''} {c}</button>
+                  ))}
+                </div>
               </div>
               <div className="flex gap-2 pt-2">
-                <button onClick={saveKpi} disabled={submitting || !form.kpi_name} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{submitting ? 'Saving…' : 'Save KPI'}</button>
+                <button onClick={saveKpi} disabled={submitting || !form.kpi_name}
+                  className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                  {submitting ? 'Saving…' : 'Save KPI'}
+                </button>
                 <button onClick={() => setShowAdd(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
               </div>
             </div>
