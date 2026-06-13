@@ -108,7 +108,7 @@ interface Request {
   room: string;
   type: string;
   details: string;
-  status: 'pending' | 'in-progress' | 'completed';
+  status: 'pending' | 'in-progress' | 'completed' | 'closed';
   created_at: string;
   assigned_to?: string;
 }
@@ -693,7 +693,8 @@ export default function Dashboard() {
           <OrdersView
             requests={requests}
             messages={messages}
-            onStatusChange={async (id, status) => { await updateRequestStatus(id, status); reload(s.role); }}
+            staffName={s.name}
+            onStatusChange={async (id, status, assigned_to) => { await updateRequestStatus(id, status, assigned_to); reload(s.role); }}
             onDelete={async id => { await deleteRequest(id); reload(s.role); }}
             onRefresh={() => reload(s.role)}
           />

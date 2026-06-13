@@ -275,8 +275,11 @@ export async function insertRequest(req: { guestName: string; room: string; type
   return data;
 }
 
-export async function updateRequestStatus(id: string, status: string) {
-  const { error } = await supabase.from('requests').update({ status }).eq('id', id);
+export async function updateRequestStatus(id: string, status: string, assigned_to?: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const update: Record<string, any> = { status };
+  if (assigned_to !== undefined) update.assigned_to = assigned_to;
+  const { error } = await supabase.from('requests').update(update).eq('id', id);
   if (error) throw error;
 }
 

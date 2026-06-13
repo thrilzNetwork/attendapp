@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { ArrowRight, Bell, Bus, Check, CheckCircle, ClipboardList, DollarSign, Globe, MapPin, Phone, QrCode, ShieldCheck, Store, User, Users, Utensils } from 'lucide-react';
+import { ArrowRight, Bell, Bus, Check, CheckCircle, ClipboardList, DollarSign, Globe, MapPin, Phone, QrCode, ShieldCheck, Store, Truck, User, Users, Utensils } from 'lucide-react';
 import GuestAuthModal from '@/components/GuestAuthModal';
 import {
   GuestSheet,
@@ -644,47 +644,41 @@ function AttendaLandingPage() {
                 <div className="p-8 md:p-10 flex flex-col justify-center border-b md:border-b-0 md:border-r border-gray-200">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4" style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
                     <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: TEAL }} />
-                    The partner experience
+                    Do Business With Attenda
                   </div>
                   <h4 className="text-[26px] md:text-[32px] font-black text-gray-900 mb-3 leading-tight">
-                    What you pay. <span style={{ color: TEAL }}>What you get.</span>
+                    Direct access to <span style={{ color: TEAL }}>every guest in every room.</span>
                   </h4>
                   <p className="text-[13px] text-gray-600 mb-5 leading-relaxed">
-                    No tiers. No hidden fees. No sliding scales. This is the complete offer &mdash; every restaurant on the Attenda Network gets the same terms, the same tools, the same support.
+                    Attenda is the guest&apos;s front door &mdash; the QR code in the room, the app in their browser, the thread connecting them to the property. Partner with us and your business shows up where guests are already looking.
                   </p>
-                  <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden mb-5">
-                    <div className="grid grid-cols-3 gap-0 text-[11px]">
-                      <div className="p-2.5 font-bold text-gray-400 uppercase tracking-wider">Fee</div>
-                      <div className="p-2.5 font-bold text-red-500 uppercase tracking-wider">UberEats</div>
-                      <div className="p-2.5 font-bold text-gray-900 uppercase tracking-wider" style={{ color: TEAL }}>Attenda</div>
-                      <div className="p-2.5 border-t border-gray-200 text-gray-600">Commission</div>
-                      <div className="p-2.5 border-t border-gray-200 text-red-500 font-black">25&ndash;30%</div>
-                      <div className="p-2.5 border-t border-gray-200 font-black" style={{ color: TEAL }}>10%</div>
-                      <div className="p-2.5 border-t border-gray-200 text-gray-600">Driver cost</div>
-                      <div className="p-2.5 border-t border-gray-200 text-red-500 font-black">Platform takes cut</div>
-                      <div className="p-2.5 border-t border-gray-200 font-black" style={{ color: TEAL }}>Charged to guest &mdash; hotel pays $0</div>
-                      <div className="p-2.5 border-t border-gray-200 text-gray-600">Card fees</div>
-                      <div className="p-2.5 border-t border-gray-200 text-red-500 font-black">2.9% + $0.30</div>
-                      <div className="p-2.5 border-t border-gray-200 font-black" style={{ color: TEAL }}>3% / 0% debit</div>
-                      <div className="p-2.5 border-t border-gray-200 text-gray-600">Setup & software</div>
-                      <div className="p-2.5 border-t border-gray-200 text-red-500 font-black">Marketplace fee</div>
-                      <div className="p-2.5 border-t border-gray-200 font-black" style={{ color: TEAL }}>$0 &mdash; free</div>
-                      <div className="p-2.5 border-t-2 border-gray-300 text-gray-900 font-bold text-[12px]">You keep on $100</div>
-                      <div className="p-2.5 border-t-2 border-gray-300 text-red-500 font-black text-[15px]">~$67</div>
-                      <div className="p-2.5 border-t-2 border-gray-300 font-black text-[18px]" style={{ color: TEAL }}>~$90</div>
-                    </div>
+                  <div className="grid grid-cols-2 gap-3 mb-5">
+                    {[
+                      { icon: Utensils, title: 'Restaurants', desc: '10% flat. Driver included. Hotel guests ordering direct.' },
+                      { icon: Truck, title: 'Services', desc: 'Amenities, maintenance, laundry &mdash; vendors plugged in.' },
+                      { icon: MapPin, title: 'Experiences', desc: 'Tours, boat rentals, attractions. Booked from the room.' },
+                      { icon: Store, title: 'Brands', desc: 'Mission-aligned brands. Reach guests who opt in.' },
+                    ].map((c, i) => {
+                      const CIcon = c.icon;
+                      return (
+                        <div key={i} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: `${TEAL}12` }}>
+                            <CIcon size={16} style={{ color: TEAL }} />
+                          </div>
+                          <div className="text-[13px] font-bold text-gray-900 mb-0.5">{c.title}</div>
+                          <div className="text-[11px] text-gray-500 leading-snug">{c.desc}</div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <p className="text-[12px] text-gray-500 leading-relaxed">
-                    <strong className="text-gray-700">Why we can do this:</strong> We own the full stack &mdash; built in-house, not white-labeled. No middlemen, no marketplace fees to pay. That&apos;s how we charge 10% when everyone else charges 25&ndash;30%.
-                  </p>
-                  <div className="flex items-center gap-2 text-[12px] text-gray-500 mt-3">
+                  <div className="flex items-center gap-2 text-[12px] text-gray-500">
                     <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span>What you see is what you pay &middot; No surprises</span>
+                    <span>You bring the product. We bring the hotel.</span>
                   </div>
                   <a href="/partner"
                     className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-xl text-white font-bold text-[13px] transition-all hover:shadow-md self-start"
                     style={{ backgroundColor: TEAL }}>
-                    Apply to join <ArrowRight size={14} />
+                    Apply to partner <ArrowRight size={14} />
                   </a>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
@@ -909,31 +903,75 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* PARTNER PROGRAM — moved after pricing */}
-      {/* PARTNER PROGRAM — single banner */}
+      {/* DO BUSINESS WITH ATTENDA — multi-category partner section */}
       <section className="border-y border-gray-200 bg-[#F9FAFB]">
         <div className="max-w-6xl mx-auto px-5 py-16 md:py-20">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-            <div className="md:col-span-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm mb-4">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-[11px] font-bold tracking-wider text-gray-600 uppercase">Restaurant Partner Program</span>
-              </div>
-              <h2 className="text-[30px] md:text-[40px] font-black tracking-tight text-gray-900 leading-[1.05] mb-3">
-                A private channel into every hotel on Attenda.
-              </h2>
-              <p className="text-[15px] text-gray-600 leading-relaxed max-w-xl">
-                10% commission. Driver network included. No setup cost. Every order from a guest who&apos;s already in the building.
-              </p>
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm mb-4">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-[11px] font-bold tracking-wider text-gray-600 uppercase">Do Business With Attenda</span>
             </div>
-            <div className="md:col-span-3 md:col-start-10 flex flex-col gap-3">
-              <a href="/partner"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-[14px] shadow-sm hover:shadow-md transition-all"
-                style={{ backgroundColor: TEAL }}>
-                Apply to join <ArrowRight size={16} />
-              </a>
-              <p className="text-[11px] text-gray-400 text-center">Approved restaurants go live in 48 hrs</p>
-            </div>
+            <h2 className="text-[30px] md:text-[40px] font-black tracking-tight text-gray-900 leading-[1.05] mb-3">
+              Your business in front of<br />every guest in every room.
+            </h2>
+            <p className="text-[16px] text-gray-600 max-w-2xl mx-auto">
+              Attenda puts you inside the hotel experience &mdash; right where guests are already looking. Restaurants, services, experiences, and brands that align with our mission.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
+            {[
+              {
+                icon: Utensils,
+                title: 'Restaurants',
+                desc: '10% commission. Driver network included. Every order from a guest in the building &mdash; not competing on UberEats.',
+                link: '/partner?type=restaurant',
+              },
+              {
+                icon: Truck,
+                title: 'Services & Vendors',
+                desc: 'Housekeeping, maintenance, laundry, amenities &mdash; plug into hotel ops through Attenda\'s vendor portal.',
+                link: '/partner?type=service',
+              },
+              {
+                icon: MapPin,
+                title: 'Experiences & Tours',
+                desc: 'Excursions, boat rentals, local attractions. Guests book direct from their room. No third-party markup.',
+                link: '/partner?type=experience',
+              },
+              {
+                icon: Store,
+                title: 'Brand Partners',
+                desc: 'Brands that understand independent hospitality. Reach guests who care where their money goes.',
+                link: '/partner?type=brand',
+              },
+            ].map((p, i) => {
+              const PIcon = p.icon;
+              return (
+                <a key={i} href={p.link}
+                  className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 group">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: `${TEAL}12` }}>
+                    <PIcon size={22} style={{ color: TEAL }} />
+                  </div>
+                  <h4 className="text-[17px] font-black text-gray-900 mb-1.5 group-hover:opacity-80 transition-opacity">{p.title}</h4>
+                  <p className="text-[13px] text-gray-600 leading-relaxed">{p.desc}</p>
+                  <div className="mt-4 flex items-center gap-1 text-[12px] font-bold" style={{ color: TEAL }}>
+                    Apply now <ArrowRight size={14} />
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+
+          <div className="text-center">
+            <p className="text-[13px] text-gray-500 mb-4">
+              <strong className="text-gray-700">Direct guest access.</strong> You bring the product. We bring the hotel.
+            </p>
+            <a href="/partner"
+              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-white font-bold text-[14px] shadow-sm hover:shadow-md transition-all"
+              style={{ backgroundColor: TEAL }}>
+              Apply to partner with Attenda <ArrowRight size={16} />
+            </a>
           </div>
         </div>
       </section>

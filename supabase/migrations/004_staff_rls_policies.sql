@@ -27,10 +27,4 @@ CREATE POLICY "anon_all_staff_checklist_instances" ON staff_checklist_instances
   FOR ALL TO anon, authenticated
   USING (true) WITH CHECK (true);
 
--- staff_hr (likely also missing)
-ALTER TABLE IF EXISTS staff_hr ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "anon_all_staff_hr" ON staff_hr;
-CREATE POLICY "anon_all_staff_hr" ON staff_hr
-  FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
+-- staff_hr table does not exist in production — skipping

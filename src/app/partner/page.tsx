@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Bell, RefreshCw, LogOut, Hotel as HotelIcon, ArrowRight, CheckCircle, XCircle, DollarSign, Truck, CreditCard, Smartphone } from 'lucide-react';
+import { Bell, RefreshCw, LogOut, Hotel as HotelIcon, ArrowRight, CheckCircle, XCircle, DollarSign, Truck, CreditCard, Smartphone, Utensils, MapPin, Store } from 'lucide-react';
 import {
   supabase, subscribeToRequests, updateRequestStatus,
 } from '@/lib/supabase';
@@ -22,11 +22,19 @@ const TEAL = '#0D9488';
 /* ──────────────────────────────────────────────────────────── */
 /*  Restaurant Landing Page (shown to new visitors)             */
 /* ──────────────────────────────────────────────────────────── */
-function RestaurantLandingPage() {
+function RestaurantLandingPage({ urlType: initialUrlType }: { urlType?: string }) {
+  const urlType = initialUrlType || '';
   const [showApply, setShowApply] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
-  const [form, setForm] = useState({ name: '', contact: '', phone: '', email: '', hotel: '' });
+  const initialPt = urlType && ['restaurant', 'service', 'experience', 'brand'].includes(urlType) ? urlType : 'restaurant';
+  const [partnerType, setPartnerType] = useState(initialPt);
+  const [form, setForm] = useState({ name: '', contact: '', phone: '', email: '', hotel: '', partnerType: initialPt, details: '' });
+
+  // Sync form partnerType when type tab changes
+  useEffect(() => {
+    setForm(f => ({ ...f, partnerType }));
+  }, [partnerType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +47,7 @@ function RestaurantLandingPage() {
       });
       if (res.ok) {
         setApplied(true);
-        setForm({ name: '', contact: '', phone: '', email: '', hotel: '' });
+        setForm({ name: '', contact: '', phone: '', email: '', hotel: '', partnerType: 'restaurant', details: '' });
       }
     } catch {
       // Silently handle — form submit failure is non-blocking
@@ -49,17 +57,74 @@ function RestaurantLandingPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero */}
-      <section className="px-6 pt-20 pb-16 max-w-4xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 bg-teal-50 text-teal-700 text-[11px] font-bold px-3 py-1.5 rounded-full mb-6 uppercase tracking-wider">
-          <HotelIcon size={12} /> Hotel Channel Partner Program
+      {/* Partner type categories */}
+      <section className="px-6 pt-12 pb-6 max-w-5xl mx-auto">
+        <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
+          {[
+            { key: 'restaurant', icon: Utensils, label: 'Restaurants' },
+            { key: 'service', icon: Truck, label: 'Services & Vendors' },
+            { key: 'experience', icon: MapPin, label: 'Experiences & Tours' },
+            { key: 'brand', icon: Store, label: 'Brand Partners' },
+          ].map(t => (
+            <button key={t.key} onClick={() => setPartnerType(t.key)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all border-2 ${
+                partnerType === t.key
+                  ? 'shadow-md scale-[1.02]'
+                  : 'border-gray-200 bg-white hover:border-gray-300 text-gray-600'
+              }`}
+              style={partnerType === t.key ? { borderColor: TEAL, backgroundColor: `${TEAL}08` } : {}}>
+              <t.icon size={16} />
+              {t.label}
+            </button>
+          ))}
         </div>
-        <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight mb-4">
-          Your restaurant.<br />In front of hotel guests.
-        </h1>
-        <p className="text-[15px] text-gray-600 max-w-2xl mx-auto leading-relaxed mb-8">
-          We are not UberEats. Not DoorDash. Not Grubhub. We don&apos;t compete with delivery platforms — we open a channel you can&apos;t access on your own: <strong className="text-gray-900">hotel guests ordering directly from you</strong>.
-        </p>
+      </section>
+
+      {/* Hero — dynamic by type */}
+      <section className="px-6 pb-16 max-w-4xl mx-auto text-center">
+        <div className="inline-flex items-center gap-2 bg-teal-50 text-teal-700 text-[11px] font-bold px-3 py-1.5 rounded-full mb-6 uppercase tracking-wider">
+          <HotelIcon size={12} /> Do Business With Attenda
+        </div>
+        {partnerType === 'restaurant' && (
+          <>
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight mb-4">
+              Your restaurant.<br />In front of hotel guests.
+            </h1>
+            <p className="text-[15px] text-gray-600 max-w-2xl mx-auto leading-relaxed mb-8">
+              We are not UberEats. Not DoorDash. Not Grubhub. We don&apos;t compete with delivery platforms — we open a channel you can&apos;t access on your own: <strong className="text-gray-900">hotel guests ordering directly from you</strong>.
+            </p>
+          </>
+        )}
+        {partnerType === 'service' && (
+          <>
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight mb-4">
+              Your service.<br />In every hotel room.
+            </h1>
+            <p className="text-[15px] text-gray-600 max-w-2xl mx-auto leading-relaxed mb-8">
+              Housekeeping, maintenance, laundry, amenity delivery &mdash; whatever you provide, <strong className="text-gray-900">Attenda puts you inside the hotel&apos;s operations</strong>. Guests request. Staff assigns. You fulfill.
+            </p>
+          </>
+        )}
+        {partnerType === 'experience' && (
+          <>
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight mb-4">
+              Your experiences.<br />Booked from the room.
+            </h1>
+            <p className="text-[15px] text-gray-600 max-w-2xl mx-auto leading-relaxed mb-8">
+              Boat rentals, tours, excursions, local attractions. <strong className="text-gray-900">Guests discover and book through Attenda</strong> &mdash; no third-party markup, no OTA commission eating your margin.
+            </p>
+          </>
+        )}
+        {partnerType === 'brand' && (
+          <>
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight mb-4">
+              Your brand.<br />In front of guests who care.
+            </h1>
+            <p className="text-[15px] text-gray-600 max-w-2xl mx-auto leading-relaxed mb-8">
+              Brands that understand independent hospitality. Attenda gives you <strong className="text-gray-900">direct access to hotel guests</strong> who have opted into the experience &mdash; not a spray-and-pray ad buy.
+            </p>
+          </>
+        )}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
             onClick={() => setShowApply(true)}
@@ -74,47 +139,60 @@ function RestaurantLandingPage() {
         </div>
       </section>
 
-      {/* Market gap */}
+      {/* Market gap — dynamic by type */}
       <section className="px-6 py-16 bg-gray-50">
         <div className="max-w-4xl mx-auto">
-          <div className="grid sm:grid-cols-2 gap-8 items-center">
-            <div>
-              <h2 className="text-2xl font-black text-gray-900 mb-4">A market you can&apos;t reach alone</h2>
+          {partnerType === 'restaurant' && (
+            <div className="grid sm:grid-cols-2 gap-8 items-center">
+              <div>
+                <h2 className="text-2xl font-black text-gray-900 mb-4">A market you can&apos;t reach alone</h2>
+                <p className="text-[14px] text-gray-600 leading-relaxed mb-4">
+                  Hotels are a closed ecosystem. You can&apos;t walk in and start serving guests. Traditional delivery platforms don&apos;t bridge this gap either — they build apps for the general public, not for a hotel&apos;s front desk.
+                </p>
+                <p className="text-[14px] text-gray-600 leading-relaxed">
+                  <strong className="text-gray-900">Attenda</strong> is the operations system hotels already use — for checklists, chat, guest requests, and revenue tracking. When a guest wants food, they order <strong className="text-gray-900">through their hotel&apos;s Attenda page</strong>, and it lands in your kitchen.
+                </p>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                    <XCircle size={20} className="text-red-400" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-bold text-red-500">Delivery Platforms</p>
+                    <p className="text-[11px] text-gray-400">UberEats, DoorDash, Grubhub</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center">
+                    <CheckCircle size={20} className="text-teal-500" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-bold text-teal-600">Attenda Network</p>
+                    <p className="text-[11px] text-gray-400">Direct line to hotel guests</p>
+                  </div>
+                </div>
+                <div className="mt-6 space-y-2 text-[13px] text-gray-500">
+                  <p className="flex items-center gap-2"><XCircle size={12} className="text-red-300 shrink-0" />Charge 25-30% per order</p>
+                  <p className="flex items-center gap-2"><XCircle size={12} className="text-red-300 shrink-0" />No access to hotel-only demand</p>
+                  <p className="flex items-center gap-2"><CheckCircle size={12} className="text-teal-400 shrink-0" />We take 10% — firm, direct</p>
+                  <p className="flex items-center gap-2"><CheckCircle size={12} className="text-teal-400 shrink-0" />We bring the driver</p>
+                  <p className="flex items-center gap-2"><CheckCircle size={12} className="text-teal-400 shrink-0" />We give you the ordering system free</p>
+                </div>
+              </div>
+            </div>
+          )}
+          {partnerType !== 'restaurant' && (
+            <div className="max-w-2xl mx-auto text-center">
+              <h2 className="text-2xl font-black text-gray-900 mb-4">You serve hotels. We open the door.</h2>
               <p className="text-[14px] text-gray-600 leading-relaxed mb-4">
-                Hotels are a closed ecosystem. You can&apos;t walk in and start serving guests. Traditional delivery platforms don&apos;t bridge this gap either — they build apps for the general public, not for a hotel&apos;s front desk.
+                Hotels are a closed ecosystem. Cold calls, vendor gatekeepers, and procurement cycles make it nearly impossible to get in front of the people who make decisions.
               </p>
               <p className="text-[14px] text-gray-600 leading-relaxed">
-                <strong className="text-gray-900">Attenda</strong> is the operations system hotels already use — for checklists, chat, guest requests, and revenue tracking. When a guest wants food, they order <strong className="text-gray-900">through their hotel&apos;s Attenda page</strong>, and it lands in your kitchen.
+                <strong className="text-gray-900">Attenda</strong> is already inside the hotel — the QR code in every room, the dashboard on every staff device, the revenue thread the GM checks daily. We give you a direct channel to guests and staff that didn&apos;t exist before.
               </p>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
-                  <XCircle size={20} className="text-red-400" />
-                </div>
-                <div>
-                  <p className="text-[13px] font-bold text-red-500">Delivery Platforms</p>
-                  <p className="text-[11px] text-gray-400">UberEats, DoorDash, Grubhub</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center">
-                  <CheckCircle size={20} className="text-teal-500" />
-                </div>
-                <div>
-                  <p className="text-[13px] font-bold text-teal-600">Attenda Network</p>
-                  <p className="text-[11px] text-gray-400">Direct line to hotel guests</p>
-                </div>
-              </div>
-              <div className="mt-6 space-y-2 text-[13px] text-gray-500">
-                <p className="flex items-center gap-2"><XCircle size={12} className="text-red-300 shrink-0" />Charge 25-30% per order</p>
-                <p className="flex items-center gap-2"><XCircle size={12} className="text-red-300 shrink-0" />No access to hotel-only demand</p>
-                <p className="flex items-center gap-2"><CheckCircle size={12} className="text-teal-400 shrink-0" />We take 10% — firm, direct</p>
-                <p className="flex items-center gap-2"><CheckCircle size={12} className="text-teal-400 shrink-0" />We bring the driver</p>
-                <p className="flex items-center gap-2"><CheckCircle size={12} className="text-teal-400 shrink-0" />We give you the ordering system free</p>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </section>
 
@@ -163,12 +241,15 @@ function RestaurantLandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CTA — dynamic by type */}
       <section className="px-6 py-16 bg-gray-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-2xl font-black text-white mb-4">Ready to start?</h2>
           <p className="text-[14px] text-gray-400 mb-8 max-w-lg mx-auto">
-            Fill in your details and we&apos;ll get back to you within 24 hours to activate your restaurant on the Attenda network.
+            {partnerType === 'restaurant' && 'Fill in your details and we\'ll get back to you within 24 hours to activate your restaurant on the Attenda network.'}
+            {partnerType === 'service' && 'Tell us about your service. We\'ll review and reach out within 24 hours to discuss how you plug into Attenda\'s vendor portal.'}
+            {partnerType === 'experience' && 'Share your experience or tour. We\'ll review and contact you within 24 hours to get you listed on Attenda.'}
+            {partnerType === 'brand' && 'Fill in your details and we\'ll be in touch within 24 hours to explore how your brand fits into the Attenda ecosystem.'}
           </p>
           <button
             onClick={() => setShowApply(true)}
@@ -187,18 +268,33 @@ function RestaurantLandingPage() {
       {showApply && !applied && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-5" onClick={() => setShowApply(false)}>
           <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Apply to Join</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">
+              {partnerType === 'restaurant' && 'Apply as Restaurant Partner'}
+              {partnerType === 'service' && 'Apply as Service Vendor'}
+              {partnerType === 'experience' && 'Apply as Experience Partner'}
+              {partnerType === 'brand' && 'Apply as Brand Partner'}
+            </h3>
             <p className="text-[13px] text-gray-500 mb-6">We&apos;ll reach out within 24 hours.</p>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-[12px] font-semibold text-gray-600 block mb-1">Restaurant Name</label>
+                <label className="text-[12px] font-semibold text-gray-600 block mb-1">{partnerType === 'restaurant' ? 'Restaurant' : 'Business'} Name</label>
                 <input
                   required
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-200"
-                  placeholder="e.g. Luigi's Pizzeria"
+                  placeholder={partnerType === 'restaurant' ? "e.g. Luigi's Pizzeria" : "Your business name"}
                 />
+              </div>
+              <div>
+                <label className="text-[12px] font-semibold text-gray-600 block mb-1">Partnership Type</label>
+                <select value={form.partnerType} onChange={e => setForm(f => ({ ...f, partnerType: e.target.value }))}
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-200">
+                  <option value="restaurant">Restaurant</option>
+                  <option value="service">Service &amp; Vendor</option>
+                  <option value="experience">Experience &amp; Tour</option>
+                  <option value="brand">Brand Partner</option>
+                </select>
               </div>
               <div>
                 <label className="text-[12px] font-semibold text-gray-600 block mb-1">Contact Name</label>
@@ -239,6 +335,16 @@ function RestaurantLandingPage() {
                   onChange={e => setForm(f => ({ ...f, hotel: e.target.value }))}
                   className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-200"
                   placeholder="e.g. Best Western Fort Lauderdale"
+                />
+              </div>
+              <div>
+                <label className="text-[12px] font-semibold text-gray-600 block mb-1">Tell us about your business (optional)</label>
+                <textarea
+                  value={form.details}
+                  onChange={e => setForm(f => ({ ...f, details: e.target.value }))}
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-200 resize-none"
+                  placeholder="Brief description of what you offer..."
+                  rows={3}
                 />
               </div>
               <button
@@ -290,6 +396,7 @@ function RestaurantLandingPage() {
 function PartnerContent() {
   const searchParams = useSearchParams();
   const partnerId = searchParams.get('restaurant');
+  const urlType = searchParams.get('type');
 
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
@@ -345,7 +452,7 @@ function PartnerContent() {
 
   // No partner ID → show the landing page
   if (!partnerId || partnerId === 'login') {
-    return <RestaurantLandingPage />;
+    return <RestaurantLandingPage urlType={urlType || ''} />;
   }
 
   if (!authenticated) {
