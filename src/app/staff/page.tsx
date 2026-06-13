@@ -43,7 +43,7 @@ import {
   getAllHotels, createHotel,
   getShuttleRoutes, createShuttleRoute, deleteShuttleRoute,
   getAllShuttleSlotsForHotel, createShuttleSlot, deleteShuttleSlot,
-  getAllShuttleBookingsForHotel, cancelShuttleBooking,
+  getAllShuttleBookingsForHotel, cancelShuttleBooking, bookShuttleSlot,
   getShuttleRequests, updateShuttleRequest, ShuttleRoute, ShuttleSlot, ShuttleBooking, ShuttleRequest,
   getCruiseSchedulesAll, createCruiseSchedule, deleteCruiseSchedule, CruiseSchedule,
   getAllKnowledgeBase, createKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry, KnowledgeEntry,
@@ -680,7 +680,7 @@ export default function Dashboard() {
           <PropertyInfoView config={config} />
         )}
         {effectiveTab === 'schedules' && (
-          <SchedulesView hotelId={config?.id || ''} isAdmin={isAdmin} weekStartsOn={config?.weekStartsOn || 'Sunday'} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department, hire_date: s.hire_date, min_hours: s.min_hours || 0, employment_type: s.employment_type }))} />
+          <SchedulesView hotelId={config?.id || ''} isAdmin={isAdmin} weekStartsOn={config?.weekStartsOn || 'Sunday'} staffName={s.name} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department, hire_date: s.hire_date, min_hours: s.min_hours || 0, employment_type: s.employment_type }))} />
         )}
         {effectiveTab === 'checklists_tab' && (
           <ChecklistsTabView hotelId={config?.id || ''} isAdmin={isAdmin} />
@@ -1360,6 +1360,70 @@ function ShuttleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }
   );
 }
 
+/* ── Add Guest to Slot (front desk walk-up) ─────────────── */
+function AddGuestToSlot({ slotId, routeName, onDone }: { slotId: string; routeName: string; onDone: () => void }) {
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [room, setRoom] = useState('');
+  const [pax, setPax] = useState(1);
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleAdd = async () => {
+    if (!name || !room) return;
+    setSubmitting(true);
+    try {
+      await bookShuttleSlot({
+        slot_id: slotId,
+        guest_name: name,
+        room_number: room,
+        pax,
+        notes,
+        price_charged: 0,
+        charge_accepted: false,
+      });
+      setName(''); setRoom(''); setPax(1); setNotes('');
+      setShowForm(false);
+      onDone();
+    } catch (e) {
+      alert('Failed to add guest');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-100">
+      {showForm ? (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Guest name"
+              className="flex-1 bg-gray-50 rounded-lg px-3 py-2 border text-[12px] outline-none" />
+            <input value={room} onChange={e => setRoom(e.target.value)} placeholder="Room"
+              className="w-20 bg-gray-50 rounded-lg px-3 py-2 border text-[12px] outline-none" />
+            <input type="number" min={1} max={20} value={pax} onChange={e => setPax(parseInt(e.target.value)||1)}
+              className="w-16 bg-gray-50 rounded-lg px-3 py-2 border text-[12px] outline-none text-center" />
+          </div>
+          <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (optional)"
+            className="w-full bg-gray-50 rounded-lg px-3 py-2 border text-[12px] outline-none" />
+          <div className="flex gap-2">
+            <button onClick={handleAdd} disabled={submitting || !name || !room}
+              className="px-4 py-2 rounded-lg text-white font-bold text-[12px] disabled:opacity-50" style={{ backgroundColor: '#0D9488' }}>
+              {submitting ? 'Adding...' : 'Add Guest'}
+            </button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-[12px] text-gray-500">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setShowForm(true)}
+          className="flex items-center gap-1 text-[11px] font-bold text-teal-600 hover:text-teal-800">
+          + Add Guest (walk-up)
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ── Shuttle Routes Panel ───────────────────────────────── */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
@@ -1539,6 +1603,10 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                                 </div>
                               ))}
                             </div>
+                          )}
+                          {/* Add guest manually — for front desk walk-ups */}
+                          {isAdmin && (
+                            <AddGuestToSlot slotId={slot.id} routeName={slot.event_label || dayNames} onDone={load} />
                           )}
                         </div>
                       )}

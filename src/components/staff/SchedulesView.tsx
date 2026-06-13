@@ -11,7 +11,7 @@ import {
 } from '@/lib/supabase';
 import {
   listScheduleChangeRequests, createScheduleChangeRequest, updateOps, today,
-  DEPARTMENTS, type DepartmentKey, type ScheduleChangeRequest, type OpRecord,
+  DEPARTMENTS, type DepartmentKey, type OpRecord,
 } from '@/lib/opsStore';
 
 const TEAL = '#0D9488';
@@ -49,10 +49,11 @@ function formatDateRange(a: string, b: string): string {
 }
 
 export default function SchedulesView({
-  hotelId, isAdmin, staffList, weekStartsOn,
+  hotelId, isAdmin, staffName, staffList, weekStartsOn,
 }: {
   hotelId: string;
   isAdmin: boolean;
+  staffName?: string;
   staffList: { id?: string; name: string; role?: string; department?: string; hire_date?: string; min_hours?: number; employment_type?: string }[];
   weekStartsOn?: string;
 }) {
@@ -70,9 +71,11 @@ export default function SchedulesView({
     start_time: '07:00', end_time: '15:00', role: 'staff', notes: '',
   });
 
+  // Simplified request form: just date + PTO toggle
   const [reqForm, setReqForm] = useState({
-    staff_name: '', department: 'front_desk' as DepartmentKey,
-    shift_date: today(), change_type: 'time_off' as ScheduleChangeRequest['change_type'], details: '',
+    shift_date: today(),
+    is_pto: true,
+    details: '',
   });
 
   const load = async () => {
@@ -127,18 +130,20 @@ export default function SchedulesView({
   };
 
   const submitRequest = async () => {
-    if (!reqForm.details.trim() && reqForm.change_type === 'other') { setError('Tell us what you need.'); return; }
+    if (!reqForm.details.trim()) { setError('Tell us why you need the day off.'); return; }
     setSubmitting(true); setError(null);
+    const name = staffName || 'Staff';
+    const staffMember = staffList.find(s => s.name.toLowerCase() === name.toLowerCase());
     const res = await createScheduleChangeRequest(hotelId, {
-      requested_by: reqForm.staff_name || 'Staff',
+      requested_by: name,
       shift_date: reqForm.shift_date,
-      department: reqForm.department,
-      change_type: reqForm.change_type,
+      department: (staffMember?.department || 'front_desk') as DepartmentKey,
+      change_type: (reqForm.is_pto ? 'time_off' : 'other') as 'time_off' | 'other',
       details: reqForm.details,
     });
     if (!res) { setError('Could not send request.'); setSubmitting(false); return; }
     setShowRequest(false);
-    setReqForm({ staff_name: '', department: 'front_desk', shift_date: today(), change_type: 'time_off', details: '' });
+    setReqForm({ shift_date: today(), is_pto: true, details: '' });
     await load();
     setSubmitting(false);
   };
@@ -212,7 +217,7 @@ export default function SchedulesView({
             </button>
           )}
           {!isAdmin && (
-            <button onClick={() => setShowRequest(true)}
+            <button onClick={() => { setReqForm({ shift_date: today(), is_pto: true, details: '' }); setShowRequest(true); }}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-[12px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
               <CalendarDays size={14} /> Request Off
             </button>
@@ -238,7 +243,7 @@ export default function SchedulesView({
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] rounded-xl px-4 py-3 mb-4">{error}</div>}
 
-      {/* Pending change requests banner (admin) */}
+      {/* Pending change requests banner (admin only) */}
       {isAdmin && changeRequests.length > 0 && (
         <div className="bg-amber-50 rounded-2xl border border-amber-200 p-4 mb-5">
           <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-2">
@@ -391,7 +396,7 @@ export default function SchedulesView({
         {isAdmin && <span className="ml-auto text-gray-400">Click a shift to remove</span>}
       </div>
 
-      {/* ── Add Shift Modal ── */}
+      {/* ── Add Shift Modal (admin only) ── */}
       {showAdd && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowAdd(false)}>
           <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
@@ -453,17 +458,21 @@ export default function SchedulesView({
         </div>
       )}
 
-      {/* ── Staff Request Off Modal ── */}
+      {/* ── Request Off Modal (staff only) ── */}
       {showRequest && !isAdmin && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowRequest(false)}>
           <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[15px] font-bold">Request Day Off / Change</h2>
+              <h2 className="text-[15px] font-bold">Request Day Off</h2>
               <button onClick={() => setShowRequest(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
             </div>
-            <p className="text-[12px] text-gray-500 mb-4">Your manager will see this in their queue.</p>
+            <p className="text-[12px] text-gray-500 mb-4">
+              {staffName ? `Requesting as ${staffName}.` : 'Your manager will review this request.'}
+            </p>
+
+            {/* PTO Balance */}
             {(() => {
-              const staffMember = staffList.find(s => s.name.toLowerCase() === reqForm.staff_name.toLowerCase());
+              const staffMember = staffName ? staffList.find(s => s.name.toLowerCase() === staffName.toLowerCase()) : undefined;
               if (staffMember?.hire_date) {
                 const hd = new Date(staffMember.hire_date + 'T00:00:00');
                 const months = Math.floor((Date.now() - hd.getTime()) / (1000*60*60*24*30.44));
@@ -485,32 +494,64 @@ export default function SchedulesView({
               }
               return null;
             })()}
-            <div className="space-y-3">
-              <input value={reqForm.staff_name} onChange={e => setReqForm(p => ({ ...p, staff_name: e.target.value }))} placeholder="Your name"
-                className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
-              <select value={reqForm.department} onChange={e => setReqForm(p => ({ ...p, department: e.target.value as DepartmentKey }))}
-                className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none">
-                {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
-              </select>
-              <input value={reqForm.shift_date} onChange={e => setReqForm(p => ({ ...p, shift_date: e.target.value }))} type="date"
-                className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
-              <div className="grid grid-cols-3 gap-2">
-                {(['time_off', 'swap', 'cover', 'time_change', 'other'] as const).map(t => (
-                  <button key={t} onClick={() => setReqForm(p => ({ ...p, change_type: t }))}
-                    className={`py-2 rounded-xl text-[11px] font-bold border ${
-                      reqForm.change_type === t
-                        ? 'bg-teal-50 border-teal-300 text-teal-700'
-                        : 'bg-white border-gray-200 text-gray-600'
-                    }`}>
-                    {t === 'time_off' ? 'Day off' : t === 'time_change' ? 'Time change' : t === 'swap' ? 'Swap' : t === 'cover' ? 'Cover' : 'Other'}
-                  </button>
-                ))}
+
+            <div className="space-y-4">
+              {/* Date picker */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Date</label>
+                <input
+                  type="date"
+                  value={reqForm.shift_date}
+                  onChange={e => setReqForm(p => ({ ...p, shift_date: e.target.value }))}
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none"
+                />
               </div>
-              <textarea value={reqForm.details} onChange={e => setReqForm(p => ({ ...p, details: e.target.value }))} rows={3} placeholder="Reason / details"
-                className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
+
+              {/* PTO toggle */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setReqForm(p => ({ ...p, is_pto: true }))}
+                    className={`py-3 rounded-xl text-[13px] font-bold border transition-all ${
+                      reqForm.is_pto
+                        ? 'bg-teal-50 border-teal-300 text-teal-700'
+                        : 'bg-white border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    PTO (Paid)
+                  </button>
+                  <button
+                    onClick={() => setReqForm(p => ({ ...p, is_pto: false }))}
+                    className={`py-3 rounded-xl text-[13px] font-bold border transition-all ${
+                      !reqForm.is_pto
+                        ? 'bg-amber-50 border-amber-300 text-amber-700'
+                        : 'bg-white border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    Unpaid
+                  </button>
+                </div>
+              </div>
+
+              {/* Reason */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Reason</label>
+                <textarea
+                  value={reqForm.details}
+                  onChange={e => setReqForm(p => ({ ...p, details: e.target.value }))}
+                  rows={3}
+                  placeholder="Tell your manager why..."
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none"
+                />
+              </div>
+
               <div className="flex gap-2 pt-1">
-                <button onClick={submitRequest} disabled={submitting}
-                  className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                <button
+                  onClick={submitRequest}
+                  disabled={submitting || !reqForm.details.trim() || !reqForm.shift_date}
+                  className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}
+                >
                   {submitting ? 'Sending…' : 'Send Request'}
                 </button>
                 <button onClick={() => setShowRequest(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>

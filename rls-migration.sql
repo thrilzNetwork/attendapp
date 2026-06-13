@@ -79,7 +79,10 @@ CREATE POLICY requests_select ON public.requests
 CREATE POLICY requests_insert ON public.requests
   FOR INSERT WITH CHECK (true);
 CREATE POLICY requests_update ON public.requests
-  FOR UPDATE USING (false);
+  FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY requests_delete ON public.requests
+  FOR DELETE USING (auth.role() = 'authenticated');
 
 -- Messages: anon can read and insert (guest sends), update restricted
 CREATE POLICY messages_select ON public.messages
