@@ -1355,7 +1355,7 @@ function ShuttleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[26px] font-extrabold text-gray-900">Shuttle Schedule</h1>
       </div>
-      {calView}
+      {calendarTab === 'calendar' ? calView : <ShuttleRoutesPanel hotelId={hotelId} isAdmin={isAdmin} />}
     </div>
   );
 }
