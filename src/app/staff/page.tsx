@@ -219,8 +219,17 @@ export default function Dashboard() {
     if (!email || !password) { setAuthError('Email and password required.'); return; }
     setAuthLoading(true);
     try {
-      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
       if (signInErr) throw signInErr;
+
+      // Superadmin check — look at JWT metadata, not staff_accounts table
+      if (data.user?.user_metadata?.role === 'superadmin') {
+        setSession({ name: data.user.email || 'Super Admin', role: 'superadmin' });
+        setAuthMode('authenticated');
+        // Load all hotels for property picker
+        getAllHotels().then(h => setAllHotels(h as { id: string; slug: string; name: string }[]));
+        return;
+      }
 
       // Look up staff account by email
       const staff = await getStaffAccountByEmail(email);
@@ -253,7 +262,6 @@ export default function Dashboard() {
     localStorage.setItem('attenda_hotel_slug', slug);
     const c = await getHotelConfig(slug);
     if (c) setConfig(c);
-    setSession({ name: 'Admin', role: 'admin' });
     setShowHotelPicker(false);
     setAuthMode('authenticated');
   };
@@ -285,7 +293,7 @@ export default function Dashboard() {
     if (req.data) setRequests(req.data);
     if (msg.data) setMessages(msg.data);
 
-    if (role === 'admin' || role === 'superadmin') {
+    if (role === 'admin' || role === 'superadmin' || role === 'manager') {
       setStaff(await getStaffAccounts(hotelId!));
     }
   }, []);
