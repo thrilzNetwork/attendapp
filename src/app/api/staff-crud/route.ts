@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
+// Strip pin_code from staff records before sending to frontend
+function stripPin(record: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!record) return null;
+  const cleaned = { ...record };
+  delete cleaned.pin_code;
+  return cleaned;
+}
+
 export async function POST(req: NextRequest) {
   try {
     console.log('[staff-crud] Request received');
@@ -46,7 +54,9 @@ export async function POST(req: NextRequest) {
         .eq('hotel_id', resolvedHotelId)
         .order('name');
       if (error) throw error;
-      return NextResponse.json({ ok: true, data });
+      // Strip PIN codes from response — never expose to frontend
+      const sanitized = (data || []).map(stripPin);
+      return NextResponse.json({ ok: true, data: sanitized });
     }
 
     // ── Create staff ──
@@ -60,7 +70,7 @@ export async function POST(req: NextRequest) {
         .select()
         .single();
       if (error) throw error;
-      return NextResponse.json({ ok: true, data });
+      return NextResponse.json({ ok: true, data: stripPin(data) });
     }
 
     // ── Update staff ──
@@ -100,7 +110,7 @@ export async function POST(req: NextRequest) {
         .eq('id', staffId)
         .single();
       if (error) throw error;
-      return NextResponse.json({ ok: true, data });
+      return NextResponse.json({ ok: true, data: stripPin(data) });
     }
 
     // ── Get single staff by email ──
@@ -115,7 +125,7 @@ export async function POST(req: NextRequest) {
         .eq('email', staffEmail)
         .maybeSingle();
       if (error) throw error;
-      return NextResponse.json({ ok: true, data });
+      return NextResponse.json({ ok: true, data: stripPin(data) });
     }
 
     return NextResponse.json({ ok: false, error: 'Unknown action.' }, { status: 400 });
