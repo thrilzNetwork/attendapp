@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { ArrowRight, Bell, Bus, CheckCircle, Globe, MapPin, Phone, ShieldCheck, User, Utensils } from 'lucide-react';
+import { ArrowRight, Bell, Bus, Check, CheckCircle, ClipboardList, DollarSign, Globe, MapPin, Phone, QrCode, ShieldCheck, Store, User, Users, Utensils } from 'lucide-react';
 import GuestAuthModal from '@/components/GuestAuthModal';
 import {
   GuestSheet,
@@ -291,6 +291,308 @@ function ValidationSuccessModal({ open, onClose, brandColor }: { open: boolean; 
 /* ──────────────────────────────────────────────────────────── */
 
 const TEAL = '#0D9488';
+const TEAL_BRIGHT = '#15b79e';
+
+/* ────────────────────────────────────────────────────────────
+   PLATFORM PILLARS — the full feature inventory of Attenda.
+   Every bullet maps to a real table / route in production.
+   ──────────────────────────────────────────────────────────── */
+
+type PillarKey = 'ops' | 'revenue' | 'labor' | 'guest' | 'partners' | 'transport';
+
+const PILLARS: {
+  key: PillarKey;
+  icon: typeof ClipboardList;
+  label: string;
+  tagline: string;
+  headline: string;
+  sub: string;
+  features: string[];
+  mock: { title: string; rows: { l: string; r: string; tone?: 'ok' | 'warn' | 'teal' }[]; foot: string };
+}[] = [
+  {
+    key: 'ops',
+    icon: ClipboardList,
+    label: 'Operations',
+    tagline: 'The live board',
+    headline: 'Every request, task, and room — one live thread.',
+    sub: 'Guest scans, staff executes, GM sees it happen. Nothing lives on sticky notes or radio calls.',
+    features: [
+      'Real-time request board — pending, in progress, completed',
+      'Per-room message threads between guests and staff',
+      'Task logs with timestamps for every shift',
+      'Ops tools for housekeeping, engineering, and front desk',
+      'Status changes visible to the GM the second they happen',
+      'Full request history per room and per guest',
+    ],
+    mock: {
+      title: 'Live Requests · Today',
+      rows: [
+        { l: 'Rm 214 · Extra towels', r: 'In progress', tone: 'teal' },
+        { l: 'Rm 108 · AC not cooling', r: 'Assigned · Eng', tone: 'warn' },
+        { l: 'Rm 305 · Late checkout', r: 'Completed', tone: 'ok' },
+        { l: 'Lobby · Spill cleanup', r: 'Completed', tone: 'ok' },
+      ],
+      foot: '11 requests today · avg resolution 14 min',
+    },
+  },
+  {
+    key: 'revenue',
+    icon: DollarSign,
+    label: 'Revenue',
+    tagline: 'The property earns',
+    headline: 'Your property makes money on every order.',
+    sub: 'In-app food ordering with a transparent fee split. The hotel takes a share — not a delivery app.',
+    features: [
+      'Guest food ordering straight from the room — no app download',
+      'Configurable platform fee and hotel revenue share per partner',
+      'Shuttle pricing with per-slot overrides and charge tracking',
+      'Order revenue visible on the GM dashboard daily',
+      'Stripe-ready checkout — card on file, charge to room next',
+      '10% flat vs the 30% delivery apps take from restaurants',
+    ],
+    mock: {
+      title: 'Revenue · This Month',
+      rows: [
+        { l: 'Guest food orders', r: '$4,815', tone: 'teal' },
+        { l: 'Hotel share (60%)', r: '$289', tone: 'ok' },
+        { l: 'Shuttle charges', r: '$1,240', tone: 'ok' },
+        { l: 'Partner payouts', r: 'Auto-split', tone: 'teal' },
+      ],
+      foot: 'Every dollar attributed by room, partner, and day',
+    },
+  },
+  {
+    key: 'labor',
+    icon: Users,
+    label: 'Labor & Staff',
+    tagline: 'The roster, visible',
+    headline: 'Know your team like you know your occupancy.',
+    sub: 'Staff accounts carry role, department, and labor data — so the GM sees the whole roster, not just a schedule on the wall.',
+    features: [
+      'Role-based accounts — staff, admin, manager, vendor, GM',
+      'Departments, hire dates, and employment type per person',
+      'PTO usage and minimum-hours tracking built in',
+      'Granular permissions per staff member',
+      'Email + password login — no shared PINs, full accountability',
+      'Lazy-loaded staff dashboard, fast on any device',
+    ],
+    mock: {
+      title: 'Roster · Front Office',
+      rows: [
+        { l: 'M. Reyes · FD Agent', r: 'On shift', tone: 'ok' },
+        { l: 'J. Carter · Night Audit', r: '11 PM', tone: 'teal' },
+        { l: 'L. Soto · Housekeeping', r: 'PTO 6/14', tone: 'warn' },
+        { l: 'D. Kim · Engineering', r: 'On call', tone: 'ok' },
+      ],
+      foot: '14 active staff · 3 departments · 2 PTO requests',
+    },
+  },
+  {
+    key: 'guest',
+    icon: QrCode,
+    label: 'Guest Experience',
+    tagline: 'Scan and go',
+    headline: 'One QR code replaces the binder, the flyer, and the front-desk call.',
+    sub: 'Guests get the whole property in their browser — WiFi, facilities, safety, food, shuttle — in under five seconds.',
+    features: [
+      'QR per room — no app store, no download, no account',
+      'WiFi name and password one tap away',
+      'Facilities, safety, transport, and dining pages — GM-editable',
+      'Welcome letter with the manager\'s name and team photo',
+      'Review routing to Google, TripAdvisor, and Yelp',
+      'Guest validation tied to checkout date — sessions expire clean',
+    ],
+    mock: {
+      title: 'Guest Home · Rm 214',
+      rows: [
+        { l: 'WiFi', r: 'One tap', tone: 'teal' },
+        { l: 'Order food', r: '4 partners', tone: 'ok' },
+        { l: 'Book shuttle', r: '7:40 AM', tone: 'ok' },
+        { l: 'Message us', r: 'Replies < 5 min', tone: 'teal' },
+      ],
+      foot: 'Loads in the browser · works on any phone',
+    },
+  },
+  {
+    key: 'partners',
+    icon: Store,
+    label: 'Vendors & Partners',
+    tagline: 'The outside, inside',
+    headline: 'Restaurants and vendors plug into your property.',
+    sub: 'Nearby partners get menus, orders, and payouts through Attenda — and your guests never leave the thread.',
+    features: [
+      'Partner portal with live menu management',
+      'Inbound partner applications — your pipeline, not cold calls',
+      'Per-partner fee percent and revenue share settings',
+      'POS-ready architecture — Clover today, more coming',
+      'Ratings, hours, distance, and photos per partner',
+      'Activate or pause a partner with one switch',
+    ],
+    mock: {
+      title: 'Partners · Active',
+      rows: [
+        { l: 'La Cocina Tex-Mex', r: '32 orders', tone: 'teal' },
+        { l: 'Bayside Sushi', r: '18 orders', tone: 'ok' },
+        { l: 'Marco\'s Pizza', r: 'Menu updated', tone: 'ok' },
+        { l: 'New application', r: 'Review', tone: 'warn' },
+      ],
+      foot: '4 active partners · revenue share auto-applied',
+    },
+  },
+  {
+    key: 'transport',
+    icon: Bus,
+    label: 'Transport & Shuttle',
+    tagline: 'Wheels managed',
+    headline: 'Shuttle ops without the clipboard.',
+    sub: 'Routes, time slots, capacity, and ad-hoc rides — booked by guests, assigned to drivers, priced by the property.',
+    features: [
+      'Named routes — airport, cruise port, or custom',
+      'Time slots with per-day schedules and capacity limits',
+      'Guest self-booking with party size and notes',
+      'Ad-hoc ride requests assigned to drivers in real time',
+      'Per-slot price overrides and event labels',
+      'No-show and cancellation tracking per booking',
+    ],
+    mock: {
+      title: 'Shuttle · Airport Route',
+      rows: [
+        { l: '7:40 AM · 8 seats', r: '6 booked', tone: 'teal' },
+        { l: '9:15 AM · 8 seats', r: 'Full', tone: 'warn' },
+        { l: 'Rm 412 · Ad-hoc ride', r: 'Driver: Ray', tone: 'ok' },
+        { l: '11:00 AM · 8 seats', r: '2 booked', tone: 'ok' },
+      ],
+      foot: '3 routes · 14 slots today · 2 drivers on',
+    },
+  },
+];
+
+const TONE_STYLES: Record<string, string> = {
+  ok: 'bg-emerald-50 text-emerald-700',
+  warn: 'bg-amber-50 text-amber-700',
+  teal: 'bg-teal-50 text-teal-700',
+};
+
+function PlatformPillars() {
+  const [active, setActive] = useState<PillarKey>('ops');
+  const pillar = PILLARS.find(p => p.key === active)!;
+  const Icon = pillar.icon;
+
+  return (
+    <section id="platform" className="py-16 md:py-24 px-5" style={{ backgroundColor: '#0B1220' }}>
+      <div className="max-w-6xl mx-auto">
+
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h2 className="text-[14px] font-bold tracking-widest uppercase mb-3" style={{ color: TEAL_BRIGHT }}>
+            The Full Platform
+          </h2>
+          <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-white mb-4 leading-[1.05]">
+            Not a QR messaging app.<br />
+            <span style={{ color: TEAL_BRIGHT }}>A hotel operating system.</span>
+          </h3>
+          <p className="text-[16px] md:text-[18px] text-gray-400 max-w-2xl mx-auto">
+            Six systems, one thread. Everything below is live in production — not a roadmap slide.
+          </p>
+        </div>
+
+        {/* Pillar tabs */}
+        <div className="flex items-center justify-center gap-2 mb-12 flex-wrap" role="tablist" aria-label="Platform areas">
+          {PILLARS.map(p => {
+            const PIcon = p.icon;
+            const isActive = p.key === active;
+            return (
+              <button
+                key={p.key}
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActive(p.key)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all border ${
+                  isActive
+                    ? 'text-white shadow-lg scale-[1.02]'
+                    : 'border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-500'
+                }`}
+                style={isActive ? { backgroundColor: TEAL, borderColor: TEAL } : {}}
+              >
+                <PIcon size={15} />
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active pillar panel */}
+        <div key={active} className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center pp-fade">
+          {/* Left: copy + features */}
+          <div className="lg:col-span-7">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${TEAL}22` }}>
+                <Icon size={20} style={{ color: TEAL_BRIGHT }} />
+              </div>
+              <span className="text-[12px] font-bold uppercase tracking-widest text-gray-500">{pillar.tagline}</span>
+            </div>
+            <h4 className="text-[26px] md:text-[34px] font-black tracking-tight text-white leading-[1.1] mb-3">
+              {pillar.headline}
+            </h4>
+            <p className="text-[16px] text-gray-400 leading-relaxed mb-7 max-w-xl">{pillar.sub}</p>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+              {pillar.features.map(f => (
+                <li key={f} className="flex items-start gap-2.5 text-[14px] text-gray-300 leading-snug">
+                  <Check size={16} className="mt-0.5 shrink-0" style={{ color: TEAL_BRIGHT }} />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Right: live-style panel */}
+          <div className="lg:col-span-5">
+            <div className="rounded-2xl border border-gray-700/80 bg-[#0F1A2E] shadow-2xl overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-gray-700/80 flex items-center justify-between">
+                <span className="text-[12px] font-bold text-gray-200 tracking-wide">{pillar.mock.title}</span>
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: TEAL_BRIGHT }} />
+              </div>
+              <div className="p-4 space-y-2.5">
+                {pillar.mock.rows.map(row => (
+                  <div key={row.l} className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.04] px-4 py-3">
+                    <span className="text-[13px] text-gray-300 font-medium truncate">{row.l}</span>
+                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${TONE_STYLES[row.tone ?? 'ok']}`}>
+                      {row.r}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="px-5 py-3 border-t border-gray-700/80">
+                <span className="text-[11px] text-gray-500 font-semibold">{pillar.mock.foot}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom CTA */}
+        <div className="text-center mt-14">
+          <a
+            href="#demo"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-[15px] transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
+            style={{ backgroundColor: TEAL_BRIGHT, color: '#000' }}
+          >
+            See the full platform live
+            <ArrowRight size={17} />
+          </a>
+          <p className="text-[12px] text-gray-500 mt-3">15 minutes. Real screens, your property&apos;s scenario.</p>
+        </div>
+      </div>
+
+      {/* Panel fade-in, reduced-motion safe */}
+      <style>{`
+        .pp-fade { animation: ppFade 0.35s ease both; }
+        @keyframes ppFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        @media (prefers-reduced-motion: reduce) { .pp-fade { animation: none; } }
+      `}</style>
+    </section>
+  );
+}
 
 function AttendaLandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -679,6 +981,9 @@ function AttendaLandingPage() {
           </div>
         </div>
       </section>
+
+      {/* THE FULL PLATFORM — deep product showcase */}
+      <PlatformPillars />
 
       {/* SEE IT IN ACTION — Pixel-accurate mockups of the actual product on 3 devices */}
       <section id="see-it-in-action" className="py-16 md:py-24 px-5 bg-white relative overflow-hidden">
