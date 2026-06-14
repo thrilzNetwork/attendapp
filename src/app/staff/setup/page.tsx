@@ -46,7 +46,17 @@ function SetupContent() {
         password,
         options: { emailRedirectTo: `${window.location.origin}/staff?hotel=${hotel}` },
       });
-      if (authErr) throw authErr;
+      if (authErr) {
+        // If already registered, the password was set — try signing in
+        if (authErr.message?.includes('already registered') || authErr.message?.includes('already exists')) {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+          if (signInErr) throw signInErr;
+          setDone(true);
+          setLoading(false);
+          return;
+        }
+        throw authErr;
+      }
 
       if (data.session) {
         // Auto-confirm is ON — logged in immediately
@@ -57,11 +67,7 @@ function SetupContent() {
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Setup failed.';
-      if (msg.includes('already registered') || msg.includes('already exists')) {
-        setError('This email already has an account. Go to the staff login page and sign in.');
-      } else {
-        setError(msg);
-      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
