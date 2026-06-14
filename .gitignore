@@ -40,3 +40,13 @@ next-env.d.ts
 .env.prod.temp
 supabase/.temp/
 reel_audio.*
+*.bak
+*.bak2
+*.bak3
+audit-rls.js
+seed-partners.js
+simulate-busy-day.js
+sync-places.js
+scripts/*.mjs
+scripts/*.py
+.env.prod
