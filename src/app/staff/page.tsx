@@ -165,7 +165,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   // ── OPERATIONS — property tools ──
   { tab: 'shuttle',         label: 'Shuttle',            icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'kpis',            label: 'KPIs',               icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'knowledge',       label: 'Write Answers',     icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'knowledge',       label: 'Right Answers',     icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'learning_hr',     label: 'Learning & HR',      icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'property_info',   label: 'Property Info',      icon: HotelIcon,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
 
