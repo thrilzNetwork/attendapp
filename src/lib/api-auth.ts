@@ -11,6 +11,9 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3000',
 ];
 
+// Any *.vercel.app domain is allowed (dynamic preview URLs)
+const VERCEL_APP_RE = /^https:\/\/[a-z0-9-]+-thrilzs-projects\.vercel\.app$/;
+
 /**
  * Origin/referer check — soft gate against non-browser clients.
  * Not a substitute for proper auth tokens on sensitive endpoints.
@@ -21,7 +24,7 @@ export function isAllowedOrigin(origin: string | null, referer: string | null): 
   // No origin = API client (curl, scripts) — allow through, let API key check handle it
   if (!origin && !referer) return true;
   const check = origin || referer || '';
-  return ALLOWED_ORIGINS.some(a => check.startsWith(a));
+  return ALLOWED_ORIGINS.some(a => check.startsWith(a)) || VERCEL_APP_RE.test(check);
 }
 
 /**
