@@ -83,20 +83,6 @@ export async function POST(req: NextRequest) {
   try {
     const { action, ...params } = await req.json();
 
-    // ─── Bootstrap: no auth, only runs if our staff don't exist ──
-    if (action === 'bootstrap') {
-      const admin = getSupabaseAdmin();
-      const { data: existing } = await admin
-        .from('staff_accounts')
-        .select('id')
-        .eq('hotel_id', 'f1f8de36-3126-4ba8-9cc6-b11cefb276ca')
-        .limit(1);
-      if (existing && existing.length > 0) {
-        return NextResponse.json({ ok: false, error: 'Staff already exist for bw-ftl-10272' }, { status: 400 });
-      }
-      return await runBootstrap(admin);
-    }
-
     const authHeader = req.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '');
     if (!token) {
@@ -139,6 +125,10 @@ export async function POST(req: NextRequest) {
     // ─── Admin check for other actions ─────────────────────────
     if (!(await isAdmin(user.id))) {
       return NextResponse.json({ ok: false, error: 'Not authorized' }, { status: 403 });
+    }
+
+    if (action === 'bootstrap') {
+      return await runBootstrap(admin);
     }
 
     // No action — return existing config (used by checkSlot)
@@ -259,16 +249,14 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
+  // Only returns whether a superadmin slot exists — no user data leaked
   try {
     const admin = getSupabaseAdmin();
     const { data } = await admin
       .from('superadmin_config')
-      .select('id, user_id, email')
+      .select('id')
       .maybeSingle();
-    if (data) {
-      return NextResponse.json({ exists: true, user_id: data.user_id, email: data.email });
-    }
-    return NextResponse.json({ exists: false });
+    return NextResponse.json({ exists: !!data });
   } catch {
     return NextResponse.json({ exists: false });
   }

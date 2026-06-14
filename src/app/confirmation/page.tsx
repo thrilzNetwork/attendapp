@@ -9,9 +9,12 @@ export default function ConfirmationPage() {
   const [brandColor, setBrandColor] = useState('#3A1A2D');
 
   useEffect(() => {
+    let cancelled = false;
     getHotelConfig().then(cfg => {
+      if (cancelled) return;
       if (cfg?.brandColor) setBrandColor(cfg.brandColor);
-    });
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   let backHref = '/';

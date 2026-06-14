@@ -327,6 +327,7 @@ export async function deleteStaffAccount(id: string) {
 
 // Real-time subscription helper
 export function subscribeToRequests(hotelId: string | null, callback: (payload: Record<string, unknown>) => void) {
+  // If no hotelId is provided, subscribe to ALL requests (superadmin context only)
   const channelName = hotelId ? `requests-changes-${hotelId}` : 'requests-changes-all';
   const channel = supabase
     .channel(channelName);
@@ -1122,15 +1123,25 @@ export interface StaffSchedule {
 
 export async function getStaffSchedules(hotelId: string, date?: string): Promise<StaffSchedule[]> {
   const d = date || new Date().toISOString().split('T')[0];
-  const { data } = await supabase.from('staff_schedules').select('*')
-    .eq('hotel_id', hotelId).eq('shift_date', d).order('start_time');
-  return (data || []) as StaffSchedule[];
+  const res = await fetch('/api/ops-data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+    body: JSON.stringify({ action: 'get_schedules', hotelId, from: d, to: d }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Failed to load schedules');
+  return (json.data || []) as StaffSchedule[];
 }
 
 export async function getStaffSchedulesRange(hotelId: string, from: string, to: string): Promise<StaffSchedule[]> {
-  const { data } = await supabase.from('staff_schedules').select('*')
-    .eq('hotel_id', hotelId).gte('shift_date', from).lte('shift_date', to).order('shift_date').order('start_time');
-  return (data || []) as StaffSchedule[];
+  const res = await fetch('/api/ops-data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+    body: JSON.stringify({ action: 'get_schedules', hotelId, from, to }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Failed to load schedules');
+  return (json.data || []) as StaffSchedule[];
 }
 
 export async function createStaffSchedule(schedule: {
@@ -1138,13 +1149,24 @@ export async function createStaffSchedule(schedule: {
   shift_date: string; start_time: string; end_time: string;
   role?: string; notes?: string; created_by?: string;
 }) {
-  const { data, error } = await supabase.from('staff_schedules').insert(schedule).select().single();
-  if (error) throw error;
-  return data;
+  const res = await fetch('/api/ops-data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+    body: JSON.stringify({ action: 'create_schedule', schedule }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Failed to create schedule');
+  return json.data;
 }
 
 export async function deleteStaffSchedule(id: string) {
-  await supabase.from('staff_schedules').delete().eq('id', id);
+  const res = await fetch('/api/ops-data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+    body: JSON.stringify({ action: 'delete_schedule', scheduleId: id }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Failed to delete schedule');
 }
 
 // ─── Daily Recap ────────────────────────────────────────────
@@ -1551,7 +1573,9 @@ export interface WeeklyForecast {
   week_start: string;       // Monday of the forecast week
   date: string;              // specific day
   occupancy_pct: number;     // forecasted occupancy %
+  total_rooms: number;       // total rooms for this property
   arrivals: number;          // forecasted arrivals
+  departures: number;        // forecasted departures
   rooms_occupied: number;    // forecasted rooms occupied
   created_by?: string;
   created_at: string;
@@ -1559,17 +1583,14 @@ export interface WeeklyForecast {
 }
 
 export async function getWeeklyForecasts(hotelId: string, weekStart: string): Promise<WeeklyForecast[]> {
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
-  const endStr = weekEnd.toISOString().split('T')[0];
-  const { data } = await supabase
-    .from('weekly_forecasts')
-    .select('*')
-    .eq('hotel_id', hotelId)
-    .gte('date', weekStart)
-    .lte('date', endStr)
-    .order('date');
-  return (data || []) as WeeklyForecast[];
+  const res = await fetch('/api/ops-data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+    body: JSON.stringify({ action: 'get_forecasts', hotelId, weekStart }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Failed to load forecasts');
+  return (json.data || []) as WeeklyForecast[];
 }
 
 export async function upsertWeeklyForecast(forecast: {
@@ -1580,38 +1601,14 @@ export async function upsertWeeklyForecast(forecast: {
   arrivals: number;
   rooms_occupied: number;
 }) {
-  // Find existing for this date/hotel, update; or insert
-  const existing = await supabase
-    .from('weekly_forecasts')
-    .select('id')
-    .eq('hotel_id', forecast.hotel_id)
-    .eq('date', forecast.date)
-    .single();
-  const existingId = existing.data?.id;
-  if (existingId) {
-    const { data, error } = await supabase
-      .from('weekly_forecasts')
-      .update({
-        week_start: forecast.week_start,
-        occupancy_pct: forecast.occupancy_pct,
-        arrivals: forecast.arrivals,
-        rooms_occupied: forecast.rooms_occupied,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', existingId)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  } else {
-    const { data, error } = await supabase
-      .from('weekly_forecasts')
-      .insert(forecast)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  }
+  const res = await fetch('/api/ops-data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+    body: JSON.stringify({ action: 'upsert_forecast', forecast }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Failed to save forecast');
+  return json.data;
 }
 
 export async function getLearningDocs(hotelId: string): Promise<KnowledgeEntry[]> {

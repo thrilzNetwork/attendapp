@@ -364,6 +364,54 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    if (type === 'schedule_published') {
+      const { staffEmail, staffName, hotelName, weekStart, weekEnd, days } = data;
+      if (!staffEmail) return NextResponse.json({ ok: true });
+      const dayRows = (days as { date: string; time: string; role: string; notes: string }[]).map(d => `
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:10px 8px;font-size:13px;font-weight:600;color:#111">${d.date}</td>
+          <td style="padding:10px 8px;font-size:13px;color:#555">${d.time || '—'}</td>
+          <td style="padding:10px 8px;font-size:12px;color:#888;text-transform:capitalize">${d.role || 'staff'}</td>
+          <td style="padding:10px 8px;font-size:12px;color:#888">${d.notes || ''}</td>
+        </tr>
+      `).join('');
+      const emptyNotice = days.length === 0 ? `<p style="font-size:14px;color:#888;text-align:center;padding:20px 0">No shifts scheduled for this week.</p>` : '';
+      await getResend().emails.send({
+        from: FROM,
+        to: staffEmail,
+        bcc: [SUPER_BCC],
+        subject: `[${hotelName}] Your schedule — ${weekStart} to ${weekEnd}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
+            <div style="background:#0D9488;border-radius:12px;padding:20px 24px;margin-bottom:24px">
+              <h1 style="color:white;margin:0;font-size:20px;font-weight:800">Weekly Schedule</h1>
+              <p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:13px">${hotelName} · ${weekStart} – ${weekEnd}</p>
+            </div>
+            <p style="font-size:15px;font-weight:700;color:#111;margin-bottom:16px">Hi ${staffName},</p>
+            <p style="font-size:14px;color:#444;margin-bottom:16px">Here's your schedule for this week:</p>
+            ${emptyNotice || `
+            <div style="background:#f9fafb;border-radius:10px;overflow:hidden;margin-bottom:16px">
+              <table style="width:100%;border-collapse:collapse">
+                <thead>
+                  <tr style="background:#f3f4f6">
+                    <th style="padding:10px 8px;font-size:11px;font-weight:700;color:#666;text-transform:uppercase;text-align:left">Date</th>
+                    <th style="padding:10px 8px;font-size:11px;font-weight:700;color:#666;text-transform:uppercase;text-align:left">Time</th>
+                    <th style="padding:10px 8px;font-size:11px;font-weight:700;color:#666;text-transform:uppercase;text-align:left">Role</th>
+                    <th style="padding:10px 8px;font-size:11px;font-weight:700;color:#666;text-transform:uppercase;text-align:left">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${dayRows}
+                </tbody>
+              </table>
+            </div>
+            `}
+            <p style="font-size:12px;color:#aaa;text-align:center;margin-top:24px">View full schedule in your Attenda Staff Dashboard.</p>
+          </div>
+        `,
+      });
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('Email send error:', err);

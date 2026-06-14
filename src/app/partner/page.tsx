@@ -42,7 +42,7 @@ function RestaurantLandingPage({ urlType: initialUrlType }: { urlType?: string }
     try {
       const res = await fetch('/api/partner-apply', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
         body: JSON.stringify(form),
       });
       if (res.ok) {
@@ -533,7 +533,7 @@ function PartnerContent() {
       return;
     }
 
-    const restaurantPin = data.pin_code || '2025';
+    const restaurantPin = data.pin_code || '';
     if (pin === restaurantPin) {
       setPartnerName(data.name);
       setHotelId(data.hotel_id || null);

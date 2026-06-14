@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Plus, CalendarDays, X as XIcon, ArrowRight, ArrowLeft,
+  Plus, CalendarDays, X as XIcon, ArrowRight, ArrowLeft, SendHorizontal, CheckCircle2,
 } from 'lucide-react';
 import {
   getStaffSchedulesRange, createStaffSchedule, deleteStaffSchedule,
@@ -10,8 +10,8 @@ import {
   type StaffSchedule, type WeeklyForecast, type StaffAccount,
 } from '@/lib/supabase';
 import {
-  listScheduleChangeRequests, createScheduleChangeRequest, updateOps, today,
-  DEPARTMENTS, type DepartmentKey, type OpRecord,
+  createScheduleChangeRequest, today,
+  DEPARTMENTS, type DepartmentKey,
 } from '@/lib/opsStore';
 
 const TEAL = '#0D9488';
@@ -49,21 +49,23 @@ function formatDateRange(a: string, b: string): string {
 }
 
 export default function SchedulesView({
-  hotelId, isAdmin, staffName, staffList, weekStartsOn,
+  hotelId, isAdmin, staffName, staffList, weekStartsOn, hotelName,
 }: {
   hotelId: string;
   isAdmin: boolean;
   staffName?: string;
-  staffList: { id?: string; name: string; role?: string; department?: string; hire_date?: string; min_hours?: number; employment_type?: string }[];
+  staffList: { id?: string; name: string; role?: string; department?: string; hire_date?: string; min_hours?: number; employment_type?: string; email?: string }[];
   weekStartsOn?: string;
+  hotelName?: string;
 }) {
   const [schedules, setSchedules] = useState<StaffSchedule[]>([]);
-  const [changeRequests, setChangeRequests] = useState<OpRecord[]>([]);
   const [forecasts, setForecasts] = useState<WeeklyForecast[]>([]);
   const [weekStart, setWeekStart] = useState<string>(getWeekStart(today(), weekStartsOn));
   const [showAdd, setShowAdd] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [published, setPublished] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [addForm, setAddForm] = useState({
@@ -71,7 +73,6 @@ export default function SchedulesView({
     start_time: '07:00', end_time: '15:00', role: 'staff', notes: '',
   });
 
-  // Simplified request form: just date + PTO toggle
   const [reqForm, setReqForm] = useState({
     shift_date: today(),
     is_pto: true,
@@ -80,13 +81,11 @@ export default function SchedulesView({
 
   const load = async () => {
     const weekEnd = addDays(weekStart, 6);
-    const [s, cr, f] = await Promise.all([
+    const [s, f] = await Promise.all([
       getStaffSchedulesRange(hotelId, weekStart, weekEnd),
-      listScheduleChangeRequests(hotelId, 'pending'),
       getWeeklyForecasts(hotelId, weekStart),
     ]);
     setSchedules(s || []);
-    setChangeRequests(cr || []);
     setForecasts(f || []);
   };
   useEffect(() => { load(); // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,38 +94,121 @@ export default function SchedulesView({
   const handleAdd = async () => {
     if (!addForm.staff_name.trim() || !addForm.shift_date) return;
     setSubmitting(true); setError(null);
-    const data = await createStaffSchedule({
-      hotel_id: hotelId,
-      staff_name: addForm.staff_name.trim(),
-      staff_id: addForm.staff_id || undefined,
-      shift_date: addForm.shift_date,
-      start_time: addForm.start_time,
-      end_time: addForm.end_time,
-      role: addForm.role,
-      notes: addForm.notes || undefined,
-    });
-    if (data) {
-      const m = staffList.find(s => s.name === addForm.staff_name.trim()) as StaffAccount | undefined;
-      if (m?.email) {
-        fetch('/api/email', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-          body: JSON.stringify({
-            type: 'schedule_posted',
-            data: { staffEmail: m.email, staffName: addForm.staff_name.trim(), hotelName: '', shiftDate: addForm.shift_date, startTime: addForm.start_time, endTime: addForm.end_time, role: addForm.role },
-          }),
-        }).catch(() => {});
+    try {
+      const data = await createStaffSchedule({
+        hotel_id: hotelId,
+        staff_name: addForm.staff_name.trim(),
+        staff_id: addForm.staff_id || undefined,
+        shift_date: addForm.shift_date,
+        start_time: addForm.start_time,
+        end_time: addForm.end_time,
+        role: addForm.role,
+        notes: addForm.notes || undefined,
+      });
+      if (data) {
+        const m = staffList.find(s => s.name === addForm.staff_name.trim()) as StaffAccount | undefined;
+        if (m?.email) {
+          fetch('/api/email', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+            body: JSON.stringify({
+              type: 'schedule_posted',
+              data: { staffEmail: m.email, staffName: addForm.staff_name.trim(), hotelName: hotelName || '', shiftDate: addForm.shift_date, startTime: addForm.start_time, endTime: addForm.end_time, role: addForm.role },
+            }),
+          }).catch(() => {});
+        }
       }
+      setShowAdd(false);
+      setAddForm({ staff_id: '', staff_name: '', shift_date: today(), start_time: '07:00', end_time: '15:00', role: 'staff', notes: '' });
+      await load();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save shift';
+      setError(msg);
     }
-    setShowAdd(false);
-    setAddForm({ staff_id: '', staff_name: '', shift_date: today(), start_time: '07:00', end_time: '15:00', role: 'staff', notes: '' });
-    await load();
     setSubmitting(false);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Remove this shift?')) return;
-    await deleteStaffSchedule(id);
-    await load();
+    setError(null);
+    try {
+      await deleteStaffSchedule(id);
+      await load();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to remove shift';
+      setError(msg);
+    }
+  };
+
+  // ── Publish Schedule ──
+  const handlePublish = async () => {
+    if (!confirm('Send this week\'s schedule to all staff via email?')) return;
+    setPublishing(true); setError(null);
+    try {
+      const weekEnd = addDays(weekStart, 6);
+      const [s] = await Promise.all([
+        getStaffSchedulesRange(hotelId, weekStart, weekEnd),
+      ]);
+      const weekSchedules = s || [];
+
+      // Group shifts by staff member
+      const staffShifts: Record<string, { name: string; email: string; shifts: StaffSchedule[] }> = {};
+      weekSchedules.forEach(shift => {
+        const name = shift.staff_name;
+        if (!staffShifts[name]) {
+          const sInfo = staffList.find(x => x.name === name);
+          staffShifts[name] = { name, email: sInfo?.email || '', shifts: [] };
+        }
+        staffShifts[name].shifts.push(shift);
+      });
+
+      // Add staff with no shifts but who have emails
+      staffList.forEach(s => {
+        if (s.email && !staffShifts[s.name]) {
+          staffShifts[s.name] = { name: s.name, email: s.email, shifts: [] };
+        }
+      });
+
+      // Send one email per staff member
+      const results = await Promise.allSettled(
+        Object.values(staffShifts)
+          .filter(s => s.email)
+          .map(s => {
+            const days = s.shifts.map(sh => ({
+              date: sh.shift_date,
+              time: `${sh.start_time?.slice(0,5) || ''}–${sh.end_time?.slice(0,5) || ''}`,
+              role: sh.role || 'staff',
+              notes: sh.notes || '',
+            }));
+            return fetch('/api/email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+              body: JSON.stringify({
+                type: 'schedule_published',
+                data: {
+                  staffEmail: s.email,
+                  staffName: s.name,
+                  hotelName: hotelName || 'Hotel',
+                  weekStart,
+                  weekEnd,
+                  days,
+                },
+              }),
+            });
+          })
+      );
+
+      const sent = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      setPublished(true);
+      setTimeout(() => setPublished(false), 4000);
+      if (failed > 0) {
+        setError(`Published — ${sent} sent, ${failed} failed`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Publish failed';
+      setError(msg);
+    }
+    setPublishing(false);
   };
 
   const submitRequest = async () => {
@@ -147,8 +229,6 @@ export default function SchedulesView({
     await load();
     setSubmitting(false);
   };
-
-  const completeChange = async (id: string) => { await updateOps(id, { status: 'completed' }); load(); };
 
   const weekDates = getWeekDates(weekStart);
   const weekEnd = weekDates[6];
@@ -173,17 +253,14 @@ export default function SchedulesView({
     const dayShifts = schedules.filter(s => s.shift_date === date);
     const scheduledNames = new Set(dayShifts.map(s => s.staff_name));
 
-    // Always show ALL staff from the roster, mark who has a shift
     const result: { name: string; shift: StaffSchedule | null }[] = [];
 
-    // Add staff who have shifts
     dayShifts.forEach(s => {
       if (!result.find(r => r.name === s.staff_name)) {
         result.push({ name: s.staff_name, shift: s });
       }
     });
 
-    // Add staff from roster who DON'T have a shift (shown as "off")
     staffList.forEach(s => {
       if (!scheduledNames.has(s.name) && !result.find(r => r.name === s.name)) {
         result.push({ name: s.name, shift: null });
@@ -200,7 +277,6 @@ export default function SchedulesView({
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900 flex items-center gap-2">
@@ -211,116 +287,89 @@ export default function SchedulesView({
         </div>
         <div className="flex items-center gap-2">
           {isAdmin && (
-            <button onClick={() => setShowAdd(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-[12px] font-bold transition-all active:scale-[0.97]" style={{ backgroundColor: TEAL }}>
-              <Plus size={14} /> Add Shift
-            </button>
-          )}
-          {!isAdmin && (
-            <button onClick={() => { setReqForm({ shift_date: today(), is_pto: true, details: '' }); setShowRequest(true); }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-[12px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
-              <CalendarDays size={14} /> Request Off
-            </button>
+            <>
+              <button onClick={() => setShowAdd(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-[12px] font-bold transition-all active:scale-95"
+                style={{ backgroundColor: TEAL }}>
+                <Plus size={14} />
+                Add Shift
+              </button>
+              <button
+                onClick={handlePublish}
+                disabled={publishing}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold transition-all active:scale-95 ${
+                  published
+                    ? 'bg-green-100 text-green-700 border border-green-300'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {published ? (
+                  <><CheckCircle2 size={14} /> Published</>
+                ) : publishing ? (
+                  <><SendHorizontal size={14} className="animate-pulse" /> Publishing…</>
+                ) : (
+                  <><SendHorizontal size={14} /> Publish</>
+                )}
+              </button>
+            </>
           )}
         </div>
       </div>
 
-      {/* Week navigation */}
-      <div className="flex items-center gap-2 mb-4">
+      {error && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[12px] flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600"><XIcon size={14} /></button>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 mb-3">
         <button onClick={() => setWeekStart(addDays(weekStart, -7))}
-          className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-600 hover:bg-gray-50 transition-all flex items-center gap-1">
+          className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white border border-gray-200 text-[11px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
           <ArrowLeft size={14} /> Prev
         </button>
         <button onClick={() => setWeekStart(getWeekStart(today(), weekStartsOn))}
-          className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-600 hover:bg-gray-50 transition-all">
+          className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[11px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
           This week
         </button>
         <button onClick={() => setWeekStart(addDays(weekStart, 7))}
-          className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[12px] font-semibold text-gray-600 hover:bg-gray-50 transition-all flex items-center gap-1">
+          className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white border border-gray-200 text-[11px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
           Next <ArrowRight size={14} />
         </button>
       </div>
 
-      {error && <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] rounded-xl px-4 py-3 mb-4">{error}</div>}
-
-      {/* Pending change requests banner (admin only) */}
-      {isAdmin && changeRequests.length > 0 && (
-        <div className="bg-amber-50 rounded-2xl border border-amber-200 p-4 mb-5">
-          <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-2">
-            ⏳ {changeRequests.length} request{changeRequests.length === 1 ? '' : 's'} pending
-          </p>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {changeRequests.slice(0, 5).map(cr => (
-              <div key={cr.id} className="bg-white rounded-xl p-2.5 flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[12px] font-semibold text-gray-900 truncate">
-                    {cr.details?.requested_by || 'Staff'} · {cr.details?.change_type || 'request'}
-                  </p>
-                  <p className="text-[10px] text-gray-500">
-                    {cr.details?.shift_date} · {DEPARTMENTS.find(d => d.key === cr.details?.department)?.label || ''} · {cr.details?.details || ''}
-                  </p>
-                </div>
-                <button onClick={() => completeChange(cr.id)}
-                  className="text-[10px] font-bold px-2 py-1 rounded-lg text-white shrink-0" style={{ backgroundColor: TEAL }}>Done</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── DAILY CALENDAR VIEW ── */}
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-        {weekDates.map((d, idx) => {
-          const isToday = d === today();
-          const fc = forecasts.find(f => f.date === d);
-          const dayStaff = getStaff(d);
-
+      {/* Mobile: horizontal scroll with snap — Desktop: 7-column grid */}
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 md:grid md:grid-cols-7 md:gap-2 md:overflow-visible md:pb-0 scrollbar-thin">
+        {weekDates.map(date => {
+          const dayStaff = getStaff(date);
+          const forecast = forecasts.find(f => f.date === date);
           return (
-            <div
-              key={d}
-              className={`bg-white rounded-2xl border-2 overflow-hidden shadow-sm transition-all ${
-                isToday ? 'border-teal-400 ring-1 ring-teal-200' : 'border-gray-200'
-              }`}
-            >
-              {/* Day Header */}
-              <div className={`px-3 py-2.5 text-center ${isToday ? 'bg-teal-50' : 'bg-gray-50'}`}>
-                <p className={`text-[10px] font-bold uppercase tracking-wider ${isToday ? 'text-teal-700' : 'text-gray-500'}`}>
-                  {dayName(d)}
-                </p>
-                <p className={`text-[18px] font-extrabold ${isToday ? 'text-teal-800' : 'text-gray-900'}`}>
-                  {new Date(d + 'T12:00:00').getDate()}
-                </p>
-                <p className={`text-[9px] ${isToday ? 'text-teal-600' : 'text-gray-400'}`}>
-                  {new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short' })}
-                </p>
+            <div key={date} className="min-w-[85vw] sm:min-w-[45vw] md:min-w-0 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden snap-start shrink-0">
+              <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 text-center">
+                <p className="text-[11px] font-bold text-gray-800">{dayName(date)}</p>
+                <p className="text-[10px] text-gray-400">{new Date(date + 'T00:00:00').getDate()}</p>
               </div>
-
-              {/* Forecast Summary */}
-              {fc ? (
-                <div className="px-3 py-2 bg-gradient-to-r from-blue-50 to-teal-50 border-b border-blue-100">
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+              {forecast ? (
+                <div className="px-3 py-2 bg-teal-50/50 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
-                      <span className="text-[9px] font-bold text-blue-700">{fc.occupancy_pct}%</span>
-                      <span className="text-[7px] text-blue-400 uppercase">occ</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                      <span className="text-[9px] font-bold text-teal-700">
+                        {(() => {
+                          const p = forecast.rooms_occupied;
+                          const t = forecast.total_rooms || 54;
+                          const pct = t > 0 ? Math.round((p / t) * 100) : 0;
+                          return `${pct}%`;
+                        })()}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-1 justify-end">
-                      <span className="text-[9px] font-bold text-teal-700">{fc.rooms_occupied}</span>
-                      <span className="text-[7px] text-teal-400 uppercase">rms</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[9px] font-semibold text-gray-700">{fc.arrivals}</span>
-                      <span className="text-[7px] text-gray-400 uppercase">in</span>
-                    </div>
-                    <div className="flex items-center gap-1 justify-end">
-                      <span className="text-[9px] font-semibold text-gray-700">
-                        {fc.rooms_occupied && fc.arrivals !== undefined
-                          ? Math.max(0, (() => {
-                              // Calculate departures from previous day
-                              const prevFc = forecasts[idx - 1];
-                              const prevRooms = prevFc?.rooms_occupied || fc.rooms_occupied;
-                              return prevRooms + (fc.arrivals || 0) - fc.rooms_occupied;
-                            })())
-                          : '—'}
+                    <div className="text-right">
+                      <span className="text-[9px] font-bold text-teal-700">
+                        {(() => {
+                          if (forecast.arrivals !== undefined && forecast.arrivals > 0) return `+${forecast.arrivals}`;
+                          if (forecast.departures !== undefined && forecast.departures > 0) return `-${forecast.departures}`;
+                          return `${forecast.rooms_occupied}/${forecast.total_rooms || 54}`;
+                        })()}
                       </span>
                       <span className="text-[7px] text-gray-400 uppercase">out</span>
                     </div>
@@ -331,8 +380,6 @@ export default function SchedulesView({
                   <span className="text-[9px] text-gray-300">No forecast</span>
                 </div>
               )}
-
-              {/* Staff Shifts */}
               <div className="px-2 py-1.5 space-y-1.5 min-h-[80px] max-h-[240px] overflow-y-auto">
                 {dayStaff.length === 0 ? (
                   <p className="text-[10px] text-gray-300 text-center py-4">—</p>
@@ -358,7 +405,6 @@ export default function SchedulesView({
                         </div>
                       );
                     } else {
-                      // Staff off this day
                       const color = shiftColor(dept);
                       return (
                         <div
@@ -373,8 +419,6 @@ export default function SchedulesView({
                   })
                 )}
               </div>
-
-              {/* Shift Count Badge */}
               {dayStaff.length > 0 && (
                 <div className="px-3 py-1 border-t border-gray-100 bg-gray-50 text-center">
                   <span className="text-[9px] font-semibold text-gray-500">{dayStaff.length} staff</span>
@@ -385,7 +429,6 @@ export default function SchedulesView({
         })}
       </div>
 
-      {/* Legend */}
       <div className="mt-4 p-3 border border-gray-200 rounded-xl bg-white flex flex-wrap items-center gap-3 text-[10px]">
         <span className="font-bold text-gray-500 uppercase">Dept:</span>
         {DEPARTMENTS.map(d => (
@@ -396,7 +439,6 @@ export default function SchedulesView({
         {isAdmin && <span className="ml-auto text-gray-400">Click a shift to remove</span>}
       </div>
 
-      {/* ── Add Shift Modal (admin only) ── */}
       {showAdd && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowAdd(false)}>
           <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
@@ -458,7 +500,6 @@ export default function SchedulesView({
         </div>
       )}
 
-      {/* ── Request Off Modal (staff only) ── */}
       {showRequest && !isAdmin && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowRequest(false)}>
           <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
@@ -470,7 +511,6 @@ export default function SchedulesView({
               {staffName ? `Requesting as ${staffName}.` : 'Your manager will review this request.'}
             </p>
 
-            {/* PTO Balance */}
             {(() => {
               const staffMember = staffName ? staffList.find(s => s.name.toLowerCase() === staffName.toLowerCase()) : undefined;
               if (staffMember?.hire_date) {
@@ -496,62 +536,33 @@ export default function SchedulesView({
             })()}
 
             <div className="space-y-4">
-              {/* Date picker */}
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Date</label>
-                <input
-                  type="date"
-                  value={reqForm.shift_date}
-                  onChange={e => setReqForm(p => ({ ...p, shift_date: e.target.value }))}
-                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none"
-                />
+                <input type="date" value={reqForm.shift_date} onChange={e => setReqForm(p => ({ ...p, shift_date: e.target.value }))}
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
               </div>
-
-              {/* PTO toggle */}
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Type</label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setReqForm(p => ({ ...p, is_pto: true }))}
-                    className={`py-3 rounded-xl text-[13px] font-bold border transition-all ${
-                      reqForm.is_pto
-                        ? 'bg-teal-50 border-teal-300 text-teal-700'
-                        : 'bg-white border-gray-200 text-gray-500'
-                    }`}
-                  >
+                  <button onClick={() => setReqForm(p => ({ ...p, is_pto: true }))}
+                    className={`py-3 rounded-xl text-[13px] font-bold border transition-all ${reqForm.is_pto ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-500'}`}>
                     PTO (Paid)
                   </button>
-                  <button
-                    onClick={() => setReqForm(p => ({ ...p, is_pto: false }))}
-                    className={`py-3 rounded-xl text-[13px] font-bold border transition-all ${
-                      !reqForm.is_pto
-                        ? 'bg-amber-50 border-amber-300 text-amber-700'
-                        : 'bg-white border-gray-200 text-gray-500'
-                    }`}
-                  >
+                  <button onClick={() => setReqForm(p => ({ ...p, is_pto: false }))}
+                    className={`py-3 rounded-xl text-[13px] font-bold border transition-all ${!reqForm.is_pto ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-white border-gray-200 text-gray-500'}`}>
                     Unpaid
                   </button>
                 </div>
               </div>
-
-              {/* Reason */}
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Reason</label>
-                <textarea
-                  value={reqForm.details}
-                  onChange={e => setReqForm(p => ({ ...p, details: e.target.value }))}
-                  rows={3}
-                  placeholder="Tell your manager why..."
-                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none"
-                />
+                <textarea value={reqForm.details} onChange={e => setReqForm(p => ({ ...p, details: e.target.value }))}
+                  rows={3} placeholder="Tell your manager why..."
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
               </div>
-
               <div className="flex gap-2 pt-1">
-                <button
-                  onClick={submitRequest}
-                  disabled={submitting || !reqForm.details.trim() || !reqForm.shift_date}
-                  className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}
-                >
+                <button onClick={submitRequest} disabled={submitting || !reqForm.details.trim() || !reqForm.shift_date}
+                  className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
                   {submitting ? 'Sending…' : 'Send Request'}
                 </button>
                 <button onClick={() => setShowRequest(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>

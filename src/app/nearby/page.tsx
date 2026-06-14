@@ -16,16 +16,18 @@ function NearbyContent() {
   const [brandColor, setBrandColor] = useState('#6B1D3C');
 
   useEffect(() => {
-    const load = async () => {
+    let cancelled = false;
+    (async () => {
       const hotel = await getHotelConfig();
+      if (cancelled) return;
       if (hotel?.id) {
         const data = await getPartners(hotel.id);
-        setPartners(data);
+        if (!cancelled) setPartners(data);
       }
       if (hotel?.brandColor) setBrandColor(hotel.brandColor);
-      setLoading(false);
-    };
-    load();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const restaurants = partners.filter(p => p.category === 'restaurant');

@@ -64,6 +64,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // ─── Staff CRUD ─────────────────────────────────────────────
+    if (action === 'create_staff') {
+      const staffData = params.data || params;
+      const { data, error } = await supabaseAdmin
+        .from('staff_accounts')
+        .insert(staffData)
+        .select()
+        .single();
+      if (error) throw error;
+      // Strip pin_code from response
+      const cleaned = data ? { ...data } : null;
+      if (cleaned) delete cleaned.pin_code;
+      return NextResponse.json({ ok: true, data: cleaned });
+    }
+
+    if (action === 'update_staff') {
+      const { id, updates } = params;
+      const { error } = await supabaseAdmin
+        .from('staff_accounts')
+        .update(updates)
+        .eq('id', id);
+      if (error) throw error;
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === 'update_staff_permissions') {
+      const { id, permissions } = params;
+      const { error } = await supabaseAdmin
+        .from('staff_accounts')
+        .update({ permissions })
+        .eq('id', id);
+      if (error) throw error;
+      return NextResponse.json({ ok: true });
+    }
+
     // ─── Ops Tools ─────────────────────────────────────────────
     if (action === 'get_ops_tools') {
       const { data } = await supabaseAdmin.from('ops_tools').select('*').order('name');

@@ -12,10 +12,13 @@ export default function WelcomePage() {
   const [brandColor, setBrandColor] = useState('#3A1A2D');
 
   useEffect(() => {
+    let cancelled = false;
     getHotelConfig().then(cfg => {
+      if (cancelled) return;
       setConfig(cfg);
       if (cfg?.brandColor) setBrandColor(cfg.brandColor);
-    });
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   if (!config) return (

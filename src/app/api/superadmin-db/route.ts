@@ -48,13 +48,16 @@ export async function POST(req: NextRequest) {
 
     if (action === 'create_staff') {
       const insert: Record<string, unknown> = {};
+      const pin = Math.floor(1000 + Math.random() * 9000).toString();
       const fields: [string, unknown][] = [
         ['hotel_id', data.hotel_id],
         ['name', data.name],
         ['role', data.role || 'staff'],
+        ['pin_code', pin],
         ['email', data.email || ''],
         ['phone', data.phone || ''],
         ['permissions', data.permissions || ['orders', 'messages', 'shuttle']],
+        ['department', data.department],
         ['vendor_type', data.vendor_type],
         ['hire_date', data.hire_date],
         ['min_hours', data.min_hours || 0],

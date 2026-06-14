@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    if (!validateApiKey(req)) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    const origin = req.headers.get('origin');
+    const referer = req.headers.get('referer');
+    if (!isAllowedOrigin(origin, referer)) {
+      return originBlocked();
+    }
+
+    const supabase = getSupabaseAdmin();
 
     const body = await req.json();
     const { name, contact, phone, email, hotel } = body;

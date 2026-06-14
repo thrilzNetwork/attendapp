@@ -125,7 +125,7 @@ export function MessageSheetContent() {
     const hotel = await getHotelConfig();
     await supabase.from('requests').insert({ hotel_id: hotel?.id, guest_name: guestName, room: guestRoom, type, details, status: 'pending' });
     if (hotel?.notificationEmail) {
-      fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
         body: JSON.stringify({ type: 'new_request', data: { notificationEmail: hotel.notificationEmail, hotelName: hotel.name, guestName, room: guestRoom, requestType: type, details } }),
       }).catch(() => {});
     }
@@ -172,7 +172,7 @@ export function MessageSheetContent() {
     await supabase.from('requests').insert({ hotel_id: hotel?.id, guest_name: guestName, room: guestRoom, type: 'Guest Message', details: userMsg, status: 'pending' });
 
     if (hotel?.notificationEmail) {
-      fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
         body: JSON.stringify({ type: 'guest_message', data: { notificationEmail: hotel.notificationEmail, hotelName: hotel.name, guestName, room: guestRoom, message: userMsg } }),
       }).catch(() => {});
     }

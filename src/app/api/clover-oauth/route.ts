@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 const CLOVER_CLIENT_ID = process.env.NEXT_PUBLIC_CLOVER_CLIENT_ID;
 const CLOVER_CLIENT_SECRET = process.env.CLOVER_CLIENT_SECRET;
 const REDIRECT_URI = process.env.NEXT_PUBLIC_APP_URL
   ? `${process.env.NEXT_PUBLIC_APP_URL}/api/clover-oauth`
-  : 'https://attenda-one.vercel.app/api/clover-oauth';
-
-function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  return createClient(url, key);
-}
+  : '';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
