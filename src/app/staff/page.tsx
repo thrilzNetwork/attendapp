@@ -70,6 +70,7 @@ const RoomsView = dynamic(() => import('@/components/staff/RoomsView'), { ssr: f
 const SchedulesView = dynamic(() => import('@/components/staff/SchedulesView'), { ssr: false });
 const ForecastView = dynamic(() => import('@/components/staff/ForecastView'), { ssr: false });
 const FrontDeskView = dynamic(() => import('@/components/staff/FrontDeskView'), { ssr: false });
+const PositionTodosView = dynamic(() => import('@/components/staff/PositionTodosView'), { ssr: false });
 const HotelSettingsView = dynamic(() => import('@/components/staff/HotelSettingsView'), { ssr: false });
 const LearningHRView = dynamic(() => import('@/components/staff/LearningHRView'), { ssr: false });
 const KpisView = dynamic(() => import('@/components/staff/KpisView'), { ssr: false });
@@ -112,7 +113,7 @@ type NavTab =
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'checklists_tab' | 'kpis' | 'learning_hr'
-  | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops';
+  | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos';
 
 interface Request {
   id: string;
@@ -163,6 +164,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'schedules',       label: 'Schedules',          icon: CalendarDays,    roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
 
   // ── OPERATIONS — property tools ──
+  { tab: 'todos',            label: 'To-Dos',             icon: ClipboardList,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'shuttle',         label: 'Shuttle',            icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'kpis',            label: 'KPIs',               icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'knowledge',       label: 'Right Answers',     icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
@@ -771,10 +773,13 @@ export default function Dashboard() {
           <ShuttleScheduleView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
         {effectiveTab === 'forecast' && (
-          <ForecastView hotelId={config?.id || ''} totalRooms={config?.roomCount || 0} />
+          <ForecastView hotelId={config?.id || ''} totalRooms={config?.roomCount || 0} timezone={config?.timezone} />
         )}
         {effectiveTab === 'callouts' && (
           <AdminCalloutsView hotelId={config?.id || ''} />
+        )}
+        {effectiveTab === 'todos' && (
+          <PositionTodosView hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} department={s.department} />
         )}
         {effectiveTab === 'vendor_manifest' && (
           <VendorDashboard hotelId={config?.id || ''} vendorType={s.vendorType || 'shuttle'} vendorName={s.name} />

@@ -10,6 +10,7 @@ create table hotels (
   welcome_letter text default 'Welcome to our hotel!',
   manager_name text default 'Hotel Manager',
   team_photo_url text default '',
+  timezone text default 'America/New_York',
   created_at timestamptz default now()
 );
 

@@ -86,6 +86,7 @@ export interface HotelConfig {
   shuttlePickupLocation?: string;
   shuttleNotes?: string;
   weekStartsOn?: 'Sunday' | 'Monday';
+  timezone?: string;      // IANA timezone, e.g. 'America/New_York'
   // Billing
   paymentType?: string;   // 'ach', 'check', 'wire', 'cash'
   lastPayment?: string;   // amount + date e.g. "$500 - Jun 1, 2026"
@@ -162,6 +163,7 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     shuttlePickupLocation: data.shuttle_pickup_location || '',
     shuttleNotes: data.shuttle_notes || '',
     weekStartsOn: data.week_starts_on || 'Sunday',
+    timezone: data.timezone || 'America/New_York',
     paymentType: data.payment_type || '',
     lastPayment: data.last_payment || '',
     facilitiesContent: data.facilities_content || [],
@@ -1673,6 +1675,162 @@ export async function getHrDocs(hotelId: string): Promise<KnowledgeEntry[]> {
     .order('question');
 
   return data || [];
+}
+
+// ─── Position To-Dos ───────────────────────────────────
+export interface PositionTodoTemplate {
+  id: string;
+  hotel_id: string;
+  name: string;
+  description: string;
+  department: string;
+  assigned_position: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PositionTodoItem {
+  id: string;
+  template_id: string;
+  label: string;
+  item_type: 'checkbox' | 'number' | 'text' | 'time' | 'kpi_field' | 'action_link';
+  required: boolean;
+  sort_order: number;
+  config: {
+    min?: number;
+    max?: number;
+    unit?: string;
+    kpi_key?: string;
+    placeholder?: string;
+    link_path?: string;
+  };
+}
+
+export interface PositionTodoInstance {
+  id: string;
+  hotel_id: string;
+  template_id: string;
+  staff_id?: string;
+  staff_name: string;
+  shift_date: string;
+  shift: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  completed_at?: string;
+  created_at: string;
+}
+
+export interface PositionTodoResponse {
+  id: string;
+  instance_id: string;
+  item_id: string;
+  checked: boolean;
+  number_value?: number;
+  text_value?: string;
+  updated_at: string;
+}
+
+// Template CRUD
+export async function getPositionTodoTemplates(hotelId: string): Promise<PositionTodoTemplate[]> {
+  const { data } = await supabase.from('position_todo_templates').select('*')
+    .eq('hotel_id', hotelId).eq('is_active', true).order('name');
+  return (data || []) as PositionTodoTemplate[];
+}
+
+export async function createPositionTodoTemplate(tpl: {
+  hotel_id: string; name: string; description?: string; department: string; assigned_position?: string;
+}) {
+  const { data, error } = await supabase.from('position_todo_templates').insert({
+    hotel_id: tpl.hotel_id, name: tpl.name, description: tpl.description || '',
+    department: tpl.department, assigned_position: tpl.assigned_position || '',
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updatePositionTodoTemplate(id: string, updates: Partial<PositionTodoTemplate>) {
+  const { error } = await supabase.from('position_todo_templates').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deletePositionTodoTemplate(id: string) {
+  await supabase.from('position_todo_templates').delete().eq('id', id);
+}
+
+// Items CRUD
+export async function getTemplateItems(templateId: string): Promise<PositionTodoItem[]> {
+  const { data } = await supabase.from('position_todo_items').select('*')
+    .eq('template_id', templateId).order('sort_order');
+  return (data || []) as PositionTodoItem[];
+}
+
+export async function createTemplateItem(item: {
+  template_id: string; label: string; item_type: string; required?: boolean; sort_order?: number; config?: Record<string, unknown>;
+}) {
+  const { data, error } = await supabase.from('position_todo_items').insert({
+    template_id: item.template_id, label: item.label, item_type: item.item_type,
+    required: item.required ?? true, sort_order: item.sort_order || 0, config: item.config || {},
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateTemplateItem(id: string, updates: Partial<PositionTodoItem>) {
+  const { error } = await supabase.from('position_todo_items').update(updates).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteTemplateItem(id: string) {
+  await supabase.from('position_todo_items').delete().eq('id', id);
+}
+
+// Instances
+export async function getTodayInstances(hotelId: string, staffId?: string): Promise<PositionTodoInstance[]> {
+  const today = new Date().toISOString().split('T')[0];
+  let q = supabase.from('position_todo_instances').select('*')
+    .eq('hotel_id', hotelId).eq('shift_date', today).order('created_at');
+  if (staffId) q = q.eq('staff_id', staffId);
+  const { data } = await q;
+  return (data || []) as PositionTodoInstance[];
+}
+
+export async function createInstance(inst: {
+  hotel_id: string; template_id: string; staff_id?: string; staff_name: string; shift?: string;
+}) {
+  const { data, error } = await supabase.from('position_todo_instances').insert({
+    hotel_id: inst.hotel_id, template_id: inst.template_id,
+    staff_id: inst.staff_id, staff_name: inst.staff_name,
+    shift: inst.shift || 'AM', status: 'in_progress',
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function completeInstance(id: string) {
+  const { error } = await supabase.from('position_todo_instances').update({
+    status: 'completed', completed_at: new Date().toISOString(),
+  }).eq('id', id);
+  if (error) throw error;
+}
+
+// Responses
+export async function getInstanceResponses(instanceId: string): Promise<PositionTodoResponse[]> {
+  const { data } = await supabase.from('position_todo_responses').select('*').eq('instance_id', instanceId);
+  return (data || []) as PositionTodoResponse[];
+}
+
+export async function upsertResponse(resp: {
+  instance_id: string; item_id: string;
+  checked?: boolean; number_value?: number | null; text_value?: string | null;
+}) {
+  const { error } = await supabase.from('position_todo_responses').upsert({
+    instance_id: resp.instance_id, item_id: resp.item_id,
+    checked: resp.checked ?? false,
+    number_value: resp.number_value ?? null,
+    text_value: resp.text_value ?? null,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'instance_id,item_id' });
+  if (error) throw error;
 }
 
 export default supabase;

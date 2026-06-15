@@ -30,12 +30,29 @@ function getMonday(dateStr: string): string {
   return d.toISOString().split('T')[0];
 }
 
+/** Get today's YYYY-MM-DD in the hotel's timezone */
+function getTodayInTimezone(tz: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    const y = parts.find(p => p.type === 'year')?.value || '';
+    const m = parts.find(p => p.type === 'month')?.value || '';
+    const d = parts.find(p => p.type === 'day')?.value || '';
+    return `${y}-${m}-${d}`;
+  } catch {
+    return new Date().toISOString().split('T')[0];
+  }
+}
+
 interface ForecastViewProps {
   hotelId: string;
   totalRooms: number;
+  timezone?: string; // IANA timezone, e.g. 'America/New_York'
 }
 
-export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps) {
+export default function ForecastView({ hotelId, totalRooms, timezone }: ForecastViewProps) {
   const [weekDays, setWeekDays] = useState<DayData[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -45,6 +62,7 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
   const [weekOffset, setWeekOffset] = useState(0); // 0=current, 1=next, -1=last, etc
   const [resolvedHotelId, setResolvedHotelId] = useState(hotelId);
   const [resolvedTotalRooms, setResolvedTotalRooms] = useState(totalRooms);
+  const [resolvedTimezone, setResolvedTimezone] = useState(timezone || 'America/New_York');
 
   // Self-fetch config if props are empty (belt-and-suspenders)
   useEffect(() => {
@@ -58,12 +76,13 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
       if (slug) {
         const { data } = await supabase
           .from('hotels')
-          .select('id, room_count')
+          .select('id, room_count, timezone')
           .eq('slug', slug)
           .single();
         if (data) {
           setResolvedHotelId(data.id);
           setResolvedTotalRooms(data.room_count || 0);
+          if (data.timezone) setResolvedTimezone(data.timezone);
         }
       }
     };
@@ -72,7 +91,8 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
 
   const loadWeek = async (offset: number = weekOffset) => {
     setLoading(true);
-    const ref = new Date();
+    const todayLocal = getTodayInTimezone(resolvedTimezone);
+    const ref = new Date(todayLocal + 'T12:00:00');
     ref.setDate(ref.getDate() + offset * 7);
     const days = getWeekDates(ref);
     const monday = getMonday(days[0].date);
@@ -266,7 +286,7 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
                 <div
                   key={day.date}
                   className={`bg-white border-2 rounded-xl p-3 md:p-4 shadow-sm shrink-0 w-[160px] md:w-auto ${
-                    day.date === new Date().toISOString().split('T')[0]
+                    day.date === getTodayInTimezone(resolvedTimezone)
                       ? 'border-teal-400 ring-1 ring-teal-200'
                       : 'border-gray-200'
                   }`}
@@ -277,7 +297,7 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
                     <p className="text-[11px] md:text-[12px] text-gray-500">
                       {new Date(day.date + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })}
                     </p>
-                    {day.date === new Date().toISOString().split('T')[0] && (
+                    {day.date === getTodayInTimezone(resolvedTimezone) && (
                       <span className="inline-block mt-1 text-[8px] md:text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700">Today</span>
                     )}
                   </div>
