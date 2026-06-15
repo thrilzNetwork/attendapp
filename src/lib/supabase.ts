@@ -838,6 +838,7 @@ export async function getStaffAccountsForHotel(hotelId: string): Promise<StaffAc
     pto_used: (s.pto_used as number) || 0,
     min_hours: (s.min_hours as number) || 0,
     employment_type: (s.employment_type as string) || '',
+    department: (s.department as string) || undefined,
   }));
 }
 
