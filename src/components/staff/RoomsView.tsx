@@ -128,11 +128,8 @@ export default function RoomsView({ hotelId, hotelName }: { hotelId: string; hot
   };
 
   const parseExcel = async (file: File): Promise<{ room_number: string; room_type: string; floor: number }[]> => {
-    const XLSX = await import('xlsx');
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data, { type: 'array' });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const rows: (string | number)[][] = XLSX.utils.sheet_to_json(sheet, { defval: '', header: 1 });
+    const readXlsxFile = (await import('read-excel-file/browser')).default;
+    const rows = (await readXlsxFile(file)) as unknown as (string | number | null)[][];
 
     const results: { room_number: string; room_type: string; floor: number }[] = [];
 
@@ -182,7 +179,7 @@ export default function RoomsView({ hotelId, hotelName }: { hotelId: string; hot
         if (parsed.length === 0) { setMessage({ type: 'error', text: 'Could not find room numbers in this file.' }); return; }
         setParsedRooms(parsed);
         setMessage({ type: 'success', text: `Parsed ${parsed.length} rooms from CSV. Review below, then click "Replace All Rooms".` });
-      } else if (ext === 'xlsx' || ext === 'xls') {
+      } else if (ext === 'xlsx') {
         const parsed = await parseExcel(file);
         if (parsed.length === 0) { setMessage({ type: 'error', text: 'Could not find room numbers in this spreadsheet.' }); return; }
         setParsedRooms(parsed);
@@ -213,7 +210,7 @@ export default function RoomsView({ hotelId, hotelName }: { hotelId: string; hot
           setMessage({ type: 'error', text: 'Failed to parse PDF. Try CSV or Excel instead.' });
         }
       } else {
-        setMessage({ type: 'error', text: 'Unsupported file. Upload .csv, .xlsx, .xls, or .pdf' });
+        setMessage({ type: 'error', text: 'Unsupported file. Upload .csv, .xlsx, or .pdf' });
       }
     } catch (e) {
       setMessage({ type: 'error', text: `Error parsing file: ${e instanceof Error ? e.message : 'Unknown error'}` });
@@ -328,7 +325,7 @@ export default function RoomsView({ hotelId, hotelName }: { hotelId: string; hot
             onClick={() => {
               const input = document.createElement('input');
               input.type = 'file';
-              input.accept = '.csv,.xlsx,.xls,.pdf';
+              input.accept = '.csv,.xlsx,.pdf';
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               input.onchange = (e: any) => { if (e.target?.files?.[0]) handleFile(e.target.files[0]); };
               input.click();

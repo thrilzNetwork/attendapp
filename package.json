@@ -23,8 +23,8 @@
     "pdfjs-dist": "^5.7.284",
     "react": "^18",
     "react-dom": "^18",
-    "resend": "^6.12.3",
-    "xlsx": "^0.18.5"
+    "read-excel-file": "^9.2.0",
+    "resend": "^6.12.3"
   },
   "devDependencies": {
     "@types/node": "^20",
