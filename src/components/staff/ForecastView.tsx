@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase, getWeeklyForecasts, upsertWeeklyForecast, type WeeklyForecast } from '@/lib/supabase';
+import { supabase, getWeeklyForecasts, type WeeklyForecast } from '@/lib/supabase';
 import { TrendingUp, Save, RefreshCw } from 'lucide-react';
 
 interface DayData {
@@ -165,19 +165,24 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
     setSaving(true); setSaveError('');
     const monday = getMonday(weekDays[0].date);
     try {
-      for (const day of weekDays) {
-        await upsertWeeklyForecast({
-          hotel_id: resolvedHotelId,
-          week_start: monday,
-          date: day.date,
-          occupancy_pct: day.occupancyPct,
-          arrivals: day.arrivals,
-          rooms_occupied: day.roomsOccupied,
-          departures: day.departures,
-          total_rooms: resolvedTotalRooms,
-          prev_night_occ: prevNightOcc,
-        });
-      }
+      const forecasts = weekDays.map(day => ({
+        hotel_id: resolvedHotelId,
+        week_start: monday,
+        date: day.date,
+        occupancy_pct: day.occupancyPct,
+        arrivals: day.arrivals,
+        rooms_occupied: day.roomsOccupied,
+        departures: day.departures,
+        total_rooms: resolvedTotalRooms,
+        prev_night_occ: prevNightOcc,
+      }));
+      const res = await fetch('/api/upsert-forecast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forecasts }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Save failed');
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e: unknown) {
