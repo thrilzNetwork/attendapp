@@ -2295,6 +2295,10 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   const [editingPerms, setEditingPerms] = useState<string | null>(null);
   const [editingDept, setEditingDept] = useState<string | null>(null);
   const [editingDeptValue, setEditingDeptValue] = useState('');
+  const [editingProfile, setEditingProfile] = useState<string | null>(null);
+  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '', department: '', hire_date: '', min_hours: 0, employment_type: 'full_time' });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState('');
   const [sendInvite, setSendInvite] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -2358,6 +2362,45 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       setSaveError(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openProfile = (s: StaffAccount) => {
+    setProfileForm({
+      name: s.name || '',
+      email: s.email || '',
+      phone: s.phone || '',
+      department: s.department || '',
+      hire_date: s.hire_date || '',
+      min_hours: s.min_hours || 0,
+      employment_type: s.employment_type || 'full_time',
+    });
+    setProfileError('');
+    setEditingProfile(editingProfile === s.id ? null : s.id!);
+  };
+
+  const saveProfile = async (staffId: string) => {
+    setProfileSaving(true);
+    setProfileError('');
+    try {
+      await adminFetch('update_staff', {
+        id: staffId,
+        updates: {
+          name: profileForm.name || undefined,
+          email: profileForm.email || undefined,
+          phone: profileForm.phone || undefined,
+          department: profileForm.department || undefined,
+          hire_date: profileForm.hire_date || undefined,
+          min_hours: Number(profileForm.min_hours) || 0,
+          employment_type: profileForm.employment_type || undefined,
+        },
+      });
+      setEditingProfile(null);
+      onRefresh();
+    } catch (err: unknown) {
+      setProfileError(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -2500,18 +2543,77 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
+                    <button onClick={() => openProfile(s)}
+                      className={`text-[10px] font-bold px-2 py-1 rounded ${editingProfile === s.id ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600'}`}>Edit Profile</button>
                     <button onClick={() => setEditingPerms(editingPerms === s.id ? null : s.id!)}
                       className="text-[10px] font-bold px-2 py-1 rounded bg-gray-100 text-gray-600">Permissions</button>
-                    <button onClick={() => {
-                      if (editingDept === s.id) { setEditingDept(null); return; }
-                      setEditingDept(s.id!);
-                      setEditingDeptValue(s.department || '');
-                    }} className="text-[10px] font-bold px-2 py-1 rounded bg-gray-100 text-gray-600">Position</button>
                     <button onClick={() => handleToggleActive(s)} className="text-[10px] font-bold px-2 py-1 rounded bg-amber-100 text-amber-700">Deactivate</button>
                     <button onClick={() => { if(confirm('Delete?')) { deleteStaffAccount(s.id!); onRefresh(); } }}
                       className="text-red-400"><Trash2 size={13} /></button>
                   </div>
                 </div>
+                {editingProfile === s.id && (
+                  <div className="mt-3 bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-3">
+                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Edit Profile</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Name</label>
+                        <input value={profileForm.name} onChange={e => setProfileForm({...profileForm, name: e.target.value})}
+                          className="w-full bg-white rounded-lg px-3 py-2 border border-gray-200 text-[12px] outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Position / Department</label>
+                        <select value={profileForm.department} onChange={e => setProfileForm({...profileForm, department: e.target.value})}
+                          className="w-full bg-white rounded-lg px-3 py-2 border border-gray-200 text-[12px] outline-none">
+                          <option value="">— No position —</option>
+                          {DEPARTMENTS.map(d => (
+                            <option key={d.key} value={d.key}>{d.icon} {d.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Email</label>
+                        <input value={profileForm.email} onChange={e => setProfileForm({...profileForm, email: e.target.value})}
+                          className="w-full bg-white rounded-lg px-3 py-2 border border-gray-200 text-[12px] outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Phone</label>
+                        <input value={profileForm.phone} onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
+                          className="w-full bg-white rounded-lg px-3 py-2 border border-gray-200 text-[12px] outline-none" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Hire Date</label>
+                        <input type="date" value={profileForm.hire_date} onChange={e => setProfileForm({...profileForm, hire_date: e.target.value})}
+                          className="w-full bg-white rounded-lg px-3 py-2 border border-gray-200 text-[12px] outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Min Hrs/Wk</label>
+                        <input type="number" min={0} max={80} value={profileForm.min_hours} onChange={e => setProfileForm({...profileForm, min_hours: parseInt(e.target.value)||0})}
+                          className="w-full bg-white rounded-lg px-3 py-2 border border-gray-200 text-[12px] outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Type</label>
+                        <select value={profileForm.employment_type} onChange={e => setProfileForm({...profileForm, employment_type: e.target.value})}
+                          className="w-full bg-white rounded-lg px-3 py-2 border border-gray-200 text-[12px] outline-none">
+                          <option value="full_time">Full Time</option>
+                          <option value="part_time">Part Time</option>
+                        </select>
+                      </div>
+                    </div>
+                    {profileError && <p className="text-[11px] text-red-500">{profileError}</p>}
+                    <div className="flex gap-2">
+                      <button onClick={() => saveProfile(s.id!)} disabled={profileSaving}
+                        className="px-4 py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{backgroundColor: TEAL}}>
+                        {profileSaving ? 'Saving...' : 'Save Changes'}
+                      </button>
+                      <button onClick={() => setEditingProfile(null)} className="px-3 py-2 rounded-lg text-[12px] text-gray-500 font-semibold bg-white border border-gray-200">Cancel</button>
+                    </div>
+                  </div>
+                )}
                 {editingPerms === s.id && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {ALL_PERMS.map(p => {
