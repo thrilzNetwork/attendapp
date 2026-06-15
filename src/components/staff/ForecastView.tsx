@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase, getWeeklyForecasts, type WeeklyForecast } from '@/lib/supabase';
+import { supabase, getWeeklyForecasts, authedApiHeaders, type WeeklyForecast } from '@/lib/supabase';
 import { TrendingUp, Save, RefreshCw } from 'lucide-react';
 
 interface DayData {
@@ -178,7 +178,7 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
       }));
       const res = await fetch('/api/upsert-forecast', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: await authedApiHeaders(),
         body: JSON.stringify({ forecasts }),
       });
       const data = await res.json();

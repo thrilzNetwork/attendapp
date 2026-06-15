@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { supabaseAdmin, getCaller, resolveHotelScope, callerOwnsRow } from '@/lib/supabase-admin';
 import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
 // Handle CORS preflight (OPTIONS) — required because the client sends x-superadmin-key header
@@ -27,13 +27,22 @@ export async function POST(req: NextRequest) {
       return originBlocked();
     }
 
+    // Identify the caller and lock them to their own hotel.
+    const caller = await getCaller(req);
+    if (!caller) {
+      return NextResponse.json({ ok: false, error: 'Authentication required.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { action, hotelId, weekStart, from, to, forecast } = body;
 
+    // Effective hotel: staff are pinned to their own; superadmins use the requested one.
+    const scopedHotelId = resolveHotelScope(caller, hotelId);
+
     if (action === 'get_forecasts') {
       // Get forecasts for a hotel for a week range
-      if (!hotelId || !weekStart) {
-        return NextResponse.json({ ok: false, error: 'hotelId and weekStart required.' }, { status: 400 });
+      if (!scopedHotelId || !weekStart) {
+        return NextResponse.json({ ok: false, error: 'hotel scope and weekStart required.' }, { status: 400 });
       }
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
@@ -42,7 +51,7 @@ export async function POST(req: NextRequest) {
       const { data, error } = await supabaseAdmin
         .from('weekly_forecasts')
         .select('*')
-        .eq('hotel_id', hotelId)
+        .eq('hotel_id', scopedHotelId)
         .gte('date', weekStart)
         .lte('date', endStr)
         .order('date');
@@ -52,28 +61,33 @@ export async function POST(req: NextRequest) {
 
     if (action === 'upsert_forecast') {
       // Upsert a single forecast day
-      if (!forecast || !forecast.hotel_id || !forecast.date) {
-        return NextResponse.json({ ok: false, error: 'forecast with hotel_id and date required.' }, { status: 400 });
+      if (!forecast || !forecast.date) {
+        return NextResponse.json({ ok: false, error: 'forecast with date required.' }, { status: 400 });
       }
+      if (!scopedHotelId) {
+        return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
+      }
+      // Force the caller's hotel onto the record — never trust client hotel_id.
+      const scopedForecast = { ...forecast, hotel_id: scopedHotelId };
 
       const existing = await supabaseAdmin
         .from('weekly_forecasts')
         .select('id')
-        .eq('hotel_id', forecast.hotel_id)
-        .eq('date', forecast.date)
+        .eq('hotel_id', scopedHotelId)
+        .eq('date', scopedForecast.date)
         .maybeSingle();
 
       if (existing.data?.id) {
         const { data, error } = await supabaseAdmin
           .from('weekly_forecasts')
           .update({
-            week_start: forecast.week_start,
-            occupancy_pct: forecast.occupancy_pct,
-            arrivals: forecast.arrivals,
-            rooms_occupied: forecast.rooms_occupied,
-            departures: forecast.departures || 0,
-            total_rooms: forecast.total_rooms || 0,
-            prev_night_occ: forecast.prev_night_occ || 0,
+            week_start: scopedForecast.week_start,
+            occupancy_pct: scopedForecast.occupancy_pct,
+            arrivals: scopedForecast.arrivals,
+            rooms_occupied: scopedForecast.rooms_occupied,
+            departures: scopedForecast.departures || 0,
+            total_rooms: scopedForecast.total_rooms || 0,
+            prev_night_occ: scopedForecast.prev_night_occ || 0,
             updated_at: new Date().toISOString(),
           })
           .eq('id', existing.data.id)
@@ -84,7 +98,7 @@ export async function POST(req: NextRequest) {
       } else {
         const { data, error } = await supabaseAdmin
           .from('weekly_forecasts')
-          .insert(forecast)
+          .insert(scopedForecast)
           .select()
           .single();
         if (error) throw error;
@@ -94,14 +108,14 @@ export async function POST(req: NextRequest) {
 
     if (action === 'get_schedules') {
       // Get schedules for a hotel, optionally filtered by date range
-      if (!hotelId) {
-        return NextResponse.json({ ok: false, error: 'hotelId required.' }, { status: 400 });
+      if (!scopedHotelId) {
+        return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
       }
 
       let query = supabaseAdmin
         .from('staff_schedules')
         .select('*')
-        .eq('hotel_id', hotelId);
+        .eq('hotel_id', scopedHotelId);
 
       if (from) {
         query = query.gte('shift_date', from);
@@ -119,9 +133,12 @@ export async function POST(req: NextRequest) {
       if (!body.schedule) {
         return NextResponse.json({ ok: false, error: 'schedule data required.' }, { status: 400 });
       }
+      if (!scopedHotelId) {
+        return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
+      }
       const { data, error } = await supabaseAdmin
         .from('staff_schedules')
-        .insert(body.schedule)
+        .insert({ ...body.schedule, hotel_id: scopedHotelId })
         .select()
         .single();
       if (error) throw error;
@@ -131,6 +148,9 @@ export async function POST(req: NextRequest) {
     if (action === 'delete_schedule') {
       if (!body.scheduleId) {
         return NextResponse.json({ ok: false, error: 'scheduleId required.' }, { status: 400 });
+      }
+      if (!(await callerOwnsRow(caller, 'staff_schedules', body.scheduleId))) {
+        return NextResponse.json({ ok: false, error: 'Forbidden.' }, { status: 403 });
       }
       const { error } = await supabaseAdmin
         .from('staff_schedules')

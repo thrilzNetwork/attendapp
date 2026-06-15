@@ -311,17 +311,29 @@ export async function deleteRequest(id: string) {
   if (error) throw error;
 }
 
-// Staff account helpers — routed through /api/staff-crud (bypasses RLS with service_role)
-const STAFF_API_HEADERS = () => ({
-  'Content-Type': 'application/json',
-  'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '',
-});
+// Headers for service-role API routes. Includes the shared key AND the logged-in
+// user's Supabase access token so the server can scope the request to their hotel.
+export async function authedApiHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '',
+  };
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) {
+      headers['Authorization'] = `Bearer ${data.session.access_token}`;
+    }
+  } catch {
+    // No session available — request will be rejected server-side as unauthenticated.
+  }
+  return headers;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function callStaffApi(body: Record<string, unknown>): Promise<any> {
   const res = await fetch('/api/staff-crud', {
     method: 'POST',
-    headers: STAFF_API_HEADERS(),
+    headers: await authedApiHeaders(),
     body: JSON.stringify(body),
   });
   const json = await res.json();
@@ -1149,7 +1161,7 @@ export async function getStaffSchedules(hotelId: string, date?: string): Promise
   const d = date || new Date().toISOString().split('T')[0];
   const res = await fetch('/api/ops-data', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+    headers: await authedApiHeaders(),
     body: JSON.stringify({ action: 'get_schedules', hotelId, from: d, to: d }),
   });
   const json = await res.json();
@@ -1160,7 +1172,7 @@ export async function getStaffSchedules(hotelId: string, date?: string): Promise
 export async function getStaffSchedulesRange(hotelId: string, from: string, to: string): Promise<StaffSchedule[]> {
   const res = await fetch('/api/ops-data', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+    headers: await authedApiHeaders(),
     body: JSON.stringify({ action: 'get_schedules', hotelId, from, to }),
   });
   const json = await res.json();
@@ -1175,7 +1187,7 @@ export async function createStaffSchedule(schedule: {
 }) {
   const res = await fetch('/api/ops-data', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+    headers: await authedApiHeaders(),
     body: JSON.stringify({ action: 'create_schedule', schedule }),
   });
   const json = await res.json();
@@ -1186,7 +1198,7 @@ export async function createStaffSchedule(schedule: {
 export async function deleteStaffSchedule(id: string) {
   const res = await fetch('/api/ops-data', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+    headers: await authedApiHeaders(),
     body: JSON.stringify({ action: 'delete_schedule', scheduleId: id }),
   });
   const json = await res.json();

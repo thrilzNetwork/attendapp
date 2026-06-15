@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { supabaseAdmin, getCaller, resolveHotelScope, callerOwnsRow } from '@/lib/supabase-admin';
 import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
 // Strip pin_code from staff records before sending to frontend
@@ -24,29 +24,39 @@ export async function POST(req: NextRequest) {
       return originBlocked();
     }
 
+    // Identify the caller from their session and lock them to their own hotel.
+    const caller = await getCaller(req);
+    if (!caller) {
+      return NextResponse.json({ ok: false, error: 'Authentication required.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { action, hotelId, staff, staffId, updates } = body;
 
-    // Resolve slug → UUID if hotelId is not a UUID
-    let resolvedHotelId = hotelId;
+    // Resolve slug → UUID if a hotelId was supplied (used by superadmins).
+    let requestedHotelId = hotelId;
     if (hotelId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hotelId)) {
       const { data: hotel } = await supabaseAdmin
         .from('hotels')
         .select('id')
         .eq('slug', hotelId)
         .maybeSingle();
-      if (hotel) resolvedHotelId = hotel.id;
+      if (hotel) requestedHotelId = hotel.id;
     }
+
+    // The hotel this caller is actually allowed to act on. Staff are pinned to
+    // their own hotel; superadmins use the one they requested.
+    const scopedHotelId = resolveHotelScope(caller, requestedHotelId);
 
     // ── List staff for a hotel ──
     if (action === 'list') {
-      if (!resolvedHotelId) {
-        return NextResponse.json({ ok: false, error: 'hotelId required.' }, { status: 400 });
+      if (!scopedHotelId) {
+        return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
       }
       const { data, error } = await supabaseAdmin
         .from('staff_accounts')
         .select('*')
-        .eq('hotel_id', resolvedHotelId)
+        .eq('hotel_id', scopedHotelId)
         .order('name');
       if (error) throw error;
       // Strip PIN codes from response — never expose to frontend
@@ -59,9 +69,18 @@ export async function POST(req: NextRequest) {
       if (!staff) {
         return NextResponse.json({ ok: false, error: 'staff data required.' }, { status: 400 });
       }
+      // Staff are pinned to their own hotel; superadmins may target the hotel
+      // named on the record (or the one they requested).
+      const createHotelId = caller.isSuper
+        ? (requestedHotelId || staff.hotel_id || null)
+        : caller.hotelId;
+      if (!createHotelId) {
+        return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
+      }
+      // Force the new record into the resolved hotel — never trust client hotel_id for staff.
       const { data, error } = await supabaseAdmin
         .from('staff_accounts')
-        .insert(staff)
+        .insert({ ...staff, hotel_id: createHotelId })
         .select()
         .single();
       if (error) throw error;
@@ -73,9 +92,15 @@ export async function POST(req: NextRequest) {
       if (!staffId || !updates) {
         return NextResponse.json({ ok: false, error: 'staffId and updates required.' }, { status: 400 });
       }
+      if (!(await callerOwnsRow(caller, 'staff_accounts', staffId))) {
+        return NextResponse.json({ ok: false, error: 'Forbidden.' }, { status: 403 });
+      }
+      // Don't allow the row to be moved to another hotel.
+      const safeUpdates = { ...updates };
+      delete safeUpdates.hotel_id;
       const { error } = await supabaseAdmin
         .from('staff_accounts')
-        .update(updates)
+        .update(safeUpdates)
         .eq('id', staffId);
       if (error) throw error;
       return NextResponse.json({ ok: true });
@@ -85,6 +110,9 @@ export async function POST(req: NextRequest) {
     if (action === 'delete') {
       if (!staffId) {
         return NextResponse.json({ ok: false, error: 'staffId required.' }, { status: 400 });
+      }
+      if (!(await callerOwnsRow(caller, 'staff_accounts', staffId))) {
+        return NextResponse.json({ ok: false, error: 'Forbidden.' }, { status: 403 });
       }
       const { error } = await supabaseAdmin
         .from('staff_accounts')
@@ -99,6 +127,9 @@ export async function POST(req: NextRequest) {
       if (!staffId) {
         return NextResponse.json({ ok: false, error: 'staffId required.' }, { status: 400 });
       }
+      if (!(await callerOwnsRow(caller, 'staff_accounts', staffId))) {
+        return NextResponse.json({ ok: false, error: 'Forbidden.' }, { status: 403 });
+      }
       const { data, error } = await supabaseAdmin
         .from('staff_accounts')
         .select('*')
@@ -108,17 +139,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, data: stripPin(data) });
     }
 
-    // ── Get single staff by email ──
+    // ── Get single staff by email (scoped to the caller's hotel) ──
     if (action === 'get_by_email') {
       const staffEmail = body.email;
       if (!staffEmail) {
         return NextResponse.json({ ok: false, error: 'email required.' }, { status: 400 });
       }
-      const { data, error } = await supabaseAdmin
+      let query = supabaseAdmin
         .from('staff_accounts')
         .select('*')
-        .eq('email', staffEmail)
-        .maybeSingle();
+        .eq('email', staffEmail);
+      // Non-superadmins may only look up staff within their own hotel.
+      if (!caller.isSuper) {
+        if (!scopedHotelId) {
+          return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
+        }
+        query = query.eq('hotel_id', scopedHotelId);
+      } else if (requestedHotelId) {
+        query = query.eq('hotel_id', requestedHotelId);
+      }
+      const { data, error } = await query.maybeSingle();
       if (error) throw error;
       return NextResponse.json({ ok: true, data: stripPin(data) });
     }

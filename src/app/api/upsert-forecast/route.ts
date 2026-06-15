@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { getCaller, resolveHotelScope } from '@/lib/supabase-admin';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bdmmstatrsenidlgjock.supabase.co';
 
@@ -31,11 +32,22 @@ export async function POST(req: NextRequest) {
       return originBlocked();
     }
 
+    const caller = await getCaller(req);
+    if (!caller) {
+      return NextResponse.json({ ok: false, error: 'Authentication required.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { forecasts } = body as { forecasts: ForecastRow[] };
 
     if (!forecasts || !Array.isArray(forecasts) || forecasts.length === 0) {
       return NextResponse.json({ ok: false, error: 'No forecasts provided' }, { status: 400 });
+    }
+
+    // Lock every row to the caller's own hotel — never trust client hotel_id.
+    const scopedHotelId = resolveHotelScope(caller, forecasts[0]?.hotel_id);
+    if (!scopedHotelId) {
+      return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
     }
 
     const results: { date: string; ok: boolean }[] = [];
@@ -47,7 +59,7 @@ export async function POST(req: NextRequest) {
         .from('weekly_forecasts')
         .upsert(
           {
-            hotel_id: f.hotel_id,
+            hotel_id: scopedHotelId,
             week_start: f.week_start,
             date: f.date,
             occupancy_pct: f.occupancy_pct,
