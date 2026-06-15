@@ -53,3 +53,68 @@ export async function isSuperAdmin(userId: string): Promise<boolean> {
     .maybeSingle();
   return !!data;
 }
+
+export interface Caller {
+  userId: string;
+  email: string | null;
+  hotelId: string | null;
+  isSuper: boolean;
+}
+
+/**
+ * Resolve the authenticated caller from a request's Bearer token.
+ *
+ * IMPORTANT: the caller's hotel is derived from the staff_accounts table on the
+ * server — NOT from JWT user_metadata, because clients can write their own
+ * metadata via supabase.auth.updateUser() and could otherwise spoof hotel_id.
+ * Returns null when there is no valid session.
+ */
+export async function getCaller(req: Request): Promise<Caller | null> {
+  const authHeader = req.headers.get('authorization') || '';
+  const token = authHeader.toLowerCase().startsWith('bearer ')
+    ? authHeader.slice(7).trim()
+    : '';
+  if (!token) return null;
+
+  const user = await verifySession(token);
+  if (!user) return null;
+
+  const isSuper = await isSuperAdmin(user.id);
+  let hotelId: string | null = null;
+  if (!isSuper && user.email) {
+    const { data } = await getAdmin()
+      .from('staff_accounts')
+      .select('hotel_id')
+      .eq('email', user.email)
+      .limit(1);
+    hotelId = (data && data[0]?.hotel_id) || null;
+  }
+
+  return { userId: user.id, email: user.email ?? null, hotelId, isSuper };
+}
+
+/**
+ * The hotel_id this caller is allowed to act on.
+ * Superadmins may act on any hotel they explicitly request; staff are always
+ * locked to their own hotel regardless of what the client sends.
+ * Returns null when the caller has no hotel and is not a superadmin.
+ */
+export function resolveHotelScope(caller: Caller, requested?: string | null): string | null {
+  if (caller.isSuper) return requested || null;
+  return caller.hotelId;
+}
+
+/**
+ * Verify a single row belongs to the caller's allowed hotel before mutating it.
+ * Superadmins pass automatically.
+ */
+export async function callerOwnsRow(
+  caller: Caller,
+  table: string,
+  id: string,
+): Promise<boolean> {
+  if (caller.isSuper) return true;
+  if (!caller.hotelId) return false;
+  const { data } = await getAdmin().from(table).select('hotel_id').eq('id', id).maybeSingle();
+  return !!data && data.hotel_id === caller.hotelId;
+}

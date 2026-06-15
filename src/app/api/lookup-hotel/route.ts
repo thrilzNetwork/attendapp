@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     // Nominatim geocoding — free, no API key, 1 req/sec rate limit
     const geoRes = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=1`,
-      { headers: { 'User-Agent': 'Attenda/1.0 (hotel guest-services platform)' } }
+      { headers: { 'User-Agent': 'Attenda/1.0 (hotel guest-services platform)' }, signal: AbortSignal.timeout(8000) }
     );
     const geoData = await geoRes.json();
 

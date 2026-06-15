@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { getCaller, resolveHotelScope } from '@/lib/supabase-admin';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bdmmstatrsenidlgjock.supabase.co';
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbW1zdGF0cnNlbmlkbGdqb2NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MTE5MjAsImV4cCI6MjA5NDE4NzkyMH0.1pnioO5Y_3pW2LTaYc9aliRwTkGhX2cTNLrK9jI1P-4';
 
 function getServiceClient() {
-  const key = process.env.SUPABASE_SERVICE_KEY || ANON_KEY;
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!key) throw new Error('SUPABASE_SERVICE_KEY is not configured');
   return createClient(SUPABASE_URL, key);
 }
 
@@ -23,11 +25,29 @@ interface ForecastRow {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!validateApiKey(req)) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!isAllowedOrigin(req.headers.get('origin'), req.headers.get('referer'))) {
+      return originBlocked();
+    }
+
+    const caller = await getCaller(req);
+    if (!caller) {
+      return NextResponse.json({ ok: false, error: 'Authentication required.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { forecasts } = body as { forecasts: ForecastRow[] };
 
     if (!forecasts || !Array.isArray(forecasts) || forecasts.length === 0) {
       return NextResponse.json({ ok: false, error: 'No forecasts provided' }, { status: 400 });
+    }
+
+    // Lock every row to the caller's own hotel — never trust client hotel_id.
+    const scopedHotelId = resolveHotelScope(caller, forecasts[0]?.hotel_id);
+    if (!scopedHotelId) {
+      return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
     }
 
     const results: { date: string; ok: boolean }[] = [];
@@ -39,7 +59,7 @@ export async function POST(req: NextRequest) {
         .from('weekly_forecasts')
         .upsert(
           {
-            hotel_id: f.hotel_id,
+            hotel_id: scopedHotelId,
             week_start: f.week_start,
             date: f.date,
             occupancy_pct: f.occupancy_pct,

@@ -71,9 +71,8 @@ export default function PrivacyPage() {
               <section>
                 <p className="font-bold text-gray-800 mb-1">Third-Party Services</p>
                 <p>
-                  Food and service orders may be processed via Clover point-of-sale systems operated by individual
-                  hotel partners. Payments are handled directly by those partners and are subject to their own
-                  privacy policies.
+                  Food and service orders may be fulfilled by individual hotel partners. Any payments are handled
+                  directly by those partners and are subject to their own privacy policies.
                 </p>
               </section>
 

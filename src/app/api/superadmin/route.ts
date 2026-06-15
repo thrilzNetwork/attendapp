@@ -59,11 +59,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    if (action === 'toggle_clover') {
-      await supabaseAdmin.from('partners').update({ clover_enabled: params.enabled }).eq('id', params.partnerId);
-      return NextResponse.json({ ok: true });
-    }
-
     // ─── Staff CRUD ─────────────────────────────────────────────
     if (action === 'create_staff') {
       const staffData = params.data || params;

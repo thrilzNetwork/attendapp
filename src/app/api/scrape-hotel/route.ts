@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { assertSafePublicUrl } from '@/lib/ssrf';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,9 +20,18 @@ export async function POST(req: NextRequest) {
     const { url } = await req.json();
     if (!url) return NextResponse.json({ error: 'No URL provided' }, { status: 400 });
 
+    // Block SSRF: only allow public http(s) targets, never internal addresses.
+    let safeUrl: URL;
+    try {
+      safeUrl = await assertSafePublicUrl(url);
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+    }
+
     // Fetch website HTML
-    const res = await fetch(url, {
+    const res = await fetch(safeUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AttendaBot/1.0; +https://attenda.app)' },
+      signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) return NextResponse.json({ error: `Website returned ${res.status}` }, { status: 502 });
 

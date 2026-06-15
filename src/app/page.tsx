@@ -1301,7 +1301,7 @@ const PLATFORM_AREAS: PlatformArea[] = [
       'Partner portal with live menu management',
       'Inbound partner applications &mdash; your pipeline, not cold calls',
       'Per-partner fee percent and revenue share settings',
-      'POS-ready architecture &mdash; Clover today, more coming',
+      'POS-ready architecture &mdash; integrations coming soon',
       'Ratings, hours, distance, and photos per partner',
       'Activate or pause a partner with one switch',
     ],

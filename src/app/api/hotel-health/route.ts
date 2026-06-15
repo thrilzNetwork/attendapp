@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
       // All partners
       supabaseAdmin
         .from('partners')
-        .select('hotel_id, id, name, clover_merchant_id, clover_enabled'),
+        .select('hotel_id, id, name'),
       // All staff
       supabaseAdmin
         .from('staff_accounts')
@@ -69,13 +69,8 @@ export async function GET(req: NextRequest) {
 
     // Build lookup maps (O(n) instead of per-hotel filters)
     const partnerCountMap: Record<string, number> = {};
-    const cloverPartnersMap: Record<string, { id: string; name: string; clover_enabled: boolean }[]> = {};
     (partnersData.data || []).forEach(p => {
       partnerCountMap[p.hotel_id] = (partnerCountMap[p.hotel_id] || 0) + 1;
-      if (p.clover_merchant_id) {
-        if (!cloverPartnersMap[p.hotel_id]) cloverPartnersMap[p.hotel_id] = [];
-        cloverPartnersMap[p.hotel_id].push({ id: p.id, name: p.name, clover_enabled: p.clover_enabled });
-      }
     });
 
     const staffCountMap: Record<string, number> = {};
@@ -118,8 +113,6 @@ export async function GET(req: NextRequest) {
           revenueLifetime: revenueMonth,
           staffCount: staffCountMap[h.id] || 0,
           partnerCount: partnerCountMap[h.id] || 0,
-          cloverPartnerCount: (cloverPartnersMap[h.id] || []).length,
-          cloverPartners: cloverPartnersMap[h.id] || [],
           lastActivity: null,
         },
       };
@@ -133,7 +126,6 @@ export async function GET(req: NextRequest) {
       foodOrders: 0,
       revenue: hotelHealth.reduce((s, h) => s + h.metrics.revenueMonth, 0),
       partners: hotelHealth.reduce((s, h) => s + h.metrics.partnerCount, 0),
-      cloverPartners: hotelHealth.reduce((s, h) => s + h.metrics.cloverPartnerCount, 0),
       staff: hotelHealth.reduce((s, h) => s + h.metrics.staffCount, 0),
       rooms: hotelHealth.reduce((s, h) => s + h.roomCount, 0),
     };
@@ -146,5 +138,5 @@ export async function GET(req: NextRequest) {
 }
 
 function zeroTotals() {
-  return { hotels: 0, activeHotels: 0, requestsToday: 0, requestsWeek: 0, foodOrders: 0, revenue: 0, partners: 0, cloverPartners: 0, staff: 0, rooms: 0 };
+  return { hotels: 0, activeHotels: 0, requestsToday: 0, requestsWeek: 0, foodOrders: 0, revenue: 0, partners: 0, staff: 0, rooms: 0 };
 }
