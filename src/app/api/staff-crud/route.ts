@@ -12,25 +12,20 @@ function stripPin(record: Record<string, unknown> | null): Record<string, unknow
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('[staff-crud] Request received');
-
     // Require shared API key
     if (!validateApiKey(req)) {
-      console.log('[staff-crud] Unauthorized');
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     // Origin check
     const origin = req.headers.get('origin');
     const referer = req.headers.get('referer');
-    console.log('[staff-crud] origin:', origin, 'referer:', referer);
     if (!isAllowedOrigin(origin, referer)) {
       return originBlocked();
     }
 
     const body = await req.json();
     const { action, hotelId, staff, staffId, updates } = body;
-    console.log('[staff-crud] action:', action, 'hotelId:', hotelId);
 
     // Resolve slug → UUID if hotelId is not a UUID
     let resolvedHotelId = hotelId;

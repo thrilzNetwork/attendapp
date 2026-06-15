@@ -44,8 +44,10 @@ export function originBlocked() {
 export function validateApiKey(req: Request): boolean {
   const apiKey = req.headers.get('x-superadmin-key');
   const expectedKey = process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY;
-  // No key configured in env — allow all (dev/test mode)
-  if (!expectedKey) return true;
+  // No key configured in env. Fail OPEN only in development so local/test work
+  // without setup; in production a missing key is a misconfiguration and we must
+  // NOT leave the endpoint unauthenticated.
+  if (!expectedKey) return process.env.NODE_ENV !== 'production';
   // API clients must provide the key
   if (!apiKey) return false;
   return apiKey === expectedKey;

@@ -178,7 +178,7 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
       }));
       const res = await fetch('/api/upsert-forecast', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
         body: JSON.stringify({ forecasts }),
       });
       const data = await res.json();
