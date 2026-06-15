@@ -785,13 +785,13 @@ export default function Dashboard() {
           <VendorDashboard hotelId={config?.id || ''} vendorType={s.vendorType || 'shuttle'} vendorName={s.name} />
         )}
         {effectiveTab === 'hotel' && isAdmin && config && (
-          <ErrorBoundary fallback={<div className="p-4 md:p-8"><div className="bg-red-50 border border-red-200 rounded-2xl p-6"><p className="text-[16px] font-bold text-red-800 mb-2">Property Settings error</p><pre id=\"error-message\" className="text-[12px] text-red-700 whitespace-pre-wrap bg-red-100 p-4 rounded-xl">{/* error will show here */}</pre></div></div>}>
-            <HotelSettingsView
-              config={config}
-              onSaved={async () => { const c = await getHotelConfig(); if (c) setConfig(c); }}
-            />
-          </ErrorBoundary>
-        )}
+                  <ErrorBoundary>
+                    <HotelSettingsView
+                      config={config}
+                      onSaved={async () => { const c = await getHotelConfig(); if (c) setConfig(c); }}
+                    />
+                  </ErrorBoundary>
+                )}
         {effectiveTab === 'staff_mgmt' && isAdmin && (
           <StaffView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} hotelSlug={config?.slug || ''} staff={staff} onRefresh={async () => setStaff(await getStaffAccountsForHotel(config?.id || ''))} />
         )}
