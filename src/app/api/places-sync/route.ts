@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     // 1. Geocode with Nominatim (free OSM geocoding)
     const geoRes = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`,
-      { headers: { 'User-Agent': 'Attenda/1.0 (hotel concierge app)' } }
+      { headers: { 'User-Agent': 'Attenda/1.0 (hotel concierge app)' }, signal: AbortSignal.timeout(8000) }
     );
     const geoData = await geoRes.json();
     if (!geoData.length) throw new Error('Address not found — try a more specific address');
@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       body: overpassQuery,
       headers: { 'Content-Type': 'text/plain' },
+      signal: AbortSignal.timeout(35000),
     });
     const overpassData = await overpassRes.json();
     const nodes: OsmNode[] = overpassData.elements || [];

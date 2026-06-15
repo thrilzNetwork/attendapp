@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     // Fetch website HTML
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AttendaBot/1.0; +https://attenda.app)' },
+      signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) return NextResponse.json({ error: `Website returned ${res.status}` }, { status: 502 });
 
