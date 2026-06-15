@@ -48,6 +48,15 @@ function formatDateRange(a: string, b: string): string {
   return `${da.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${db.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 }
 
+function formatTime24to12(t: string): string {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  if (isNaN(h)) return t.slice(0,5);
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')}${ampm}`;
+}
+
 export default function SchedulesView({
   hotelId, isAdmin, staffName, staffList, weekStartsOn, hotelName,
 }: {
@@ -67,6 +76,7 @@ export default function SchedulesView({
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deptFilter, setDeptFilter] = useState<string>('all');
 
   const [addForm, setAddForm] = useState({
     staff_id: '', staff_name: '', shift_date: today(),
@@ -175,7 +185,7 @@ export default function SchedulesView({
           .map(s => {
             const days = s.shifts.map(sh => ({
               date: sh.shift_date,
-              time: `${sh.start_time?.slice(0,5) || ''}–${sh.end_time?.slice(0,5) || ''}`,
+              time: `${formatTime24to12(sh.start_time || '')}–${formatTime24to12(sh.end_time || '')}`,
               role: sh.role || 'staff',
               notes: sh.notes || '',
             }));
@@ -251,7 +261,6 @@ export default function SchedulesView({
 
   const getStaff = (date: string) => {
     const dayShifts = schedules.filter(s => s.shift_date === date);
-    const scheduledNames = new Set(dayShifts.map(s => s.staff_name));
 
     const result: { name: string; shift: StaffSchedule | null }[] = [];
 
@@ -261,13 +270,13 @@ export default function SchedulesView({
       }
     });
 
-    staffList.forEach(s => {
-      if (!scheduledNames.has(s.name) && !result.find(r => r.name === s.name)) {
-        result.push({ name: s.name, shift: null });
-      }
-    });
+    // Filter by department if set
+    let filtered = result;
+    if (deptFilter !== 'all') {
+      filtered = result.filter(r => staffDept(r.name) === deptFilter);
+    }
 
-    return result.sort((a, b) => {
+    return filtered.sort((a, b) => {
       const deptA = staffDept(a.name);
       const deptB = staffDept(b.name);
       if (deptA !== deptB) return deptA.localeCompare(deptB);
@@ -338,6 +347,33 @@ export default function SchedulesView({
         </button>
       </div>
 
+      {/* Department filter */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        <button
+          onClick={() => setDeptFilter('all')}
+          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+            deptFilter === 'all'
+              ? 'bg-teal-50 border-teal-300 text-teal-700'
+              : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+          }`}
+        >
+          All
+        </button>
+        {DEPARTMENTS.map(d => (
+          <button
+            key={d.key}
+            onClick={() => setDeptFilter(deptFilter === d.key ? 'all' : d.key)}
+            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
+              deptFilter === d.key
+                ? 'bg-teal-50 border-teal-300 text-teal-700'
+                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            {d.icon} {d.label}
+          </button>
+        ))}
+      </div>
+
       {/* Mobile: horizontal scroll with snap — Desktop: 7-column grid */}
       <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 md:grid md:grid-cols-7 md:gap-2 md:overflow-visible md:pb-0 scrollbar-thin">
         {weekDates.map(date => {
@@ -384,38 +420,26 @@ export default function SchedulesView({
                 {dayStaff.length === 0 ? (
                   <p className="text-[10px] text-gray-300 text-center py-4">—</p>
                 ) : (
-                  dayStaff.map(({ name, shift }) => {
+                  dayStaff.filter(s => s.shift).map(({ name, shift }) => {
+                    const s = shift!;
                     const dept = staffDept(name) || 'unassigned';
-                    if (shift) {
-                      const color = shiftColor(dept);
-                      return (
-                        <div
-                          key={shift.id}
-                          className={`rounded-lg border px-2 py-1.5 text-[10px] leading-tight mb-1 ${color} ${isAdmin ? 'cursor-pointer hover:opacity-80' : ''}`}
-                          onClick={() => isAdmin && handleDelete(shift.id)}
-                          title={isAdmin ? 'Click to remove' : ''}
-                        >
-                          <p className="font-bold truncate">{name.split(' ')[0]}</p>
-                          <p className="text-[9px] opacity-80">
-                            {shift.start_time.slice(0,5)}–{shift.end_time.slice(0,5)}
-                          </p>
-                          {shift.notes && (
-                            <p className="text-[8px] opacity-60 truncate">{shift.notes}</p>
-                          )}
-                        </div>
-                      );
-                    } else {
-                      const color = shiftColor(dept);
-                      return (
-                        <div
-                          key={`off-${name}`}
-                          className={`rounded-lg border border-dashed px-2 py-1.5 text-[10px] leading-tight mb-1 ${color.replace('bg-', 'bg-opacity-20 bg-').replace('border-', 'border-dashed border-gray-200')}`}
-                        >
-                          <p className="font-bold truncate text-gray-400">{name.split(' ')[0]}</p>
-                          <p className="text-[9px] text-gray-300 italic">Off</p>
-                        </div>
-                      );
-                    }
+                    const color = shiftColor(dept);
+                    return (
+                      <div
+                        key={s.id}
+                        className={`rounded-lg border px-2 py-1.5 text-[10px] leading-tight mb-1 ${color} ${isAdmin ? 'cursor-pointer hover:opacity-80' : ''}`}
+                        onClick={() => isAdmin && handleDelete(s.id)}
+                        title={isAdmin ? 'Click to remove' : ''}
+                      >
+                        <p className="font-bold truncate">{name.split(' ')[0]}</p>
+                        <p className="text-[9px] opacity-80">
+                          {formatTime24to12(s.start_time)}–{formatTime24to12(s.end_time)}
+                        </p>
+                        {s.notes && (
+                          <p className="text-[8px] opacity-60 truncate">{s.notes}</p>
+                        )}
+                      </div>
+                    );
                   })
                 )}
               </div>

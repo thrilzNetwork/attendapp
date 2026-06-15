@@ -1184,7 +1184,7 @@ export async function getDailyRecap(hotelId: string): Promise<{
     supabase.from('messages').select('id, created_at').eq('hotel_id', hotelId).gte('created_at', today),
     supabase.from('shuttle_bookings').select('id, created_at, status').gte('created_at', today),
     // These two tables lacked RLS policies until migration 004; gracefully skip on 403
-    supabase.from('staff_schedules').select('id').eq('hotel_id', hotelId).eq('shift_date', today),
+    supabase.from('staff_schedules').select('start_time, end_time').eq('hotel_id', hotelId).eq('shift_date', today),
     supabase.from('staff_checklist_instances').select('completed').eq('hotel_id', hotelId).eq('shift_date', today),
   ]);
 
@@ -1210,7 +1210,23 @@ export async function getDailyRecap(hotelId: string): Promise<{
     avgResponseMin = Math.round(diffs.reduce((a: number, b: number) => a + b, 0) / diffs.length);
   }
 
-  const staffOnDuty = (staffRes.data || []).length;
+  // Count staff whose shift covers the current time (not just everyone scheduled today)
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const staffSchedules = (staffRes.data || []) as { start_time?: string; end_time?: string }[];
+  const staffOnDuty = staffSchedules.filter(s => {
+    if (!s.start_time || !s.end_time) return false;
+    const [sh, sm] = s.start_time.split(':').map(Number);
+    const [eh, em] = s.end_time.split(':').map(Number);
+    if (isNaN(sh) || isNaN(eh)) return false;
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+    // Handle overnight shifts (end < start, e.g. 22:00-06:00)
+    if (endMin <= startMin) {
+      return currentMinutes >= startMin || currentMinutes <= endMin;
+    }
+    return currentMinutes >= startMin && currentMinutes <= endMin;
+  }).length;
   const checklists = checklistRes.data || [];
   const checklistsCompleted = checklists.filter((c: Record<string, unknown>) => c.completed).length;
   const checklistsTotal = checklists.length;
@@ -1577,6 +1593,7 @@ export interface WeeklyForecast {
   arrivals: number;          // forecasted arrivals
   departures: number;        // forecasted departures
   rooms_occupied: number;    // forecasted rooms occupied
+  prev_night_occ: number;    // previous night's occupied rooms
   created_by?: string;
   created_at: string;
   updated_at?: string;
@@ -1600,15 +1617,30 @@ export async function upsertWeeklyForecast(forecast: {
   occupancy_pct: number;
   arrivals: number;
   rooms_occupied: number;
+  departures: number;
+  total_rooms: number;
+  prev_night_occ: number;
 }) {
-  const res = await fetch('/api/ops-data', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-    body: JSON.stringify({ action: 'upsert_forecast', forecast }),
-  });
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'Failed to save forecast');
-  return json.data;
+  const { data, error } = await supabase
+    .from('weekly_forecasts')
+    .upsert({
+      hotel_id: forecast.hotel_id,
+      week_start: forecast.week_start,
+      date: forecast.date,
+      occupancy_pct: forecast.occupancy_pct,
+      arrivals: forecast.arrivals,
+      rooms_occupied: forecast.rooms_occupied,
+      departures: forecast.departures,
+      total_rooms: forecast.total_rooms,
+      prev_night_occ: forecast.prev_night_occ,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'hotel_id, date',
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 export async function getLearningDocs(hotelId: string): Promise<KnowledgeEntry[]> {

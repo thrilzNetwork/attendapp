@@ -227,6 +227,35 @@ export default function Dashboard() {
     if (hotel) localStorage.setItem('attenda_hotel_slug', hotel);
   }, []);
 
+  // Check if already logged in (e.g., redirected from setup page)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      if (existingSession?.user) {
+        const email = existingSession.user.email || '';
+        const meta = existingSession.user.user_metadata || {};
+        if (meta.role === 'superadmin') {
+          setSession({ name: email, role: 'superadmin' });
+          setAuthMode('authenticated');
+          getAllHotels().then(h => setAllHotels(h as { id: string; slug: string; name: string }[]));
+          return;
+        }
+        getStaffAccountByEmail(email).then(staff => {
+          if (staff) {
+            const role: Role = staff.role === 'manager' || staff.role === 'admin' ? 'admin' : staff.role === 'vendor' ? 'vendor' : 'staff';
+            setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined });
+            setAuthMode('authenticated');
+            // Save hotel slug to localStorage so config queries work
+            if (staff.hotel_id) {
+              supabase.from('hotels').select('slug').eq('id', staff.hotel_id).single().then(
+                ({ data }) => { if (data?.slug) localStorage.setItem('attenda_hotel_slug', data.slug); }
+              );
+            }
+          }
+        });
+      }
+    });
+  }, []);
+
   const handleEmailLogin = async () => {
     setAuthError('');
     if (!email || !password) { setAuthError('Email and password required.'); return; }
@@ -269,6 +298,11 @@ export default function Dashboard() {
 
       setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined });
       setAuthMode('authenticated');
+      // Save hotel slug to localStorage so config queries work
+      if (staff.hotel_id) {
+        const { data: hotelData } = await supabase.from('hotels').select('slug').eq('id', staff.hotel_id).single();
+        if (hotelData?.slug) localStorage.setItem('attenda_hotel_slug', hotelData.slug);
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Login failed.';
       if (msg.includes('Invalid login credentials')) {
@@ -402,6 +436,9 @@ export default function Dashboard() {
               {authLoading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Lock size={16} />}
               {authLoading ? 'Signing in...' : 'SIGN IN'}
             </button>
+            <div className="text-center mt-3">
+              <a href="/staff/reset-password" className="text-[12px] text-gray-400 hover:text-gray-600 underline">Forgot your password?</a>
+            </div>
           </div>
           <p className="text-center mt-4 text-[12px] text-gray-400">Platform admin? <a href="/superadmin" className="font-semibold underline" style={{ color: TEAL }}>Super Admin →</a></p>
         </div>

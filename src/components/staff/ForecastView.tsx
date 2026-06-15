@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getWeeklyForecasts, upsertWeeklyForecast, type WeeklyForecast } from '@/lib/supabase';
+import { supabase, getWeeklyForecasts, upsertWeeklyForecast, type WeeklyForecast } from '@/lib/supabase';
 import { TrendingUp, Save, RefreshCw } from 'lucide-react';
 
 interface DayData {
@@ -43,6 +43,32 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
   const [saveError, setSaveError] = useState('');
   const [prevNightOcc, setPrevNightOcc] = useState(0); // previous night's occupied rooms
   const [weekOffset, setWeekOffset] = useState(0); // 0=current, 1=next, -1=last, etc
+  const [resolvedHotelId, setResolvedHotelId] = useState(hotelId);
+  const [resolvedTotalRooms, setResolvedTotalRooms] = useState(totalRooms);
+
+  // Self-fetch config if props are empty (belt-and-suspenders)
+  useEffect(() => {
+    if (hotelId && totalRooms > 0) {
+      setResolvedHotelId(hotelId);
+      setResolvedTotalRooms(totalRooms);
+      return;
+    }
+    const fetchSelf = async () => {
+      const slug = localStorage.getItem('attenda_hotel_slug');
+      if (slug) {
+        const { data } = await supabase
+          .from('hotels')
+          .select('id, room_count')
+          .eq('slug', slug)
+          .single();
+        if (data) {
+          setResolvedHotelId(data.id);
+          setResolvedTotalRooms(data.room_count || 0);
+        }
+      }
+    };
+    fetchSelf();
+  }, [hotelId, totalRooms]);
 
   const loadWeek = async (offset: number = weekOffset) => {
     setLoading(true);
@@ -52,12 +78,18 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
     const monday = getMonday(days[0].date);
 
     // Try loading saved forecasts
-    let savedForecasts: { date: string; occupancy_pct: number; arrivals: number; rooms_occupied: number }[] = [];
+    let savedForecasts: WeeklyForecast[] = [];
     try {
-      savedForecasts = await getWeeklyForecasts(hotelId, monday) as WeeklyForecast[];
+      savedForecasts = await getWeeklyForecasts(resolvedHotelId, monday) as WeeklyForecast[];
     } catch { /* ignore */ }
 
     const dayMap = new Map(savedForecasts.map(f => [f.date, f]));
+
+    // Load prev_night_occ from the first saved day (all days share the same value)
+    const savedPrevNight = savedForecasts.length > 0 ? (savedForecasts[0].prev_night_occ ?? prevNightOcc) : prevNightOcc;
+    if (savedPrevNight !== prevNightOcc) {
+      setPrevNightOcc(savedPrevNight);
+    }
 
     const data = days.map(d => {
       const saved = dayMap.get(d.date);
@@ -66,14 +98,14 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
         date: d.date,
         label: d.label,
         occupancyPct: occPct,
-        roomsOccupied: Math.round(totalRooms * occPct / 100),
+        roomsOccupied: saved?.rooms_occupied ?? Math.round(resolvedTotalRooms * occPct / 100),
         arrivals: saved?.arrivals ?? 0,
-        departures: 0,
+        departures: saved?.departures ?? 0,
       };
     });
 
     // Auto-calc departures using previous night
-    let prevRooms = prevNightOcc;
+    let prevRooms = savedPrevNight;
     for (const day of data) {
       // departure = previous night's rooms + arrivals - tonight's rooms
       // clamped to 0
@@ -86,16 +118,16 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
   };
 
   useEffect(() => {
-    if (hotelId) loadWeek(weekOffset);
+    if (resolvedHotelId) loadWeek(weekOffset);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hotelId, weekOffset]);
+  }, [resolvedHotelId, weekOffset]);
 
   const updateDay = (idx: number, field: 'occupancyPct' | 'arrivals', value: number) => {
     setWeekDays(prev => {
       const updated = prev.map(d => ({ ...d }));
       if (field === 'occupancyPct') {
         updated[idx].occupancyPct = value;
-        updated[idx].roomsOccupied = Math.round(totalRooms * value / 100);
+        updated[idx].roomsOccupied = Math.round(resolvedTotalRooms * value / 100);
       } else {
         updated[idx].arrivals = value;
       }
@@ -115,12 +147,15 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
     try {
       for (const day of weekDays) {
         await upsertWeeklyForecast({
-          hotel_id: hotelId,
+          hotel_id: resolvedHotelId,
           week_start: monday,
           date: day.date,
           occupancy_pct: day.occupancyPct,
           arrivals: day.arrivals,
           rooms_occupied: day.roomsOccupied,
+          departures: day.departures,
+          total_rooms: resolvedTotalRooms,
+          prev_night_occ: prevNightOcc,
         });
       }
       setSaved(true);
@@ -148,7 +183,7 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
             Forecast
           </h1>
           <p className="text-[12px] md:text-[13px] text-gray-500 mt-0.5">
-            {totalRooms} total rooms · Week of {weekDays[0]?.date}
+            {resolvedTotalRooms} total rooms · Week of {weekDays[0]?.date}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -198,10 +233,10 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
           <input
             type="number"
             min={0}
-            max={totalRooms}
+            max={resolvedTotalRooms}
             value={prevNightOcc}
             onChange={e => {
-              const v = Math.min(totalRooms, Math.max(0, Number(e.target.value) || 0));
+              const v = Math.min(resolvedTotalRooms, Math.max(0, Number(e.target.value) || 0));
               setPrevNightOcc(v);
               // Recalc all departures
               setWeekDays(prev => {
@@ -216,7 +251,7 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
             }}
             className="w-20 md:w-24 px-2 md:px-3 py-1.5 border border-gray-300 rounded-lg text-[14px] font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
           />
-          <span className="text-[11px] md:text-[12px] text-gray-400">/ {totalRooms} rooms</span>
+          <span className="text-[11px] md:text-[12px] text-gray-400">/ {resolvedTotalRooms} rooms</span>
         </div>
       </div>
 
@@ -275,7 +310,7 @@ export default function ForecastView({ hotelId, totalRooms }: ForecastViewProps)
                     <input
                       type="number"
                       min={0}
-                      max={totalRooms}
+                      max={resolvedTotalRooms}
                       value={day.arrivals}
                       onChange={e => updateDay(idx, 'arrivals', Math.max(0, Number(e.target.value) || 0))}
                       className="w-full px-1.5 md:px-2 py-1 border border-blue-200 rounded text-[12px] md:text-[13px] font-bold text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50"

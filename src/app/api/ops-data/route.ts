@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
+// Handle CORS preflight (OPTIONS) — required because the client sends x-superadmin-key header
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, x-superadmin-key',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     if (!validateApiKey(req)) {
@@ -58,6 +71,9 @@ export async function POST(req: NextRequest) {
             occupancy_pct: forecast.occupancy_pct,
             arrivals: forecast.arrivals,
             rooms_occupied: forecast.rooms_occupied,
+            departures: forecast.departures || 0,
+            total_rooms: forecast.total_rooms || 0,
+            prev_night_occ: forecast.prev_night_occ || 0,
             updated_at: new Date().toISOString(),
           })
           .eq('id', existing.data.id)

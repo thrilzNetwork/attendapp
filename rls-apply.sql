@@ -85,6 +85,8 @@ CREATE POLICY default_select ON public.shuttle_requests FOR SELECT USING (false)
 CREATE POLICY default_select ON public.cruise_schedules FOR SELECT USING (true);
 CREATE POLICY default_select ON public.staff_schedules FOR SELECT USING (true);
 CREATE POLICY default_select ON public.weekly_forecasts FOR SELECT USING (true);
+CREATE POLICY default_insert ON public.weekly_forecasts FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND hotel_id::text = public.get_user_hotel_id());
+CREATE POLICY default_update ON public.weekly_forecasts FOR UPDATE USING (auth.role() = 'authenticated' AND hotel_id::text = public.get_user_hotel_id());
 CREATE POLICY default_select ON public.hotel_ops_tools FOR SELECT USING (true);
 CREATE POLICY default_select ON public.ops_tools FOR SELECT USING (true);
 CREATE POLICY default_select ON public.superadmin_config FOR SELECT USING (false);

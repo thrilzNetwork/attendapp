@@ -51,16 +51,17 @@ function SetupContent() {
         if (authErr.message?.includes('already registered') || authErr.message?.includes('already exists')) {
           const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
           if (signInErr) throw signInErr;
-          setDone(true);
-          setLoading(false);
+          // Already registered and signed in — redirect to dashboard
+          router.push(`/staff?hotel=${hotel}`);
           return;
         }
         throw authErr;
       }
 
       if (data.session) {
-        // Auto-confirm is ON — logged in immediately
-        setDone(true);
+        // Auto-confirm is ON — logged in immediately, redirect to dashboard
+        router.push(`/staff?hotel=${hotel}`);
+        return;
       } else {
         // Email confirmation required
         setDone(true);
