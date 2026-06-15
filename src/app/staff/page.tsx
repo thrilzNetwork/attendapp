@@ -2383,17 +2383,14 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
     setProfileSaving(true);
     setProfileError('');
     try {
-      await adminFetch('update_staff', {
-        id: staffId,
-        updates: {
-          name: profileForm.name || undefined,
-          email: profileForm.email || undefined,
-          phone: profileForm.phone || undefined,
-          department: profileForm.department || undefined,
-          hire_date: profileForm.hire_date || undefined,
-          min_hours: Number(profileForm.min_hours) || 0,
-          employment_type: profileForm.employment_type || undefined,
-        },
+      await updateStaffDetails(staffId, {
+        name: profileForm.name || undefined,
+        email: profileForm.email || undefined,
+        phone: profileForm.phone || undefined,
+        department: profileForm.department || undefined,
+        hire_date: profileForm.hire_date || undefined,
+        min_hours: Number(profileForm.min_hours) || 0,
+        employment_type: profileForm.employment_type || undefined,
       });
       setEditingProfile(null);
       onRefresh();
