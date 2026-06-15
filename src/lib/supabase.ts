@@ -46,12 +46,31 @@ export interface ReviewLink {
   url: string;
 }
 
+export interface PositionBudget {
+  department: string;       // e.g. 'front_desk', 'housekeeping', 'maintenance', 'security', 'drivers', 'management'
+  label: string;            // e.g. 'Front Desk', 'Housekeeping'
+  weeklyBudgetHours: number; // Total weekly hours the owner budgeted for this position
+  // Per-position productivity model
+  modelType: 'hours_per_room' | 'shifts_per_day' | 'fixed_hours';
+  // For hours_per_room: e.g. 0.3 hours per occupied room
+  hoursPerOccupiedRoom?: number;
+  // For shifts_per_day: e.g. 3 shifts per day, each shift is N hours
+  shiftsPerDay?: number;
+  hoursPerShift?: number;
+  // For fixed_hours: a flat weekly amount
+  fixedWeeklyHours?: number;
+  // Per-room breakdown (housekeeping specific)
+  checkoutMinutes?: number;  // e.g. 30 min per checkout room
+  stayoverMinutes?: number;  // e.g. 20 min per stayover room
+}
+
 export interface HotelConfig {
   facilitiesContent?: FacilitiesAmenity[];
   safetyContent?: SafetyContent;
   transportContent?: TransportContent;
   foodContent?: FoodContent;
   nearbyIntro?: NearbyIntro;
+  positionBudgets?: PositionBudget[];
 
   id?: string;
   slug: string;
@@ -171,6 +190,7 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     transportContent: data.transport_content || {},
     foodContent: data.food_content || {},
     nearbyIntro: data.nearby_intro || {},
+    positionBudgets: data.position_budgets || [],
   };
 }
 
@@ -209,6 +229,7 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       transport_content: config.transportContent || {},
       food_content: config.foodContent || {},
       nearby_intro: config.nearbyIntro || {},
+      position_budgets: config.positionBudgets || [],
     }, { onConflict: 'slug' });
   if (error) throw error;
   return data;

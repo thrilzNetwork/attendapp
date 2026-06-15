@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
         transport_content: cfg.transportContent || {},
         food_content: cfg.foodContent || {},
         nearby_intro: cfg.nearbyIntro || {},
+        position_budgets: cfg.positionBudgets || [],
       };
       for (const [k, v] of Object.entries(knownCols)) {
         if (v !== null && v !== undefined) updateData[k] = v;

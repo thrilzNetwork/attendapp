@@ -7,7 +7,7 @@ import {
   Bell, ShieldCheck, Bus, UtensilsCrossed, MapPin, Plus, Trash2,
   Save, Upload, Hotel as HotelIcon, type LucideIcon,
 } from 'lucide-react';
-import { HotelConfig, updateHotelConfig } from '@/lib/supabase';
+import { HotelConfig, PositionBudget, updateHotelConfig } from '@/lib/supabase';
 
 /* ── Constants ─────────────────────────────────────────── */
 const TEAL = '#0D9488';
@@ -121,10 +121,12 @@ function GuestHomePreview({ color, hotelName }: { color: string; hotelName: stri
 function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: () => void }) {
   const [form, setForm] = useState<HotelConfig>(config);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [discovering, setDiscovering] = useState(false);
   const [discoverResult, setDiscoverResult] = useState<{ added: number; total: number } | null>(null);
 
   const handleSave = async () => {
+    setSaveError('');
     // Use service-role proxy for PIN-based logins (superadmin)
     try {
       const res = await fetch('/api/superadmin-db', {
@@ -139,10 +141,14 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
       setTimeout(() => setSaved(false), 2500);
     } catch {
       // Fallback to direct call for email-login admins
-      await updateHotelConfig(form);
-      setSaved(true);
-      onSaved();
-      setTimeout(() => setSaved(false), 2500);
+      try {
+        await updateHotelConfig(form);
+        setSaved(true);
+        onSaved();
+        setTimeout(() => setSaved(false), 2500);
+      } catch (e: unknown) {
+        setSaveError(e instanceof Error ? e.message : 'Save failed');
+      }
     }
   };
 
@@ -422,6 +428,124 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
           </div>
         </Section>
 
+        <Section title="Position Budgets" Icon={DollarSign}>
+          <p className="text-[11px] text-gray-400 -mt-1">
+            Set labor budgets for each position. The model calculates required hours based on occupancy so you can see if you're within the owner's budget.
+          </p>
+          <div className="space-y-4 mt-3">
+            {[
+              { key: 'front_desk', label: 'Front Desk' },
+              { key: 'housekeeping', label: 'Housekeeping' },
+              { key: 'maintenance', label: 'Maintenance' },
+              { key: 'security', label: 'Security' },
+              { key: 'drivers', label: 'Drivers' },
+              { key: 'management', label: 'Management' },
+            ].map(dept => {
+              const budget = (form.positionBudgets || []).find(b => b.department === dept.key) || {
+                department: dept.key,
+                label: dept.label,
+                weeklyBudgetHours: 0,
+                modelType: 'hours_per_room' as const,
+                hoursPerOccupiedRoom: 0,
+                shiftsPerDay: 0,
+                hoursPerShift: 0,
+                fixedWeeklyHours: 0,
+                checkoutMinutes: 0,
+                stayoverMinutes: 0,
+              } as PositionBudget;
+              const updateBudget = (partial: Partial<typeof budget>) => {
+                const existing = form.positionBudgets || [];
+                const idx = existing.findIndex(b => b.department === dept.key);
+                const updated = { ...budget, ...partial };
+                if (idx >= 0) {
+                  const copy = [...existing];
+                  copy[idx] = updated;
+                  setForm({ ...form, positionBudgets: copy });
+                } else {
+                  setForm({ ...form, positionBudgets: [...existing, updated] });
+                }
+              };
+              return (
+                <div key={dept.key} className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-[13px] text-gray-800">{dept.label}</h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Weekly Budget (hrs)</label>
+                      <input type="number" value={budget.weeklyBudgetHours} onChange={e => updateBudget({ weeklyBudgetHours: Number(e.target.value) || 0 })}
+                        className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 168" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Model</label>
+                      <select value={budget.modelType} onChange={e => updateBudget({ modelType: e.target.value as any })}
+                        className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none">
+                        <option value="hours_per_room">Hours per Room</option>
+                        <option value="shifts_per_day">Shifts per Day</option>
+                        <option value="fixed_hours">Fixed Hours</option>
+                      </select>
+                    </div>
+                  </div>
+                  {budget.modelType === 'hours_per_room' && (
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Hours per Occupied Room</label>
+                      <input type="number" step="0.01" value={budget.hoursPerOccupiedRoom} onChange={e => updateBudget({ hoursPerOccupiedRoom: Number(e.target.value) || 0 })}
+                        className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 0.3" />
+                    </div>
+                  )}
+                  {budget.modelType === 'shifts_per_day' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Shifts per Day</label>
+                        <input type="number" value={budget.shiftsPerDay} onChange={e => updateBudget({ shiftsPerDay: Number(e.target.value) || 0 })}
+                          className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 3" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Hours per Shift</label>
+                        <input type="number" value={budget.hoursPerShift} onChange={e => updateBudget({ hoursPerShift: Number(e.target.value) || 0 })}
+                          className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 8" />
+                      </div>
+                    </div>
+                  )}
+                  {budget.modelType === 'fixed_hours' && (
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Fixed Weekly Hours</label>
+                      <input type="number" value={budget.fixedWeeklyHours} onChange={e => updateBudget({ fixedWeeklyHours: Number(e.target.value) || 0 })}
+                        className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 40" />
+                    </div>
+                  )}
+                  {dept.key === 'housekeeping' && (
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Checkout (min)</label>
+                        <input type="number" value={budget.checkoutMinutes} onChange={e => updateBudget({ checkoutMinutes: Number(e.target.value) || 0 })}
+                          className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 30" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Stayover (min)</label>
+                        <input type="number" value={budget.stayoverMinutes} onChange={e => updateBudget({ stayoverMinutes: Number(e.target.value) || 0 })}
+                          className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 20" />
+                      </div>
+                    </div>
+                  )}
+                  <div className="text-[11px] text-gray-400 pt-1">
+                    Budget: <strong>{budget.weeklyBudgetHours}h/week</strong>
+                    {budget.modelType === 'hours_per_room' && (budget.hoursPerOccupiedRoom || 0) > 0 && (
+                      <> · ~{budget.hoursPerOccupiedRoom}h/room at 70% occ = <strong>{Math.round((budget.hoursPerOccupiedRoom || 0) * 100 * 0.7)}h</strong></>
+                    )}
+                    {budget.modelType === 'shifts_per_day' && (budget.shiftsPerDay || 0) > 0 && (budget.hoursPerShift || 0) > 0 && (
+                      <> · <strong>{(budget.shiftsPerDay || 0) * (budget.hoursPerShift || 0)}h/day</strong> = <strong>{(budget.shiftsPerDay || 0) * (budget.hoursPerShift || 0) * 7}h/week</strong></>
+                    )}
+                    {budget.modelType === 'fixed_hours' && (budget.fixedWeeklyHours || 0) > 0 && (
+                      <> · <strong>{budget.fixedWeeklyHours}h/week</strong> fixed</>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Section>
+
         <Section title="Tenant Billing" Icon={DollarSign}>
           <p className="text-[11px] text-gray-400 -mt-1">
             Track how this tenant pays and when the last payment was received.
@@ -543,6 +667,11 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
         {saved && (
           <div className="bg-emerald-50 text-emerald-600 px-4 py-2.5 rounded-xl text-[13px] font-medium text-center">
             ✅ Saved
+          </div>
+        )}
+        {saveError && (
+          <div className="bg-red-50 text-red-600 px-4 py-2.5 rounded-xl text-[13px] font-medium text-center border border-red-200">
+            ❌ {saveError}
           </div>
         )}
 
