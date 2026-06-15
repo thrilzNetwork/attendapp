@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bdmmstatrsenidlgjock.supabase.co';
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbW1zdGF0cnNlbmlkbGdqb2NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MTE5MjAsImV4cCI6MjA5NDE4NzkyMH0.1pnioO5Y_3pW2LTaYc9aliRwTkGhX2cTNLrK9jI1P-4';
 
-const serviceClient = createClient(SUPABASE_URL, SERVICE_KEY);
+function getServiceClient() {
+  const key = process.env.SUPABASE_SERVICE_KEY || ANON_KEY;
+  return createClient(SUPABASE_URL, key);
+}
 
 interface ForecastRow {
   hotel_id: string;
@@ -28,6 +31,8 @@ export async function POST(req: NextRequest) {
     }
 
     const results: { date: string; ok: boolean }[] = [];
+
+    const serviceClient = getServiceClient();
 
     for (const f of forecasts) {
       const { error } = await serviceClient
