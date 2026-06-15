@@ -413,11 +413,6 @@ export interface Partner {
   has_ordering: boolean;
   is_active: boolean;
   email: string;
-  clover_merchant_id?: string;
-  clover_access_token?: string;
-  clover_refresh_token?: string;
-  clover_token_expires_at?: string;
-  clover_enabled?: boolean;
   google_place_id?: string;
   delivery_providers?: { name: string; url: string }[];
   attenda_fee_percent?: number;
@@ -528,10 +523,6 @@ export async function deleteHotel(id: string) {
 
 export async function toggleHotelActive(hotelId: string, active: boolean) {
   await supabase.from('hotels').update({ is_active: active }).eq('id', hotelId);
-}
-
-export async function toggleCloverForPartner(partnerId: string, enabled: boolean) {
-  await supabase.from('partners').update({ clover_enabled: enabled }).eq('id', partnerId);
 }
 
 export async function togglePartnerOrdering(partnerId: string, enabled: boolean) {

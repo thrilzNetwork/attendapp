@@ -26,11 +26,6 @@ interface Partner {
   has_ordering: boolean;
   is_active: boolean;
   email: string;
-  clover_merchant_id?: string;
-  clover_access_token?: string;
-  clover_refresh_token?: string;
-  clover_token_expires_at?: string;
-  clover_enabled?: boolean;
   google_place_id?: string;
   delivery_providers?: { name: string; url: string }[];
   attenda_fee_percent?: number;
@@ -83,14 +78,10 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
     phone: '', address: '', hours: '', distance: '', rating: '0', has_ordering: false, email: '',
     attenda_fee_percent: '15', hotel_revenue_share_percent: '5',
   });
-  const [cloverForm, setCloverForm] = useState({
-    merchantId: '', accessToken: '', refreshToken: '', enabled: false,
-  });
   const [deliveryProviders, setDeliveryProviders] = useState<{ name: string; url: string }[]>([]);
   const [deliveryProviderForm, setDeliveryProviderForm] = useState({ name: '', url: '' });
   const [menuForm, setMenuForm] = useState<Record<string, { name: string; description: string; price: string }>>({});
   const [dpForm, setDpForm] = useState<Record<string, { name: string; url: string }>>({});
-  const [syncing, setSyncing] = useState<string | null>(null);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
 
   const loadPartners = useCallback(async () => {
@@ -126,45 +117,15 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
       rating: parseFloat(form.rating) || 0,
       has_ordering: form.has_ordering,
       email: form.email,
-      clover_merchant_id: cloverForm.merchantId || undefined,
-      clover_access_token: cloverForm.accessToken || undefined,
-      clover_refresh_token: cloverForm.refreshToken || undefined,
-      clover_enabled: cloverForm.enabled,
       delivery_providers: deliveryProviders,
       attenda_fee_percent: parseFloat(form.attenda_fee_percent) || 15,
       hotel_revenue_share_percent: parseFloat(form.hotel_revenue_share_percent) || 5,
     });
     setForm({ name: '', category: 'restaurant', description: '', image_url: '', phone: '', address: '', hours: '', distance: '', rating: '0', has_ordering: false, email: '', attenda_fee_percent: '15', hotel_revenue_share_percent: '5' });
-    setCloverForm({ merchantId: '', accessToken: '', refreshToken: '', enabled: false });
     setDeliveryProviders([]);
     setDeliveryProviderForm({ name: '', url: '' });
     setShowForm(false);
     loadPartners();
-  };
-
-  const handleCloverSync = async (p: Partner) => {
-    if (!p.clover_merchant_id || !p.clover_access_token) return;
-    setSyncing(p.id);
-    try {
-      const { getCloverMenu } = await import('@/lib/clover');
-      const items = await getCloverMenu(p.clover_merchant_id, p.clover_access_token);
-      const existing = await getPartnerMenuItems(p.id);
-      for (const item of existing) await deletePartnerMenuItem(item.id);
-      for (const item of items) {
-        await createPartnerMenuItem({
-          partner_id: p.id,
-          name: item.name,
-          description: item.description || '',
-          price: item.price / 100,
-        });
-      }
-      alert(`Synced ${items.length} items from Clover`);
-      loadMenu(p.id);
-    } catch (e) {
-      alert('Sync failed: ' + (e as Error).message);
-    } finally {
-      setSyncing(null);
-    }
   };
 
   const handleDelete = async (id: string) => {
@@ -328,7 +289,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                       className="w-4 h-4 rounded mt-0.5 shrink-0" />
                     <div>
                       <label htmlFor="has_ordering" className="text-[13px] font-bold text-gray-800 cursor-pointer">B · Attenda-powered delivery</label>
-                      <p className="text-[11px] text-gray-500 mt-0.5">Restaurant saves vs. Uber Eats rates. Hotel earns revenue on every order. Exclusively powered by Clover POS.</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">Restaurant saves vs. Uber Eats rates. Hotel earns revenue on every order.</p>
                     </div>
                   </div>
 
@@ -358,26 +319,6 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                       </div>
                       <div className="bg-white rounded-lg px-3 py-2 border border-teal-100 text-[11px] text-teal-700">
                         On a $100 order: restaurant pays ${((parseFloat(form.attenda_fee_percent) || 15)).toFixed(0)}, hotel earns ${((parseFloat(form.hotel_revenue_share_percent) || 5)).toFixed(0)}, Attenda keeps ${Math.max(0, (parseFloat(form.attenda_fee_percent) || 15) - (parseFloat(form.hotel_revenue_share_percent) || 5)).toFixed(0)}.
-                      </div>
-                      <div className="space-y-2">
-                        <a href={`/api/clover-oauth?partner=new&hotel=${hotelId}`}
-                          className="w-full py-2.5 rounded-lg font-bold text-[12px] flex items-center justify-center gap-2 text-white bg-purple-600 hover:bg-purple-700">
-                          🔗 Connect Clover (OAuth)
-                        </a>
-                        <p className="text-[10px] text-gray-400 text-center">Exclusive Attenda × Clover integration</p>
-                        <details className="text-[11px]">
-                          <summary className="text-gray-400 cursor-pointer hover:text-gray-600">Enter credentials manually</summary>
-                          <div className="space-y-2 mt-2">
-                            <Field label="Clover Merchant ID" value={cloverForm.merchantId} onChange={v => setCloverForm({ ...cloverForm, merchantId: v })} placeholder="ABC123DEF456" />
-                            <Field label="Clover Access Token" value={cloverForm.accessToken} onChange={v => setCloverForm({ ...cloverForm, accessToken: v })} placeholder="sk_..." />
-                            <Field label="Clover Refresh Token" value={cloverForm.refreshToken} onChange={v => setCloverForm({ ...cloverForm, refreshToken: v })} placeholder="rt_..." />
-                            <div className="flex items-center gap-2">
-                              <input type="checkbox" id="clover_enabled" checked={cloverForm.enabled}
-                                onChange={e => setCloverForm({ ...cloverForm, enabled: e.target.checked })} className="w-4 h-4 rounded" />
-                              <label htmlFor="clover_enabled" className="text-[12px] font-medium text-gray-700">Enable Clover POS</label>
-                            </div>
-                          </div>
-                        </details>
                       </div>
                     </div>
                   )}
@@ -423,11 +364,6 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                     {p.has_ordering && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">
                         Attenda-powered
-                      </span>
-                    )}
-                    {p.clover_enabled && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
-                        Clover ✓
                       </span>
                     )}
                   </div>
@@ -505,18 +441,6 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                           Manage {expanded === p.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                         </button>
                       )}
-                      {p.has_ordering && !p.clover_enabled && (
-                        <a href={`/api/clover-oauth?partner=${p.id}&hotel=${hotelId}`}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-50 text-purple-600 hover:bg-purple-100">
-                          🔗 Connect Clover
-                        </a>
-                      )}
-                      {p.has_ordering && p.clover_enabled && p.clover_merchant_id && p.clover_access_token && (
-                        <button onClick={() => handleCloverSync(p)} disabled={syncing === p.id}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-purple-100 text-purple-700 hover:bg-purple-200 disabled:opacity-50">
-                          {syncing === p.id ? 'Syncing…' : 'Sync Clover'}
-                        </button>
-                      )}
                       <button onClick={() => handleDelete(p.id)}
                         className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400">
                         <Trash2 size={14} />
@@ -585,7 +509,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                       <div className="flex items-center justify-between mb-2">
                         <div>
                           <p className="text-[12px] font-bold text-gray-800">B · Attenda-powered delivery</p>
-                          <p className="text-[11px] text-gray-500">Restaurant saves, hotel earns. Powered by Clover.</p>
+                          <p className="text-[11px] text-gray-500">Restaurant saves, hotel earns.</p>
                         </div>
                         <input type="checkbox" checked={p.has_ordering}
                           onChange={async e => { await updatePartner(p.id, { has_ordering: e.target.checked }); loadPartners(); }}

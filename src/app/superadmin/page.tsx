@@ -65,8 +65,6 @@ interface HotelHealth {
     revenueLifetime: number;
     staffCount: number;
     partnerCount: number;
-    cloverPartnerCount: number;
-    cloverPartners: { id: string; name: string; clover_enabled: boolean }[];
     lastActivity: string | null;
   };
 }
@@ -81,7 +79,6 @@ interface PlatformHealth {
     foodOrders: number;
     revenue: number;
     partners: number;
-    cloverPartners: number;
     staff: number;
     rooms: number;
   };
@@ -479,7 +476,7 @@ interface PlatformHealth {
             { label: 'Hotels', value: health.totals.hotels, sub: `${health.totals.activeHotels} active`, color: 'text-teal-600' },
             { label: 'Orders Today', value: health.totals.foodOrders, sub: `${health.totals.requestsToday} requests`, color: 'text-amber-600' },
             { label: 'Revenue', value: `$${health.totals.revenue.toFixed(2)}`, sub: 'this month', color: 'text-emerald-600' },
-            { label: 'Partners', value: health.totals.partners, sub: `${health.totals.cloverPartners} Clover`, color: 'text-purple-600' },
+            { label: 'Partners', value: health.totals.partners, sub: 'total', color: 'text-purple-600' },
             { label: 'Staff', value: health.totals.staff, sub: `${health.totals.rooms} rooms`, color: 'text-blue-600' },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
@@ -778,7 +775,7 @@ interface PlatformHealth {
                       { label: 'Orders', value: m.foodOrdersToday || 0, color: 'text-amber-600' },
                       { label: 'Requests', value: m.requestsToday || 0, color: 'text-blue-600' },
                       { label: 'Revenue', value: `$${(m.revenueMonth || 0).toFixed(0)}`, color: 'text-emerald-600' },
-                      { label: 'Partners', value: `${m.cloverPartnerCount || 0}/${m.partnerCount || 0} Clover`, color: 'text-purple-600' },
+                      { label: 'Partners', value: m.partnerCount || 0, color: 'text-purple-600' },
                       { label: 'Last Active', value: m.lastActivity ? new Date(m.lastActivity).toLocaleDateString() : 'Never', color: 'text-gray-500' },
                     ].map(s => (
                       <div key={s.label} className="bg-gray-50 rounded-lg px-3 py-2">
@@ -828,32 +825,6 @@ interface PlatformHealth {
                 {/* Expanded detail panel */}
                 {expanded && (
                   <div className="border-t border-gray-100 bg-gray-50 px-5 py-4 space-y-4">
-                    <div>
-                      <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-                        Clover Partners ({m.cloverPartnerCount || 0})
-                      </h4>
-                      {(m.cloverPartners || []).length === 0 ? (
-                        <p className="text-[12px] text-gray-400">No Clover partners yet.</p>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {(m.cloverPartners || []).map((p) => (
-                            <div key={p.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100">
-                              <span className="text-[12px] font-semibold text-gray-800">{p.name}</span>
-                              <button
-                                onClick={async () => {
-                                  await callAdmin('toggle_clover', { partnerId: p.id, enabled: !p.clover_enabled });
-                                  loadHealth();
-                                }}
-                                className={`text-[10px] font-bold px-2 py-1 rounded ${p.clover_enabled ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-                              >
-                                {p.clover_enabled ? 'Disable Clover' : 'Enable Clover'}
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-white rounded-xl p-4 border border-gray-100">
                         <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Property Info</h4>
