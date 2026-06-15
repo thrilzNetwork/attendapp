@@ -64,13 +64,13 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
   const [resolvedTotalRooms, setResolvedTotalRooms] = useState(totalRooms);
   const [resolvedTimezone, setResolvedTimezone] = useState(timezone || 'America/New_York');
 
-  // Self-fetch config if props are empty (belt-and-suspenders)
+  // Always fetch room_count from DB — the DB is the source of truth.
+  // Props are used as initial state only; the DB fetch overwrites them.
   useEffect(() => {
-    if (hotelId && totalRooms > 0) {
-      setResolvedHotelId(hotelId);
-      setResolvedTotalRooms(totalRooms);
-      return;
-    }
+    // Set initial values from props immediately (no flash of 0)
+    if (hotelId) setResolvedHotelId(hotelId);
+    if (totalRooms > 0) setResolvedTotalRooms(totalRooms);
+
     const fetchSelf = async () => {
       const slug = localStorage.getItem('attenda_hotel_slug');
       if (slug) {
