@@ -1600,14 +1600,20 @@ export interface WeeklyForecast {
 }
 
 export async function getWeeklyForecasts(hotelId: string, weekStart: string): Promise<WeeklyForecast[]> {
-  const res = await fetch('/api/ops-data', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-    body: JSON.stringify({ action: 'get_forecasts', hotelId, weekStart }),
-  });
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'Failed to load forecasts');
-  return (json.data || []) as WeeklyForecast[];
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const endStr = weekEnd.toISOString().split('T')[0];
+
+  const { data, error } = await supabase
+    .from('weekly_forecasts')
+    .select('*')
+    .eq('hotel_id', hotelId)
+    .gte('date', weekStart)
+    .lte('date', endStr)
+    .order('date');
+
+  if (error) throw error;
+  return (data || []) as WeeklyForecast[];
 }
 
 export async function upsertWeeklyForecast(forecast: {
