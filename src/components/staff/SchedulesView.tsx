@@ -431,7 +431,7 @@ export default function SchedulesView({
                         onClick={() => isAdmin && handleDelete(s.id)}
                         title={isAdmin ? 'Click to remove' : ''}
                       >
-                        <p className="font-bold truncate">{name.split(' ')[0]}</p>
+                        <p className="font-bold truncate">{name}</p>
                         <p className="text-[9px] opacity-80">
                           {formatTime24to12(s.start_time)}–{formatTime24to12(s.end_time)}
                         </p>
