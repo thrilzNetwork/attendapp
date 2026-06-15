@@ -355,7 +355,7 @@ export default function Dashboard() {
     if (msg.data) setMessages(msg.data);
 
     if (role === 'admin' || role === 'superadmin' || role === 'manager') {
-      setStaff(await getStaffAccounts(hotelId!));
+      setStaff(await getStaffAccountsForHotel(hotelId!));
     }
   }, []);
 
