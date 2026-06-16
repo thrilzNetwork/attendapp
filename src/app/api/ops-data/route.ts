@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         .gte('date', weekStart)
         .lte('date', endStr)
         .order('date');
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true, data: data || [] });
     }
 
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
           .eq('id', existing.data.id)
           .select()
           .single();
-        if (error) throw error;
+        if (error) throw new Error(error.message || JSON.stringify(error));
         return NextResponse.json({ ok: true, data });
       } else {
         const { data, error } = await supabaseAdmin
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
           .insert(scopedForecast)
           .select()
           .single();
-        if (error) throw error;
+        if (error) throw new Error(error.message || JSON.stringify(error));
         return NextResponse.json({ ok: true, data });
       }
     }
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
       }
 
       const { data, error } = await query.order('shift_date').order('start_time');
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true, data: data || [] });
     }
 
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
         .insert({ ...body.schedule, hotel_id: scopedHotelId })
         .select()
         .single();
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true, data });
     }
 
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
         .from('staff_schedules')
         .delete()
         .eq('id', body.scheduleId);
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true });
     }
 

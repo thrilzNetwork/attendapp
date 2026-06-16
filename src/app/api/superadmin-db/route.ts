@@ -36,13 +36,13 @@ export async function POST(req: NextRequest) {
         if (v !== null && v !== undefined && v !== '') insert[k] = v;
       }
       const { data: hotel, error } = await supabaseAdmin.from('hotels').insert(insert).select().single();
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true, hotel });
     }
 
     if (action === 'list_hotels') {
       const { data: hotels, error } = await supabaseAdmin.from('hotels').select('*').order('created_at');
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true, hotels: hotels || [] });
     }
 
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
         if (v !== null && v !== undefined) insert[k] = v;
       }
       const { data: staff, error } = await supabaseAdmin.from('staff_accounts').insert(insert).select().single();
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true, staff });
     }
 
@@ -78,13 +78,13 @@ export async function POST(req: NextRequest) {
         if (v !== null && v !== undefined) updates[k] = v;
       }
       const { error } = await supabaseAdmin.from('staff_accounts').update(updates).eq('id', data.id);
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true });
     }
 
     if (action === 'update_staff_permissions') {
       const { error } = await supabaseAdmin.from('staff_accounts').update({ permissions: data.permissions }).eq('id', data.id);
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true });
     }
 
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
         if (v !== null && v !== undefined) updateData[k] = v;
       }
       const { error } = await supabaseAdmin.from('hotels').update(updateData).eq('slug', cfg.slug);
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true });
     }
 
