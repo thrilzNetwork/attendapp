@@ -11,6 +11,8 @@ import {
 } from '@/components/GuestSheets';
 import { useGuest } from '@/lib/guest-context';
 import { getHotelConfig } from '@/lib/supabase';
+import Reveal from '@/components/landing/Reveal';
+import { PhoneFrame, BrowserFrame } from '@/components/landing/DeviceFrames';
 
 /* ──────────────────────────────────────────────────────────── */
 /*  Root — detects hotel context and switches view             */
@@ -379,10 +381,51 @@ function AttendaLandingPage() {
         </div>
       </section>
 
+      {/* SEE IT FROM EVERY ANGLE — role mockups */}
+      <section className="py-16 md:py-24 px-5 bg-gradient-to-b from-white to-gray-50 overflow-hidden">
+        <div className="max-w-6xl mx-auto">
+          <Reveal className="text-center max-w-2xl mx-auto mb-14">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">One system, every role</h2>
+            <p className="text-[28px] md:text-[40px] font-black tracking-tight text-gray-900 leading-[1.1]">
+              See Attenda from <span style={{ color: TEAL }}>every angle</span>
+            </p>
+            <p className="text-[16px] text-gray-600 mt-4">
+              The same live data, tailored to who&rsquo;s looking — guests, your front-line staff, and management.
+            </p>
+          </Reveal>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-8 items-end">
+            <Reveal direction="up" delay={0} className="flex flex-col items-center">
+              <PhoneGuestMockup />
+              <div className="mt-5 text-center">
+                <div className="text-[15px] font-black text-gray-900">For Guests</div>
+                <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Scan the QR — requests, shuttle, food, and local tips. No app to download.</p>
+              </div>
+            </Reveal>
+
+            <Reveal direction="up" delay={120} className="flex flex-col items-center">
+              <div className="animate-float-slow"><StaffDashboardMockup /></div>
+              <div className="mt-5 text-center">
+                <div className="text-[15px] font-black text-gray-900">For Staff</div>
+                <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Every request, task, and shift in one live thread — nothing slips.</p>
+              </div>
+            </Reveal>
+
+            <Reveal direction="up" delay={240} className="flex flex-col items-center">
+              <div className="animate-float"><GmDashboardMockup /></div>
+              <div className="mt-5 text-center">
+                <div className="text-[15px] font-black text-gray-900">For Management</div>
+                <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Labor, revenue, and performance across the property at a glance.</p>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
       {/* WHY ATTENDA — 6-point grid (Inn-Flow pattern) */}
       <section className="py-16 md:py-24 px-5 bg-gray-50 border-y border-gray-200">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
+          <Reveal className="text-center mb-14">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-gray-200 mb-4">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-gray-700">Built for independent hotels</span>
@@ -395,7 +438,7 @@ function AttendaLandingPage() {
             <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
               A single platform designed around how independent hotels actually operate &mdash; not a reskinned chatbot or a white-labeled marketplace.
             </p>
-          </div>
+          </Reveal>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
@@ -1427,25 +1470,36 @@ function PlatformTabs() {
 function HeaderMockup() {
   return (
     <div className="relative w-full">
-      <div className="rounded-2xl overflow-hidden bg-white shadow-2xl border border-gray-200">
-        <div className="bg-gray-100 border-b border-gray-200 px-4 py-3 flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-400" />
-            <div className="w-3 h-3 rounded-full bg-yellow-400" />
-            <div className="w-3 h-3 rounded-full bg-green-400" />
-          </div>
-          <div className="flex-1 mx-3 h-7 bg-white rounded-md border border-gray-200 flex items-center px-3 text-[11px] text-gray-500 font-semibold">
-            attenda.app/staff · Your Property
+      {/* soft brand glow behind the device */}
+      <div
+        className="pointer-events-none absolute -inset-6 -z-10 rounded-[40px] opacity-60 blur-3xl"
+        style={{ background: 'radial-gradient(circle at 50% 40%, rgba(13,148,136,0.18), transparent 70%)' }}
+      />
+      <div className="animate-float-slow">
+        <BrowserFrame url="attenda.app/staff · Your Property">
+          <Image
+            src="/images/staff-desktop.png"
+            alt="Staff desktop dashboard showing real-time requests, room status, and activity feed"
+            width={640}
+            height={400}
+            className="w-full h-auto block"
+            priority
+          />
+        </BrowserFrame>
+      </div>
+
+      {/* floating live-request card — subtle proof the system is live */}
+      <div className="absolute -bottom-5 -left-4 hidden sm:block animate-float">
+        <div className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white px-3.5 py-2.5 shadow-xl">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+          </span>
+          <div className="leading-tight">
+            <div className="text-[11px] font-black text-gray-900">New request · Room 214</div>
+            <div className="text-[10px] text-gray-500">Extra towels · just now</div>
           </div>
         </div>
-        <Image
-          src="/images/staff-desktop.png"
-          alt="Staff desktop dashboard showing real-time requests, room status, and activity feed"
-          width={640}
-          height={400}
-          className="w-full h-auto block"
-          priority
-        />
       </div>
     </div>
   );
@@ -1469,21 +1523,18 @@ function KpiTileDark({ value, label }: { value: string; label: string }) {
 /* PhoneGuestMockup — Phone frame showing the REAL guest app 2x2 grid */
 function PhoneGuestMockup() {
   return (
-    <div className="relative mx-auto w-[200px]" style={{ filter: 'drop-shadow(0 10px 25px rgba(0,0,0,0.15))' }}>
-      <div className="bg-black rounded-[28px] p-2 shadow-xl">
-        <div className="relative bg-white rounded-[24px] overflow-hidden">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60px] h-[16px] bg-black rounded-b-xl z-10" />
-          <Image
-            src="/images/guest-app.png"
-            alt="Guest app with 2x2 grid: Welcome, Transport, Facilities, Safety, Nearby, Food, Review, Message Us"
-            width={200}
-            height={432}
-            className="w-full h-auto block"
-          />
-        </div>
-      </div>
-      <div className="text-center mt-2">
-        <div className="text-[8px] uppercase tracking-[0.15em] text-gray-500 font-bold">THE ACTUAL GUEST APP</div>
+    <div className="relative mx-auto w-[210px]">
+      <PhoneFrame width={210} className="mx-auto animate-float">
+        <Image
+          src="/images/guest-app.png"
+          alt="Guest app with 2x2 grid: Welcome, Transport, Facilities, Safety, Nearby, Food, Review, Message Us"
+          width={210}
+          height={454}
+          className="w-full h-auto block"
+        />
+      </PhoneFrame>
+      <div className="text-center mt-4">
+        <div className="text-[9px] uppercase tracking-[0.15em] text-gray-500 font-bold">The actual guest app</div>
       </div>
     </div>
   );
@@ -1492,17 +1543,7 @@ function PhoneGuestMockup() {
 /* StaffDashboardMockup — Browser frame showing actual staff dashboard */
 function StaffDashboardMockup() {
   return (
-    <div className="w-full max-w-[320px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-red-400" />
-          <div className="w-2 h-2 rounded-full bg-yellow-400" />
-          <div className="w-2 h-2 rounded-full bg-green-400" />
-        </div>
-        <div className="flex-1 h-5 bg-white rounded border border-gray-200 flex items-center px-2 text-[8px] text-gray-500 font-semibold">
-          attenda.app/staff
-        </div>
-      </div>
+    <BrowserFrame url="attenda.app/staff" className="w-full max-w-[320px]">
       <Image
         src="/images/staff-app.png"
         alt="Staff dashboard"
@@ -1510,24 +1551,14 @@ function StaffDashboardMockup() {
         height={500}
         className="w-full h-auto block"
       />
-    </div>
+    </BrowserFrame>
   );
 }
 
 /* GmDashboardMockup — Browser frame showing actual GM dashboard */
 function GmDashboardMockup() {
   return (
-    <div className="w-full max-w-[320px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      <div className="bg-gray-100 border-b border-gray-200 px-3 py-2 flex items-center gap-2">
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-red-400" />
-          <div className="w-2 h-2 rounded-full bg-yellow-400" />
-          <div className="w-2 h-2 rounded-full bg-green-400" />
-        </div>
-        <div className="flex-1 h-5 bg-white rounded border border-gray-200 flex items-center px-2 text-[8px] text-gray-500 font-semibold">
-          gm.attenda.app
-        </div>
-      </div>
+    <BrowserFrame url="gm.attenda.app" className="w-full max-w-[320px]">
       <Image
         src="/images/gm-dashboard.png"
         alt="GM dashboard"
@@ -1535,27 +1566,24 @@ function GmDashboardMockup() {
         height={480}
         className="w-full h-auto block"
       />
-    </div>
+    </BrowserFrame>
   );
 }
 
 /* PartnerPortalMockup — Real guest ordering screenshot */
 function PartnerPortalMockup() {
   return (
-    <div className="w-full max-w-[280px] mx-auto" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.18))' }}>
-      <div className="relative rounded-[40px] border-[10px] border-gray-900 bg-gray-900 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80px] h-[20px] bg-gray-900 rounded-b-2xl z-10" />
-        <div className="relative">
-          <Image
-            src="/images/guest-food.png"
-            alt="Guest food ordering screen — browse menu, add items, order to room"
-            width={280}
-            height={607}
-            className="w-full h-auto block"
-          />
-        </div>
-      </div>
-      <div className="text-center mt-4">
+    <div className="w-full max-w-[280px] mx-auto">
+      <PhoneFrame width={280} className="mx-auto animate-float">
+        <Image
+          src="/images/guest-food.png"
+          alt="Guest food ordering screen — browse menu, add items, order to room"
+          width={280}
+          height={607}
+          className="w-full h-auto block"
+        />
+      </PhoneFrame>
+      <div className="text-center mt-5">
         <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">Guests order in under 30s</div>
         <div className="text-sm font-black text-gray-900 mt-1">Scan. Browse. Order. Eat.</div>
         <div className="text-[10px] text-gray-500 mt-0.5">No app · No download · No account</div>
