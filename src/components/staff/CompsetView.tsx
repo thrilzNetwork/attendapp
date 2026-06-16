@@ -40,6 +40,8 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
   const [timeForm, setTimeForm] = useState({ call_time: '08:00', label: '' });
   const [activeSlot, setActiveSlot] = useState<{ hotelId: string; callTime: string } | null>(null);
   const [entryForm, setEntryForm] = useState({ rate: '', rooms_sold: '', occupancy_pct: '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const date = todayStr();
 
@@ -66,18 +68,38 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
 
   const handleAddHotel = async () => {
     if (!hotelForm.name) return;
-    await createCompsetHotel({ hotel_id: hotelId, name: hotelForm.name, phone: hotelForm.phone, room_keys: hotelForm.room_keys ? parseInt(hotelForm.room_keys, 10) : 0 });
-    setHotelForm({ name: '', phone: '', room_keys: '' });
-    setShowHotelForm(false);
-    load();
+    setError('');
+    try {
+      await createCompsetHotel({ hotel_id: hotelId, name: hotelForm.name, phone: hotelForm.phone, room_keys: hotelForm.room_keys ? parseInt(hotelForm.room_keys, 10) : 0 });
+      setHotelForm({ name: '', phone: '', room_keys: '' });
+      setShowHotelForm(false);
+      load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not save hotel.');
+    }
   };
 
   const handleAddTime = async () => {
     if (!timeForm.call_time) return;
-    await createCompsetCallTime({ hotel_id: hotelId, call_time: timeForm.call_time, label: timeForm.label });
-    setTimeForm({ call_time: '08:00', label: '' });
-    setShowTimeForm(false);
-    load();
+    setError('');
+    try {
+      await createCompsetCallTime({ hotel_id: hotelId, call_time: timeForm.call_time, label: timeForm.label });
+      setTimeForm({ call_time: '08:00', label: '' });
+      setShowTimeForm(false);
+      load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not save call time.');
+    }
+  };
+
+  const handleDeleteHotel = async (id: string) => {
+    setError('');
+    try { await deleteCompsetHotel(id); load(); } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Could not delete hotel.'); }
+  };
+
+  const handleDeleteTime = async (id: string) => {
+    setError('');
+    try { await deleteCompsetCallTime(id); load(); } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Could not delete call time.'); }
   };
 
   const entryFor = (compsetHotelId: string, callTime: string) =>
@@ -111,25 +133,33 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
 
   const saveEntry = async () => {
     if (!activeSlot) return;
-    const roomsTotal = activeRoomKeys || null;
-    const roomsSold = entryForm.rooms_sold ? parseInt(entryForm.rooms_sold, 10) : null;
-    const occupancyPct = entryForm.occupancy_pct
-      ? parseFloat(entryForm.occupancy_pct)
-      : (roomsTotal && roomsSold != null ? Math.round((roomsSold / roomsTotal) * 1000) / 10 : null);
-    await upsertCompsetEntry({
-      hotel_id: hotelId,
-      compset_hotel_id: activeSlot.hotelId,
-      call_date: date,
-      call_time: activeSlot.callTime,
-      rate: entryForm.rate ? parseFloat(entryForm.rate) : null,
-      rooms_total: roomsTotal,
-      rooms_sold: roomsSold,
-      occupancy_pct: occupancyPct,
-      entered_by: staffId || null,
-      entered_by_name: staffName,
-    });
-    setActiveSlot(null);
-    load();
+    setError('');
+    setSaving(true);
+    try {
+      const roomsTotal = activeRoomKeys || null;
+      const roomsSold = entryForm.rooms_sold ? parseInt(entryForm.rooms_sold, 10) : null;
+      const occupancyPct = entryForm.occupancy_pct
+        ? parseFloat(entryForm.occupancy_pct)
+        : (roomsTotal && roomsSold != null ? Math.round((roomsSold / roomsTotal) * 1000) / 10 : null);
+      await upsertCompsetEntry({
+        hotel_id: hotelId,
+        compset_hotel_id: activeSlot.hotelId,
+        call_date: date,
+        call_time: activeSlot.callTime,
+        rate: entryForm.rate ? parseFloat(entryForm.rate) : null,
+        rooms_total: roomsTotal,
+        rooms_sold: roomsSold,
+        occupancy_pct: occupancyPct,
+        entered_by: staffId || null,
+        entered_by_name: staffName,
+      });
+      setActiveSlot(null);
+      load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not save call log.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (hotels.length === 0 && callTimes.length === 0 && !isAdmin) {
@@ -156,6 +186,8 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
           <BarChart3 size={14} /> {showHistory ? 'Back to Today' : 'History'}
         </button>
       </div>
+
+      {error && <p className="text-red-600 text-[12px] bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 mb-4">{error}</p>}
 
       {isAdmin && (
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -185,7 +217,7 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
                     <p className="text-[12px] font-semibold text-gray-800">{h.name}</p>
                     <p className="text-[11px] text-gray-400">{h.phone && <span>{h.phone} · </span>}{h.room_keys || 0} room keys</p>
                   </div>
-                  <button onClick={() => deleteCompsetHotel(h.id).then(load)} className="text-red-400 hover:text-red-600">
+                  <button onClick={() => handleDeleteHotel(h.id)} className="text-red-400 hover:text-red-600">
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -215,7 +247,7 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
               {callTimes.map(t => (
                 <div key={t.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
                   <p className="text-[12px] font-semibold text-gray-800">{formatTime(t.call_time)} {t.label && <span className="text-gray-400 font-normal">— {t.label}</span>}</p>
-                  <button onClick={() => deleteCompsetCallTime(t.id).then(load)} className="text-red-400 hover:text-red-600">
+                  <button onClick={() => handleDeleteTime(t.id)} className="text-red-400 hover:text-red-600">
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -344,9 +376,10 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
                 </p>
               )}
             </div>
+            {error && <p className="text-red-600 text-[11px] bg-red-50 border border-red-100 rounded-lg px-3 py-2 mt-3">{error}</p>}
             <div className="flex gap-2 mt-5">
-              <button onClick={saveEntry} className="flex-1 py-3 rounded-xl text-white font-semibold text-[13px]" style={{ backgroundColor: TEAL }}>
-                Save
+              <button onClick={saveEntry} disabled={saving} className="flex-1 py-3 rounded-xl text-white font-semibold text-[13px] disabled:opacity-60" style={{ backgroundColor: TEAL }}>
+                {saving ? 'Saving...' : 'Save'}
               </button>
               <button onClick={() => setActiveSlot(null)} className="px-5 py-3 rounded-xl bg-gray-100 text-gray-600 font-semibold text-[13px]">
                 Cancel

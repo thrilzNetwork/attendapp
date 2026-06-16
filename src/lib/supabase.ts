@@ -512,16 +512,19 @@ export async function getCompsetHotels(hotelId: string): Promise<CompsetHotel[]>
 }
 
 export async function createCompsetHotel(hotel: { hotel_id: string; name: string; phone: string; room_keys?: number }): Promise<CompsetHotel | null> {
-  const { data } = await supabase.from('compset_hotels').insert({ ...hotel, is_active: true }).select().single();
+  const { data, error } = await supabase.from('compset_hotels').insert({ ...hotel, is_active: true }).select().single();
+  if (error) throw error;
   return data;
 }
 
 export async function updateCompsetHotel(id: string, updates: Partial<CompsetHotel>): Promise<void> {
-  await supabase.from('compset_hotels').update(updates).eq('id', id);
+  const { error } = await supabase.from('compset_hotels').update(updates).eq('id', id);
+  if (error) throw error;
 }
 
 export async function deleteCompsetHotel(id: string): Promise<void> {
-  await supabase.from('compset_hotels').delete().eq('id', id);
+  const { error } = await supabase.from('compset_hotels').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function getCompsetCallTimes(hotelId: string): Promise<CompsetCallTime[]> {
@@ -533,11 +536,13 @@ export async function getCompsetCallTimes(hotelId: string): Promise<CompsetCallT
 }
 
 export async function createCompsetCallTime(callTime: { hotel_id: string; call_time: string; label: string }): Promise<void> {
-  await supabase.from('compset_call_times').insert(callTime);
+  const { error } = await supabase.from('compset_call_times').insert(callTime);
+  if (error) throw error;
 }
 
 export async function deleteCompsetCallTime(id: string): Promise<void> {
-  await supabase.from('compset_call_times').delete().eq('id', id);
+  const { error } = await supabase.from('compset_call_times').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function getCompsetEntries(hotelId: string, date: string): Promise<CompsetEntry[]> {
@@ -567,8 +572,9 @@ export async function upsertCompsetEntry(entry: {
   entered_by: string | null;
   entered_by_name: string;
 }): Promise<void> {
-  await supabase.from('compset_entries')
+  const { error } = await supabase.from('compset_entries')
     .upsert(entry, { onConflict: 'compset_hotel_id,call_date,call_time' });
+  if (error) throw error;
 }
 
 // ─── Hotels (multi-tenant) ────────────────────────────────────
