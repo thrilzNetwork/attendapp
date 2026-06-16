@@ -2307,7 +2307,39 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   const [sendInvite, setSendInvite] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resentId, setResentId] = useState<string | null>(null);
   const ALL_PERMS = ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes'];
+
+  const handleResendInvite = async (s: StaffAccount) => {
+    if (!s.email) return;
+    setResendingId(s.id!);
+    try {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://attendaapp.com';
+      await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        body: JSON.stringify({
+          type: 'staff_invitation',
+          data: {
+            staffEmail: s.email,
+            staffName: s.name,
+            staffRole: s.role,
+            hotelName,
+            hotelSlug,
+            pin: '',
+            setupUrl: `${baseUrl}/staff/setup?email=${encodeURIComponent(s.email)}&hotel=${encodeURIComponent(hotelSlug)}&mode=setup`,
+          },
+        }),
+      });
+      setResentId(s.id!);
+      setTimeout(() => setResentId(null), 3000);
+    } catch {
+      // ignore — admin can retry
+    } finally {
+      setResendingId(null);
+    }
+  };
 
   const adminFetch = async (action: string, body: any) => {
     const res = await fetch('/api/superadmin-db', {
@@ -2549,6 +2581,12 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                       className={`text-[10px] font-bold px-2 py-1 rounded ${editingProfile === s.id ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600'}`}>Edit Profile</button>
                     <button onClick={() => setEditingPerms(editingPerms === s.id ? null : s.id!)}
                       className="text-[10px] font-bold px-2 py-1 rounded bg-gray-100 text-gray-600">Permissions</button>
+                    {s.email && (
+                      <button onClick={() => handleResendInvite(s)} disabled={resendingId === s.id}
+                        className="text-[10px] font-bold px-2 py-1 rounded bg-teal-50 text-teal-700 disabled:opacity-50">
+                        {resentId === s.id ? 'Sent!' : resendingId === s.id ? 'Sending...' : 'Resend Invite'}
+                      </button>
+                    )}
                     <button onClick={() => handleToggleActive(s)} className="text-[10px] font-bold px-2 py-1 rounded bg-amber-100 text-amber-700">Deactivate</button>
                     <button onClick={() => { if(confirm('Delete?')) { deleteStaffAccount(s.id!); onRefresh(); } }}
                       className="text-red-400"><Trash2 size={13} /></button>
@@ -2657,7 +2695,15 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
               {staff.filter(s => !s.active).map(s => (
                 <div key={s.id} className="flex items-center justify-between text-[12px] py-1">
                   <span className="text-gray-500">{s.name} · {s.role}</span>
-                  <button onClick={() => handleToggleActive(s)} className="text-[10px] font-bold text-emerald-600">Reactivate</button>
+                  <div className="flex items-center gap-2">
+                    {s.email && (
+                      <button onClick={() => handleResendInvite(s)} disabled={resendingId === s.id}
+                        className="text-[10px] font-bold text-teal-600 disabled:opacity-50">
+                        {resentId === s.id ? 'Sent!' : resendingId === s.id ? 'Sending...' : 'Resend Invite'}
+                      </button>
+                    )}
+                    <button onClick={() => handleToggleActive(s)} className="text-[10px] font-bold text-emerald-600">Reactivate</button>
+                  </div>
                 </div>
               ))}
             </div>
