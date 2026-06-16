@@ -10,7 +10,7 @@ import {
   type PositionTodoTemplate, type PositionTodoItem,
   type PositionTodoInstance, type PositionTodoResponse,
 } from '@/lib/supabase';
-import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList, Move, UserX, DollarSign } from 'lucide-react';
+import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList, Move, UserX, DollarSign, BookOpen, Download } from 'lucide-react';
 
 const TEAL = '#0D9488';
 
@@ -24,23 +24,138 @@ const DEPARTMENTS: { key: string; label: string; icon: string }[] = [
 ];
 
 const ITEM_TYPES: { key: string; label: string; icon: React.ReactNode }[] = [
-  { key: 'checkbox',   label: 'Checkbox',        icon: <CheckSquare size={14} /> },
-  { key: 'number',     label: 'Number Input',    icon: <Hash size={14} /> },
-  { key: 'text',       label: 'Text Input',      icon: <Type size={14} /> },
-  { key: 'time',       label: 'Time',            icon: <Clock size={14} /> },
-  { key: 'kpi_field',  label: 'KPI Field',       icon: <ClipboardList size={14} /> },
-  { key: 'action_link', label: 'Action Link',    icon: <Link size={14} /> },
-  { key: 'room_move',   label: 'Room Move',      icon: <Move size={14} /> },
-  { key: 'no_show',     label: 'No Show',        icon: <UserX size={14} /> },
-  { key: 'bank_count',  label: 'Bank/Drawer Count', icon: <DollarSign size={14} /> },
+  { key: 'checkbox',    label: 'Checkbox',           icon: <CheckSquare size={14} /> },
+  { key: 'number',      label: 'Number Input',        icon: <Hash size={14} /> },
+  { key: 'text',        label: 'Text Input',          icon: <Type size={14} /> },
+  { key: 'time',        label: 'Time',                icon: <Clock size={14} /> },
+  { key: 'kpi_field',   label: 'KPI Field',           icon: <ClipboardList size={14} /> },
+  { key: 'action_link', label: 'Action Link',         icon: <Link size={14} /> },
+  { key: 'room_move',   label: 'Room Move',           icon: <Move size={14} /> },
+  { key: 'no_show',     label: 'No Show',             icon: <UserX size={14} /> },
+  { key: 'bank_count',  label: 'Bank/Drawer Count',   icon: <DollarSign size={14} /> },
 ];
 
-// Pre-made operational templates — quick-add buttons in the builder so admins
-// don't have to hand-configure the item type/label for these common front-desk actions.
-const PRESET_ITEMS: { key: string; label: string; item_type: string; icon: React.ReactNode }[] = [
-  { key: 'room_move',  label: 'Room Move',         item_type: 'room_move', icon: <Move size={14} /> },
-  { key: 'no_show',    label: 'No Show',           item_type: 'no_show',   icon: <UserX size={14} /> },
-  { key: 'bank_count', label: 'Bank/Drawer Count', item_type: 'bank_count', icon: <DollarSign size={14} /> },
+interface CommunityItem {
+  label: string;
+  item_type: string;
+  config?: Record<string, unknown>;
+}
+
+interface CommunityTemplate {
+  id: string;
+  name: string;
+  description: string;
+  department: string;
+  assigned_position?: string;
+  emoji: string;
+  tag: string;
+  items: CommunityItem[];
+}
+
+// Built-in community templates — ready-to-use operational checklists hotels can install.
+// Future: pull these from a shared global DB table where properties share what works.
+const COMMUNITY_TEMPLATES: CommunityTemplate[] = [
+  {
+    id: 'cash-drawer-count',
+    name: 'Cash Drawer Count Sheet',
+    description: 'Track your cash drawer balance at the start and end of every shift.',
+    department: 'front_desk',
+    emoji: '💵',
+    tag: 'Accounting',
+    items: [
+      { label: 'Opening Drawer Count', item_type: 'bank_count' },
+      { label: 'Closing Drawer Count', item_type: 'bank_count' },
+    ],
+  },
+  {
+    id: 'no-shows-log',
+    name: 'No Shows Log',
+    description: 'Log every guest who had a reservation but did not arrive.',
+    department: 'front_desk',
+    emoji: '🚫',
+    tag: 'Front Desk',
+    items: [
+      { label: 'Log No-Show Guest', item_type: 'no_show' },
+    ],
+  },
+  {
+    id: 'room-moves-log',
+    name: 'Room Moves Log',
+    description: 'Track every guest room change with reason and who authorized it.',
+    department: 'front_desk',
+    emoji: '🔄',
+    tag: 'Front Desk',
+    items: [
+      { label: 'Log Room Move', item_type: 'room_move' },
+    ],
+  },
+  {
+    id: 'morning-opening',
+    name: 'Morning Opening Checklist',
+    description: 'Standard front desk opening tasks to start the AM shift right.',
+    department: 'front_desk',
+    assigned_position: 'front_desk_agent',
+    emoji: '☀️',
+    tag: 'Daily Ops',
+    items: [
+      { label: 'Check lobby cleanliness', item_type: 'checkbox' },
+      { label: 'Review arrivals & departures report', item_type: 'checkbox' },
+      { label: 'Count opening cash drawer', item_type: 'bank_count' },
+      { label: 'Check maintenance work orders', item_type: 'checkbox' },
+      { label: 'Confirm housekeeping assignments', item_type: 'checkbox' },
+      { label: 'Current occupancy (%)', item_type: 'number', config: { unit: '%', placeholder: 'Enter occupancy' } },
+    ],
+  },
+  {
+    id: 'night-audit',
+    name: 'Night Audit Checklist',
+    description: 'End-of-day audit tasks for the overnight shift auditor.',
+    department: 'front_desk',
+    assigned_position: 'night_auditor',
+    emoji: '🌙',
+    tag: 'Night Audit',
+    items: [
+      { label: 'Check in all remaining arrivals', item_type: 'checkbox' },
+      { label: 'Run end-of-day audit report', item_type: 'checkbox' },
+      { label: 'Balance accounts receivable', item_type: 'checkbox' },
+      { label: 'Post room & tax charges', item_type: 'checkbox' },
+      { label: 'Final occupied room count', item_type: 'number', config: { unit: 'rooms', placeholder: 'Enter count' } },
+      { label: 'End-of-day drawer count', item_type: 'bank_count' },
+      { label: 'No shows for tonight', item_type: 'no_show' },
+    ],
+  },
+  {
+    id: 'housekeeping-daily',
+    name: 'Housekeeping Daily Report',
+    description: 'Track rooms cleaned, rooms remaining, and any issues found on the floor.',
+    department: 'housekeeping',
+    assigned_position: 'housekeeper',
+    emoji: '🧹',
+    tag: 'Housekeeping',
+    items: [
+      { label: 'Rooms cleaned today', item_type: 'number', config: { unit: 'rooms', placeholder: 'Enter count' } },
+      { label: 'Rooms still pending', item_type: 'number', config: { unit: 'rooms', placeholder: 'Enter count' } },
+      { label: 'Restock linen & amenities', item_type: 'checkbox' },
+      { label: 'Report any maintenance issues found', item_type: 'checkbox' },
+      { label: 'Lost & found items logged', item_type: 'checkbox' },
+    ],
+  },
+  {
+    id: 'pm-closing',
+    name: 'PM Closing Checklist',
+    description: 'End-of-PM-shift wrap-up for the front desk agent.',
+    department: 'front_desk',
+    assigned_position: 'front_desk_agent',
+    emoji: '🌆',
+    tag: 'Daily Ops',
+    items: [
+      { label: 'Count closing cash drawer', item_type: 'bank_count' },
+      { label: 'Log any no shows for tonight', item_type: 'no_show' },
+      { label: 'Complete handover notes', item_type: 'text', config: { placeholder: 'Write anything the next shift needs to know...' } },
+      { label: 'Confirm all check-ins processed', item_type: 'checkbox' },
+      { label: 'Safe drop completed', item_type: 'checkbox' },
+    ],
+  },
 ];
 
 const POSITIONS: { key: string; label: string }[] = [
@@ -55,6 +170,7 @@ const POSITIONS: { key: string; label: string }[] = [
 ];
 
 type ViewMode = 'staff' | 'builder';
+type BuilderTab = 'my-templates' | 'library';
 
 interface Props {
   hotelId: string;
@@ -66,16 +182,18 @@ interface Props {
 
 export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId, department }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('staff');
+  const [builderTab, setBuilderTab] = useState<BuilderTab>('my-templates');
   const [templates, setTemplates] = useState<PositionTodoTemplate[]>([]);
   const [itemsByTemplate, setItemsByTemplate] = useState<Record<string, PositionTodoItem[]>>({});
   const [instances, setInstances] = useState<PositionTodoInstance[]>([]);
   const [responsesByInstance, setResponsesByInstance] = useState<Record<string, PositionTodoResponse[]>>({});
   const [loading, setLoading] = useState(true);
   const [openDept, setOpenDept] = useState<string | null>(null);
-  const [editingTemplate, setEditingTemplate] = useState<string | null>(null); // template id being edited
+  const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [installedId, setInstalledId] = useState<string | null>(null);
 
   // New template form
   const [newName, setNewName] = useState('');
@@ -88,7 +206,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [newItemType, setNewItemType] = useState('checkbox');
   const [newItemConfig, setNewItemConfig] = useState('');
 
-  // Inline form state for the operational input types (room move / no show / bank count)
+  // Inline form state for operational input types
   const [opsForm, setOpsForm] = useState<Record<string, Record<string, string>>>({});
   const setOpsField = (itemId: string, field: string, value: string) =>
     setOpsForm(prev => ({ ...prev, [itemId]: { ...prev[itemId], [field]: value } }));
@@ -99,18 +217,15 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       const tpls = await getPositionTodoTemplates(hotelId);
       setTemplates(tpls);
 
-      // Load items for each template
       const itemsMap: Record<string, PositionTodoItem[]> = {};
       for (const t of tpls) {
         itemsMap[t.id] = await getTemplateItems(t.id);
       }
       setItemsByTemplate(itemsMap);
 
-      // Load today's instances
       const insts = await getTodayInstances(hotelId, staffId);
       setInstances(insts);
 
-      // Load responses for each instance
       const respMap: Record<string, PositionTodoResponse[]> = {};
       for (const inst of insts) {
         respMap[inst.id] = await getInstanceResponses(inst.id);
@@ -124,16 +239,10 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
 
   useEffect(() => { loadAll(); }, [hotelId, staffId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Filter templates by department and position
   const templatesByDept: Record<string, PositionTodoTemplate[]> = {};
   templates.forEach(t => {
-    // Staff mode: only show matching department/position
     if (!isAdmin && department) {
       if (t.department !== department) return;
-      if (t.assigned_position) {
-        // Only show if assigned to this staff's position
-        // We'll simplify: if it has a position, check it
-      }
     }
     const k = t.department || 'front_desk';
     (templatesByDept[k] = templatesByDept[k] || []).push(t);
@@ -156,6 +265,29 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     setSubmitting(false);
   };
 
+  const installCommunityTemplate = async (ct: CommunityTemplate) => {
+    setSubmitting(true); setError(null);
+    try {
+      const tpl = await createPositionTodoTemplate({
+        hotel_id: hotelId, name: ct.name, description: ct.description,
+        department: ct.department, assigned_position: ct.assigned_position || '',
+      });
+      for (let i = 0; i < ct.items.length; i++) {
+        await createTemplateItem({
+          template_id: tpl.id, label: ct.items[i].label,
+          item_type: ct.items[i].item_type, sort_order: i,
+          config: ct.items[i].config || {},
+        });
+      }
+      setInstalledId(ct.id);
+      await loadAll();
+      setBuilderTab('my-templates');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to install template');
+    }
+    setSubmitting(false);
+  };
+
   const deleteTpl = async (id: string) => {
     if (!confirm('Delete this To-Do template? All items will be removed.')) return;
     await deletePositionTodoTemplate(id);
@@ -167,32 +299,13 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     setSubmitting(true);
     const items = itemsByTemplate[templateId] || [];
     let config: Record<string, unknown> = {};
-    try {
-      if (newItemConfig.trim()) config = JSON.parse(newItemConfig);
-    } catch {}
+    try { if (newItemConfig.trim()) config = JSON.parse(newItemConfig); } catch {}
     try {
       await createTemplateItem({
         template_id: templateId, label: newItemLabel.trim(),
-        item_type: newItemType, sort_order: items.length,
-        config,
+        item_type: newItemType, sort_order: items.length, config,
       });
       setNewItemLabel(''); setNewItemType('checkbox'); setNewItemConfig('');
-      const updated = await getTemplateItems(templateId);
-      setItemsByTemplate(prev => ({ ...prev, [templateId]: updated }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to add item');
-    }
-    setSubmitting(false);
-  };
-
-  const addPresetItem = async (templateId: string, preset: { label: string; item_type: string }) => {
-    setSubmitting(true); setError(null);
-    const items = itemsByTemplate[templateId] || [];
-    try {
-      await createTemplateItem({
-        template_id: templateId, label: preset.label,
-        item_type: preset.item_type, sort_order: items.length, config: {},
-      });
       const updated = await getTemplateItems(templateId);
       setItemsByTemplate(prev => ({ ...prev, [templateId]: updated }));
     } catch (e) {
@@ -220,7 +333,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
         hotel_id: hotelId, template_id: tplId,
         staff_id: staffId, staff_name: staffName || 'Staff',
       });
-      // Create empty responses for each item
       const items = itemsByTemplate[tplId] || [];
       for (const item of items) {
         await upsertResponse({ instance_id: inst.id, item_id: item.id });
@@ -253,8 +365,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const handleRoomMove = async (instId: string, itemId: string) => {
     const f = opsForm[itemId] || {};
     if (!f.guest_name?.trim() || !f.from_room?.trim() || !f.to_room?.trim()) {
-      setError('Guest name, from room, and to room are required.');
-      return;
+      setError('Guest name, from room, and to room are required.'); return;
     }
     setSubmitting(true); setError(null);
     try {
@@ -266,17 +377,14 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       await upsertResponse({ instance_id: instId, item_id: itemId, checked: true, text_value: `${f.guest_name.trim()}: Room ${f.from_room.trim()} → ${f.to_room.trim()}` });
       const updated = await getInstanceResponses(instId);
       setResponsesByInstance(prev => ({ ...prev, [instId]: updated }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to log room move');
-    }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to log room move'); }
     setSubmitting(false);
   };
 
   const handleNoShow = async (instId: string, itemId: string) => {
     const f = opsForm[itemId] || {};
     if (!f.guest_name?.trim() || !f.room?.trim()) {
-      setError('Guest name and room are required.');
-      return;
+      setError('Guest name and room are required.'); return;
     }
     setSubmitting(true); setError(null);
     try {
@@ -288,18 +396,13 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       await upsertResponse({ instance_id: instId, item_id: itemId, checked: true, text_value: `${f.guest_name.trim()} · Room ${f.room.trim()}` });
       const updated = await getInstanceResponses(instId);
       setResponsesByInstance(prev => ({ ...prev, [instId]: updated }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to log no-show');
-    }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to log no-show'); }
     setSubmitting(false);
   };
 
   const handleBankCount = async (instId: string, itemId: string) => {
     const f = opsForm[itemId] || {};
-    if (!f.cash_total?.trim()) {
-      setError('Cash total is required.');
-      return;
-    }
+    if (!f.cash_total?.trim()) { setError('Cash total is required.'); return; }
     setSubmitting(true); setError(null);
     try {
       await createBankCount({
@@ -311,9 +414,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       await upsertResponse({ instance_id: instId, item_id: itemId, checked: true, text_value: `Cash $${f.cash_total} · Card $${f.card_total || '0'}` });
       const updated = await getInstanceResponses(instId);
       setResponsesByInstance(prev => ({ ...prev, [instId]: updated }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to log bank count');
-    }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to log bank count'); }
     setSubmitting(false);
   };
 
@@ -322,11 +423,9 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     await loadAll();
   };
 
-  const getResp = (instId: string, itemId: string): PositionTodoResponse | undefined => {
-    return (responsesByInstance[instId] || []).find(r => r.item_id === itemId);
-  };
+  const getResp = (instId: string, itemId: string): PositionTodoResponse | undefined =>
+    (responsesByInstance[instId] || []).find(r => r.item_id === itemId);
 
-  // Compute a simple "my todos summary"
   const myInstances = instances.filter(i => i.staff_name === staffName);
   const completedCount = myInstances.filter(i => i.status === 'completed').length;
   const totalCount = myInstances.length;
@@ -338,15 +437,18 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900">To-Dos</h1>
           <p className="text-[13px] text-gray-500">
-            {isAdmin ? `${staffName || 'Admin'}` : staffName || 'Staff'} · {totalCount > 0 ? `${completedCount}/${totalCount} done today` : 'Start your shift tasks'}
+            {isAdmin ? staffName || 'Admin' : staffName || 'Staff'} · {totalCount > 0 ? `${completedCount}/${totalCount} done today` : 'Start your shift tasks'}
           </p>
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">
-            <button onClick={() => setViewMode(viewMode === 'builder' ? 'staff' : 'builder')} className={`text-[11px] font-bold px-3 py-2 rounded-xl border transition-colors ${viewMode === 'builder' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+            <button
+              onClick={() => setViewMode(viewMode === 'builder' ? 'staff' : 'builder')}
+              className={`text-[11px] font-bold px-3 py-2 rounded-xl border transition-colors ${viewMode === 'builder' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
+            >
               {viewMode === 'builder' ? '👁️ Staff View' : '⚙️ Builder'}
             </button>
-            {viewMode === 'builder' && (
+            {viewMode === 'builder' && builderTab === 'my-templates' && (
               <button onClick={() => setShowNew(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
                 <Plus size={14} /> New
               </button>
@@ -355,320 +457,397 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
         )}
       </div>
 
-      {error && <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] rounded-xl px-4 py-3 mb-4">{error}</div>}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] rounded-xl px-4 py-3 mb-4">{error}<button onClick={() => setError(null)} className="ml-2 font-bold">✕</button></div>}
+
+      {/* Builder tab bar */}
+      {isAdmin && viewMode === 'builder' && (
+        <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl">
+          <button
+            onClick={() => setBuilderTab('my-templates')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-bold transition-colors ${builderTab === 'my-templates' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <ClipboardList size={13} /> My Templates
+          </button>
+          <button
+            onClick={() => setBuilderTab('library')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-bold transition-colors ${builderTab === 'library' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <BookOpen size={13} /> Template Library
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center py-12 text-gray-400 text-[14px]">Loading...</div>
       ) : (
         <>
-          {/* Empty state */}
-          {templates.length === 0 && !loading && (
-            <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
-              <ClipboardList size={48} className="mx-auto text-gray-300 mb-3" />
-              <p className="text-[15px] font-semibold text-gray-700 mb-1">No To-Dos yet</p>
-              {isAdmin ? (
-                <p className="text-[12px] text-gray-500 mb-4">Create checklists for each position. Staff will see them here.</p>
-              ) : (
-                <p className="text-[12px] text-gray-500">Ask your manager to set up To-Dos for your position.</p>
-              )}
-              {isAdmin && <button onClick={() => setShowNew(true)} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}><Plus size={14} /> Create First To-Do</button>}
-            </div>
-          )}
-
-          {/* Staff view - my active To-Dos */}
-          {viewMode === 'staff' && templates.length > 0 && (
-            <div className="space-y-4">
-              {DEPARTMENTS.filter(d => {
-                if (!isAdmin && department) return d.key === department;
-                return true;
-              }).map(dept => {
-                const deptTpls = templates.filter(t => t.department === dept.key);
-                if (deptTpls.length === 0) return null;
-                const open = openDept === dept.key;
-                return (
-                  <div key={dept.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                    <button onClick={() => setOpenDept(open ? null : dept.key)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[20px]">{dept.icon}</span>
-                        <div className="text-left">
-                          <p className="text-[14px] font-bold text-gray-900">{dept.label}</p>
-                          <p className="text-[11px] text-gray-500">{deptTpls.length} checklist{deptTpls.length !== 1 ? 's' : ''}</p>
-                        </div>
-                      </div>
-                      <ChevronDown size={18} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {open && (
-                      <div className="border-t border-gray-100 divide-y divide-gray-100">
-                        {deptTpls.map(tpl => {
-                          const items = itemsByTemplate[tpl.id] || [];
-                          const myInst = instances.find(i => i.template_id === tpl.id && i.staff_name === staffName && i.status !== 'completed');
-                          const completedInst = instances.find(i => i.template_id === tpl.id && i.status === 'completed' && i.staff_name === staffName);
-
-                          return (
-                            <div key={tpl.id} className="px-4 py-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <div>
-                                  <p className="text-[14px] font-semibold text-gray-900">{tpl.name}</p>
-                                  <p className="text-[11px] text-gray-500">
-                                    {tpl.description && `${tpl.description} · `}
-                                    {items.length} item{items.length !== 1 ? 's' : ''}
-                                    {tpl.assigned_position && ` · ${POSITIONS.find(p => p.key === tpl.assigned_position)?.label || tpl.assigned_position}`}
-                                  </p>
-                                </div>
-                                {completedInst ? (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✅ Done</span>
-                                ) : myInst ? (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ In Progress</span>
-                                ) : staffName ? (
-                                  <button onClick={() => startInstance(tpl.id)} disabled={submitting} className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                                    Start
-                                  </button>
-                                ) : null}
-                              </div>
-
-                              {/* Active instance items */}
-                              {myInst && items.length > 0 && (
-                                <div className="space-y-2 mt-3 border-t border-gray-100 pt-3">
-                                  {items.sort((a, b) => a.sort_order - b.sort_order).map(item => {
-                                    const resp = getResp(myInst.id, item.id);
-                                    return (
-                                      <div key={item.id} className="flex items-start gap-2.5 py-1">
-                                        {item.item_type === 'checkbox' && (
-                                          <label className="flex items-center gap-2.5 cursor-pointer flex-1">
-                                            <input type="checkbox" checked={resp?.checked || false} onChange={() => handleCheck(myInst.id, item.id, !resp?.checked)} className="w-4 h-4 rounded border-gray-300 cursor-pointer" style={{ accentColor: TEAL }} />
-                                            <span className={`text-[13px] ${resp?.checked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{item.label}</span>
-                                          </label>
-                                        )}
-                                        {item.item_type === 'number' && (
-                                          <div className="flex-1">
-                                            <p className="text-[13px] text-gray-700 mb-1">{item.label}{item.config?.unit ? ` (${item.config.unit})` : ''}</p>
-                                            <input type="number" value={resp?.number_value ?? ''} onChange={e => handleNumber(myInst.id, item.id, parseFloat(e.target.value) || 0)} placeholder={item.config?.placeholder || 'Enter value...'} min={item.config?.min} max={item.config?.max} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
-                                          </div>
-                                        )}
-                                        {item.item_type === 'text' && (
-                                          <div className="flex-1">
-                                            <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
-                                            <input type="text" value={resp?.text_value || ''} onChange={e => handleText(myInst.id, item.id, e.target.value)} placeholder={item.config?.placeholder || 'Type answer...'} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
-                                          </div>
-                                        )}
-                                        {item.item_type === 'time' && (
-                                          <div className="flex-1">
-                                            <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
-                                            <input type="time" value={resp?.text_value || ''} onChange={e => handleText(myInst.id, item.id, e.target.value)} className="w-40 bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
-                                          </div>
-                                        )}
-                                        {item.item_type === 'kpi_field' && (
-                                          <div className="flex-1">
-                                            <p className="text-[13px] text-gray-700 mb-1">📊 {item.label}{item.config?.unit ? ` (${item.config.unit})` : ''}</p>
-                                            <input type="number" value={resp?.number_value ?? ''} onChange={e => handleNumber(myInst.id, item.id, parseFloat(e.target.value) || 0)} placeholder={item.config?.placeholder || 'Enter KPI value...'} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
-                                          </div>
-                                        )}
-                                        {item.item_type === 'action_link' && (
-                                          <div className="flex-1">
-                                            <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
-                                            <div className="flex items-center gap-2">
-                                              <input type="checkbox" checked={resp?.checked || false} onChange={() => handleCheck(myInst.id, item.id, !resp?.checked)} className="w-4 h-4 rounded border-gray-300 cursor-pointer" style={{ accentColor: TEAL }} />
-                                              {item.config?.link_path ? (
-                                                <button onClick={() => window.location.href = item.config.link_path!} className="text-[12px] font-bold px-3 py-1.5 rounded-lg text-white" style={{ backgroundColor: TEAL }}>
-                                                  Open
-                                                </button>
-                                              ) : (
-                                                <span className="text-[12px] text-gray-400">Mark as done</span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        )}
-                                        {item.item_type === 'room_move' && (
-                                          <div className="flex-1">
-                                            <p className="text-[13px] font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><Move size={13} /> {item.label}</p>
-                                            {resp?.checked ? (
-                                              <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
-                                            ) : (
-                                              <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                                <input value={opsForm[item.id]?.guest_name || ''} onChange={e => setOpsField(item.id, 'guest_name', e.target.value)} placeholder="Guest name" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                <div className="flex gap-1.5">
-                                                  <input value={opsForm[item.id]?.from_room || ''} onChange={e => setOpsField(item.id, 'from_room', e.target.value)} placeholder="From room" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                  <input value={opsForm[item.id]?.to_room || ''} onChange={e => setOpsField(item.id, 'to_room', e.target.value)} placeholder="To room" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                </div>
-                                                <input value={opsForm[item.id]?.reason || ''} onChange={e => setOpsField(item.id, 'reason', e.target.value)} placeholder="Reason (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                <button onClick={() => handleRoomMove(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log Room Move</button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
-                                        {item.item_type === 'no_show' && (
-                                          <div className="flex-1">
-                                            <p className="text-[13px] font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><UserX size={13} /> {item.label}</p>
-                                            {resp?.checked ? (
-                                              <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
-                                            ) : (
-                                              <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                                <input value={opsForm[item.id]?.guest_name || ''} onChange={e => setOpsField(item.id, 'guest_name', e.target.value)} placeholder="Guest name" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                <div className="flex gap-1.5">
-                                                  <input value={opsForm[item.id]?.room || ''} onChange={e => setOpsField(item.id, 'room', e.target.value)} placeholder="Room" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                  <input value={opsForm[item.id]?.reservation_ref || ''} onChange={e => setOpsField(item.id, 'reservation_ref', e.target.value)} placeholder="Reservation # (optional)" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                </div>
-                                                <input value={opsForm[item.id]?.reason || ''} onChange={e => setOpsField(item.id, 'reason', e.target.value)} placeholder="Reason (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                <button onClick={() => handleNoShow(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log No Show</button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
-                                        {item.item_type === 'bank_count' && (
-                                          <div className="flex-1">
-                                            <p className="text-[13px] font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><DollarSign size={13} /> {item.label}</p>
-                                            {resp?.checked ? (
-                                              <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
-                                            ) : (
-                                              <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                                <select value={opsForm[item.id]?.shift || 'AM'} onChange={e => setOpsField(item.id, 'shift', e.target.value)} className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200">
-                                                  <option value="AM">AM Shift</option>
-                                                  <option value="PM">PM Shift</option>
-                                                  <option value="Overnight">Overnight</option>
-                                                </select>
-                                                <div className="flex gap-1.5">
-                                                  <input type="number" value={opsForm[item.id]?.cash_total || ''} onChange={e => setOpsField(item.id, 'cash_total', e.target.value)} placeholder="Cash total" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                  <input type="number" value={opsForm[item.id]?.card_total || ''} onChange={e => setOpsField(item.id, 'card_total', e.target.value)} placeholder="Card total" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                </div>
-                                                <input type="number" value={opsForm[item.id]?.room_charges || ''} onChange={e => setOpsField(item.id, 'room_charges', e.target.value)} placeholder="Room charges" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                <input value={opsForm[item.id]?.discrepancies || ''} onChange={e => setOpsField(item.id, 'discrepancies', e.target.value)} placeholder="Discrepancies (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                <button onClick={() => handleBankCount(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log Bank Count</button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-
-                                  {/* Complete button */}
-                                  <button onClick={() => handleComplete(myInst.id)} disabled={submitting} className="w-full mt-3 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50 flex items-center justify-center gap-2" style={{ backgroundColor: TEAL }}>
-                                    <Save size={16} /> Mark All Complete
-                                  </button>
-                                </div>
-                              )}
-
-                              {/* Completed status for my completed instances */}
-                              {completedInst && (
-                                <p className="text-[11px] text-emerald-600 mt-1">✓ Completed {completedInst.completed_at ? new Date(completedInst.completed_at).toLocaleTimeString() : ''}</p>
-                              )}
+          {/* ── BUILDER: Template Library ── */}
+          {isAdmin && viewMode === 'builder' && builderTab === 'library' && (
+            <div>
+              <div className="mb-4">
+                <p className="text-[13px] text-gray-500">Ready-to-use To-Do templates from the community. Install any to your hotel in one click — you can customize them after.</p>
+              </div>
+              <div className="space-y-3">
+                {COMMUNITY_TEMPLATES.map(ct => {
+                  const alreadyInstalled = installedId === ct.id;
+                  const dept = DEPARTMENTS.find(d => d.key === ct.department);
+                  return (
+                    <div key={ct.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <span className="text-[28px] leading-none mt-0.5">{ct.emoji}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                              <p className="text-[14px] font-bold text-gray-900">{ct.name}</p>
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 uppercase tracking-wide">{ct.tag}</span>
+                              {dept && <span className="text-[9px] text-gray-400">{dept.icon} {dept.label}</span>}
                             </div>
-                          );
-                        })}
+                            <p className="text-[12px] text-gray-500 mb-2">{ct.description}</p>
+                            <div className="flex flex-wrap gap-1">
+                              {ct.items.map((item, i) => {
+                                const typeInfo = ITEM_TYPES.find(t => t.key === item.item_type);
+                                return (
+                                  <span key={i} className="inline-flex items-center gap-1 text-[10px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-2 py-0.5">
+                                    {typeInfo?.icon} {item.label}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => installCommunityTemplate(ct)}
+                          disabled={submitting}
+                          className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold disabled:opacity-50 transition-colors ${alreadyInstalled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'text-white'}`}
+                          style={alreadyInstalled ? {} : { backgroundColor: TEAL }}
+                        >
+                          {alreadyInstalled ? '✓ Installed' : <><Download size={12} /> Install</>}
+                        </button>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-center text-[11px] text-gray-400 mt-6">More templates coming as the community grows. Build your own and share it with other properties.</p>
             </div>
           )}
 
-          {/* Builder view - admin manages templates */}
-          {viewMode === 'builder' && templates.length > 0 && (
-            <div className="space-y-4">
-              {DEPARTMENTS.map(dept => {
-                const deptTpls = templatesByDept[dept.key] || [];
-                if (deptTpls.length === 0 && Object.keys(templatesByDept).length > 0) return null;
-                const open = openDept === dept.key || (editingTemplate && deptTpls.some(t => t.id === editingTemplate));
-                return (
-                  <div key={dept.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                    <button onClick={() => setOpenDept(open ? null : dept.key)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[20px]">{dept.icon}</span>
-                        <div className="text-left">
-                          <p className="text-[14px] font-bold text-gray-900">{dept.label}</p>
-                          <p className="text-[11px] text-gray-500">{deptTpls.length} template{deptTpls.length !== 1 ? 's' : ''}</p>
-                        </div>
-                      </div>
-                      <ChevronDown size={18} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-                    </button>
+          {/* ── BUILDER: My Templates ── */}
+          {isAdmin && viewMode === 'builder' && builderTab === 'my-templates' && (
+            <>
+              {templates.length === 0 && (
+                <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
+                  <ClipboardList size={48} className="mx-auto text-gray-300 mb-3" />
+                  <p className="text-[15px] font-semibold text-gray-700 mb-1">No templates yet</p>
+                  <p className="text-[12px] text-gray-500 mb-4">Create your own or install one from the Template Library.</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <button onClick={() => setShowNew(true)} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}><Plus size={14} /> Create Custom</button>
+                    <button onClick={() => setBuilderTab('library')} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-600 text-[12px] font-bold"><BookOpen size={14} /> Browse Library</button>
+                  </div>
+                </div>
+              )}
 
-                    {open && (
-                      <div className="border-t border-gray-100 divide-y divide-gray-100">
-                        {deptTpls.map(tpl => {
-                          const editing = editingTemplate === tpl.id;
-                          const items = itemsByTemplate[tpl.id] || [];
-                          return (
-                            <div key={tpl.id} className="px-4 py-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <div>
-                                  <p className="text-[14px] font-semibold text-gray-900">{tpl.name}
-                                    {tpl.assigned_position && <span className="ml-2 text-[10px] text-gray-500 font-normal">· {POSITIONS.find(p => p.key === tpl.assigned_position)?.label}</span>}
-                                  </p>
-                                  <p className="text-[11px] text-gray-500">{tpl.description || 'No description'} · {items.length} items</p>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <button onClick={() => setEditingTemplate(editing ? null : tpl.id)} className={`p-2 rounded-lg transition-colors ${editing ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
-                                    <Edit3 size={14} />
-                                  </button>
-                                  <button onClick={() => deleteTpl(tpl.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
-                              </div>
+              {templates.length > 0 && (
+                <div className="space-y-4">
+                  {/* Library shortcut banner */}
+                  <button onClick={() => setBuilderTab('library')} className="w-full flex items-center gap-3 px-4 py-3 bg-teal-50 border border-teal-100 rounded-2xl hover:bg-teal-100 transition-colors text-left">
+                    <BookOpen size={18} className="text-teal-600 shrink-0" />
+                    <div>
+                      <p className="text-[12px] font-bold text-teal-800">Browse Template Library</p>
+                      <p className="text-[11px] text-teal-600">Install community-made To-Do templates for cash drawer, no shows, night audit &amp; more</p>
+                    </div>
+                  </button>
 
-                              {editing && (
-                                <div className="border-t border-gray-100 pt-3 mt-2 space-y-3">
-                                  {/* Items list */}
-                                  {items.length === 0 && (
-                                    <p className="text-[12px] text-gray-400 italic">No items yet. Add the first task below.</p>
-                                  )}
-                                  {items.sort((a, b) => a.sort_order - b.sort_order).map(item => (
-                                    <div key={item.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
-                                      <div className="flex items-center gap-2">
-                                        <GripVertical size={14} className="text-gray-300" />
-                                        <span className="text-[11px] text-gray-400 uppercase font-bold w-16">{ITEM_TYPES.find(t => t.key === item.item_type)?.label || item.item_type}</span>
-                                        <span className="text-[13px] text-gray-700">{item.label}</span>
-                                        {item.config?.unit && <span className="text-[11px] text-gray-400">({item.config.unit})</span>}
-                                      </div>
-                                      <button onClick={() => removeItem(item.id, tpl.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
-                                        <Trash2 size={12} />
+                  {DEPARTMENTS.map(dept => {
+                    const deptTpls = templatesByDept[dept.key] || [];
+                    if (deptTpls.length === 0) return null;
+                    const open = openDept === dept.key || (!!editingTemplate && deptTpls.some(t => t.id === editingTemplate));
+                    return (
+                      <div key={dept.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                        <button onClick={() => setOpenDept(open ? null : dept.key)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[20px]">{dept.icon}</span>
+                            <div className="text-left">
+                              <p className="text-[14px] font-bold text-gray-900">{dept.label}</p>
+                              <p className="text-[11px] text-gray-500">{deptTpls.length} template{deptTpls.length !== 1 ? 's' : ''}</p>
+                            </div>
+                          </div>
+                          <ChevronDown size={18} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {open && (
+                          <div className="border-t border-gray-100 divide-y divide-gray-100">
+                            {deptTpls.map(tpl => {
+                              const editing = editingTemplate === tpl.id;
+                              const items = itemsByTemplate[tpl.id] || [];
+                              return (
+                                <div key={tpl.id} className="px-4 py-3">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div>
+                                      <p className="text-[14px] font-semibold text-gray-900">{tpl.name}
+                                        {tpl.assigned_position && <span className="ml-2 text-[10px] text-gray-500 font-normal">· {POSITIONS.find(p => p.key === tpl.assigned_position)?.label}</span>}
+                                      </p>
+                                      <p className="text-[11px] text-gray-500">{tpl.description || 'No description'} · {items.length} items</p>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <button onClick={() => setEditingTemplate(editing ? null : tpl.id)} className={`p-2 rounded-lg transition-colors ${editing ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+                                        <Edit3 size={14} />
+                                      </button>
+                                      <button onClick={() => deleteTpl(tpl.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
+                                        <Trash2 size={14} />
                                       </button>
                                     </div>
-                                  ))}
-
-                                  {/* Pre-made operational templates */}
-                                  <div>
-                                    <p className="text-[11px] font-bold text-gray-500 mb-1.5">Pre-Made Templates</p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {PRESET_ITEMS.map(p => (
-                                        <button key={p.key} onClick={() => addPresetItem(tpl.id, p)} disabled={submitting} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-[11px] font-bold text-gray-600 hover:border-gray-300 disabled:opacity-50">
-                                          {p.icon} {p.label}
-                                        </button>
-                                      ))}
-                                    </div>
                                   </div>
 
-                                  {/* Add item form */}
-                                  <div className="bg-gray-50 rounded-xl p-3 border border-dashed border-gray-200">
-                                    <p className="text-[11px] font-bold text-gray-500 mb-2">Add Custom Item</p>
-                                    <div className="space-y-2">
-                                      <input value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} placeholder="e.g. Initial bank count" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                      <div className="flex gap-2">
-                                        <select value={newItemType} onChange={e => setNewItemType(e.target.value)} className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200">
-                                          {ITEM_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
-                                        </select>
-                                        <button onClick={() => addItem(tpl.id)} disabled={submitting || !newItemLabel.trim()} className="px-3 py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                                          <Plus size={14} />
-                                        </button>
-                                      </div>
-                                      {(newItemType === 'number' || newItemType === 'kpi_field') && (
-                                        <input value={newItemConfig} onChange={e => setNewItemConfig(e.target.value)} placeholder='e.g. {"unit":"rooms","placeholder":"Enter count"}' className="w-full bg-white rounded-lg px-3 py-2 text-[11px] border border-gray-200 font-mono" />
+                                  {editing && (
+                                    <div className="border-t border-gray-100 pt-3 mt-2 space-y-3">
+                                      {items.length === 0 && (
+                                        <p className="text-[12px] text-gray-400 italic">No items yet. Add tasks below.</p>
                                       )}
+                                      {items.sort((a, b) => a.sort_order - b.sort_order).map(item => (
+                                        <div key={item.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
+                                          <div className="flex items-center gap-2">
+                                            <GripVertical size={14} className="text-gray-300" />
+                                            <span className="text-[11px] text-gray-400 uppercase font-bold w-20 shrink-0">{ITEM_TYPES.find(t => t.key === item.item_type)?.label || item.item_type}</span>
+                                            <span className="text-[13px] text-gray-700">{item.label}</span>
+                                            {item.config?.unit && <span className="text-[11px] text-gray-400">({item.config.unit})</span>}
+                                          </div>
+                                          <button onClick={() => removeItem(item.id, tpl.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
+                                            <Trash2 size={12} />
+                                          </button>
+                                        </div>
+                                      ))}
+
+                                      <div className="bg-gray-50 rounded-xl p-3 border border-dashed border-gray-200">
+                                        <p className="text-[11px] font-bold text-gray-500 mb-2">Add Item</p>
+                                        <div className="space-y-2">
+                                          <input value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} placeholder="e.g. Check lobby cleanliness" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                          <div className="flex gap-2">
+                                            <select value={newItemType} onChange={e => setNewItemType(e.target.value)} className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200">
+                                              {ITEM_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                                            </select>
+                                            <button onClick={() => addItem(tpl.id)} disabled={submitting || !newItemLabel.trim()} className="px-3 py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                                              <Plus size={14} />
+                                            </button>
+                                          </div>
+                                          {(newItemType === 'number' || newItemType === 'kpi_field') && (
+                                            <input value={newItemConfig} onChange={e => setNewItemConfig(e.target.value)} placeholder='{"unit":"rooms","placeholder":"Enter count"}' className="w-full bg-white rounded-lg px-3 py-2 text-[11px] border border-gray-200 font-mono" />
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
-                                  </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── STAFF VIEW ── */}
+          {viewMode === 'staff' && (
+            <>
+              {templates.length === 0 && (
+                <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
+                  <ClipboardList size={48} className="mx-auto text-gray-300 mb-3" />
+                  <p className="text-[15px] font-semibold text-gray-700 mb-1">No To-Dos yet</p>
+                  {isAdmin ? (
+                    <p className="text-[12px] text-gray-500 mb-4">Go to Builder to create or install checklists.</p>
+                  ) : (
+                    <p className="text-[12px] text-gray-500">Ask your manager to set up To-Dos for your position.</p>
+                  )}
+                </div>
+              )}
+
+              {templates.length > 0 && (
+                <div className="space-y-4">
+                  {DEPARTMENTS.filter(d => {
+                    if (!isAdmin && department) return d.key === department;
+                    return true;
+                  }).map(dept => {
+                    const deptTpls = templates.filter(t => t.department === dept.key);
+                    if (deptTpls.length === 0) return null;
+                    const open = openDept === dept.key;
+                    return (
+                      <div key={dept.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                        <button onClick={() => setOpenDept(open ? null : dept.key)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[20px]">{dept.icon}</span>
+                            <div className="text-left">
+                              <p className="text-[14px] font-bold text-gray-900">{dept.label}</p>
+                              <p className="text-[11px] text-gray-500">{deptTpls.length} checklist{deptTpls.length !== 1 ? 's' : ''}</p>
+                            </div>
+                          </div>
+                          <ChevronDown size={18} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {open && (
+                          <div className="border-t border-gray-100 divide-y divide-gray-100">
+                            {deptTpls.map(tpl => {
+                              const items = itemsByTemplate[tpl.id] || [];
+                              const myInst = instances.find(i => i.template_id === tpl.id && i.staff_name === staffName && i.status !== 'completed');
+                              const completedInst = instances.find(i => i.template_id === tpl.id && i.status === 'completed' && i.staff_name === staffName);
+
+                              return (
+                                <div key={tpl.id} className="px-4 py-3">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div>
+                                      <p className="text-[14px] font-semibold text-gray-900">{tpl.name}</p>
+                                      <p className="text-[11px] text-gray-500">
+                                        {tpl.description && `${tpl.description} · `}
+                                        {items.length} item{items.length !== 1 ? 's' : ''}
+                                        {tpl.assigned_position && ` · ${POSITIONS.find(p => p.key === tpl.assigned_position)?.label || tpl.assigned_position}`}
+                                      </p>
+                                    </div>
+                                    {completedInst ? (
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✅ Done</span>
+                                    ) : myInst ? (
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ In Progress</span>
+                                    ) : staffName ? (
+                                      <button onClick={() => startInstance(tpl.id)} disabled={submitting} className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                                        Start
+                                      </button>
+                                    ) : null}
+                                  </div>
+
+                                  {myInst && items.length > 0 && (
+                                    <div className="space-y-2 mt-3 border-t border-gray-100 pt-3">
+                                      {items.sort((a, b) => a.sort_order - b.sort_order).map(item => {
+                                        const resp = getResp(myInst.id, item.id);
+                                        return (
+                                          <div key={item.id} className="flex items-start gap-2.5 py-1">
+                                            {item.item_type === 'checkbox' && (
+                                              <label className="flex items-center gap-2.5 cursor-pointer flex-1">
+                                                <input type="checkbox" checked={resp?.checked || false} onChange={() => handleCheck(myInst.id, item.id, !resp?.checked)} className="w-4 h-4 rounded border-gray-300 cursor-pointer" style={{ accentColor: TEAL }} />
+                                                <span className={`text-[13px] ${resp?.checked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{item.label}</span>
+                                              </label>
+                                            )}
+                                            {item.item_type === 'number' && (
+                                              <div className="flex-1">
+                                                <p className="text-[13px] text-gray-700 mb-1">{item.label}{item.config?.unit ? ` (${item.config.unit})` : ''}</p>
+                                                <input type="number" value={resp?.number_value ?? ''} onChange={e => handleNumber(myInst.id, item.id, parseFloat(e.target.value) || 0)} placeholder={item.config?.placeholder || 'Enter value...'} min={item.config?.min} max={item.config?.max} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
+                                              </div>
+                                            )}
+                                            {item.item_type === 'text' && (
+                                              <div className="flex-1">
+                                                <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
+                                                <input type="text" value={resp?.text_value || ''} onChange={e => handleText(myInst.id, item.id, e.target.value)} placeholder={item.config?.placeholder || 'Type answer...'} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
+                                              </div>
+                                            )}
+                                            {item.item_type === 'time' && (
+                                              <div className="flex-1">
+                                                <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
+                                                <input type="time" value={resp?.text_value || ''} onChange={e => handleText(myInst.id, item.id, e.target.value)} className="w-40 bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
+                                              </div>
+                                            )}
+                                            {item.item_type === 'kpi_field' && (
+                                              <div className="flex-1">
+                                                <p className="text-[13px] text-gray-700 mb-1">📊 {item.label}{item.config?.unit ? ` (${item.config.unit})` : ''}</p>
+                                                <input type="number" value={resp?.number_value ?? ''} onChange={e => handleNumber(myInst.id, item.id, parseFloat(e.target.value) || 0)} placeholder={item.config?.placeholder || 'Enter KPI value...'} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
+                                              </div>
+                                            )}
+                                            {item.item_type === 'action_link' && (
+                                              <div className="flex-1">
+                                                <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
+                                                <div className="flex items-center gap-2">
+                                                  <input type="checkbox" checked={resp?.checked || false} onChange={() => handleCheck(myInst.id, item.id, !resp?.checked)} className="w-4 h-4 rounded border-gray-300 cursor-pointer" style={{ accentColor: TEAL }} />
+                                                  {item.config?.link_path ? (
+                                                    <button onClick={() => window.location.href = item.config.link_path!} className="text-[12px] font-bold px-3 py-1.5 rounded-lg text-white" style={{ backgroundColor: TEAL }}>Open</button>
+                                                  ) : (
+                                                    <span className="text-[12px] text-gray-400">Mark as done</span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            )}
+                                            {item.item_type === 'room_move' && (
+                                              <div className="flex-1">
+                                                <p className="text-[13px] font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><Move size={13} /> {item.label}</p>
+                                                {resp?.checked ? (
+                                                  <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
+                                                ) : (
+                                                  <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                    <input value={opsForm[item.id]?.guest_name || ''} onChange={e => setOpsField(item.id, 'guest_name', e.target.value)} placeholder="Guest name" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                    <div className="flex gap-1.5">
+                                                      <input value={opsForm[item.id]?.from_room || ''} onChange={e => setOpsField(item.id, 'from_room', e.target.value)} placeholder="From room" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                      <input value={opsForm[item.id]?.to_room || ''} onChange={e => setOpsField(item.id, 'to_room', e.target.value)} placeholder="To room" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                    </div>
+                                                    <input value={opsForm[item.id]?.reason || ''} onChange={e => setOpsField(item.id, 'reason', e.target.value)} placeholder="Reason (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                    <button onClick={() => handleRoomMove(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log Room Move</button>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                            {item.item_type === 'no_show' && (
+                                              <div className="flex-1">
+                                                <p className="text-[13px] font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><UserX size={13} /> {item.label}</p>
+                                                {resp?.checked ? (
+                                                  <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
+                                                ) : (
+                                                  <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                    <input value={opsForm[item.id]?.guest_name || ''} onChange={e => setOpsField(item.id, 'guest_name', e.target.value)} placeholder="Guest name" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                    <div className="flex gap-1.5">
+                                                      <input value={opsForm[item.id]?.room || ''} onChange={e => setOpsField(item.id, 'room', e.target.value)} placeholder="Room" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                      <input value={opsForm[item.id]?.reservation_ref || ''} onChange={e => setOpsField(item.id, 'reservation_ref', e.target.value)} placeholder="Reservation # (opt.)" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                    </div>
+                                                    <input value={opsForm[item.id]?.reason || ''} onChange={e => setOpsField(item.id, 'reason', e.target.value)} placeholder="Reason (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                    <button onClick={() => handleNoShow(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log No Show</button>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                            {item.item_type === 'bank_count' && (
+                                              <div className="flex-1">
+                                                <p className="text-[13px] font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><DollarSign size={13} /> {item.label}</p>
+                                                {resp?.checked ? (
+                                                  <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
+                                                ) : (
+                                                  <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                    <select value={opsForm[item.id]?.shift || 'AM'} onChange={e => setOpsField(item.id, 'shift', e.target.value)} className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200">
+                                                      <option value="AM">AM Shift</option>
+                                                      <option value="PM">PM Shift</option>
+                                                      <option value="Overnight">Overnight</option>
+                                                    </select>
+                                                    <div className="flex gap-1.5">
+                                                      <input type="number" value={opsForm[item.id]?.cash_total || ''} onChange={e => setOpsField(item.id, 'cash_total', e.target.value)} placeholder="Cash total ($)" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                      <input type="number" value={opsForm[item.id]?.card_total || ''} onChange={e => setOpsField(item.id, 'card_total', e.target.value)} placeholder="Card total ($)" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                    </div>
+                                                    <input type="number" value={opsForm[item.id]?.room_charges || ''} onChange={e => setOpsField(item.id, 'room_charges', e.target.value)} placeholder="Room charges ($)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                    <input value={opsForm[item.id]?.discrepancies || ''} onChange={e => setOpsField(item.id, 'discrepancies', e.target.value)} placeholder="Discrepancies (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                    <button onClick={() => handleBankCount(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log Drawer Count</button>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+
+                                      <button onClick={() => handleComplete(myInst.id)} disabled={submitting} className="w-full mt-3 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50 flex items-center justify-center gap-2" style={{ backgroundColor: TEAL }}>
+                                        <Save size={16} /> Mark All Complete
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {completedInst && (
+                                    <p className="text-[11px] text-emerald-600 mt-1">✓ Completed {completedInst.completed_at ? new Date(completedInst.completed_at).toLocaleTimeString() : ''}</p>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -681,7 +860,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
               <h2 className="text-[15px] font-bold">New To-Do Template</h2>
               <button onClick={() => setShowNew(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
             </div>
-            <p className="text-[12px] text-gray-500 mb-4">Create a custom checklist for a position. Add items with different field types after creating.</p>
+            <p className="text-[12px] text-gray-500 mb-4">Create a custom checklist for a position. Add items after creating — or install a ready-made template from the Library.</p>
             <div className="space-y-3">
               <div>
                 <label className="text-[11px] font-bold text-gray-500 block mb-1">Name</label>
