@@ -475,6 +475,7 @@ export interface CompsetHotel {
   hotel_id: string;
   name: string;
   phone: string;
+  room_keys: number;
   is_active: boolean;
   sort_order: number;
 }
@@ -510,7 +511,7 @@ export async function getCompsetHotels(hotelId: string): Promise<CompsetHotel[]>
   return data || [];
 }
 
-export async function createCompsetHotel(hotel: { hotel_id: string; name: string; phone: string }): Promise<CompsetHotel | null> {
+export async function createCompsetHotel(hotel: { hotel_id: string; name: string; phone: string; room_keys?: number }): Promise<CompsetHotel | null> {
   const { data } = await supabase.from('compset_hotels').insert({ ...hotel, is_active: true }).select().single();
   return data;
 }

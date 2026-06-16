@@ -36,10 +36,10 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
   const [showHistory, setShowHistory] = useState(false);
   const [showHotelForm, setShowHotelForm] = useState(false);
   const [showTimeForm, setShowTimeForm] = useState(false);
-  const [hotelForm, setHotelForm] = useState({ name: '', phone: '' });
+  const [hotelForm, setHotelForm] = useState({ name: '', phone: '', room_keys: '' });
   const [timeForm, setTimeForm] = useState({ call_time: '08:00', label: '' });
   const [activeSlot, setActiveSlot] = useState<{ hotelId: string; callTime: string } | null>(null);
-  const [entryForm, setEntryForm] = useState({ rate: '', rooms_total: '', rooms_sold: '' });
+  const [entryForm, setEntryForm] = useState({ rate: '', rooms_sold: '', occupancy_pct: '' });
 
   const date = todayStr();
 
@@ -66,8 +66,8 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
 
   const handleAddHotel = async () => {
     if (!hotelForm.name) return;
-    await createCompsetHotel({ hotel_id: hotelId, name: hotelForm.name, phone: hotelForm.phone });
-    setHotelForm({ name: '', phone: '' });
+    await createCompsetHotel({ hotel_id: hotelId, name: hotelForm.name, phone: hotelForm.phone, room_keys: hotelForm.room_keys ? parseInt(hotelForm.room_keys, 10) : 0 });
+    setHotelForm({ name: '', phone: '', room_keys: '' });
     setShowHotelForm(false);
     load();
   };
@@ -87,17 +87,35 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
     const existing = entryFor(compsetHotelId, callTime);
     setEntryForm({
       rate: existing?.rate != null ? String(existing.rate) : '',
-      rooms_total: existing?.rooms_total != null ? String(existing.rooms_total) : '',
       rooms_sold: existing?.rooms_sold != null ? String(existing.rooms_sold) : '',
+      occupancy_pct: existing?.occupancy_pct != null ? String(existing.occupancy_pct) : '',
     });
     setActiveSlot({ hotelId: compsetHotelId, callTime });
   };
 
+  const activeRoomKeys = activeSlot ? (hotels.find(h => h.id === activeSlot.hotelId)?.room_keys || 0) : 0;
+
+  // Rooms sold and occupancy % are kept in sync against the competitor's fixed
+  // room key count — staff can fill in whichever number they got on the call.
+  const handleRoomsSoldChange = (val: string) => {
+    const sold = val ? parseInt(val, 10) : null;
+    const pct = sold != null && activeRoomKeys ? String(Math.round((sold / activeRoomKeys) * 1000) / 10) : entryForm.occupancy_pct;
+    setEntryForm({ ...entryForm, rooms_sold: val, occupancy_pct: sold != null && activeRoomKeys ? pct : entryForm.occupancy_pct });
+  };
+
+  const handleOccupancyChange = (val: string) => {
+    const pct = val ? parseFloat(val) : null;
+    const sold = pct != null && activeRoomKeys ? String(Math.round((pct / 100) * activeRoomKeys)) : entryForm.rooms_sold;
+    setEntryForm({ ...entryForm, occupancy_pct: val, rooms_sold: pct != null && activeRoomKeys ? sold : entryForm.rooms_sold });
+  };
+
   const saveEntry = async () => {
     if (!activeSlot) return;
-    const roomsTotal = entryForm.rooms_total ? parseInt(entryForm.rooms_total, 10) : null;
+    const roomsTotal = activeRoomKeys || null;
     const roomsSold = entryForm.rooms_sold ? parseInt(entryForm.rooms_sold, 10) : null;
-    const occupancyPct = roomsTotal && roomsSold != null ? Math.round((roomsSold / roomsTotal) * 1000) / 10 : null;
+    const occupancyPct = entryForm.occupancy_pct
+      ? parseFloat(entryForm.occupancy_pct)
+      : (roomsTotal && roomsSold != null ? Math.round((roomsSold / roomsTotal) * 1000) / 10 : null);
     await upsertCompsetEntry({
       hotel_id: hotelId,
       compset_hotel_id: activeSlot.hotelId,
@@ -154,7 +172,9 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
                 <input placeholder="Hotel name" value={hotelForm.name} onChange={e => setHotelForm({ ...hotelForm, name: e.target.value })}
                   className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-100 focus:outline-none" />
                 <input placeholder="Phone" value={hotelForm.phone} onChange={e => setHotelForm({ ...hotelForm, phone: e.target.value })}
-                  className="w-32 bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-100 focus:outline-none" />
+                  className="w-28 bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-100 focus:outline-none" />
+                <input type="number" placeholder="Room keys" value={hotelForm.room_keys} onChange={e => setHotelForm({ ...hotelForm, room_keys: e.target.value })}
+                  className="w-24 bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-100 focus:outline-none" />
                 <button onClick={handleAddHotel} className="px-3 py-2 rounded-lg text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>Save</button>
               </div>
             )}
@@ -163,7 +183,7 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
                 <div key={h.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
                   <div>
                     <p className="text-[12px] font-semibold text-gray-800">{h.name}</p>
-                    {h.phone && <p className="text-[11px] text-gray-400">{h.phone}</p>}
+                    <p className="text-[11px] text-gray-400">{h.phone && <span>{h.phone} · </span>}{h.room_keys || 0} room keys</p>
                   </div>
                   <button onClick={() => deleteCompsetHotel(h.id).then(load)} className="text-red-400 hover:text-red-600">
                     <Trash2 size={13} />
@@ -222,7 +242,10 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
                 <tr key={h.id} className="border-b border-gray-50 last:border-0">
                   <td className="px-5 py-3">
                     <p className="font-bold text-gray-900">{h.name}</p>
-                    {h.phone && <p className="text-[11px] text-gray-400 flex items-center gap-1"><Phone size={10} />{h.phone}</p>}
+                    <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                      {h.phone && <span className="flex items-center gap-1"><Phone size={10} />{h.phone}</span>}
+                      {h.phone && ' · '}{h.room_keys || 0} room keys
+                    </p>
                   </td>
                   {callTimes.map(t => {
                     const e = entryFor(h.id, t.call_time);
@@ -233,7 +256,10 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
                           {e ? (
                             <span className="flex flex-col items-center gap-0.5">
                               <span className="flex items-center gap-1"><CheckCircle2 size={11} /> ${e.rate}</span>
-                              <span className="text-[10px] text-teal-500">{e.occupancy_pct != null ? `${e.occupancy_pct}% occ` : ''}</span>
+                              <span className="text-[10px] text-teal-500">
+                                {e.occupancy_pct != null ? `${e.occupancy_pct}%` : ''}
+                                {e.rooms_sold != null ? ` · ${e.rooms_sold}/${e.rooms_total ?? h.room_keys ?? '—'}` : ''}
+                              </span>
                             </span>
                           ) : (
                             <span className="flex items-center justify-center gap-1"><Circle size={11} /> Log call</span>
@@ -291,7 +317,9 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
             <h3 className="font-bold text-[15px] mb-1">
               {hotels.find(h => h.id === activeSlot.hotelId)?.name}
             </h3>
-            <p className="text-[12px] text-gray-400 mb-4">{formatTime(activeSlot.callTime)} call</p>
+            <p className="text-[12px] text-gray-400 mb-4">
+              {formatTime(activeSlot.callTime)} call · {activeRoomKeys || 0} room keys total
+            </p>
             <div className="space-y-3">
               <div>
                 <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Rate ($)</label>
@@ -300,16 +328,21 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Total Rooms</label>
-                  <input type="number" value={entryForm.rooms_total} onChange={e => setEntryForm({ ...entryForm, rooms_total: e.target.value })}
+                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Rooms Sold</label>
+                  <input type="number" max={activeRoomKeys || undefined} value={entryForm.rooms_sold} onChange={e => handleRoomsSoldChange(e.target.value)}
                     className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none" />
                 </div>
                 <div>
-                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Rooms Sold</label>
-                  <input type="number" value={entryForm.rooms_sold} onChange={e => setEntryForm({ ...entryForm, rooms_sold: e.target.value })}
+                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Occupancy %</label>
+                  <input type="number" step="0.1" max={100} value={entryForm.occupancy_pct} onChange={e => handleOccupancyChange(e.target.value)}
                     className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none" />
                 </div>
               </div>
+              {!activeRoomKeys && (
+                <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                  No room key count set for this hotel — ask your admin to add it so occupancy can be calculated.
+                </p>
+              )}
             </div>
             <div className="flex gap-2 mt-5">
               <button onClick={saveEntry} className="flex-1 py-3 rounded-xl text-white font-semibold text-[13px]" style={{ backgroundColor: TEAL }}>
