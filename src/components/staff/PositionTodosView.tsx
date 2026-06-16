@@ -631,7 +631,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                                             </button>
                                           </div>
                                           {(newItemType === 'number' || newItemType === 'kpi_field') && (
-                                            <input value={newItemConfig} onChange={e => setNewItemConfig(e.target.value)} placeholder='{"unit":"rooms","placeholder":"Enter count"}' className="w-full bg-white rounded-lg px-3 py-2 text-[11px] border border-gray-200 font-mono" />
+                                            <input value={newItemConfig} onChange={e => setNewItemConfig(e.target.value)} placeholder='e.g. {"unit":"rooms","placeholder":"Enter count"}' className="w-full bg-white rounded-lg px-3 py-2 text-[11px] border border-gray-200 font-mono" />
                                           )}
                                         </div>
                                       </div>
