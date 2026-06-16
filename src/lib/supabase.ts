@@ -468,6 +468,108 @@ export async function deletePartnerMenuItem(id: string): Promise<void> {
   await supabase.from('partner_menu_items').delete().eq('id', id);
 }
 
+// ─── Compset (competitive rate shop) ──────────────────────────
+
+export interface CompsetHotel {
+  id: string;
+  hotel_id: string;
+  name: string;
+  phone: string;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface CompsetCallTime {
+  id: string;
+  hotel_id: string;
+  call_time: string; // 'HH:MM'
+  label: string;
+}
+
+export interface CompsetEntry {
+  id: string;
+  hotel_id: string;
+  compset_hotel_id: string;
+  call_date: string;
+  call_time: string;
+  rate: number | null;
+  rooms_total: number | null;
+  rooms_sold: number | null;
+  occupancy_pct: number | null;
+  entered_by: string | null;
+  entered_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getCompsetHotels(hotelId: string): Promise<CompsetHotel[]> {
+  const { data } = await supabase
+    .from('compset_hotels').select('*')
+    .eq('hotel_id', hotelId).eq('is_active', true)
+    .order('sort_order').order('name');
+  return data || [];
+}
+
+export async function createCompsetHotel(hotel: { hotel_id: string; name: string; phone: string }): Promise<CompsetHotel | null> {
+  const { data } = await supabase.from('compset_hotels').insert({ ...hotel, is_active: true }).select().single();
+  return data;
+}
+
+export async function updateCompsetHotel(id: string, updates: Partial<CompsetHotel>): Promise<void> {
+  await supabase.from('compset_hotels').update(updates).eq('id', id);
+}
+
+export async function deleteCompsetHotel(id: string): Promise<void> {
+  await supabase.from('compset_hotels').delete().eq('id', id);
+}
+
+export async function getCompsetCallTimes(hotelId: string): Promise<CompsetCallTime[]> {
+  const { data } = await supabase
+    .from('compset_call_times').select('*')
+    .eq('hotel_id', hotelId)
+    .order('call_time');
+  return data || [];
+}
+
+export async function createCompsetCallTime(callTime: { hotel_id: string; call_time: string; label: string }): Promise<void> {
+  await supabase.from('compset_call_times').insert(callTime);
+}
+
+export async function deleteCompsetCallTime(id: string): Promise<void> {
+  await supabase.from('compset_call_times').delete().eq('id', id);
+}
+
+export async function getCompsetEntries(hotelId: string, date: string): Promise<CompsetEntry[]> {
+  const { data } = await supabase
+    .from('compset_entries').select('*')
+    .eq('hotel_id', hotelId).eq('call_date', date);
+  return data || [];
+}
+
+export async function getCompsetEntriesRange(hotelId: string, startDate: string, endDate: string): Promise<CompsetEntry[]> {
+  const { data } = await supabase
+    .from('compset_entries').select('*')
+    .eq('hotel_id', hotelId).gte('call_date', startDate).lte('call_date', endDate)
+    .order('call_date', { ascending: false }).order('call_time');
+  return data || [];
+}
+
+export async function upsertCompsetEntry(entry: {
+  hotel_id: string;
+  compset_hotel_id: string;
+  call_date: string;
+  call_time: string;
+  rate: number | null;
+  rooms_total: number | null;
+  rooms_sold: number | null;
+  occupancy_pct: number | null;
+  entered_by: string | null;
+  entered_by_name: string;
+}): Promise<void> {
+  await supabase.from('compset_entries')
+    .upsert(entry, { onConflict: 'compset_hotel_id,call_date,call_time' });
+}
+
 // ─── Hotels (multi-tenant) ────────────────────────────────────
 
 export async function getAllHotels() {

@@ -30,7 +30,7 @@ import {
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
-  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign, ShieldCheck, MapPin,
+  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign, ShieldCheck, MapPin, PhoneCall,
 } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
@@ -75,6 +75,7 @@ const HotelSettingsView = dynamic(() => import('@/components/staff/HotelSettings
 const LearningHRView = dynamic(() => import('@/components/staff/LearningHRView'), { ssr: false });
 const KpisView = dynamic(() => import('@/components/staff/KpisView'), { ssr: false });
 const DailyBriefView = dynamic(() => import('@/components/staff/DailyBriefView'), { ssr: false });
+const CompsetView = dynamic(() => import('@/components/staff/CompsetView'), { ssr: false });
 import {
   listOps, createOps, updateOps, deleteOps,
   listKpiDefinitions, createKpiDefinition, deleteKpiDefinition,
@@ -112,7 +113,7 @@ type NavTab =
   | 'partners' | 'qrcodes' | 'properties'
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
   | 'dailybrief' | 'property_info'
-  | 'schedules' | 'checklists_tab' | 'kpis' | 'learning_hr'
+  | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
   | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos';
 
 interface Request {
@@ -162,6 +163,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'orders',          label: 'Requests',           icon: Bell,            roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'messages',        label: 'Messages',           icon: MessageSquare,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'schedules',       label: 'Schedules',          icon: CalendarDays,    roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'compset',         label: 'Compset',            icon: PhoneCall,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
 
   // ── OPERATIONS — property tools ──
   { tab: 'todos',            label: 'To-Dos',             icon: ClipboardList,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
@@ -743,6 +745,9 @@ export default function Dashboard() {
         )}
         {effectiveTab === 'schedules' && (
           <SchedulesView hotelId={config?.id || ''} isAdmin={isAdmin} weekStartsOn={config?.weekStartsOn || 'Sunday'} staffName={s.name} hotelName={config?.name || 'Hotel'} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department, hire_date: s.hire_date, min_hours: s.min_hours || 0, employment_type: s.employment_type, email: s.email || '' }))} />
+        )}
+        {effectiveTab === 'compset' && (
+          <CompsetView hotelId={config?.id || ''} isAdmin={isAdmin} staffId={staff.find(st => st.name === s.name)?.id || ''} staffName={s.name} />
         )}
         {effectiveTab === 'checklists_tab' && (
           <ChecklistsTabView hotelId={config?.id || ''} isAdmin={isAdmin} />
