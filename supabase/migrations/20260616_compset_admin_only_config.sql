@@ -6,7 +6,7 @@ returns boolean
 language sql
 stable
 as $$
-  select (auth.jwt() -> 'user_metadata' ->> 'role') in ('admin', 'superadmin');
+  select (auth.jwt() -> 'user_metadata' ->> 'role') in ('admin', 'manager', 'superadmin');
 $$;
 
 drop policy if exists "compset_hotels_insert_own_hotel" on compset_hotels;
