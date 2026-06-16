@@ -504,10 +504,11 @@ export interface CompsetEntry {
 }
 
 export async function getCompsetHotels(hotelId: string): Promise<CompsetHotel[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('compset_hotels').select('*')
     .eq('hotel_id', hotelId).eq('is_active', true)
     .order('sort_order').order('name');
+  if (error) throw error;
   return data || [];
 }
 
@@ -528,10 +529,11 @@ export async function deleteCompsetHotel(id: string): Promise<void> {
 }
 
 export async function getCompsetCallTimes(hotelId: string): Promise<CompsetCallTime[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('compset_call_times').select('*')
     .eq('hotel_id', hotelId)
     .order('call_time');
+  if (error) throw error;
   return data || [];
 }
 

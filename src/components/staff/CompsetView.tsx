@@ -50,14 +50,18 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
   const date = todayStr();
 
   const load = useCallback(async () => {
-    const [h, t, e] = await Promise.all([
-      getCompsetHotels(hotelId),
-      getCompsetCallTimes(hotelId),
-      getCompsetEntries(hotelId, date),
-    ]);
-    setHotels(h);
-    setCallTimes(t);
-    setEntries(e);
+    try {
+      const [h, t, e] = await Promise.all([
+        getCompsetHotels(hotelId),
+        getCompsetCallTimes(hotelId),
+        getCompsetEntries(hotelId, date),
+      ]);
+      setHotels(h);
+      setCallTimes(t);
+      setEntries(e);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not load compset data.');
+    }
   }, [hotelId, date]);
 
   useEffect(() => { load(); }, [load]);
