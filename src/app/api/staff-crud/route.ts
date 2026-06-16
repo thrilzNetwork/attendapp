@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
         .select('*')
         .eq('hotel_id', scopedHotelId)
         .order('name');
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       // Strip PIN codes from response — never expose to frontend
       const sanitized = (data || []).map(stripPin);
       return NextResponse.json({ ok: true, data: sanitized });
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
         .insert({ ...staff, hotel_id: createHotelId })
         .select()
         .single();
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true, data: stripPin(data) });
     }
 
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
         .from('staff_accounts')
         .update(safeUpdates)
         .eq('id', staffId);
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true });
     }
 
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
         .from('staff_accounts')
         .delete()
         .eq('id', staffId);
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true });
     }
 
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
         .select('*')
         .eq('id', staffId)
         .single();
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true, data: stripPin(data) });
     }
 
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
         query = query.eq('hotel_id', requestedHotelId);
       }
       const { data, error } = await query.maybeSingle();
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true, data: stripPin(data) });
     }
 

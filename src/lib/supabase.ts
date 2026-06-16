@@ -231,7 +231,7 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       nearby_intro: config.nearbyIntro || {},
       position_budgets: config.positionBudgets || [],
     }, { onConflict: 'slug' });
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
@@ -242,7 +242,7 @@ export async function getAllRequests(hotelId: string): Promise<RequestItem[]> {
     .select('*')
     .eq('hotel_id', hotelId)
     .order('created_at', { ascending: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return (data || []).map((r: Record<string, unknown>) => ({
     id: r.id as string,
     guestName: r.guest_name as string,
@@ -262,7 +262,7 @@ export async function getMessages(hotelId: string, guestName: string, room: stri
     .eq('guest_name', guestName)
     .eq('room', room)
     .order('created_at', { ascending: true });
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return (data || []).map((m: Record<string, unknown>) => ({
     id: m.id as string,
     hotel_id: m.hotel_id as string,
@@ -294,7 +294,7 @@ export async function insertRequest(req: { guestName: string; room: string; type
     details: req.details,
     status: 'pending',
   }).select().single();
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
@@ -303,12 +303,12 @@ export async function updateRequestStatus(id: string, status: string, assigned_t
   const update: Record<string, any> = { status };
   if (assigned_to !== undefined) update.assigned_to = assigned_to;
   const { error } = await supabase.from('requests').update(update).eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 export async function deleteRequest(id: string) {
   const { error } = await supabase.from('requests').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 // Headers for service-role API routes. Includes the shared key AND the logged-in
@@ -502,7 +502,7 @@ export async function createHotel(data: {
     yelp_url: data.yelpUrl || null,
     brand: data.propertyType || 'Hotel',
   }).select().single();
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return hotel;
 }
 
@@ -972,7 +972,7 @@ export async function bulkInsertRooms(hotelId: string, rooms: { room_number: str
     }))
   ).select();
   
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data || [];
 }
 
@@ -988,19 +988,19 @@ export async function createRoom(hotelId: string, room: { room_number: string; r
     floor: room.floor || 0,
     is_active: true,
   }).select().single();
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
 export async function updateRoomType(id: string, room_type: string) {
   const { error } = await supabase.from('hotel_rooms').update({ room_type }).eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 export async function updateRoomTypeBatch(ids: Set<string>, room_type: string) {
   const idArr = Array.from(ids);
   const { error } = await supabase.from('hotel_rooms').update({ room_type }).in('id', idArr);
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 // ─── Staff Auth Helpers ──────────────────────────────────────
@@ -1015,7 +1015,7 @@ export async function upsertGuestValidation(hotelId: string, name: string, room:
     checked_in_at: validatedAt,
     status: 'active',
   }, { onConflict: 'hotel_id,name,room', ignoreDuplicates: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 export async function getGuestValidations(hotelId: string): Promise<{ name: string; room: string; validatedAt: string }[]> {
@@ -1089,13 +1089,13 @@ export async function createChecklist(hotelId: string, name: string, items: { id
   const { data, error } = await supabase.from('staff_checklists').insert({
     hotel_id: hotelId, name, items, assigned_role: assignedRole || 'staff',
   }).select().single();
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
 export async function updateChecklist(id: string, updates: { name?: string; items?: { id: string; label: string }[]; assigned_role?: string; is_active?: boolean }) {
   const { error } = await supabase.from('staff_checklists').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 export async function deleteChecklist(id: string) {
@@ -1121,7 +1121,7 @@ export async function createChecklistInstance(instance: {
     checked_items: [],
     completed: false,
   }).select().single();
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
@@ -1129,7 +1129,7 @@ export async function updateChecklistInstance(id: string, updates: { checked_ite
   const upd: Record<string, unknown> = { ...updates };
   if (updates.completed) upd.completed_at = new Date().toISOString();
   const { error } = await supabase.from('staff_checklist_instances').update(upd).eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 // ─── Staff Schedules ────────────────────────────────────────
@@ -1297,13 +1297,13 @@ export async function createOpsTool(tool: { name: string; key: string; icon?: st
     category: tool.category || 'front_desk',
     is_built_in: false,
   }).select().single();
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
 export async function updateOpsTool(id: string, updates: Partial<OpsTool>): Promise<void> {
   const { error } = await supabase.from('ops_tools').update(updates).eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 export async function deleteOpsTool(id: string): Promise<void> {
@@ -1323,7 +1323,7 @@ export async function setHotelOpsTool(hotelId: string, toolKey: string, enabled:
     { hotel_id: hotelId, tool_key: toolKey, enabled },
     { onConflict: 'hotel_id,tool_key' }
   );
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 export async function bulkEnableOpsTools(hotelId: string, toolKeys: string[]): Promise<void> {
@@ -1603,7 +1603,7 @@ export async function createRDO(
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
@@ -1639,7 +1639,7 @@ export async function getWeeklyForecasts(hotelId: string, weekStart: string): Pr
     .lte('date', endStr)
     .order('date');
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return (data || []) as WeeklyForecast[];
 }
 
@@ -1672,7 +1672,7 @@ export async function upsertWeeklyForecast(forecast: {
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
@@ -1769,13 +1769,13 @@ export async function createPositionTodoTemplate(tpl: {
     hotel_id: tpl.hotel_id, name: tpl.name, description: tpl.description || '',
     department: tpl.department, assigned_position: tpl.assigned_position || '',
   }).select().single();
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
 export async function updatePositionTodoTemplate(id: string, updates: Partial<PositionTodoTemplate>) {
   const { error } = await supabase.from('position_todo_templates').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 export async function deletePositionTodoTemplate(id: string) {
@@ -1796,13 +1796,13 @@ export async function createTemplateItem(item: {
     template_id: item.template_id, label: item.label, item_type: item.item_type,
     required: item.required ?? true, sort_order: item.sort_order || 0, config: item.config || {},
   }).select().single();
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
 export async function updateTemplateItem(id: string, updates: Partial<PositionTodoItem>) {
   const { error } = await supabase.from('position_todo_items').update(updates).eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 export async function deleteTemplateItem(id: string) {
@@ -1827,7 +1827,7 @@ export async function createInstance(inst: {
     staff_id: inst.staff_id, staff_name: inst.staff_name,
     shift: inst.shift || 'AM', status: 'in_progress',
   }).select().single();
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
@@ -1835,7 +1835,7 @@ export async function completeInstance(id: string) {
   const { error } = await supabase.from('position_todo_instances').update({
     status: 'completed', completed_at: new Date().toISOString(),
   }).eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 // Responses
@@ -1855,7 +1855,7 @@ export async function upsertResponse(resp: {
     text_value: resp.text_value ?? null,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'instance_id,item_id' });
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 export default supabase;

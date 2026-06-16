@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     if (action === 'create_hotel') {
       const { data, error } = await supabaseAdmin.from('hotels').insert(params).select().single();
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ data });
     }
 
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
         .insert(staffData)
         .select()
         .single();
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       // Strip pin_code from response
       const cleaned = data ? { ...data } : null;
       if (cleaned) delete cleaned.pin_code;
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
         .from('staff_accounts')
         .update(updates)
         .eq('id', id);
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true });
     }
 
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
         .from('staff_accounts')
         .update({ permissions })
         .eq('id', id);
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ ok: true });
     }
 
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
         category: params.category || 'front_desk',
         is_built_in: false,
       }).select().single();
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ data });
     }
 
