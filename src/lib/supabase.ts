@@ -540,6 +540,11 @@ export async function createCompsetCallTime(callTime: { hotel_id: string; call_t
   if (error) throw error;
 }
 
+export async function updateCompsetCallTime(id: string, updates: Partial<CompsetCallTime>): Promise<void> {
+  const { error } = await supabase.from('compset_call_times').update(updates).eq('id', id);
+  if (error) throw error;
+}
+
 export async function deleteCompsetCallTime(id: string): Promise<void> {
   const { error } = await supabase.from('compset_call_times').delete().eq('id', id);
   if (error) throw error;

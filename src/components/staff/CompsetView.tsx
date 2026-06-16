@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Phone, CheckCircle2, Circle, BarChart3 } from 'lucide-react';
+import { Plus, Trash2, Phone, CheckCircle2, Circle, BarChart3, Pencil } from 'lucide-react';
 import {
-  getCompsetHotels, createCompsetHotel, deleteCompsetHotel,
-  getCompsetCallTimes, createCompsetCallTime, deleteCompsetCallTime,
+  getCompsetHotels, createCompsetHotel, updateCompsetHotel, deleteCompsetHotel,
+  getCompsetCallTimes, createCompsetCallTime, updateCompsetCallTime, deleteCompsetCallTime,
   getCompsetEntries, getCompsetEntriesRange, upsertCompsetEntry,
   CompsetHotel, CompsetCallTime, CompsetEntry,
 } from '@/lib/supabase';
@@ -38,6 +38,10 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
   const [showTimeForm, setShowTimeForm] = useState(false);
   const [hotelForm, setHotelForm] = useState({ name: '', phone: '', room_keys: '' });
   const [timeForm, setTimeForm] = useState({ call_time: '08:00', label: '' });
+  const [editingHotelId, setEditingHotelId] = useState<string | null>(null);
+  const [editHotelForm, setEditHotelForm] = useState({ name: '', phone: '', room_keys: '' });
+  const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
+  const [editTimeForm, setEditTimeForm] = useState({ call_time: '08:00', label: '' });
   const [activeSlot, setActiveSlot] = useState<{ hotelId: string; callTime: string } | null>(null);
   const [entryForm, setEntryForm] = useState({ rate: '', rooms_sold: '', occupancy_pct: '' });
   const [error, setError] = useState('');
@@ -89,6 +93,42 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
       load();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not save call time.');
+    }
+  };
+
+  const startEditHotel = (h: CompsetHotel) => {
+    setEditingHotelId(h.id);
+    setEditHotelForm({ name: h.name, phone: h.phone || '', room_keys: h.room_keys ? String(h.room_keys) : '' });
+  };
+
+  const saveEditHotel = async (id: string) => {
+    setError('');
+    try {
+      await updateCompsetHotel(id, {
+        name: editHotelForm.name,
+        phone: editHotelForm.phone,
+        room_keys: editHotelForm.room_keys ? parseInt(editHotelForm.room_keys, 10) : 0,
+      });
+      setEditingHotelId(null);
+      load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not update hotel.');
+    }
+  };
+
+  const startEditTime = (t: CompsetCallTime) => {
+    setEditingTimeId(t.id);
+    setEditTimeForm({ call_time: t.call_time, label: t.label || '' });
+  };
+
+  const saveEditTime = async (id: string) => {
+    setError('');
+    try {
+      await updateCompsetCallTime(id, { call_time: editTimeForm.call_time, label: editTimeForm.label });
+      setEditingTimeId(null);
+      load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not update call time.');
     }
   };
 
@@ -212,15 +252,37 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
             )}
             <div className="space-y-1.5">
               {hotels.map(h => (
-                <div key={h.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                  <div>
-                    <p className="text-[12px] font-semibold text-gray-800">{h.name}</p>
-                    <p className="text-[11px] text-gray-400">{h.phone && <span>{h.phone} · </span>}{h.room_keys || 0} room keys</p>
+                editingHotelId === h.id ? (
+                  <div key={h.id} className="bg-gray-50 rounded-lg px-3 py-2 space-y-2">
+                    <div className="flex gap-2">
+                      <input placeholder="Hotel name" value={editHotelForm.name} onChange={e => setEditHotelForm({ ...editHotelForm, name: e.target.value })}
+                        className="flex-1 bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                      <input placeholder="Phone" value={editHotelForm.phone} onChange={e => setEditHotelForm({ ...editHotelForm, phone: e.target.value })}
+                        className="w-28 bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                      <input type="number" placeholder="Room keys" value={editHotelForm.room_keys} onChange={e => setEditHotelForm({ ...editHotelForm, room_keys: e.target.value })}
+                        className="w-24 bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => saveEditHotel(h.id)} className="px-3 py-1.5 rounded-lg text-white text-[11px] font-bold" style={{ backgroundColor: TEAL }}>Save</button>
+                      <button onClick={() => setEditingHotelId(null)} className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-600 text-[11px] font-semibold">Cancel</button>
+                    </div>
                   </div>
-                  <button onClick={() => handleDeleteHotel(h.id)} className="text-red-400 hover:text-red-600">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+                ) : (
+                  <div key={h.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                    <button onClick={() => startEditHotel(h)} className="text-left flex-1">
+                      <p className="text-[12px] font-semibold text-gray-800">{h.name}</p>
+                      <p className="text-[11px] text-gray-400">{h.phone && <span>{h.phone} · </span>}{h.room_keys || 0} room keys</p>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => startEditHotel(h)} className="text-gray-400 hover:text-gray-600">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => handleDeleteHotel(h.id)} className="text-red-400 hover:text-red-600">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                )
               ))}
               {hotels.length === 0 && <p className="text-[11px] text-gray-400">No competitor hotels added yet.</p>}
             </div>
@@ -245,12 +307,34 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
             )}
             <div className="space-y-1.5">
               {callTimes.map(t => (
-                <div key={t.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                  <p className="text-[12px] font-semibold text-gray-800">{formatTime(t.call_time)} {t.label && <span className="text-gray-400 font-normal">— {t.label}</span>}</p>
-                  <button onClick={() => handleDeleteTime(t.id)} className="text-red-400 hover:text-red-600">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+                editingTimeId === t.id ? (
+                  <div key={t.id} className="bg-gray-50 rounded-lg px-3 py-2 space-y-2">
+                    <div className="flex gap-2">
+                      <input type="time" value={editTimeForm.call_time} onChange={e => setEditTimeForm({ ...editTimeForm, call_time: e.target.value })}
+                        className="bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                      <input placeholder="Label (optional)" value={editTimeForm.label} onChange={e => setEditTimeForm({ ...editTimeForm, label: e.target.value })}
+                        className="flex-1 bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => saveEditTime(t.id)} className="px-3 py-1.5 rounded-lg text-white text-[11px] font-bold" style={{ backgroundColor: TEAL }}>Save</button>
+                      <button onClick={() => setEditingTimeId(null)} className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-600 text-[11px] font-semibold">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={t.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                    <button onClick={() => startEditTime(t)} className="text-left flex-1">
+                      <p className="text-[12px] font-semibold text-gray-800">{formatTime(t.call_time)} {t.label && <span className="text-gray-400 font-normal">— {t.label}</span>}</p>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => startEditTime(t)} className="text-gray-400 hover:text-gray-600">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => handleDeleteTime(t.id)} className="text-red-400 hover:text-red-600">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                )
               ))}
               {callTimes.length === 0 && <p className="text-[11px] text-gray-400">No call times set yet.</p>}
             </div>
