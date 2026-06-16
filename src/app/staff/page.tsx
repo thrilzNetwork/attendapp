@@ -2632,7 +2632,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                       ))}
                     </select>
                     <button onClick={async () => {
-                      await updateStaffDetails(s.id!, { department: editingDeptValue || undefined });
+                      await updateStaffDetails(s.id!, { department: editingDeptValue });
                       setEditingDept(null);
                       onRefresh();
                     }} className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white" style={{backgroundColor: TEAL}}>Save</button>

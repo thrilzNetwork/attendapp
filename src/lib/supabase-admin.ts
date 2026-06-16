@@ -82,10 +82,12 @@ export async function getCaller(req: Request): Promise<Caller | null> {
   const isSuper = await isSuperAdmin(user.id);
   let hotelId: string | null = null;
   if (!isSuper && user.email) {
+    // Case-insensitive match — staff_accounts.email may have been entered with
+    // different casing than the auth user's email.
     const { data } = await getAdmin()
       .from('staff_accounts')
       .select('hotel_id')
-      .eq('email', user.email)
+      .ilike('email', user.email)
       .limit(1);
     hotelId = (data && data[0]?.hotel_id) || null;
   }

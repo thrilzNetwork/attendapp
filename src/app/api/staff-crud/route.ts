@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
       let query = supabaseAdmin
         .from('staff_accounts')
         .select('*')
-        .eq('email', staffEmail);
+        .ilike('email', staffEmail);
       // Non-superadmins may only look up staff within their own hotel.
       if (!caller.isSuper) {
         if (!scopedHotelId) {

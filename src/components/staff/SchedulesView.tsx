@@ -91,12 +91,17 @@ export default function SchedulesView({
 
   const load = async () => {
     const weekEnd = addDays(weekStart, 6);
-    const [s, f] = await Promise.all([
-      getStaffSchedulesRange(hotelId, weekStart, weekEnd),
-      getWeeklyForecasts(hotelId, weekStart),
-    ]);
-    setSchedules(s || []);
-    setForecasts(f || []);
+    try {
+      const [s, f] = await Promise.all([
+        getStaffSchedulesRange(hotelId, weekStart, weekEnd),
+        getWeeklyForecasts(hotelId, weekStart),
+      ]);
+      setSchedules(s || []);
+      setForecasts(f || []);
+      setError(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load schedule.');
+    }
   };
   useEffect(() => { load(); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelId, weekStart]);
