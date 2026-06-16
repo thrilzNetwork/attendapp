@@ -797,7 +797,7 @@ export async function getAllShuttleSlotsForHotel(hotelId: string): Promise<Shutt
 }
 
 export async function createShuttleSlot(slot: {
-  route_id: string; departure_time: string;
+  route_id: string; hotel_id: string; departure_time: string;
   days_of_week?: number[]; date?: string; capacity?: number;
   event_label?: string; override_price?: number;
 }) {
@@ -912,7 +912,7 @@ export interface CruiseSchedule {
 export async function getCruiseSchedules(hotelId: string): Promise<CruiseSchedule[]> {
   const today = new Date().toISOString().split('T')[0];
   const { data } = await supabase.from('cruise_schedules').select('*')
-    .eq('hotel_id', hotelId).eq('active', true)
+    .eq('hotel_id', hotelId)
     .gte('departure_date', today)
     .order('departure_date').order('departure_time');
   return data || [];
@@ -920,7 +920,7 @@ export async function getCruiseSchedules(hotelId: string): Promise<CruiseSchedul
 
 export async function getCruiseSchedulesAll(hotelId: string): Promise<CruiseSchedule[]> {
   const { data } = await supabase.from('cruise_schedules').select('*')
-    .eq('hotel_id', hotelId).eq('active', true)
+    .eq('hotel_id', hotelId)
     .order('departure_date', { ascending: false }).order('departure_time');
   return data || [];
 }

@@ -1182,7 +1182,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
 
   const handleAddSlot = async () => {
     if (!newSlot.time || !newSlot.route_id) return;
-    await createShuttleSlot({ route_id: newSlot.route_id, departure_time: newSlot.time + ':00', days_of_week: newSlot.days, capacity: newSlot.capacity, event_label: newSlot.event_label, override_price: newSlot.override_price ?? undefined });
+    await createShuttleSlot({ route_id: newSlot.route_id, hotel_id: hotelId, departure_time: newSlot.time + ':00', days_of_week: newSlot.days, capacity: newSlot.capacity, event_label: newSlot.event_label, override_price: newSlot.override_price ?? undefined });
     setNewSlot({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null });
     load();
   };
@@ -1193,12 +1193,12 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
     const [endH, endM] = batch.to.split(':').map(Number);
     const startMinutes = startH * 60 + startM;
     const endMinutes = endH * 60 + endM;
-    const generated: { route_id: string; departure_time: string; days_of_week: number[]; capacity: number; override_price?: number }[] = [];
+    const generated: { route_id: string; hotel_id: string; departure_time: string; days_of_week: number[]; capacity: number; override_price?: number }[] = [];
     for (let m = startMinutes; m <= endMinutes; m += batch.interval) {
       const h = Math.floor(m / 60);
       const min = m % 60;
       const departure_time = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00`;
-      generated.push({ route_id: batch.route_id, days_of_week: batch.days, departure_time, capacity: batch.capacity, override_price: batch.override_price ?? undefined });
+      generated.push({ route_id: batch.route_id, hotel_id: hotelId, days_of_week: batch.days, departure_time, capacity: batch.capacity, override_price: batch.override_price ?? undefined });
     }
     await Promise.all(generated.map(g => createShuttleSlot(g)));
     setBatch({ route_id: '', show: false, from: '', to: '', interval: 60, days: [1,2,3,4,5,6,7], capacity: 0, override_price: null });

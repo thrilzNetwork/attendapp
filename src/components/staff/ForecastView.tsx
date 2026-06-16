@@ -162,6 +162,7 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
   };
 
   const handleSave = async () => {
+    if (!resolvedHotelId) { setSaveError('Hotel not loaded yet — please wait a moment and try again.'); return; }
     setSaving(true); setSaveError('');
     const monday = getMonday(weekDays[0].date);
     try {

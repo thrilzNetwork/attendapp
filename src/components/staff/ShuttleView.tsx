@@ -331,6 +331,7 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
     try {
       await createShuttleSlot({
         route_id: setupRoute,
+        hotel_id: hotelId,
         departure_time: (singleSlot.time || '00:00') + ':00',
         days_of_week: singleSlot.days,
         date: singleSlot.date || undefined,
@@ -355,7 +356,7 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
       let created = 0;
       for (let m = startMin; m <= endMin; m += batchForm.interval) {
         const dep = `${String(Math.floor(m / 60)).padStart(2,'0')}:${String(m % 60).padStart(2,'0')}:00`;
-        await createShuttleSlot({ route_id: setupRoute, departure_time: dep, days_of_week: batchForm.days, capacity: batchForm.capacity });
+        await createShuttleSlot({ route_id: setupRoute, hotel_id: hotelId, departure_time: dep, days_of_week: batchForm.days, capacity: batchForm.capacity });
         created++;
       }
       setSetupMsg(`Created ${created} time slots.`);

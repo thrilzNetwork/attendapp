@@ -46,7 +46,8 @@ export async function POST(req: NextRequest) {
 
     // Lock every row to the caller's own hotel — never trust client hotel_id.
     const scopedHotelId = resolveHotelScope(caller, forecasts[0]?.hotel_id);
-    if (!scopedHotelId) {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!scopedHotelId || !UUID_RE.test(scopedHotelId)) {
       return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
     }
 
