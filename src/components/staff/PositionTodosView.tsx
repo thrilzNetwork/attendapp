@@ -6,10 +6,11 @@ import {
   getTemplateItems, createTemplateItem, deleteTemplateItem,
   getTodayInstances, createInstance, completeInstance,
   getInstanceResponses, upsertResponse,
+  createRoomMove, createNoShow, createBankCount,
   type PositionTodoTemplate, type PositionTodoItem,
   type PositionTodoInstance, type PositionTodoResponse,
 } from '@/lib/supabase';
-import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList } from 'lucide-react';
+import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList, Move, UserX, DollarSign } from 'lucide-react';
 
 const TEAL = '#0D9488';
 
@@ -29,6 +30,17 @@ const ITEM_TYPES: { key: string; label: string; icon: React.ReactNode }[] = [
   { key: 'time',       label: 'Time',            icon: <Clock size={14} /> },
   { key: 'kpi_field',  label: 'KPI Field',       icon: <ClipboardList size={14} /> },
   { key: 'action_link', label: 'Action Link',    icon: <Link size={14} /> },
+  { key: 'room_move',   label: 'Room Move',      icon: <Move size={14} /> },
+  { key: 'no_show',     label: 'No Show',        icon: <UserX size={14} /> },
+  { key: 'bank_count',  label: 'Bank/Drawer Count', icon: <DollarSign size={14} /> },
+];
+
+// Pre-made operational templates — quick-add buttons in the builder so admins
+// don't have to hand-configure the item type/label for these common front-desk actions.
+const PRESET_ITEMS: { key: string; label: string; item_type: string; icon: React.ReactNode }[] = [
+  { key: 'room_move',  label: 'Room Move',         item_type: 'room_move', icon: <Move size={14} /> },
+  { key: 'no_show',    label: 'No Show',           item_type: 'no_show',   icon: <UserX size={14} /> },
+  { key: 'bank_count', label: 'Bank/Drawer Count', item_type: 'bank_count', icon: <DollarSign size={14} /> },
 ];
 
 const POSITIONS: { key: string; label: string }[] = [
@@ -75,6 +87,11 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [newItemLabel, setNewItemLabel] = useState('');
   const [newItemType, setNewItemType] = useState('checkbox');
   const [newItemConfig, setNewItemConfig] = useState('');
+
+  // Inline form state for the operational input types (room move / no show / bank count)
+  const [opsForm, setOpsForm] = useState<Record<string, Record<string, string>>>({});
+  const setOpsField = (itemId: string, field: string, value: string) =>
+    setOpsForm(prev => ({ ...prev, [itemId]: { ...prev[itemId], [field]: value } }));
 
   const loadAll = async () => {
     setLoading(true);
@@ -168,6 +185,22 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     setSubmitting(false);
   };
 
+  const addPresetItem = async (templateId: string, preset: { label: string; item_type: string }) => {
+    setSubmitting(true); setError(null);
+    const items = itemsByTemplate[templateId] || [];
+    try {
+      await createTemplateItem({
+        template_id: templateId, label: preset.label,
+        item_type: preset.item_type, sort_order: items.length, config: {},
+      });
+      const updated = await getTemplateItems(templateId);
+      setItemsByTemplate(prev => ({ ...prev, [templateId]: updated }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to add item');
+    }
+    setSubmitting(false);
+  };
+
   const removeItem = async (itemId: string, templateId: string) => {
     await deleteTemplateItem(itemId);
     const updated = await getTemplateItems(templateId);
@@ -215,6 +248,73 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     await upsertResponse({ instance_id: instId, item_id: itemId, checked: !!value, text_value: value });
     const updated = await getInstanceResponses(instId);
     setResponsesByInstance(prev => ({ ...prev, [instId]: updated }));
+  };
+
+  const handleRoomMove = async (instId: string, itemId: string) => {
+    const f = opsForm[itemId] || {};
+    if (!f.guest_name?.trim() || !f.from_room?.trim() || !f.to_room?.trim()) {
+      setError('Guest name, from room, and to room are required.');
+      return;
+    }
+    setSubmitting(true); setError(null);
+    try {
+      await createRoomMove({
+        hotel_id: hotelId, move_date: new Date().toISOString().split('T')[0],
+        guest_name: f.guest_name.trim(), from_room: f.from_room.trim(), to_room: f.to_room.trim(),
+        reason: f.reason?.trim() || '', initiated_by: staffName || '', notes: '',
+      });
+      await upsertResponse({ instance_id: instId, item_id: itemId, checked: true, text_value: `${f.guest_name.trim()}: Room ${f.from_room.trim()} → ${f.to_room.trim()}` });
+      const updated = await getInstanceResponses(instId);
+      setResponsesByInstance(prev => ({ ...prev, [instId]: updated }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to log room move');
+    }
+    setSubmitting(false);
+  };
+
+  const handleNoShow = async (instId: string, itemId: string) => {
+    const f = opsForm[itemId] || {};
+    if (!f.guest_name?.trim() || !f.room?.trim()) {
+      setError('Guest name and room are required.');
+      return;
+    }
+    setSubmitting(true); setError(null);
+    try {
+      await createNoShow({
+        hotel_id: hotelId, no_show_date: new Date().toISOString().split('T')[0],
+        guest_name: f.guest_name.trim(), room: f.room.trim(),
+        reservation_ref: f.reservation_ref?.trim() || '', reason: f.reason?.trim() || '', notes: '',
+      });
+      await upsertResponse({ instance_id: instId, item_id: itemId, checked: true, text_value: `${f.guest_name.trim()} · Room ${f.room.trim()}` });
+      const updated = await getInstanceResponses(instId);
+      setResponsesByInstance(prev => ({ ...prev, [instId]: updated }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to log no-show');
+    }
+    setSubmitting(false);
+  };
+
+  const handleBankCount = async (instId: string, itemId: string) => {
+    const f = opsForm[itemId] || {};
+    if (!f.cash_total?.trim()) {
+      setError('Cash total is required.');
+      return;
+    }
+    setSubmitting(true); setError(null);
+    try {
+      await createBankCount({
+        hotel_id: hotelId, count_date: new Date().toISOString().split('T')[0], shift: f.shift || 'AM',
+        counted_by: staffName || '', cash_total: parseFloat(f.cash_total) || 0,
+        card_total: parseFloat(f.card_total || '0') || 0, room_charges: parseFloat(f.room_charges || '0') || 0,
+        discrepancies: f.discrepancies?.trim() || '', notes: '',
+      });
+      await upsertResponse({ instance_id: instId, item_id: itemId, checked: true, text_value: `Cash $${f.cash_total} · Card $${f.card_total || '0'}` });
+      const updated = await getInstanceResponses(instId);
+      setResponsesByInstance(prev => ({ ...prev, [instId]: updated }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to log bank count');
+    }
+    setSubmitting(false);
   };
 
   const handleComplete = async (instId: string) => {
@@ -379,6 +479,65 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                                             </div>
                                           </div>
                                         )}
+                                        {item.item_type === 'room_move' && (
+                                          <div className="flex-1">
+                                            <p className="text-[13px] font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><Move size={13} /> {item.label}</p>
+                                            {resp?.checked ? (
+                                              <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
+                                            ) : (
+                                              <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                <input value={opsForm[item.id]?.guest_name || ''} onChange={e => setOpsField(item.id, 'guest_name', e.target.value)} placeholder="Guest name" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                <div className="flex gap-1.5">
+                                                  <input value={opsForm[item.id]?.from_room || ''} onChange={e => setOpsField(item.id, 'from_room', e.target.value)} placeholder="From room" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                  <input value={opsForm[item.id]?.to_room || ''} onChange={e => setOpsField(item.id, 'to_room', e.target.value)} placeholder="To room" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                </div>
+                                                <input value={opsForm[item.id]?.reason || ''} onChange={e => setOpsField(item.id, 'reason', e.target.value)} placeholder="Reason (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                <button onClick={() => handleRoomMove(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log Room Move</button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                        {item.item_type === 'no_show' && (
+                                          <div className="flex-1">
+                                            <p className="text-[13px] font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><UserX size={13} /> {item.label}</p>
+                                            {resp?.checked ? (
+                                              <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
+                                            ) : (
+                                              <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                <input value={opsForm[item.id]?.guest_name || ''} onChange={e => setOpsField(item.id, 'guest_name', e.target.value)} placeholder="Guest name" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                <div className="flex gap-1.5">
+                                                  <input value={opsForm[item.id]?.room || ''} onChange={e => setOpsField(item.id, 'room', e.target.value)} placeholder="Room" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                  <input value={opsForm[item.id]?.reservation_ref || ''} onChange={e => setOpsField(item.id, 'reservation_ref', e.target.value)} placeholder="Reservation # (optional)" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                </div>
+                                                <input value={opsForm[item.id]?.reason || ''} onChange={e => setOpsField(item.id, 'reason', e.target.value)} placeholder="Reason (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                <button onClick={() => handleNoShow(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log No Show</button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                        {item.item_type === 'bank_count' && (
+                                          <div className="flex-1">
+                                            <p className="text-[13px] font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><DollarSign size={13} /> {item.label}</p>
+                                            {resp?.checked ? (
+                                              <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
+                                            ) : (
+                                              <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                <select value={opsForm[item.id]?.shift || 'AM'} onChange={e => setOpsField(item.id, 'shift', e.target.value)} className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200">
+                                                  <option value="AM">AM Shift</option>
+                                                  <option value="PM">PM Shift</option>
+                                                  <option value="Overnight">Overnight</option>
+                                                </select>
+                                                <div className="flex gap-1.5">
+                                                  <input type="number" value={opsForm[item.id]?.cash_total || ''} onChange={e => setOpsField(item.id, 'cash_total', e.target.value)} placeholder="Cash total" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                  <input type="number" value={opsForm[item.id]?.card_total || ''} onChange={e => setOpsField(item.id, 'card_total', e.target.value)} placeholder="Card total" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                </div>
+                                                <input type="number" value={opsForm[item.id]?.room_charges || ''} onChange={e => setOpsField(item.id, 'room_charges', e.target.value)} placeholder="Room charges" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                <input value={opsForm[item.id]?.discrepancies || ''} onChange={e => setOpsField(item.id, 'discrepancies', e.target.value)} placeholder="Discrepancies (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                <button onClick={() => handleBankCount(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log Bank Count</button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
                                     );
                                   })}
@@ -469,9 +628,21 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                                     </div>
                                   ))}
 
+                                  {/* Pre-made operational templates */}
+                                  <div>
+                                    <p className="text-[11px] font-bold text-gray-500 mb-1.5">Pre-Made Templates</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {PRESET_ITEMS.map(p => (
+                                        <button key={p.key} onClick={() => addPresetItem(tpl.id, p)} disabled={submitting} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-[11px] font-bold text-gray-600 hover:border-gray-300 disabled:opacity-50">
+                                          {p.icon} {p.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
                                   {/* Add item form */}
                                   <div className="bg-gray-50 rounded-xl p-3 border border-dashed border-gray-200">
-                                    <p className="text-[11px] font-bold text-gray-500 mb-2">Add Item</p>
+                                    <p className="text-[11px] font-bold text-gray-500 mb-2">Add Custom Item</p>
                                     <div className="space-y-2">
                                       <input value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} placeholder="e.g. Initial bank count" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
                                       <div className="flex gap-2">

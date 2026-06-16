@@ -1835,7 +1835,7 @@ export interface PositionTodoItem {
   id: string;
   template_id: string;
   label: string;
-  item_type: 'checkbox' | 'number' | 'text' | 'time' | 'kpi_field' | 'action_link';
+  item_type: 'checkbox' | 'number' | 'text' | 'time' | 'kpi_field' | 'action_link' | 'room_move' | 'no_show' | 'bank_count';
   required: boolean;
   sort_order: number;
   config: {
