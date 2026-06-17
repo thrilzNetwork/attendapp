@@ -9,7 +9,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Bell, Bus, ChevronRight, Clock, DollarSign,
-  Home, LayoutDashboard, LogOut, MessageSquare, Send,
+  Home, LayoutDashboard, LogOut, MessageSquare,
   Star, Users, Calendar, ClipboardList,
   TrendingUp, Wrench, Utensils, ShoppingBag, Phone, Layers, Truck, MapPin,
 } from 'lucide-react';
@@ -17,17 +17,6 @@ import {
 const TEAL = '#0D9488';
 
 /* ─── tiny shared atoms ─────────────────────────────────────── */
-
-function Badge({ children, color = TEAL }: { children: React.ReactNode; color?: string }) {
-  return (
-    <span
-      className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold text-white leading-none"
-      style={{ backgroundColor: color }}
-    >
-      {children}
-    </span>
-  );
-}
 
 function PulsingDot({ color = '#22c55e' }: { color?: string }) {
   return (
@@ -534,18 +523,6 @@ export function ShuttleScreenMockup() {
     </div>
   );
 }
-
-/* ════════════════════════════════════════════════════════════════
-   5.  MESSAGES / FRONT DESK CHAT (mobile)
-   ════════════════════════════════════════════════════════════════ */
-
-const THREAD_MSGS = [
-  { from: 'guest',  text: 'Hi, can I get extra pillows for room 214?', time: '2:14 PM' },
-  { from: 'staff',  text: 'Of course! We\'ll bring them up in 10 minutes.', time: '2:16 PM' },
-  { from: 'guest',  text: 'Also, what time does the pool close tonight?', time: '2:17 PM' },
-  { from: 'staff',  text: 'The pool closes at 10 PM. Towels are available poolside!', time: '2:18 PM' },
-  { from: 'guest',  text: 'Perfect, thank you! 🙏', time: '2:19 PM' },
-];
 
 /* ════════════════════════════════════════════════════════════════
    6.  GUEST REQUESTS MOCKUP (phone screen)

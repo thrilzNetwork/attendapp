@@ -1650,28 +1650,6 @@ function KpiTileDark({ value, label }: { value: string; label: string }) {
   );
 }
 
-/* ── Role-based Mockups ───────────────────────────────────── */
-
-/* PhoneGuestMockup — Phone frame showing the REAL guest app 2x2 grid */
-function PhoneGuestMockup() {
-  return (
-    <div className="relative mx-auto w-[210px]">
-      <PhoneFrame width={210} className="mx-auto animate-float">
-        <Image
-          src="/images/guest-app.png"
-          alt="Guest app with 2x2 grid: Welcome, Transport, Facilities, Safety, Nearby, Food, Review, Message Us"
-          width={210}
-          height={454}
-          className="w-full h-auto block"
-        />
-      </PhoneFrame>
-      <div className="text-center mt-4">
-        <div className="text-[9px] uppercase tracking-[0.15em] text-gray-500 font-bold">The actual guest app</div>
-      </div>
-    </div>
-  );
-}
-
 /* ── Logo / Integration Marquee Strip ──────────────────────── */
 function LogoStrip() {
   const items = [
