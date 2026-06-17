@@ -634,6 +634,21 @@ function OrderCard({ order, profile, onAdvance }: { order: VendorOrder; profile:
         </div>
       )}
 
+      {order.delivery_method === 'uber_direct' && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-xl border border-blue-100">
+          <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wide">🚗 Uber Direct</span>
+          {order.uber_status && (
+            <span className="text-[11px] text-blue-600 capitalize">· {order.uber_status.replace(/_/g, ' ')}</span>
+          )}
+          {order.uber_tracking_url && (
+            <a href={order.uber_tracking_url} target="_blank" rel="noreferrer"
+              className="ml-auto text-[11px] font-bold text-blue-600 underline">
+              Track
+            </a>
+          )}
+        </div>
+      )}
+
       {next && step.action && (
         <button
           onClick={() => onAdvance(order.id, next)}
