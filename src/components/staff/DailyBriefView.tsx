@@ -23,6 +23,8 @@ import {
 import {
   listShuttleSlots,
   today,
+  localDateStr,
+  addDaysStr,
   type ShuttleSlot as OpsShuttleSlot,
 } from '@/lib/opsStore';
 
@@ -61,7 +63,7 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
   const [checklistInstances, setChecklistInstances] = useState<ChecklistInstance[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = localDateStr();
 
   useEffect(() => {
     (async () => {
@@ -139,20 +141,17 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
         return false;
       });
 
-  const todayDay = new Date().getDay() || 7;
+  // Day-of-week 0=Sun..6=Sat, matching getDay() used everywhere else in this file.
+  const todayDay = new Date().getDay();
   const daySlots = todayShuttleSlots.filter(s =>
     (s.date === todayStr) || (s.days_of_week?.includes(todayDay) && !s.date)
   );
 
-  const addDays = (d: string, n: number) => {
-    const dt = new Date(d);
-    dt.setDate(dt.getDate() + n);
-    return dt.toISOString().split('T')[0];
-  };
+  const addDays = addDaysStr;
   const next14 = Array.from({ length: 14 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() + i);
-    const ds = d.toISOString().split('T')[0];
+    const ds = localDateStr(d);
     const dow = d.getDay();
     const slotsCount = monthShuttleSlots.filter(s => s.day_of_week === dow).length;
     const shiftsCount = weekShifts.filter(s => s.shift_date === ds).length;

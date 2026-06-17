@@ -12,6 +12,7 @@ import {
   listKbSuggestionsByStatus, createKbSuggestionPending,
   approveKbSuggestion, rejectKbSuggestion, deleteKbSuggestion,
   suggestResponse,
+  localDateStr,
   type OpRecord,
 } from '@/lib/opsStore';
 
@@ -26,7 +27,7 @@ function getWeekStart(date: string, weekStartsOn?: string): string {
   } else {
     d.setDate(d.getDate() - day);
   }
-  return d.toISOString().split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ============================================================
@@ -40,12 +41,13 @@ export default function KpisView({ hotelId, isAdmin, userName }: { hotelId: stri
   const [form, setForm] = useState({ kpi_name: '', unit: '', target: 0, frequency: 'daily' as 'daily' | 'weekly' | 'monthly', category: 'Revenue' });
   const [logValues, setLogValues] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(localDateStr());
   const [viewingKpi, setViewingKpi] = useState<string | null>(null);
 
   const CATEGORIES = ['Revenue', 'Operations', 'Guest Experience', 'Quality', 'Housekeeping', 'Front Desk'];
 
   useEffect(() => {
+    if (!hotelId) { setLoading(false); return; }
     (async () => {
       setLoading(true);
       const [defs, lg] = await Promise.all([listKpiDefinitions(hotelId), listKpiSubmissions(hotelId)]);
@@ -56,7 +58,7 @@ export default function KpisView({ hotelId, isAdmin, userName }: { hotelId: stri
   }, [hotelId]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const isInWindow = (kpiId: string, freq: string, date?: string): boolean => {
     const d = date || selectedDate;
     if (freq === 'daily') return !logs.some(l => (l.details as any).definition_id === kpiId && (l.details as any).shift_date === d);

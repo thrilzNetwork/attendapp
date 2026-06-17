@@ -20,14 +20,14 @@ function getWeekDates(ref: Date): { date: string; label: string }[] {
   return days.map((label, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return { date: d.toISOString().split('T')[0], label };
+    return { date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, label };
   });
 }
 
 function getMonday(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return d.toISOString().split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /** Get today's YYYY-MM-DD in the hotel's timezone */
@@ -42,7 +42,8 @@ function getTodayInTimezone(tz: string): string {
     const d = parts.find(p => p.type === 'day')?.value || '';
     return `${y}-${m}-${d}`;
   } catch {
-    return new Date().toISOString().split('T')[0];
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 }
 

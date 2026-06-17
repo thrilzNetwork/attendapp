@@ -14,6 +14,12 @@ import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3
 
 const TEAL = '#0D9488';
 
+// Local calendar date (YYYY-MM-DD). Avoids the UTC rollover bug where
+// toISOString() returns tomorrow's date after ~7pm in US timezones.
+function localDateStr(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const DEPARTMENTS: { key: string; label: string; icon: string }[] = [
   { key: 'management',   label: 'Management',   icon: '👔' },
   { key: 'front_desk',   label: 'Front Desk',   icon: '🛎️' },
@@ -370,7 +376,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     setSubmitting(true); setError(null);
     try {
       await createRoomMove({
-        hotel_id: hotelId, move_date: new Date().toISOString().split('T')[0],
+        hotel_id: hotelId, move_date: localDateStr(),
         guest_name: f.guest_name.trim(), from_room: f.from_room.trim(), to_room: f.to_room.trim(),
         reason: f.reason?.trim() || '', initiated_by: staffName || '', notes: '',
       });
@@ -389,7 +395,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     setSubmitting(true); setError(null);
     try {
       await createNoShow({
-        hotel_id: hotelId, no_show_date: new Date().toISOString().split('T')[0],
+        hotel_id: hotelId, no_show_date: localDateStr(),
         guest_name: f.guest_name.trim(), room: f.room.trim(),
         reservation_ref: f.reservation_ref?.trim() || '', reason: f.reason?.trim() || '', notes: '',
       });
@@ -406,7 +412,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     setSubmitting(true); setError(null);
     try {
       await createBankCount({
-        hotel_id: hotelId, count_date: new Date().toISOString().split('T')[0], shift: f.shift || 'AM',
+        hotel_id: hotelId, count_date: localDateStr(), shift: f.shift || 'AM',
         counted_by: staffName || '', cash_total: parseFloat(f.cash_total) || 0,
         card_total: parseFloat(f.card_total || '0') || 0, room_charges: parseFloat(f.room_charges || '0') || 0,
         discrepancies: f.discrepancies?.trim() || '', notes: '',

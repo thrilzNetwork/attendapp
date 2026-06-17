@@ -67,7 +67,11 @@ export interface OpRecord {
 }
 
 function today(): string {
-  return new Date().toISOString().split('T')[0];
+  // Local calendar date (NOT UTC). Using toISOString() here returns the UTC
+  // date, which rolls over to "tomorrow" after ~7pm in US timezones and makes
+  // same-day records appear to vanish. Build the date from local parts instead.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // =====================================================================
@@ -856,7 +860,19 @@ export function suggestResponse(rawText: string, category?: IncidentLog['categor
 }
 
 // =====================================================================
-// Convenience: today's date
+// Convenience: today's date + local-date helpers
 // =====================================================================
+
+// Serialize a Date to a YYYY-MM-DD string using LOCAL calendar parts (never UTC).
+export function localDateStr(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Add (or subtract) days to a YYYY-MM-DD string, returning a local YYYY-MM-DD.
+export function addDaysStr(base: string, days: number): string {
+  const d = new Date(base + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return localDateStr(d);
+}
 
 export { today };

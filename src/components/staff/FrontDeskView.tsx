@@ -38,7 +38,7 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
 }) {
   const [enabledTools, setEnabledTools] = useState<{ tool: OpsTool; enabled: boolean }[]>([]);
   const [tab, setTab] = useState<string>('recap');
-  const today = new Date().toISOString().split('T')[0];
+  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
   const [recap, setRecap] = useState<{ requestsToday: number; completedToday: number; pendingNow: number; messagesToday: number; shuttleBookingsToday: number; avgResponseMin: number; staffOnDuty: number; checklistsCompleted: number; checklistsTotal: number } | null>(null);
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [instances, setInstances] = useState<ChecklistInstance[]>([]);
@@ -63,6 +63,7 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
 
   // Load enabled ops tools from DB
   useEffect(() => {
+    if (!hotelId) return;
     (async () => {
       try {
         const [tools, toggles] = await Promise.all([getAllOpsTools(), getHotelOpsTools(hotelId)]);
@@ -83,6 +84,7 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
 
   useEffect(() => { loadData(); }, [hotelId, tab, scheduleDate]);
   const loadData = async () => {
+    if (!hotelId) return;
     const [r, c, ci, s, kb, slots, routes] = await Promise.all([
       getDailyRecap(hotelId), getChecklists(hotelId),
       getChecklistInstances(hotelId, today), getStaffSchedules(hotelId, scheduleDate),
@@ -173,8 +175,9 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
         </div>
       );
     }
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayDay = new Date().getDay() || 7; // 1=Mon ... 7=Sun
+    const tD = new Date();
+    const todayStr = `${tD.getFullYear()}-${String(tD.getMonth() + 1).padStart(2, '0')}-${String(tD.getDate()).padStart(2, '0')}`;
+    const todayDay = new Date().getDay(); // 0=Sun ... 6=Sat (matches stored days_of_week)
     const todaySlots = todayShuttleSlots.filter(s =>
       (s.date === todayStr) || (s.days_of_week?.includes(todayDay) && !s.date)
     );
