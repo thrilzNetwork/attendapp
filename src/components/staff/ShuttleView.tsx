@@ -322,7 +322,6 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
-  const [shuttleEta, setShuttleEta] = useState<{ distanceMiles: number; etaMinutes: number } | null>(null);
   const [shuttlePos, setShuttlePos] = useState<{ lat: number; lng: number; speed_mph: number } | null>(null);
 
   // Setup state — one wizard for creating the whole schedule
@@ -361,8 +360,7 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
       setRequests(req);
       setPartners(p.filter(p => p.category === 'transport' || p.category === 'transportation'));
       // Extract ETA from first shuttle device
-      const shuttle = (vehRes.devices || []).find((d: { is_shuttle: boolean; eta?: { distanceMiles: number; etaMinutes: number } | null }) => d.is_shuttle) || (vehRes.devices || [])[0];
-      setShuttleEta(shuttle?.eta ?? null);
+      const shuttle = (vehRes.devices || []).find((d: { is_shuttle: boolean }) => d.is_shuttle) || (vehRes.devices || [])[0];
       const loc = shuttle?.bouncie_locations?.[0];
       setShuttlePos(loc ? { lat: loc.lat, lng: loc.lng, speed_mph: loc.speed_mph ?? 0 } : null);
     } catch (e) { setError(e instanceof Error ? e.message : 'Load failed'); }
