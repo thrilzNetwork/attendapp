@@ -384,6 +384,12 @@ export default function LearningHRView({ hotelId }: { hotelId: string }) {
     setStaffName(stored);
   }, []);
 
+  // Clear stale course selection when the course no longer exists (avoids setState-during-render crash)
+  useEffect(() => {
+    if (activeCourse && !courses.some(c => c.id === activeCourse)) closeCourse();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCourse, courses]);
+
   const loadCourseModules = async (courseId: string) => {
     const [m, q] = await Promise.all([
       listModules(hotelId, courseId),
@@ -492,7 +498,7 @@ export default function LearningHRView({ hotelId }: { hotelId: string }) {
   // ── Course Detail View ──
   if (activeCourse) {
     const course = courses.find(c => c.id === activeCourse);
-    if (!course) { closeCourse(); return null; }
+    if (!course) return null;
     const cd = course.details as any;
     const courseMods = modules.filter(m => (m.details as any).course_id === activeCourse);
     const progress = getCourseProgress(activeCourse);

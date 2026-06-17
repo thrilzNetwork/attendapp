@@ -46,6 +46,11 @@ export default function KpisView({ hotelId, isAdmin, userName }: { hotelId: stri
 
   const CATEGORIES = ['Revenue', 'Operations', 'Guest Experience', 'Quality', 'Housekeeping', 'Front Desk'];
 
+  // Clear stale detail-view selection when the KPI no longer exists (avoids setState-during-render crash)
+  useEffect(() => {
+    if (viewingKpi && !kpis.some(k => k.id === viewingKpi)) setViewingKpi(null);
+  }, [viewingKpi, kpis]);
+
   useEffect(() => {
     if (!hotelId) { setLoading(false); return; }
     (async () => {
@@ -130,7 +135,7 @@ export default function KpisView({ hotelId, isAdmin, userName }: { hotelId: stri
   // Detail view for a single KPI
   if (viewingKpi) {
     const kpi = kpis.find(k => k.id === viewingKpi);
-    if (!kpi) { setViewingKpi(null); return null; }
+    if (!kpi) return null;
     const def = kpi.details as any;
     const allLogs = getLogsForKpi(kpi.id, 100);
     const is$ = isMoney(def.unit);

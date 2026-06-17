@@ -377,7 +377,7 @@ export default function Dashboard() {
     }
 
     const [req, msg] = await Promise.all([
-      supabase.from('requests').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
+      supabase.from('requests').select('*').eq('hotel_id', hotelId).neq('room', 'STAFF').order('created_at', { ascending: false }),
       supabase.from('messages').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
     ]);
     if (req.data) setRequests(req.data);
@@ -1185,14 +1185,15 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
   const [bookings, setBookings] = useState<Record<string, ShuttleBooking[]>>({});
   const [loading, setLoading] = useState(true);
   const [newRoute, setNewRoute] = useState({ name: '', type: 'airport', price: 0 });
-  const [newSlot, setNewSlot] = useState<{ route_id: string; show: boolean; time: string; days: number[]; capacity: number; event_label: string; override_price: number | null }>({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null });
-  const [batch, setBatch] = useState<{ route_id: string; show: boolean; from: string; to: string; interval: number; days: number[]; capacity: number; override_price: number | null }>({ route_id: '', show: false, from: '', to: '', interval: 60, days: [1,2,3,4,5,6,7], capacity: 0, override_price: null });
+  const [newSlot, setNewSlot] = useState<{ route_id: string; show: boolean; time: string; days: number[]; capacity: number; event_label: string; override_price: number | null }>({ route_id: '', show: false, time: '', days: [0,1,2,3,4,5,6], capacity: 0, event_label: '', override_price: null });
+  const [batch, setBatch] = useState<{ route_id: string; show: boolean; from: string; to: string; interval: number; days: number[]; capacity: number; override_price: number | null }>({ route_id: '', show: false, from: '', to: '', interval: 60, days: [0,1,2,3,4,5,6], capacity: 0, override_price: null });
   const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
   const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
 
   const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
   const load = useCallback(async () => {
+    if (!hotelId) { setLoading(false); return; }
     const r = await getShuttleRoutes(hotelId);
     setRoutes(r);
     const s = await getAllShuttleSlotsForHotel(hotelId);
@@ -1216,7 +1217,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
   const handleAddSlot = async () => {
     if (!newSlot.time || !newSlot.route_id) return;
     await createShuttleSlot({ route_id: newSlot.route_id, hotel_id: hotelId, departure_time: newSlot.time + ':00', days_of_week: newSlot.days, capacity: newSlot.capacity, event_label: newSlot.event_label, override_price: newSlot.override_price ?? undefined });
-    setNewSlot({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null });
+    setNewSlot({ route_id: '', show: false, time: '', days: [0,1,2,3,4,5,6], capacity: 0, event_label: '', override_price: null });
     load();
   };
 
@@ -1234,7 +1235,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
       generated.push({ route_id: batch.route_id, hotel_id: hotelId, days_of_week: batch.days, departure_time, capacity: batch.capacity, override_price: batch.override_price ?? undefined });
     }
     await Promise.all(generated.map(g => createShuttleSlot(g)));
-    setBatch({ route_id: '', show: false, from: '', to: '', interval: 60, days: [1,2,3,4,5,6,7], capacity: 0, override_price: null });
+    setBatch({ route_id: '', show: false, from: '', to: '', interval: 60, days: [0,1,2,3,4,5,6], capacity: 0, override_price: null });
     load();
   };
 
@@ -1284,7 +1285,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
               <div className="flex items-center gap-2">
                 {isAdmin && (
                   <>
-                    <button onClick={e => { e.stopPropagation(); setNewSlot({ route_id: route.id, show: true, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null }); }}
+                    <button onClick={e => { e.stopPropagation(); setNewSlot({ route_id: route.id, show: true, time: '', days: [0,1,2,3,4,5,6], capacity: 0, event_label: '', override_price: null }); }}
                       className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-600">+ Slot</button>
                     <button onClick={e => { e.stopPropagation(); if(confirm('Delete this route and all slots?')) { deleteShuttleRoute(route.id); load(); } }}
                       className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
@@ -1317,7 +1318,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                             className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none w-[80px]" />
                         </div>
                         <button onClick={handleAddSlot} className="px-4 py-2 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#0D9488' }}>Save</button>
-                        <button onClick={() => setNewSlot({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null })} className="px-3 py-2 text-[12px] text-gray-400">Cancel</button>
+                        <button onClick={() => setNewSlot({ route_id: '', show: false, time: '', days: [0,1,2,3,4,5,6], capacity: 0, event_label: '', override_price: null })} className="px-3 py-2 text-[12px] text-gray-400">Cancel</button>
                       </div>
                       <div>
                         <label className="text-[10px] text-gray-400 block">Event / Cruise Line (optional)</label>
@@ -1327,7 +1328,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                     </div>
                     <div className="flex gap-1.5 flex-wrap">
                       {DAYS.map((d, i) => {
-                        const dayNum = i + 1;
+                        const dayNum = (i + 1) % 7;
                         const active = newSlot.days.includes(dayNum);
                         return (
                           <button key={d} onClick={() => setNewSlot({ ...newSlot, days: active ? newSlot.days.filter(x => x !== dayNum) : [...newSlot.days, dayNum] })}
@@ -1342,7 +1343,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                   <div className="bg-white rounded-xl p-4 border border-gray-200 mb-4">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-bold text-[13px] text-gray-800">⚡ Generate Hours</h4>
-                      <button onClick={() => setBatch(batch.show && batch.route_id === route.id ? { ...batch, show: false } : { route_id: route.id, show: true, from: '', to: '', interval: 60, days: [1,2,3,4,5,6,7], capacity: 0, override_price: null })}
+                      <button onClick={() => setBatch(batch.show && batch.route_id === route.id ? { ...batch, show: false } : { route_id: route.id, show: true, from: '', to: '', interval: 60, days: [0,1,2,3,4,5,6], capacity: 0, override_price: null })}
                         className="text-[11px] font-bold text-teal-600">{batch.show && batch.route_id === route.id ? 'Close' : 'Open'}</button>
                     </div>
                     {batch.show && batch.route_id === route.id && (
@@ -1383,7 +1384,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                         </div>
                         <div className="flex gap-1.5 flex-wrap">
                           {DAYS.map((d, i) => {
-                            const dayNum = i + 1;
+                            const dayNum = (i + 1) % 7;
                             const active = batch.days.includes(dayNum);
                             return (
                               <button key={d} onClick={() => setBatch({ ...batch, days: active ? batch.days.filter(x => x !== dayNum) : [...batch.days, dayNum] })}
@@ -1401,7 +1402,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                   <p className="text-[13px] text-gray-400 py-2">No time slots yet.</p>
                 ) : routeSlots.map(slot => {
                   const slotBookings = bookings[slot.id] || [];
-                  const dayNames = (slot.days_of_week || []).map(d => DAYS[d-1]).join(', ') || 'One-off';
+                  const dayNames = (slot.days_of_week || []).map(d => DAYS[(d+6)%7]).join(', ') || 'One-off';
                   return (
                     <div key={slot.id} className="bg-white rounded-xl border border-gray-100 mb-2 overflow-hidden">
                       <div className="px-4 py-3 flex items-center justify-between cursor-pointer" onClick={() => setExpandedSlot(expandedSlot === slot.id ? null : slot.id)}>
@@ -1577,7 +1578,7 @@ function CruiseCalendarPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: b
 
   if (loading) return <div className="text-center py-12"><div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" /></div>;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const upcoming = schedules.filter(s => s.departure_date >= today);
   const past = schedules.filter(s => s.departure_date < today);
 
@@ -1712,7 +1713,7 @@ function ShuttleVendorView({ hotelId, vendorName, vendorType }: { hotelId: strin
 
   if (loading) return <div className="text-center py-12"><div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" /></div>;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const slotMap = Object.fromEntries(slots.map(s => [s.id, s]));
   const filteredBookings = bookings.filter(b => {
     if (!dateFilter) return true;
@@ -3440,6 +3441,10 @@ function PropertyInfoView({ config }: { config: HotelConfig }) {
   );
 }
 
+// Local calendar date as YYYY-MM-DD (never UTC — avoids the ~7pm rollover bug).
+function localDateStr(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 // Week helpers
 function getWeekStart(date: string, weekStartsOn?: string): string {
   const d = new Date(date + 'T00:00:00');
@@ -3450,7 +3455,7 @@ function getWeekStart(date: string, weekStartsOn?: string): string {
   } else {
     d.setDate(d.getDate() - day);
   }
-  return d.toISOString().split('T')[0];
+  return localDateStr(d);
 }
 function getWeekDates(weekStart: string): string[] {
   return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -3458,7 +3463,7 @@ function getWeekDates(weekStart: string): string[] {
 function addDays(date: string, n: number): string {
   const d = new Date(date + 'T00:00:00');
   d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  return localDateStr(d);
 }
 function dayName(date: string): string {
   return new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
@@ -3506,7 +3511,7 @@ function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boo
   };
   useEffect(() => { load(); }, [hotelId]);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
 
   const create = async () => {
     if (!newName.trim()) return;
@@ -3762,7 +3767,7 @@ function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: b
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
-  const [genMonth, setGenMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [genMonth, setGenMonth] = useState(localDateStr().slice(0, 7));
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState<string | null>(null);
   const [form, setForm] = useState<{ day_of_week: number; departure_time: string; pickup_location: string; destination: string; service_type: 'regular' | 'express'; capacity: number; notes: string }>({ day_of_week: 1, departure_time: '08:00', pickup_location: '', destination: '', service_type: 'regular', capacity: 12, notes: '' });

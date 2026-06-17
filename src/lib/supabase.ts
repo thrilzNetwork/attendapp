@@ -1,5 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Local calendar date as YYYY-MM-DD (NOT UTC). Using toISOString() returns the
+// UTC date, which rolls over to "tomorrow" after ~7pm in US timezones and makes
+// same-day records appear to vanish. Always build dates from local parts.
+function localDate(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// True only for a well-formed UUID — used to skip queries with an empty/invalid
+// hotel_id that would otherwise make PostgREST throw "invalid input syntax for type uuid".
+function isUuid(v: unknown): v is string {
+  return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
 export interface FacilitiesAmenity {
   icon: string; // lucide icon name
   title: string;
@@ -241,6 +254,7 @@ export async function getAllRequests(hotelId: string): Promise<RequestItem[]> {
     .from('requests')
     .select('*')
     .eq('hotel_id', hotelId)
+    .neq('room', 'STAFF') // exclude ops-store rows that share this table
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message || JSON.stringify(error));
   return (data || []).map((r: Record<string, unknown>) => ({
@@ -736,6 +750,7 @@ export interface ShuttleRequest {
 // ─── Shuttle CRUD ───────────────────────────────────────────
 
 export async function getShuttleRoutes(hotelId: string): Promise<ShuttleRoute[]> {
+  if (!isUuid(hotelId)) return [];
   const { data } = await supabase.from('shuttle_routes').select('*')
     .eq('hotel_id', hotelId).eq('active', true).order('name');
   return data || [];
@@ -768,6 +783,7 @@ export async function getShuttleSlots(routeId: string): Promise<ShuttleSlot[]> {
 }
 
 export async function getAllShuttleSlotsForHotel(hotelId: string): Promise<ShuttleSlot[]> {
+  if (!isUuid(hotelId)) return [];
   const { data } = await supabase.from('shuttle_slots').select(`
     *, shuttle_routes!inner(name, type)
   `).eq('shuttle_routes.hotel_id', hotelId).eq('shuttle_routes.active', true).eq('shuttle_slots.active', true).order('departure_time');
@@ -826,6 +842,7 @@ export async function getShuttleBookings(slotId: string): Promise<ShuttleBooking
 }
 
 export async function getAllShuttleBookingsForHotel(hotelId: string): Promise<ShuttleBooking[]> {
+  if (!isUuid(hotelId)) return [];
   const { data } = await supabase.from('shuttle_bookings').select(`
     *, shuttle_slots!inner(departure_time, shuttle_routes!inner(name, hotel_id))
   `).eq('shuttle_slots.shuttle_routes.hotel_id', hotelId)
@@ -881,6 +898,7 @@ export async function createShuttleRequest(req: {
 }
 
 export async function getShuttleRequests(hotelId: string): Promise<ShuttleRequest[]> {
+  if (!isUuid(hotelId)) return [];
   const { data } = await supabase.from('shuttle_requests').select(`
     *, staff_accounts!left(name)
   `).eq('hotel_id', hotelId).order('created_at', { ascending: false });
@@ -912,7 +930,7 @@ export interface CruiseSchedule {
 }
 
 export async function getCruiseSchedules(hotelId: string): Promise<CruiseSchedule[]> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
   const { data } = await supabase.from('cruise_schedules').select('*')
     .eq('hotel_id', hotelId)
     .gte('departure_date', today)
@@ -1221,7 +1239,7 @@ export async function deleteChecklist(id: string) {
 }
 
 export async function getChecklistInstances(hotelId: string, date?: string): Promise<ChecklistInstance[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const { data } = await supabase.from('staff_checklist_instances').select('*')
     .eq('hotel_id', hotelId).eq('shift_date', d).order('created_at');
   return (data || []).map((c: Record<string, unknown>) => ({
@@ -1235,7 +1253,7 @@ export async function createChecklistInstance(instance: {
 }) {
   const { data, error } = await supabase.from('staff_checklist_instances').insert({
     ...instance,
-    shift_date: instance.shift_date || new Date().toISOString().split('T')[0],
+    shift_date: instance.shift_date || localDate(),
     checked_items: [],
     completed: false,
   }).select().single();
@@ -1267,7 +1285,7 @@ export interface StaffSchedule {
 }
 
 export async function getStaffSchedules(hotelId: string, date?: string): Promise<StaffSchedule[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const res = await fetch('/api/ops-data', {
     method: 'POST',
     headers: await authedApiHeaders(),
@@ -1322,12 +1340,16 @@ export async function getDailyRecap(hotelId: string): Promise<{
   staffOnDuty: number;
   checklistsCompleted: number; checklistsTotal: number;
 }> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
 
   const [reqRes, msgRes, shuttleRes, staffRes, checklistRes] = await Promise.all([
-    supabase.from('requests').select('status, created_at').eq('hotel_id', hotelId).gte('created_at', today),
+    // Exclude ops-store rows (room='STAFF') that share the `requests` table — only count real guest requests
+    supabase.from('requests').select('status, created_at').eq('hotel_id', hotelId).neq('room', 'STAFF').gte('created_at', today),
     supabase.from('messages').select('id, created_at').eq('hotel_id', hotelId).gte('created_at', today),
-    supabase.from('shuttle_bookings').select('id, created_at, status').gte('created_at', today),
+    supabase.from('shuttle_bookings')
+      .select('id, created_at, status, shuttle_slots!inner(shuttle_routes!inner(hotel_id))')
+      .eq('shuttle_slots.shuttle_routes.hotel_id', hotelId)
+      .gte('created_at', today),
     // These two tables lacked RLS policies until migration 004; gracefully skip on 403
     supabase.from('staff_schedules').select('start_time, end_time').eq('hotel_id', hotelId).eq('shift_date', today),
     supabase.from('staff_checklist_instances').select('completed').eq('hotel_id', hotelId).eq('shift_date', today),
@@ -1475,7 +1497,7 @@ export interface CallAroundLog {
 }
 
 export async function getCallAroundLogs(hotelId: string, date?: string): Promise<CallAroundLog[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const { data } = await supabase.from('call_around_logs').select('*')
     .eq('hotel_id', hotelId).eq('shift_date', d).order('created_at', { ascending: false });
   return (data || []) as CallAroundLog[];
@@ -1498,7 +1520,7 @@ export interface DailyLogEntry {
 }
 
 export async function getDailyLogs(hotelId: string, date?: string, limit = 50): Promise<DailyLogEntry[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const { data } = await supabase.from('daily_logs').select('*')
     .eq('hotel_id', hotelId).eq('log_date', d).order('created_at', { ascending: false }).limit(limit);
   return (data || []) as DailyLogEntry[];
@@ -1522,7 +1544,7 @@ export interface NoShow {
 }
 
 export async function getNoShows(hotelId: string, date?: string): Promise<NoShow[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const { data } = await supabase.from('no_shows').select('*')
     .eq('hotel_id', hotelId).eq('no_show_date', d).order('created_at', { ascending: false });
   return (data || []) as NoShow[];
@@ -1551,7 +1573,7 @@ export interface RoomMove {
 }
 
 export async function getRoomMoves(hotelId: string, date?: string): Promise<RoomMove[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const { data } = await supabase.from('room_moves').select('*')
     .eq('hotel_id', hotelId).eq('move_date', d).order('created_at', { ascending: false });
   return (data || []) as RoomMove[];
@@ -1581,7 +1603,7 @@ export interface BankCount {
 }
 
 export async function getBankCounts(hotelId: string, date?: string): Promise<BankCount[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const { data } = await supabase.from('bank_counts').select('*')
     .eq('hotel_id', hotelId).eq('count_date', d).order('created_at', { ascending: false });
   return (data || []) as BankCount[];
@@ -1599,7 +1621,7 @@ export async function getDailyPropertySnapshot(hotelId: string): Promise<{
   departures: number;
   oooRooms: number;
 }> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
 
   // Count total active rooms
   const { data: allRooms } = await supabase
@@ -1660,7 +1682,7 @@ export async function getShiftNotes(hotelId: string): Promise<{
       notes,
       created_at,
       staff_checklists!inner(name),
-      staff_accounts!inner(name)
+      staff_accounts(name)
     `)
     .eq('hotel_id', hotelId)
     .not('notes', 'is', null)
@@ -1745,9 +1767,9 @@ export interface WeeklyForecast {
 }
 
 export async function getWeeklyForecasts(hotelId: string, weekStart: string): Promise<WeeklyForecast[]> {
-  const weekEnd = new Date(weekStart);
+  const weekEnd = new Date(weekStart + 'T00:00:00');
   weekEnd.setDate(weekEnd.getDate() + 6);
-  const endStr = weekEnd.toISOString().split('T')[0];
+  const endStr = localDate(weekEnd);
 
   const { data, error } = await supabase
     .from('weekly_forecasts')
@@ -1929,7 +1951,7 @@ export async function deleteTemplateItem(id: string) {
 
 // Instances
 export async function getTodayInstances(hotelId: string, staffId?: string): Promise<PositionTodoInstance[]> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
   let q = supabase.from('position_todo_instances').select('*')
     .eq('hotel_id', hotelId).eq('shift_date', today).order('created_at');
   if (staffId) q = q.eq('staff_id', staffId);

@@ -59,7 +59,7 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
   const [todayShuttleRoutes, setTodayShuttleRoutes] = useState<ShuttleRoute[]>([]);
   // Recurring schedule form
   const [showRecurringForm, setShowRecurringForm] = useState(false);
-  const [recurringForm, setRecurringForm] = useState({ route_id: '', start_time: '06:00', end_time: '22:00', interval_min: 60, days: [1,2,3,4,5,6,7], capacity: 8 });
+  const [recurringForm, setRecurringForm] = useState({ route_id: '', start_time: '06:00', end_time: '22:00', interval_min: 60, days: [0,1,2,3,4,5,6], capacity: 8 });
 
   // Load enabled ops tools from DB
   useEffect(() => {
@@ -434,7 +434,8 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
                   <label className="text-[11px] text-gray-400 mb-1 block font-medium">Days of Week</label>
                   <div className="flex gap-1.5 flex-wrap">
                     {DAYS_LABELS.map((d, i) => {
-                      const dayNum = i + 1;
+                      // DAYS_LABELS is Mon-first; map to getDay() convention (0=Sun..6=Sat)
+                      const dayNum = (i + 1) % 7;
                       const active = recurringForm.days.includes(dayNum);
                       return (
                         <button key={d} onClick={() => setRecurringForm({

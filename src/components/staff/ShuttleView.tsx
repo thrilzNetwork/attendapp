@@ -68,9 +68,15 @@ function SlotManifest({ slot, onBook, isAdmin }: { slot: ShuttleSlot; onBook: ()
   const load = async () => {
     setLoading(true);
     const b = await getShuttleBookings(slot.id);
-    // Filter to today's bookings by created_at date
-    const today = todayStr();
-    setBookings(b.filter(bk => bk.created_at.startsWith(today)));
+    // One-off slots (fixed date) own all their bookings regardless of when booked.
+    // Recurring slots are reused every day, so scope the manifest to today's bookings.
+    const active = b.filter(bk => bk.status !== 'cancelled');
+    if (slot.date) {
+      setBookings(active);
+    } else {
+      const today = todayStr();
+      setBookings(active.filter(bk => bk.created_at.startsWith(today)));
+    }
     setLoading(false);
   };
 
@@ -189,8 +195,23 @@ function BookingModal({
 
   const handleBook = async () => {
     if (!name.trim() || !room.trim()) { setError('Guest name and room are required.'); return; }
+    if (pax < 1) { setError('At least 1 passenger is required.'); return; }
     setSaving(true); setError(null);
     try {
+      // Capacity check: re-read current bookings so we don't overbook the run.
+      const seats = slot.capacity || 0;
+      if (seats > 0) {
+        const existing = await getShuttleBookings(slot.id);
+        const scoped = slot.date
+          ? existing.filter(b => b.status !== 'cancelled')
+          : existing.filter(b => b.status !== 'cancelled' && b.created_at.startsWith(todayStr()));
+        const booked = scoped.reduce((s, b) => s + (b.pax || 1), 0);
+        if (booked + pax > seats) {
+          setError(`Only ${Math.max(0, seats - booked)} seat(s) left on this run.`);
+          setSaving(false);
+          return;
+        }
+      }
       await bookShuttleSlot({
         slot_id: slot.id, guest_name: name.trim(), room_number: room.trim(),
         pax, notes: notes.trim(), price_charged: price, charge_accepted: price > 0,
@@ -286,6 +307,7 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
   const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!hotelId) { setLoading(false); return; }
     setLoading(true); setError(null);
     try {
       const [r, s, b, req] = await Promise.all([
