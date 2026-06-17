@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
-import { getCaller, resolveHotelScope } from '@/lib/supabase-admin';
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bdmmstatrsenidlgjock.supabase.co';
-
-function getServiceClient() {
-  const key = process.env.SUPABASE_SERVICE_KEY;
-  if (!key) throw new Error('SUPABASE_SERVICE_KEY is not configured');
-  return createClient(SUPABASE_URL, key);
-}
+import { getCaller, resolveHotelScope, getSupabaseAdmin } from '@/lib/supabase-admin';
 
 interface ForecastRow {
   hotel_id: string;
@@ -51,12 +42,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
     }
 
+    const db = getSupabaseAdmin();
     const results: { date: string; ok: boolean }[] = [];
 
-    const serviceClient = getServiceClient();
-
     for (const f of forecasts) {
-      const { error } = await serviceClient
+      const { error } = await db
         .from('weekly_forecasts')
         .upsert(
           {
@@ -71,7 +61,7 @@ export async function POST(req: NextRequest) {
             prev_night_occ: f.prev_night_occ,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: 'hotel_id, date' }
+          { onConflict: 'hotel_id,date' }
         );
 
       results.push({ date: f.date, ok: !error });

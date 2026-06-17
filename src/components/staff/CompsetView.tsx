@@ -67,6 +67,7 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [showSetup, setShowSetup] = useState(false);
 
   const today = todayStr();
 
@@ -270,6 +271,12 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
               </button>
             </div>
           )}
+          {isAdmin && !showHistory && (
+            <button onClick={() => setShowSetup(v => !v)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600">
+              <Pencil size={14} /> {showSetup ? 'Done' : 'Configure'}
+            </button>
+          )}
           <button onClick={() => (showHistory ? setShowHistory(false) : loadHistory())}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600">
             <BarChart3 size={14} /> {showHistory ? 'Back' : 'History'}
@@ -279,7 +286,7 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
 
       {error && <p className="text-red-600 text-[12px] bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 mb-4">{error}</p>}
 
-      {isAdmin && (
+      {isAdmin && showSetup && (
         <div className="grid grid-cols-2 gap-4 mb-6">
           {/* Competitor hotels admin panel */}
           <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
