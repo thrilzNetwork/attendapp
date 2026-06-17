@@ -132,7 +132,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    return NextResponse.json({ ok: false, error: 'Unknown action.' }, { status: 400 });
+    if (action === 'hotel_metrics') {
+      // Returns per-hotel live stats for superadmin command center
+      // All queries use admin client — reads across all tenants safely
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      const [hotelsRes, staffRes, requestsRes] = await Promise.all([
+        supabaseAdmin.from('hotels').select('id, is_active').order('created_at'),
+        supabaseAdmin.from('staff_accounts').select('hotel_id').eq('active', true),
+        supabaseAdmin.from('requests').select('hotel_id, created_at, status').gte('created_at', todayStr),
+      ]);
+
+      const metrics: Record<string, { staff: number; requests_today: number; pending: number; last_activity: string | null; is_active: boolean }> = {};
+      for (const h of hotelsRes.data || []) {
+        metrics[h.id] = { staff: 0, requests_today: 0, pending: 0, last_activity: null, is_active: h.is_active ?? true };
+      }
+      for (const s of staffRes.data || []) {
+        if (metrics[s.hotel_id]) metrics[s.hotel_id].staff++;
+      }
+      for (const r of requestsRes.data || []) {
+        if (metrics[r.hotel_id]) {
+          metrics[r.hotel_id].requests_today++;
+          if (r.status === 'pending') metrics[r.hotel_id].pending++;
+          if (!metrics[r.hotel_id].last_activity || r.created_at > metrics[r.hotel_id].last_activity!) {
+            metrics[r.hotel_id].last_activity = r.created_at;
+          }
+        }
+      }
+      return NextResponse.json({ ok: true, metrics });
+    }
+
+    if (action === 'toggle_hotel_active') {
+      const { hotel_id, active } = data;
+      const { error } = await supabaseAdmin.from('hotels').update({ is_active: active }).eq('id', hotel_id);
+      if (error) throw new Error(error.message);
+      return NextResponse.json({ ok: true });
+    }
+
+
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Server error';
     console.error('/api/superadmin-db error:', message, err instanceof Error ? err.stack : '');
