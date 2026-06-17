@@ -1,19 +1,23 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Bell, RefreshCw, LogOut, Hotel as HotelIcon, ArrowRight, CheckCircle, XCircle, DollarSign, Truck, CreditCard, Smartphone, Utensils, MapPin, Store } from 'lucide-react';
+import { Bell, RefreshCw, LogOut, Hotel as HotelIcon, ArrowRight, CheckCircle, XCircle, DollarSign, Truck, CreditCard, Smartphone, Utensils, MapPin, Store, ChefHat, Clock, Package } from 'lucide-react';
 import {
-  supabase, subscribeToRequests, updateRequestStatus,
+  supabase, subscribeToRequests, updateVendorStatus,
 } from '@/lib/supabase';
 
-interface Request {
+type VendorStatus = 'new' | 'received' | 'preparing' | 'ready';
+
+interface VendorOrder {
   id: string;
   guest_name: string;
   room: string;
-  type: string;
   details: string;
-  status: 'pending' | 'in-progress' | 'completed';
+  status: string;
+  vendor_status: VendorStatus;
+  total_amount: number;
+  vendor_payout: number;
   created_at: string;
 }
 
@@ -485,8 +489,69 @@ function RestaurantLandingPage({ urlType: initialUrlType }: { urlType?: string }
 }
 
 /* ──────────────────────────────────────────────────────────── */
-/*  Existing Partner Dashboard                                  */
+/*  Vendor iPad Dashboard                                       */
 /* ──────────────────────────────────────────────────────────── */
+
+const VS_CONFIG: Record<VendorStatus, { label: string; next: VendorStatus | null; nextLabel: string; color: string; bg: string; border: string; icon: React.ReactNode }> = {
+  new:       { label: 'New Order',  next: 'received', nextLabel: 'Accept Order',   color: 'text-red-600',    bg: 'bg-red-50',     border: 'border-red-200',    icon: <Bell size={16} className="text-red-500" /> },
+  received:  { label: 'Received',   next: 'preparing', nextLabel: 'Start Cooking', color: 'text-amber-600', bg: 'bg-amber-50',   border: 'border-amber-200',  icon: <ChefHat size={16} className="text-amber-500" /> },
+  preparing: { label: 'Preparing',  next: 'ready',    nextLabel: 'Mark Ready',     color: 'text-blue-600',  bg: 'bg-blue-50',    border: 'border-blue-200',   icon: <Clock size={16} className="text-blue-500" /> },
+  ready:     { label: 'Ready ✓',    next: null,       nextLabel: '',               color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', icon: <CheckCircle size={16} className="text-emerald-500" /> },
+};
+
+function timeAgo(iso: string) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  return `${Math.floor(diff / 3600)}h ago`;
+}
+
+function OrderCard({ order, onAdvance }: { order: VendorOrder; onAdvance: (id: string, next: VendorStatus) => void }) {
+  const cfg = VS_CONFIG[order.vendor_status];
+  const isNew = order.vendor_status === 'new';
+  return (
+    <div className={`rounded-2xl border-2 ${cfg.border} ${cfg.bg} p-5 flex flex-col gap-3 ${isNew ? 'animate-pulse-once shadow-lg' : 'shadow-sm'} transition-all`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {cfg.icon}
+          <span className={`text-[11px] font-black uppercase tracking-widest ${cfg.color}`}>{cfg.label}</span>
+        </div>
+        <span className="text-[11px] text-gray-400">{timeAgo(order.created_at)}</span>
+      </div>
+
+      <div>
+        <p className="text-[20px] font-black text-gray-900 leading-tight">Room {order.room}</p>
+        <p className="text-[14px] text-gray-600 font-medium">{order.guest_name}</p>
+      </div>
+
+      <div className="bg-white/70 rounded-xl p-3">
+        <p className="text-[13px] text-gray-700 leading-relaxed">{order.details}</p>
+      </div>
+
+      {order.total_amount > 0 && (
+        <div className="flex items-center gap-1.5 text-[12px] text-gray-500">
+          <DollarSign size={12} />
+          <span className="font-semibold text-gray-900">${order.total_amount.toFixed(2)}</span>
+          <span className="text-gray-400">total · your payout <span className="font-semibold text-emerald-600">${order.vendor_payout.toFixed(2)}</span></span>
+        </div>
+      )}
+
+      {cfg.next && (
+        <button
+          onClick={() => onAdvance(order.id, cfg.next!)}
+          className={`w-full py-4 rounded-xl font-black text-[15px] text-white transition-all active:scale-95 ${
+            order.vendor_status === 'new' ? 'bg-red-500 hover:bg-red-600' :
+            order.vendor_status === 'received' ? 'bg-amber-500 hover:bg-amber-600' :
+            'bg-blue-500 hover:bg-blue-600'
+          }`}
+        >
+          {cfg.nextLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PartnerContent() {
   const searchParams = useSearchParams();
   const partnerId = searchParams.get('restaurant');
@@ -497,21 +562,31 @@ function PartnerContent() {
   const [authenticated, setAuthenticated] = useState(false);
   const [partnerName, setPartnerName] = useState('');
   const [hotelId, setHotelId] = useState<string | null>(null);
-  const [requests, setRequests] = useState<Request[]>([]);
+  const [orders, setOrders] = useState<VendorOrder[]>([]);
+  const [newAlert, setNewAlert] = useState(false);
+  const prevCountRef = useRef(0);
 
   const reload = useCallback(async () => {
     if (!partnerId) return;
-    let query = supabase
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const { data } = await supabase
       .from('requests')
-      .select('*')
-      .eq('type', 'Food Order')
+      .select('id,guest_name,room,details,status,vendor_status,total_amount,vendor_payout,created_at')
+      .eq('partner_id', partnerId)
+      .gte('created_at', today.toISOString())
       .order('created_at', { ascending: false });
-    if (hotelId) {
-      query = query.eq('hotel_id', hotelId);
+    if (data) {
+      setOrders(data as VendorOrder[]);
+      const incoming = (data as VendorOrder[]).filter(o => o.vendor_status === 'new').length;
+      if (incoming > prevCountRef.current) {
+        setNewAlert(true);
+        setTimeout(() => setNewAlert(false), 3000);
+        try { new Audio('/sounds/ding.mp3').play().catch(() => {}); } catch {}
+      }
+      prevCountRef.current = incoming;
     }
-    const { data } = await query;
-    if (data) setRequests(data);
-  }, [partnerId, hotelId]);
+  }, [partnerId]);
 
   useEffect(() => {
     if (!partnerId || !authenticated) return;
@@ -522,19 +597,9 @@ function PartnerContent() {
 
   const handleLogin = async () => {
     setPinError('');
-    const { data } = await supabase
-      .from('partners')
-      .select('*')
-      .eq('id', partnerId!)
-      .single();
-
-    if (!data) {
-      setPinError('Restaurant not found.');
-      return;
-    }
-
-    const restaurantPin = data.pin_code || '';
-    if (pin === restaurantPin) {
+    const { data } = await supabase.from('partners').select('*').eq('id', partnerId!).single();
+    if (!data) { setPinError('Restaurant not found.'); return; }
+    if (pin === (data.pin_code || '')) {
       setPartnerName(data.name);
       setHotelId(data.hotel_id || null);
       setAuthenticated(true);
@@ -544,139 +609,130 @@ function PartnerContent() {
     }
   };
 
-  // No partner ID → show the landing page
+  const handleAdvance = async (id: string, next: VendorStatus) => {
+    await updateVendorStatus(id, next);
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, vendor_status: next } : o));
+  };
+
   if (!partnerId || partnerId === 'login') {
     return <RestaurantLandingPage urlType={urlType || ''} />;
   }
 
   if (!authenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
-        <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: `${TEAL}18` }}>
-            <HotelIcon size={28} style={{ color: TEAL }} />
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center px-5">
+        <div className="w-full max-w-sm bg-white rounded-3xl p-10 shadow-2xl">
+          <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: `${TEAL}15` }}>
+            <Utensils size={36} style={{ color: TEAL }} />
           </div>
-          <h1 className="text-xl font-bold text-center mb-1">Restaurant Partner</h1>
-          <p className="text-sm text-gray-400 text-center mb-6">Enter your PIN to see orders</p>
-          <input
-            type="password"
-            value={pin}
-            onChange={e => { setPin(e.target.value); setPinError(''); }}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            placeholder="PIN"
-            maxLength={6}
-            className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[15px] border border-gray-100 focus:outline-none text-center tracking-[0.3em] font-mono mb-2"
-          />
-          {pinError && <p className="text-red-500 text-[12px] text-center mb-2">{pinError}</p>}
-          <button
-            onClick={handleLogin}
-            className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px]"
-            style={{ backgroundColor: TEAL }}
-          >
-            VIEW ORDERS
+          <h1 className="text-2xl font-black text-center mb-1">Kitchen Dashboard</h1>
+          <p className="text-[14px] text-gray-400 text-center mb-8">Enter your 4-digit PIN</p>
+          <div className="grid grid-cols-4 gap-2 mb-6">
+            {pin.split('').concat(Array(4 - pin.length).fill('')).map((ch, i) => (
+              <div key={i} className={`h-14 rounded-xl flex items-center justify-center text-2xl font-black border-2 ${ch ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 bg-gray-50 text-gray-300'}`}>
+                {ch ? '•' : ''}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {['1','2','3','4','5','6','7','8','9','','0','⌫'].map(k => (
+              <button key={k} onClick={() => {
+                if (k === '⌫') setPin(p => p.slice(0, -1));
+                else if (k && pin.length < 4) { const np = pin + k; setPin(np); if (np.length === 4) setTimeout(() => { setPin(np); handleLogin(); }, 100); }
+              }}
+                className={`h-14 rounded-xl text-xl font-bold transition-all active:scale-95 ${k === '' ? 'invisible' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}
+              >{k}</button>
+            ))}
+          </div>
+          {pinError && <p className="text-red-500 text-[13px] text-center mb-2">{pinError}</p>}
+          <button onClick={handleLogin} className="w-full py-4 rounded-xl text-white font-black text-[15px] mt-2" style={{ backgroundColor: TEAL }}>
+            ENTER KITCHEN
           </button>
-          <a href="/partner" className="block text-center text-[12px] text-teal-600 mt-4 underline">
-            ← Back to partner info
-          </a>
         </div>
       </div>
     );
   }
 
-  const active = requests.filter(r => r.status !== 'completed');
-  const completed = requests.filter(r => r.status === 'completed');
+  const newOrders      = orders.filter(o => o.vendor_status === 'new');
+  const received       = orders.filter(o => o.vendor_status === 'received');
+  const preparing      = orders.filter(o => o.vendor_status === 'preparing');
+  const readyOrders    = orders.filter(o => o.vendor_status === 'ready');
+  const todayRevenue   = orders.reduce((s, o) => s + (o.vendor_payout || 0), 0);
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex flex-col">
-      <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-[18px] font-bold text-gray-900">{partnerName || 'Restaurant'}</h1>
-          <p className="text-[12px] text-gray-500">Orders Dashboard</p>
-        </div>
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col select-none">
+      {/* Header */}
+      <header className="shrink-0 bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={reload} className="flex items-center gap-1.5 text-[12px] text-gray-500 hover:text-teal-600 transition-colors">
-            <RefreshCw size={14} /> Refresh
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${TEAL}25` }}>
+            <Utensils size={18} style={{ color: TEAL }} />
+          </div>
+          <div>
+            <h1 className="text-[16px] font-black leading-tight">{partnerName}</h1>
+            <p className="text-[11px] text-gray-500">Kitchen Display · {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          {newAlert && (
+            <div className="flex items-center gap-2 bg-red-500 text-white text-[12px] font-bold px-3 py-1.5 rounded-full animate-bounce">
+              <Bell size={12} /> NEW ORDER
+            </div>
+          )}
+          <div className="text-right">
+            <p className="text-[11px] text-gray-500">Today&apos;s Payout</p>
+            <p className="text-[16px] font-black text-emerald-400">${todayRevenue.toFixed(2)}</p>
+          </div>
+          <button onClick={reload} className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
+            <RefreshCw size={16} />
           </button>
-          <button
-            onClick={() => { setAuthenticated(false); setPin(''); setHotelId(null); }}
-            className="flex items-center gap-1.5 text-[12px] text-gray-500 hover:text-red-500 transition-colors"
-          >
-            <LogOut size={14} /> Sign Out
+          <button onClick={() => { setAuthenticated(false); setPin(''); setHotelId(null); }} className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-red-400 transition-colors">
+            <LogOut size={16} />
           </button>
         </div>
       </header>
 
-      <div className="shrink-0 px-6 py-4 grid grid-cols-3 gap-3">
+      {/* Stats strip */}
+      <div className="shrink-0 bg-gray-900 border-b border-gray-800 px-6 py-2 flex items-center gap-6">
         {[
-          { label: 'Pending', count: requests.filter(r => r.status === 'pending').length, color: 'text-amber-600' },
-          { label: 'Cooking', count: requests.filter(r => r.status === 'in-progress').length, color: 'text-blue-600' },
-          { label: 'Done', count: requests.filter(r => r.status === 'completed').length, color: 'text-emerald-600' },
+          { label: 'New', count: newOrders.length, color: newOrders.length > 0 ? 'text-red-400' : 'text-gray-500' },
+          { label: 'Received', count: received.length, color: 'text-amber-400' },
+          { label: 'Preparing', count: preparing.length, color: 'text-blue-400' },
+          { label: 'Ready', count: readyOrders.length, color: 'text-emerald-400' },
+          { label: 'Total Today', count: orders.length, color: 'text-gray-300' },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm text-center">
-            <p className="text-[11px] text-gray-400 uppercase font-bold mb-1">{s.label}</p>
-            <p className={`text-[24px] font-extrabold ${s.color}`}>{s.count}</p>
+          <div key={s.label} className="flex items-center gap-2">
+            <span className={`text-[22px] font-black ${s.color}`}>{s.count}</span>
+            <span className="text-[11px] text-gray-500 uppercase font-bold">{s.label}</span>
           </div>
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3">
-        <h2 className="text-[14px] font-bold text-gray-500 uppercase tracking-wider mt-2">Active Orders</h2>
-        {active.length === 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 text-center shadow-sm">
-            <Bell size={28} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-[13px] text-gray-500">No active orders right now.</p>
-          </div>
-        )}
-        {active.map(req => (
-          <div key={req.id} className="bg-white rounded-xl border border-gray-200 p-5 flex items-start justify-between gap-4 shadow-sm">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`w-2 h-2 rounded-full ${req.status === 'pending' ? 'bg-amber-400' : req.status === 'in-progress' ? 'bg-blue-400' : 'bg-emerald-400'}`} />
-                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{req.type}</span>
-                <span className="text-[11px] text-gray-400">• {new Date(req.created_at).toLocaleString()}</span>
-              </div>
-              <p className="text-[14px] font-bold text-gray-900 mb-0.5">{req.guest_name} — Room {req.room}</p>
-              <p className="text-[13px] text-gray-600 whitespace-pre-wrap">{req.details}</p>
+      {/* 4-column Kanban */}
+      <div className="flex-1 overflow-hidden grid grid-cols-4 gap-0 divide-x divide-gray-800">
+        {([
+          { status: 'new' as VendorStatus,      title: '🔴 New',       items: newOrders },
+          { status: 'received' as VendorStatus,  title: '🟡 Received',  items: received },
+          { status: 'preparing' as VendorStatus, title: '🔵 Preparing', items: preparing },
+          { status: 'ready' as VendorStatus,     title: '🟢 Ready',     items: readyOrders },
+        ]).map(col => (
+          <div key={col.status} className="flex flex-col min-h-0">
+            <div className={`shrink-0 px-4 py-3 border-b border-gray-800 ${col.items.length > 0 && col.status === 'new' ? 'bg-red-950/40' : 'bg-gray-900'}`}>
+              <h2 className="text-[13px] font-black tracking-wide">{col.title}</h2>
+              <p className="text-[11px] text-gray-500">{col.items.length} order{col.items.length !== 1 ? 's' : ''}</p>
             </div>
-            <div className="flex gap-2 shrink-0">
-              {req.status === 'pending' && (
-                <button onClick={() => { updateRequestStatus(req.id, 'in-progress'); reload(); }}
-                  className="px-3 py-1.5 rounded-lg text-[11px] font-bold"
-                  style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                  Start Cooking
-                </button>
+            <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-950">
+              {col.items.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 opacity-30">
+                  <Package size={32} className="mb-2" />
+                  <p className="text-[12px]">Empty</p>
+                </div>
               )}
-              {req.status === 'in-progress' && (
-                <button onClick={() => { updateRequestStatus(req.id, 'completed'); reload(); }}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-bold">
-                  Ready for Pickup
-                </button>
-              )}
-              {req.status === 'completed' && (
-                <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-[11px] font-bold">Done</span>
-              )}
+              {col.items.map(order => (
+                <OrderCard key={order.id} order={order} onAdvance={handleAdvance} />
+              ))}
             </div>
           </div>
         ))}
-
-        {completed.length > 0 && (
-          <>
-            <h2 className="text-[14px] font-bold text-gray-500 uppercase tracking-wider mt-6">Completed</h2>
-            {completed.slice(0, 10).map(req => (
-              <div key={req.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-start justify-between gap-4 shadow-sm opacity-60">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <span className="text-[11px] text-gray-400">• {new Date(req.created_at).toLocaleString()}</span>
-                  </div>
-                  <p className="text-[13px] font-semibold text-gray-500">{req.guest_name} — Room {req.room}</p>
-                  <p className="text-[12px] text-gray-400 truncate">{req.details}</p>
-                </div>
-                <span className="text-[11px] text-gray-400 shrink-0">Completed</span>
-              </div>
-            ))}
-          </>
-        )}
       </div>
     </div>
   );

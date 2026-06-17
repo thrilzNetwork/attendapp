@@ -298,18 +298,26 @@ export type ChatMessage = {
   created_at: string;
 };
 
-export async function insertRequest(req: { guestName: string; room: string; type: string; details: string; hotelId?: string }) {
+export async function insertRequest(req: { guestName: string; room: string; type: string; details: string; hotelId?: string; partnerId?: string; totalAmount?: number }) {
   const hid = req.hotelId || (await getHotelConfig())?.id;
-  const { data, error } = await supabase.from('requests').insert({
+  const row: Record<string, unknown> = {
     hotel_id: hid,
     guest_name: req.guestName,
     room: req.room,
     type: req.type,
     details: req.details,
     status: 'pending',
-  }).select().single();
+  };
+  if (req.partnerId) { row.partner_id = req.partnerId; row.vendor_status = 'new'; }
+  if (req.totalAmount) { row.total_amount = req.totalAmount; row.vendor_payout = +(req.totalAmount * 0.9).toFixed(2); }
+  const { data, error } = await supabase.from('requests').insert(row).select().single();
   if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
+}
+
+export async function updateVendorStatus(id: string, vendorStatus: 'new' | 'received' | 'preparing' | 'ready') {
+  const { error } = await supabase.from('requests').update({ vendor_status: vendorStatus }).eq('id', id);
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 export async function updateRequestStatus(id: string, status: string, assigned_to?: string) {

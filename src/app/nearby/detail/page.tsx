@@ -69,6 +69,10 @@ function PartnerContent() {
         type: 'Food Order',
         details: `${partner.name}: ${details} — $${subtotal.toFixed(2)}`,
         status: 'pending',
+        partner_id: partner.id,
+        vendor_status: 'new',
+        total_amount: subtotal,
+        vendor_payout: +(subtotal * 0.9).toFixed(2),
       });
 
       const hotelConfig = await getHotelConfig();
