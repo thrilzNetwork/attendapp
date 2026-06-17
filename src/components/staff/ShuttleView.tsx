@@ -278,7 +278,7 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
 
   // Setup: new route / batch slots
   const [newRoute, setNewRoute] = useState({ name: '', type: 'airport', price: 0 });
-  const [setupRoute, setSetupRoute]   = useState<string>('');
+
   const [batchForm, setBatchForm] = useState({ from: '06:00', to: '22:00', interval: 60, days: [0,1,2,3,4,5,6] as number[], capacity: 12 });
   const [setupSaving, setSetupSaving] = useState(false);
   const [setupMsg, setSetupMsg]       = useState<string | null>(null);
@@ -790,7 +790,7 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                                   </button>
                                 ))}
                               </div>
-                              <button onClick={() => { setSetupRoute(route.id); setTimeout(handleAddSingleSlot, 0); }} disabled={setupSaving || (!singleSlot.time)}
+                              <button onClick={() => handleAddSingleSlot(route.id)} disabled={setupSaving || (!singleSlot.time)}
                                 className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
                                 Add Slot
                               </button>
@@ -835,7 +835,7 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                                   </button>
                                 ))}
                               </div>
-                              <button onClick={() => { setSetupRoute(route.id); setTimeout(handleBatchGenerate, 0); }} disabled={setupSaving}
+                              <button onClick={() => handleBatchGenerate(route.id)} disabled={setupSaving}
                                 className="w-full py-2 rounded-lg bg-teal-700 text-white text-[12px] font-bold disabled:opacity-50">
                                 {setupSaving ? 'Generating…' : `Generate Slots`}
                               </button>
