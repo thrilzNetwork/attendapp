@@ -11,7 +11,7 @@ import {
   Bell, Bus, ChevronRight, Clock, DollarSign,
   Home, LayoutDashboard, LogOut, MessageSquare, Send,
   Star, Users, Calendar, ClipboardList,
-  TrendingUp,
+  TrendingUp, Wrench, Utensils, ShoppingBag, Phone, Layers, Truck, MapPin,
 } from 'lucide-react';
 
 const TEAL = '#0D9488';
@@ -546,6 +546,229 @@ const THREAD_MSGS = [
   { from: 'staff',  text: 'The pool closes at 10 PM. Towels are available poolside!', time: '2:18 PM' },
   { from: 'guest',  text: 'Perfect, thank you! 🙏', time: '2:19 PM' },
 ];
+
+/* ════════════════════════════════════════════════════════════════
+   6.  GUEST REQUESTS MOCKUP (phone screen)
+   ════════════════════════════════════════════════════════════════ */
+
+const REQUEST_BUTTONS = [
+  { label: 'Towels',       icon: Layers,      bg: '#0D9488', sent: true  },
+  { label: 'Housekeeping', icon: Users,        bg: '#7C3AED', sent: false },
+  { label: 'Room Service', icon: Utensils,     bg: '#D97706', sent: false },
+  { label: 'Amenities',    icon: ShoppingBag,  bg: '#DB2777', sent: false },
+  { label: 'Late Check-out',icon: Clock,       bg: '#2563EB', sent: false },
+  { label: 'Wake-Up Call', icon: Bell,         bg: '#16A34A', sent: false },
+  { label: 'Maintenance',  icon: Wrench,       bg: '#DC2626', sent: false },
+  { label: 'Contact Me',   icon: Phone,        bg: '#6B7280', sent: false },
+];
+
+export function GuestRequestsMockup() {
+  return (
+    <div className="flex flex-col h-full bg-white text-left overflow-hidden">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-100 px-4 pt-4 pb-3">
+        <p className="text-[18px] font-black text-gray-900 leading-tight">Request Now</p>
+        <p className="text-[10px] text-gray-400 font-medium mt-0.5">Tap once to send</p>
+      </div>
+
+      {/* 2×4 Grid of request buttons */}
+      <div className="flex-1 px-3 py-3 grid grid-cols-2 gap-2.5 content-start">
+        {REQUEST_BUTTONS.map((btn, i) => {
+          const BtnIcon = btn.icon;
+          return (
+            <div
+              key={i}
+              className="relative flex flex-col items-center justify-center gap-1.5 rounded-2xl py-4 px-2"
+              style={{
+                backgroundColor: btn.sent ? '#F0FDF4' : `${btn.bg}12`,
+                border: btn.sent ? '2px solid #16A34A' : `1.5px solid ${btn.bg}30`,
+              }}
+            >
+              {btn.sent && (
+                <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                  <span className="text-white text-[8px] font-black">✓</span>
+                </div>
+              )}
+              <div
+                className="w-8 h-8 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: btn.sent ? '#16A34A' : btn.bg }}
+              >
+                <BtnIcon size={14} color="white" />
+              </div>
+              <span className="text-[9px] font-bold text-gray-800 text-center leading-tight">{btn.label}</span>
+              {btn.sent && (
+                <span className="text-[8px] font-bold text-green-600">Sent! ✓</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer note */}
+      <div className="shrink-0 px-4 pb-4 text-center">
+        <p className="text-[9px] text-gray-400 font-medium">Request saved to your session · No app needed</p>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   7.  BOUNCIE GPS MOCKUP (phone screen)
+   ════════════════════════════════════════════════════════════════ */
+
+export function BouncieGPSMockup() {
+  return (
+    <div className="flex flex-col h-full bg-[#F9FAFB] overflow-hidden text-left">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-100 px-3 py-3 flex items-center gap-2">
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#0D948815' }}>
+          <Bus size={14} style={{ color: '#0D9488' }} />
+        </div>
+        <span className="text-[11px] font-black text-gray-900">Live Shuttle</span>
+        <PulsingDot />
+        <span className="ml-auto text-[8px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: '#0D9488' }}>On Trip</span>
+      </div>
+
+      <div className="flex-1 overflow-hidden px-3 py-2.5 space-y-2.5">
+        {/* GPS card */}
+        <div className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
+          <div className="flex items-center gap-1.5 mb-2">
+            <MapPin size={10} style={{ color: '#0D9488' }} />
+            <span className="text-[9px] font-bold text-gray-700">Current Position</span>
+          </div>
+          <p className="text-[10px] font-mono text-gray-900 font-bold">27.9506° N, 82.4572° W</p>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <div>
+              <p className="text-[7px] text-gray-400 uppercase tracking-wide font-semibold">Speed / Heading</p>
+              <p className="text-[9px] font-bold text-gray-800">32 mph · 145°</p>
+            </div>
+            <div>
+              <p className="text-[7px] text-gray-400 uppercase tracking-wide font-semibold">Updated</p>
+              <p className="text-[9px] font-bold text-gray-800">1m ago</p>
+            </div>
+            <div>
+              <p className="text-[7px] text-gray-400 uppercase tracking-wide font-semibold">ETA to Hotel</p>
+              <p className="text-[9px] font-bold text-gray-800">~8 min · 4.2 mi</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Active trip */}
+        <div className="rounded-xl border border-green-200 p-3" style={{ backgroundColor: '#F0FDF4' }}>
+          <p className="text-[9px] font-black text-green-700 mb-1.5">Active Trip</p>
+          <div className="grid grid-cols-3 gap-1">
+            {[
+              { label: 'Departed', value: '2:15 PM' },
+              { label: 'Duration', value: '00:23:14' },
+              { label: 'Distance', value: '8.3 mi' },
+            ].map(item => (
+              <div key={item.label}>
+                <p className="text-[7px] text-green-600 uppercase tracking-wide font-semibold">{item.label}</p>
+                <p className="text-[9px] font-black text-green-800">{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Trip log */}
+        <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
+          <p className="text-[9px] font-black text-gray-700 mb-2">Today&apos;s Trips</p>
+          <div className="space-y-1.5">
+            {[
+              { label: 'Trip 1', time: '7:00 AM', dist: '12.1 mi' },
+              { label: 'Trip 2', time: '10:30 AM', dist: '9.4 mi' },
+              { label: 'Trip 3', time: '1:00 PM', dist: '11.7 mi' },
+            ].map((t, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                  <span className="text-[8px] font-semibold text-gray-700">{t.label} · {t.time}</span>
+                </div>
+                <span className="text-[8px] text-gray-400">{t.dist}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Track button */}
+        <button
+          className="w-full py-2.5 rounded-xl text-[10px] font-bold text-white text-center"
+          style={{ backgroundColor: '#0D9488' }}
+        >
+          Track on Google Maps →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   8.  UBER DIRECT MOCKUP (phone screen)
+   ════════════════════════════════════════════════════════════════ */
+
+export function UberDirectMockup() {
+  return (
+    <div className="flex flex-col h-full bg-white overflow-hidden text-left">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-100 px-4 pt-4 pb-3">
+        <p className="text-[13px] font-black text-gray-900">Your Order</p>
+        <p className="text-[9px] text-gray-400 mt-0.5">2 items · $24.50</p>
+      </div>
+
+      <div className="flex-1 px-3 py-3 space-y-3">
+        {/* Cart summary */}
+        <div className="bg-gray-50 rounded-xl border border-gray-100 p-3">
+          {[
+            { name: 'Grilled Salmon', price: '$18.00' },
+            { name: 'House Salad', price: '$6.50' },
+          ].map((item, i) => (
+            <div key={i} className="flex justify-between items-center py-1">
+              <span className="text-[10px] font-semibold text-gray-800">{item.name}</span>
+              <span className="text-[10px] font-bold text-gray-900">{item.price}</span>
+            </div>
+          ))}
+          <div className="border-t border-gray-200 mt-1 pt-1 flex justify-between">
+            <span className="text-[10px] font-black text-gray-900">Total</span>
+            <span className="text-[10px] font-black text-gray-900">$24.50</span>
+          </div>
+        </div>
+
+        {/* Delivery method toggle */}
+        <div>
+          <p className="text-[9px] font-bold text-gray-600 mb-2 uppercase tracking-wide">Delivery Method</p>
+          <div className="flex gap-2">
+            <button className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-[9px] font-bold text-gray-500 bg-white">
+              Bill to Room
+            </button>
+            <button
+              className="flex-1 py-2.5 rounded-xl border-2 text-[9px] font-bold text-white flex flex-col items-center gap-0.5"
+              style={{ backgroundColor: '#111827', borderColor: '#111827' }}
+            >
+              <div className="flex items-center gap-1">
+                <Truck size={9} color="white" />
+                <span>Pay via Uber</span>
+              </div>
+              <span className="text-[8px] font-normal opacity-70">$4.99 · ~25 min</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Disclaimer */}
+        <p className="text-[9px] text-gray-400 leading-relaxed">
+          Uber courier delivers from restaurant to your room. You pay Uber directly.
+        </p>
+
+        {/* Place order button */}
+        <button
+          className="w-full py-3 rounded-xl text-[12px] font-black text-white text-center"
+          style={{ backgroundColor: '#16A34A' }}
+        >
+          Place Order
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function MessagesScreenMockup() {
   const [step, setStep] = useState(0);
