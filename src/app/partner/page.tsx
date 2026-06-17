@@ -678,11 +678,12 @@ function PartnerContent() {
     return () => { supabase.removeChannel(ch); };
   }, [partnerId, authenticated, reload, hotelId]);
 
-  const handleLogin = async () => {
+  const handleLogin = async (pinOverride?: string) => {
+    const attemptPin = pinOverride ?? pin;
     setPinError('');
     const { data } = await supabase.from('partners').select('*').eq('id', partnerId!).single();
     if (!data) { setPinError('Partner not found.'); return; }
-    if (pin === (data.pin_code || '')) {
+    if (attemptPin === (data.pin_code || '')) {
       setPartnerData(data as Record<string, unknown>);
       setHotelId((data.hotel_id as string) || null);
       setAuthenticated(true);
@@ -725,14 +726,14 @@ function PartnerContent() {
             {['1','2','3','4','5','6','7','8','9','','0','⌫'].map(k => (
               <button key={k} onClick={() => {
                 if (k === '⌫') setPin(p => p.slice(0, -1));
-                else if (k && pin.length < 4) { const np = pin + k; setPin(np); if (np.length === 4) setTimeout(() => handleLogin(), 100); }
+                else if (k && pin.length < 4) { const np = pin + k; setPin(np); if (np.length === 4) setTimeout(() => handleLogin(np), 100); }
               }}
                 className={`h-14 rounded-xl text-xl font-bold transition-all active:scale-95 ${k === '' ? 'invisible' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}
               >{k}</button>
             ))}
           </div>
           {pinError && <p className="text-red-500 text-[13px] text-center mb-2">{pinError}</p>}
-          <button onClick={handleLogin} className="w-full py-4 rounded-xl text-white font-black text-[15px] mt-2" style={{ backgroundColor: TEAL }}>
+          <button onClick={() => handleLogin()} className="w-full py-4 rounded-xl text-white font-black text-[15px] mt-2" style={{ backgroundColor: TEAL }}>
             SIGN IN
           </button>
         </div>
