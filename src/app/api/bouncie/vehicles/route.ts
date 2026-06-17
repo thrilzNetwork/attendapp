@@ -10,14 +10,7 @@ export async function GET(req: NextRequest) {
   }
 
   const db = getSupabaseAdmin();
-  const [{ data: connection }, { data: _devices, error: devicesError }, { data: _locations, error: locationsError }] = await Promise.all([
-    db.from('bouncie_connections').select('id').eq('hotel_id', hotelId).maybeSingle(),
-    db.from('bouncie_devices').select('*').eq('hotel_id', hotelId).eq('is_active', true),
-    db.from('bouncie_locations').select('*').eq('hotel_id', hotelId),
-  ]);
-
-  if (devicesError) return NextResponse.json({ error: devicesError.message }, { status: 500 });
-  if (locationsError) return NextResponse.json({ error: locationsError.message }, { status: 500 });
+  const { data: connection } = await db.from('bouncie_connections').select('id').eq('hotel_id', hotelId).maybeSingle();
 
   // Not connected = no OAuth token at all
   if (!connection) {
