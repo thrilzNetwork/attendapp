@@ -64,6 +64,7 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
   }
 
   const load = useCallback(async () => {
+    if (!hotelId) return;
     try {
       const [h, t, e] = await Promise.all([
         getCompsetHotels(hotelId),
@@ -81,6 +82,7 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
   useEffect(() => { load(); }, [load]);
 
   const loadHistory = async () => {
+    if (!hotelId) return;
     try {
       const rows = await getCompsetEntriesRange(hotelId, offsetDate(today, -30), today);
       setHistory(rows);
