@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { RefreshCw, Check, X, UserCheck, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface Request {
   id: string;
@@ -91,9 +92,7 @@ function OrdersView({
   const handleVerify = async (req: Request) => {
     setRequests(prev => prev.map(r => r.id === req.id ? { ...r, guest_verified: true } : r));
     if (selected?.id === req.id) setSelected({ ...req, guest_verified: true });
-    const { createClient } = await import('@supabase/supabase-js');
-    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-    await sb.from('requests').update({ guest_verified: true }).eq('id', req.id);
+    await supabase.from('requests').update({ guest_verified: true }).eq('id', req.id);
   };
 
   const handleTap = (req: Request) => setSelected(req);
