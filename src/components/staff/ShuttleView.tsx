@@ -22,7 +22,7 @@ interface Props {
   staffName?: string;
 }
 
-function todayStr() { return new Date().toISOString().split('T')[0]; }
+function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 function todayDow()  { return new Date().getDay(); } // 0=Sun
 
 // Format time "14:30:00" → "2:30 PM"
