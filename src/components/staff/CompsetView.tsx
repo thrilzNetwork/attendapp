@@ -30,14 +30,27 @@ function formatTime(t: string) {
   return `${h}:${m} ${ampm}`;
 }
 
+function cacheKey(hotelId: string) {
+  return `compset_meta_${hotelId}`;
+}
+function readCache(hotelId: string): { hotels: CompsetHotel[]; callTimes: CompsetCallTime[] } | null {
+  try {
+    const raw = localStorage.getItem(cacheKey(hotelId));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function writeCache(hotelId: string, hotels: CompsetHotel[], callTimes: CompsetCallTime[]) {
+  try { localStorage.setItem(cacheKey(hotelId), JSON.stringify({ hotels, callTimes })); } catch {}
+}
+
 export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
   hotelId: string;
   isAdmin: boolean;
   staffId: string;
   staffName: string;
 }) {
-  const [hotels, setHotels] = useState<CompsetHotel[]>([]);
-  const [callTimes, setCallTimes] = useState<CompsetCallTime[]>([]);
+  const [hotels, setHotels] = useState<CompsetHotel[]>(() => (hotelId ? readCache(hotelId)?.hotels ?? [] : []));
+  const [callTimes, setCallTimes] = useState<CompsetCallTime[]>(() => (hotelId ? readCache(hotelId)?.callTimes ?? [] : []));
   const [entries, setEntries] = useState<CompsetEntry[]>([]);
   const [history, setHistory] = useState<CompsetEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -74,6 +87,7 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
       setHotels(h);
       setCallTimes(t);
       setEntries(e);
+      writeCache(hotelId, h, t);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not load compset data.');
     }
