@@ -19,6 +19,9 @@ import {
   AdminDashboardMockup,
   ShuttleScreenMockup,
   MessagesScreenMockup,
+  GuestRequestsMockup,
+  BouncieGPSMockup,
+  UberDirectMockup,
 } from '@/components/landing/AppMockups';
 
 /* ──────────────────────────────────────────────────────────── */
@@ -321,7 +324,7 @@ function AttendaLandingPage() {
       {/* ANNOUNCEMENT BAR */}
       <div className="bg-gray-900 text-white text-center py-2 px-4 relative">
         <p className="text-[12px] font-semibold">
-          Now live at our first property &middot; Attenda Ordering coming soon
+          Live GPS shuttle tracking + instant guest requests → now in production
         </p>
       </div>
 
@@ -367,7 +370,7 @@ function AttendaLandingPage() {
                 <span style={{ color: '#0D9488' }}>Built For Independent Hotels.</span>
               </h1>
               <p className="text-[18px] text-gray-600 leading-relaxed mb-8">
-                Attenda is the operating system for independent hotels &mdash; guest requests, staff tasks, <strong>labor</strong>, vendors, shuttle, and <strong>revenue</strong> in one thread. No app, no rip-and-replace, no monthly per-room upcharge.
+                Attenda is the all-in-one operating system for independent hotels — instant guest requests, live GPS shuttle tracking, Uber Direct food delivery, and staff operations in one thread. No app. No rip-and-replace.
               </p>
               <a href="#demo"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-[16px] transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
@@ -400,7 +403,11 @@ function AttendaLandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-8 items-end">
             <Reveal direction="up" delay={0} className="flex flex-col items-center">
-              <PhoneGuestMockup />
+              <PhoneFrame width={240} className="mx-auto">
+                <div className="h-[476px] overflow-hidden">
+                  <GuestRequestsMockup />
+                </div>
+              </PhoneFrame>
               <div className="mt-5 text-center">
                 <div className="text-[15px] font-black text-gray-900">For Guests</div>
                 <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Scan the QR — requests, shuttle, food, and local tips. No app to download.</p>
@@ -458,11 +465,11 @@ function AttendaLandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { icon: QrCode, title: 'Zero apps for guests', desc: 'A QR code in the room. No download, no account, no app store. Every feature loads in the browser in under five seconds.' },
-              { icon: Users, title: 'Built by hoteliers', desc: 'Front-desk to GM workflows. Not a tech team guessing what shifts look like. Attenda runs on the founder&apos;s own properties.' },
-              { icon: DollarSign, title: 'Revenue your PMS misses', desc: 'Shuttle bookings, in-room dining, late checkout &mdash; revenue that walked past the front desk before. Now attributed and tracked.' },
-              { icon: ClipboardList, title: 'One thread for the whole property', desc: 'Guest request &rarr; staff task &rarr; vendor job &rarr; GM dashboard. No sticky notes, no radio calls, no missed handoffs.' },
-              { icon: Store, title: 'Partner-ready architecture', desc: 'Restaurants plug into Attenda, not UberEats. Hotels earn a share of every order. 10% flat vs 30% the delivery apps charge.' },
+              { icon: QrCode, title: 'Zero apps for guests', desc: 'Scan the QR — tap to request towels, housekeeping, or maintenance. One tap, instant delivery to the front desk. No download, no account.' },
+              { icon: Bus, title: 'Live GPS shuttle tracking', desc: 'Bouncie integration shows real-time shuttle location, speed, ETA to hotel, and today\'s trip log. Arrival alerts when the shuttle is 0.5 mi away.' },
+              { icon: Truck, title: 'Uber Direct food delivery', desc: 'Partner restaurants, Uber last-mile delivery. Guest picks "Pay via Uber" at checkout. Uber tracks the courier; the hotel earns its share on every order.' },
+              { icon: ClipboardList, title: 'One thread for the property', desc: 'Guest request → staff task → vendor job → GM dashboard. No radio calls, no missed handoffs, no sticky notes.' },
+              { icon: Users, title: 'Guest identity without PMS', desc: 'Guests enter name + checkout date once. Session persists until checkout. Staff visually verify against PMS with one tap — no integration required.' },
               { icon: Globe, title: 'Works alongside your PMS', desc: 'No rip-and-replace. Attenda runs beside your current system from day one. 11 days from contract to live.' },
             ].map((item, i) => {
               const ItemIcon = item.icon;
@@ -482,6 +489,34 @@ function AttendaLandingPage() {
 
       {/* FULL PLATFORM INVENTORY — 6 tabbed cards */}
       <PlatformTabs />
+
+      {/* TWO NEW SUPERPOWERS */}
+      <Reveal>
+        <section className="py-20 bg-gray-50">
+          <div className="max-w-5xl mx-auto px-4 text-center">
+            <h2 className="text-3xl font-bold mb-2">Two new superpowers</h2>
+            <p className="text-gray-500 mb-12">GPS tracking and last-mile delivery — both live, both built in.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 justify-items-center">
+              <div className="flex flex-col items-center gap-4">
+                <PhoneFrame width={240}>
+                  <div className="h-[476px] overflow-hidden">
+                    <BouncieGPSMockup />
+                  </div>
+                </PhoneFrame>
+                <p className="text-sm text-gray-500 font-medium">Live Shuttle GPS · Bouncie</p>
+              </div>
+              <div className="flex flex-col items-center gap-4">
+                <PhoneFrame width={240}>
+                  <div className="h-[476px] overflow-hidden">
+                    <UberDirectMockup />
+                  </div>
+                </PhoneFrame>
+                <p className="text-sm text-gray-500 font-medium">Uber Direct Delivery</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </Reveal>
 
       {/* APP BY ROLE — existing showcase (keep) */}
       <section id="modules" className="py-16 md:py-24 px-5">
@@ -541,8 +576,8 @@ function AttendaLandingPage() {
                         <span className="text-[11px] font-black" style={{ color: TEAL }}>1</span>
                       </div>
                       <div>
-                        <p className="text-[15px] font-bold text-gray-900">Guest scans the code</p>
-                        <p className="text-[13px] text-gray-600">No app to download. Opens in their camera or browser. Name and room are pre-filled.</p>
+                        <p className="text-[15px] font-bold text-gray-900">Scans QR code in room</p>
+                        <p className="text-[13px] text-gray-600">Opens instantly in their browser. Name + checkout date entered once. Saved until check-out.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -550,8 +585,8 @@ function AttendaLandingPage() {
                         <span className="text-[11px] font-black" style={{ color: TEAL }}>2</span>
                       </div>
                       <div>
-                        <p className="text-[15px] font-bold text-gray-900">Orders towels, food, or shuttle</p>
-                        <p className="text-[13px] text-gray-600">Real-time chat. No phone tag. The front desk sees every request the moment it lands.</p>
+                        <p className="text-[15px] font-bold text-gray-900">Taps to request anything</p>
+                        <p className="text-[13px] text-gray-600">Towels, housekeeping, room service, or maintenance in one tap. No chat, no waiting on hold.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -559,8 +594,8 @@ function AttendaLandingPage() {
                         <span className="text-[11px] font-black" style={{ color: TEAL }}>3</span>
                       </div>
                       <div>
-                        <p className="text-[15px] font-bold text-gray-900">Browses nearby, reviews restaurant</p>
-                        <p className="text-[13px] text-gray-600">Transport schedules, local attractions, in-room dining menus &mdash; all from the same QR code.</p>
+                        <p className="text-[15px] font-bold text-gray-900">Tracks shuttle live</p>
+                        <p className="text-[13px] text-gray-600">Real-time GPS location and ETA straight from the guest app. No third-party app.</p>
                       </div>
                     </div>
                   </div>
@@ -570,7 +605,11 @@ function AttendaLandingPage() {
                   </div>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <PhoneGuestMockup />
+                  <PhoneFrame width={240}>
+                    <div className="h-[476px] overflow-hidden">
+                      <GuestRequestsMockup />
+                    </div>
+                  </PhoneFrame>
                 </div>
               </div>
             </div>
@@ -1373,12 +1412,12 @@ const PLATFORM_AREAS: PlatformArea[] = [
     headline: 'One QR code replaces the binder, the flyer, and the front-desk call.',
     sub: 'Guests get the whole property in their browser &mdash; WiFi, facilities, safety, food, shuttle &mdash; in under five seconds.',
     features: [
-      'QR per room &mdash; no app store, no download, no account',
-      'WiFi name and password one tap away',
-      'Facilities, safety, transport, and dining pages &mdash; GM-editable',
-      'Welcome letter with the manager\'s name and team photo',
+      'QR per room — no app store, no download, no account',
+      'Instant requests: towels, housekeeping, room service, maintenance',
+      'Guest identity saved until checkout — sessions expire clean',
+      'Staff verify guest against PMS with one tap',
+      'Live shuttle ETA and GPS tracker link from the guest app',
       'Review routing to Google, TripAdvisor, and Yelp',
-      'Guest validation tied to checkout date &mdash; sessions expire clean',
     ],
   },
   {
@@ -1401,12 +1440,12 @@ const PLATFORM_AREAS: PlatformArea[] = [
     headline: 'Shuttle ops without the clipboard.',
     sub: 'Routes, time slots, capacity, and ad-hoc rides &mdash; booked by guests, assigned to drivers, priced by the property.',
     features: [
-      'Named routes &mdash; airport, cruise port, or custom',
+      'Named routes — airport, cruise port, or custom',
+      'Live GPS tracking via Bouncie integration',
+      'Real-time shuttle location, speed, and ETA to hotel',
+      'Arrival alerts when shuttle is within 0.5 miles',
       'Time slots with per-day schedules and capacity limits',
       'Guest self-booking with party size and notes',
-      'Ad-hoc ride requests assigned to drivers in real time',
-      'Per-slot price overrides and event labels',
-      'No-show and cancellation tracking per booking',
     ],
   },
 ];
