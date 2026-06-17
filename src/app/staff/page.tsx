@@ -556,7 +556,7 @@ export default function Dashboard() {
   // Helper: render a tab panel — mounts on first visit, hidden (not destroyed) when inactive
   function tabPanel(tabId: string, condition: boolean, children: React.ReactNode) {
     if (!visitedTabs.has(tabId) || !condition) return null;
-    return <div style={{ display: effectiveTab === tabId ? 'contents' : 'none' }}>{children}</div>;
+    return <div style={{ display: effectiveTab === tabId ? 'block' : 'none' }}>{children}</div>;
   }
 
   return (
