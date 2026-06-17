@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   }
 
   const db = getSupabaseAdmin();
-  const [{ data: connection }, { data: devices, error: devicesError }, { data: locations, error: locationsError }] = await Promise.all([
+  const [{ data: connection }, { data: _devices, error: devicesError }, { data: _locations, error: locationsError }] = await Promise.all([
     db.from('bouncie_connections').select('id').eq('hotel_id', hotelId).maybeSingle(),
     db.from('bouncie_devices').select('*').eq('hotel_id', hotelId).eq('is_active', true),
     db.from('bouncie_locations').select('*').eq('hotel_id', hotelId),
