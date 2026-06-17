@@ -13,6 +13,13 @@ import { useGuest } from '@/lib/guest-context';
 import { getHotelConfig } from '@/lib/supabase';
 import Reveal from '@/components/landing/Reveal';
 import { PhoneFrame, BrowserFrame } from '@/components/landing/DeviceFrames';
+import {
+  RequestsScreenMockup,
+  ScheduleScreenMockup,
+  AdminDashboardMockup,
+  ShuttleScreenMockup,
+  MessagesScreenMockup,
+} from '@/components/landing/AppMockups';
 
 /* ──────────────────────────────────────────────────────────── */
 /*  Root — detects hotel context and switches view             */
@@ -404,7 +411,13 @@ function AttendaLandingPage() {
             </Reveal>
 
             <Reveal direction="up" delay={120} className="flex flex-col items-center">
-              <div className="animate-float-slow"><StaffDashboardMockup /></div>
+              <div className="animate-float-slow">
+                <PhoneFrame width={220} className="mx-auto">
+                  <div className="h-[476px] overflow-hidden">
+                    <RequestsScreenMockup />
+                  </div>
+                </PhoneFrame>
+              </div>
               <div className="mt-5 text-center">
                 <div className="text-[15px] font-black text-gray-900">For Staff</div>
                 <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Every request, task, and shift in one live thread — nothing slips.</p>
@@ -412,7 +425,13 @@ function AttendaLandingPage() {
             </Reveal>
 
             <Reveal direction="up" delay={240} className="flex flex-col items-center">
-              <div className="animate-float"><GmDashboardMockup /></div>
+              <div className="animate-float">
+                <PhoneFrame width={220} className="mx-auto">
+                  <div className="h-[476px] overflow-hidden">
+                    <AdminDashboardMockup />
+                  </div>
+                </PhoneFrame>
+              </div>
               <div className="mt-5 text-center">
                 <div className="text-[15px] font-black text-gray-900">For Management</div>
                 <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Labor, revenue, and performance across the property at a glance.</p>
@@ -614,7 +633,13 @@ function AttendaLandingPage() {
                   </div>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <StaffDashboardMockup />
+                  <div className="animate-float-slow">
+                    <PhoneFrame width={240} className="mx-auto">
+                      <div className="h-[520px] overflow-hidden">
+                        <RequestsScreenMockup />
+                      </div>
+                    </PhoneFrame>
+                  </div>
                 </div>
               </div>
             </div>
@@ -674,7 +699,13 @@ function AttendaLandingPage() {
                   </div>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <GmDashboardMockup />
+                  <div className="animate-float">
+                    <PhoneFrame width={240} className="mx-auto">
+                      <div className="h-[520px] overflow-hidden">
+                        <AdminDashboardMockup />
+                      </div>
+                    </PhoneFrame>
+                  </div>
                 </div>
               </div>
             </div>
@@ -725,7 +756,13 @@ function AttendaLandingPage() {
                   </a>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <PartnerPortalMockup />
+                  <div className="animate-float-slow">
+                    <PhoneFrame width={240} className="mx-auto">
+                      <div className="h-[520px] overflow-hidden">
+                        <ShuttleScreenMockup />
+                      </div>
+                    </PhoneFrame>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1380,15 +1417,6 @@ const PLATFORM_AREAS: PlatformArea[] = [
 function PlatformTabs() {
   const [activeArea, setActiveArea] = useState<PlatformAreaKey>('ops');
   const area = PLATFORM_AREAS.find(a => a.key === activeArea)!;
-  const PLATFORM_MOCKUP_MAP: Record<PlatformAreaKey, { src: string; frame: 'browser' | 'phone' }> = {
-    ops: { src: '/images/staff-app.png', frame: 'browser' },
-    revenue: { src: '/images/staff-orders.png', frame: 'browser' },
-    labor: { src: '/images/staff-desktop.png', frame: 'browser' },
-    guest: { src: '/images/guest-app.png', frame: 'phone' },
-    partners: { src: '/images/guest-food.png', frame: 'phone' },
-    transport: { src: '/images/staff-app.png', frame: 'browser' },
-  };
-  const mockup = PLATFORM_MOCKUP_MAP[activeArea];
 
   return (
     <section id="platform" className="py-16 md:py-24 px-5 bg-white">
@@ -1443,32 +1471,19 @@ function PlatformTabs() {
                 ))}
               </ul>
             </div>
-            <div className="p-6 md:p-8 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center min-h-[320px]">
-              {mockup.frame === 'phone' ? (
-                <div className="animate-float">
-                  <PhoneFrame width={200}>
-                    <Image
-                      src={mockup.src}
-                      alt={area.label}
-                      width={200}
-                      height={434}
-                      className="w-full h-auto block"
-                    />
-                  </PhoneFrame>
-                </div>
-              ) : (
-                <div className="animate-float-slow w-full max-w-sm">
-                  <BrowserFrame url={`attenda.app · ${area.label}`}>
-                    <Image
-                      src={mockup.src}
-                      alt={area.label}
-                      width={320}
-                      height={220}
-                      className="w-full h-auto block"
-                    />
-                  </BrowserFrame>
-                </div>
-              )}
+            <div className="p-6 md:p-8 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center min-h-[380px]">
+              <div className={activeArea === 'guest' || activeArea === 'partners' ? 'animate-float' : 'animate-float-slow'}>
+                <PhoneFrame width={220} className="mx-auto">
+                  <div className="h-[476px] overflow-hidden">
+                    {activeArea === 'ops' && <RequestsScreenMockup />}
+                    {activeArea === 'revenue' && <AdminDashboardMockup />}
+                    {activeArea === 'labor' && <ScheduleScreenMockup />}
+                    {activeArea === 'guest' && <MessagesScreenMockup />}
+                    {activeArea === 'partners' && <ShuttleScreenMockup />}
+                    {activeArea === 'transport' && <ShuttleScreenMockup />}
+                  </div>
+                </PhoneFrame>
+              </div>
             </div>
           </div>
         </div>
@@ -1621,57 +1636,6 @@ function PhoneGuestMockup() {
   );
 }
 
-/* StaffDashboardMockup — Browser frame showing actual staff dashboard */
-function StaffDashboardMockup() {
-  return (
-    <BrowserFrame url="attenda.app/staff" className="w-full max-w-[320px]">
-      <Image
-        src="/images/staff-app.png"
-        alt="Staff dashboard"
-        width={320}
-        height={500}
-        className="w-full h-auto block"
-      />
-    </BrowserFrame>
-  );
-}
-
-/* GmDashboardMockup — Browser frame showing actual GM dashboard */
-function GmDashboardMockup() {
-  return (
-    <BrowserFrame url="gm.attenda.app" className="w-full max-w-[320px]">
-      <Image
-        src="/images/gm-dashboard.png"
-        alt="GM dashboard"
-        width={320}
-        height={480}
-        className="w-full h-auto block"
-      />
-    </BrowserFrame>
-  );
-}
-
-/* PartnerPortalMockup — Real guest ordering screenshot */
-function PartnerPortalMockup() {
-  return (
-    <div className="w-full max-w-[280px] mx-auto">
-      <PhoneFrame width={280} className="mx-auto animate-float">
-        <Image
-          src="/images/guest-food.png"
-          alt="Guest food ordering screen — browse menu, add items, order to room"
-          width={280}
-          height={607}
-          className="w-full h-auto block"
-        />
-      </PhoneFrame>
-      <div className="text-center mt-5">
-        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">Guests order in under 30s</div>
-        <div className="text-sm font-black text-gray-900 mt-1">Scan. Browse. Order. Eat.</div>
-        <div className="text-[10px] text-gray-500 mt-0.5">No app · No download · No account</div>
-      </div>
-    </div>
-  );
-}
 /* ── Logo / Integration Marquee Strip ──────────────────────── */
 function LogoStrip() {
   const items = [
