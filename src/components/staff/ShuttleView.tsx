@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import dynamic from 'next/dynamic';
+import BouncieLiveShuttle from '@/components/staff/BouncieLiveShuttle';
 import {
   getShuttleRoutes, createShuttleRoute, deleteShuttleRoute, updateShuttleRoute,
   getAllShuttleSlotsForHotel, createShuttleSlot, deleteShuttleSlot,
@@ -11,8 +11,6 @@ import {
   type ShuttleRoute, type ShuttleSlot, type ShuttleBooking, type ShuttleRequest, type Partner,
 } from '@/lib/supabase';
 import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, Timer } from 'lucide-react';
-
-const BouncieLiveShuttle = dynamic(() => import('@/components/staff/BouncieLiveShuttle'), { ssr: false });
 
 // Haversine distance in miles (client-side copy)
 function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
