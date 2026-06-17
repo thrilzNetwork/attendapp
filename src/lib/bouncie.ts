@@ -153,3 +153,31 @@ export async function listBouncieTrips(accessToken: string, deviceId: string, op
   const query = params.toString() ? `?${params.toString()}` : '';
   return bouncieApiRequest(`/trips/${deviceId}${query}`, accessToken);
 }
+
+const EARTH_RADIUS_MILES = 3958.8;
+
+export function haversineDistanceMiles(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return EARTH_RADIUS_MILES * 2 * Math.asin(Math.sqrt(a));
+}
+
+export function calculateETA(
+  vehicleLat: number, vehicleLng: number,
+  hotelLat: number, hotelLng: number,
+  speedMph = 0
+): { distanceMiles: number; etaMinutes: number } {
+  const distanceMiles = haversineDistanceMiles(vehicleLat, vehicleLng, hotelLat, hotelLng);
+  const effectiveSpeed = speedMph > 2 ? speedMph : 25;
+  const etaMinutes = Math.round((distanceMiles / effectiveSpeed) * 60);
+  return { distanceMiles, etaMinutes };
+}
+
+export const HOTEL_ARRIVAL_RADIUS_MILES = 0.5;

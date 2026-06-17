@@ -188,6 +188,7 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
+  const [shuttleEta, setShuttleEta] = useState<{ distanceMiles: number; etaMinutes: number } | null>(null);
 
   // Setup state — one wizard for creating the whole schedule
   const [schedule, setSchedule] = useState({
@@ -213,16 +214,20 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
     if (!hotelId) return;
     setLoading(true);
     try {
-      const [r, s, req, p] = await Promise.all([
+      const [r, s, req, p, vehRes] = await Promise.all([
         getShuttleRoutes(hotelId),
         getAllShuttleSlotsForHotel(hotelId),
         getShuttleRequests(hotelId),
         getPartners(hotelId),
+        fetch(`/api/bouncie/vehicles?hotelId=${encodeURIComponent(hotelId)}`).then(r => r.json()).catch(() => ({ devices: [] })),
       ]);
       setRoutes(r);
       setSlots(s);
       setRequests(req);
       setPartners(p.filter(p => p.category === 'transport' || p.category === 'transportation'));
+      // Extract ETA from first shuttle device
+      const shuttle = (vehRes.devices || []).find((d: { is_shuttle: boolean; eta?: { distanceMiles: number; etaMinutes: number } | null }) => d.is_shuttle) || (vehRes.devices || [])[0];
+      setShuttleEta(shuttle?.eta ?? null);
     } catch (e) { setError(e instanceof Error ? e.message : 'Load failed'); }
     setLoading(false);
   }, [hotelId]);
@@ -362,6 +367,17 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
           {/* ── TODAY'S RUNS ── */}
           {tab === 'runs' && (
             <div className="space-y-4">
+              {shuttleEta && (
+                <div className="bg-teal-50 border border-teal-100 rounded-2xl px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-teal-700 text-[13px] font-semibold">
+                    <Bus size={15} style={{ color: TEAL }} />
+                    Shuttle ETA
+                  </div>
+                  <span className="text-[13px] font-bold text-teal-800">
+                    ~{shuttleEta.etaMinutes} min · {shuttleEta.distanceMiles.toFixed(1)} mi away
+                  </span>
+                </div>
+              )}
               {todaySlots.length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
                   <Bus size={40} className="mx-auto text-gray-300 mb-3" />

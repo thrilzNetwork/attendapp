@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { getBouncieConfig } from '@/lib/bouncie';
+import { getBouncieConfig, haversineDistanceMiles, HOTEL_ARRIVAL_RADIUS_MILES } from '@/lib/bouncie';
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,6 +44,33 @@ export async function POST(req: NextRequest) {
           },
           { onConflict: 'device_id' }
         );
+
+        // Geofence check: if shuttle is within 0.5 miles of hotel, insert a Shuttle Alert
+        const { data: hotelRow } = await db.from('hotels').select('lat,lng').eq('id', hotelId).maybeSingle();
+        if (hotelRow?.lat != null && hotelRow?.lng != null) {
+          const distMiles = haversineDistanceMiles(loc.lat, loc.lng, Number(hotelRow.lat), Number(hotelRow.lng));
+          if (distMiles <= HOTEL_ARRIVAL_RADIUS_MILES) {
+            // Check if a Shuttle Alert was inserted in last 10 minutes to avoid spamming
+            const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+            const { data: recent } = await db.from('requests')
+              .select('id')
+              .eq('hotel_id', hotelId)
+              .eq('type', 'Shuttle Alert')
+              .gte('created_at', tenMinAgo)
+              .limit(1);
+            if (!recent || recent.length === 0) {
+              await db.from('requests').insert({
+                hotel_id: hotelId,
+                guest_name: 'System',
+                room: 'STAFF',
+                type: 'Shuttle Alert',
+                details: `Shuttle is arriving — ${distMiles.toFixed(2)} miles away`,
+                status: 'pending',
+                created_at: new Date().toISOString(),
+              });
+            }
+          }
+        }
       }
     }
 

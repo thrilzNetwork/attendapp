@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bus, MapPin, Navigation, Clock, Activity, ExternalLink } from 'lucide-react';
+import { Bus, MapPin, Navigation, Clock, Activity, ExternalLink, Timer } from 'lucide-react';
 
 interface BouncieLocation {
   lat: number;
@@ -17,6 +17,7 @@ interface BouncieDevice {
   vehicle_name: string;
   is_shuttle: boolean;
   bouncie_locations?: BouncieLocation[];
+  eta?: { distanceMiles: number; etaMinutes: number } | null;
 }
 
 interface BouncieTrip {
@@ -110,6 +111,7 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
 
   const shuttle = devices.find(d => d.is_shuttle) || devices[0];
   const loc = shuttle?.bouncie_locations?.[0];
+  const eta = shuttle?.eta ?? null;
   const activeTrips = trips.filter(t => !t.end_at).length;
   const completedTrips = trips.filter(t => t.end_at).length;
 
@@ -157,6 +159,17 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
             </div>
             <div className="text-gray-900">{formatTimeAgo(loc.recorded_at)}</div>
           </div>
+          {eta && (
+            <div className="flex items-center justify-between text-[12px]">
+              <div className="flex items-center gap-1.5 text-gray-600">
+                <Timer size={13} />
+                ETA to Hotel
+              </div>
+              <div className="font-semibold text-teal-700">
+                ~{eta.etaMinutes} min · {eta.distanceMiles.toFixed(1)} mi
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <p className="text-[12px] text-gray-500">No recent location data.</p>

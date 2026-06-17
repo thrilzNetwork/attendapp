@@ -19,6 +19,9 @@ interface VendorOrder {
   total_amount: number;
   vendor_payout: number;
   created_at: string;
+  delivery_method?: string;
+  uber_status?: string;
+  uber_tracking_url?: string;
 }
 
 const TEAL = '#0D9488';
@@ -616,6 +619,20 @@ function OrderCard({ order, profile, onAdvance }: { order: VendorOrder; profile:
           <span className="text-gray-400"> · your payout <span className="font-semibold text-emerald-600">${order.vendor_payout.toFixed(2)}</span></span>
         </div>
       )}
+      {order.delivery_method === 'uber_direct' && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-wider bg-gray-900 text-white px-2 py-0.5 rounded-full">
+            Uber Direct
+          </span>
+          {order.uber_status && (
+            <span className="text-[10px] font-bold text-gray-500 capitalize">{order.uber_status.replace(/_/g, ' ')}</span>
+          )}
+          {order.uber_tracking_url && (
+            <a href={order.uber_tracking_url} target="_blank" rel="noopener noreferrer"
+              className="text-[10px] font-bold text-teal-400 underline">Track</a>
+          )}
+        </div>
+      )}
 
       {next && step.action && (
         <button
@@ -655,7 +672,7 @@ function PartnerContent() {
     today.setHours(0, 0, 0, 0);
     const { data } = await supabase
       .from('requests')
-      .select('id,guest_name,room,details,status,vendor_status,total_amount,vendor_payout,created_at')
+      .select('id,guest_name,room,details,status,vendor_status,total_amount,vendor_payout,created_at,delivery_method,uber_status,uber_tracking_url')
       .eq('partner_id', partnerId)
       .gte('created_at', today.toISOString())
       .order('created_at', { ascending: false });

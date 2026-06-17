@@ -3,8 +3,16 @@
 import { Suspense, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Minus, Plus, ShoppingBag, Star, Clock, MapPin, Phone, Navigation, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, ShoppingBag, Star, Clock, MapPin, Phone, Navigation, ExternalLink, Truck } from 'lucide-react';
 import { getPartnerById, getPartnerMenuItems, getHotelConfig, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
+
+interface UberQuote {
+  id: string;
+  fee_cents: number;
+  fee_display: string;
+  eta_minutes: number;
+  expires: string;
+}
 
 function PartnerContent() {
   const router = useRouter();
@@ -17,6 +25,14 @@ function PartnerContent() {
   const [loading, setLoading] = useState(true);
   const [ordering, setOrdering] = useState(false);
   const [brandColor, setBrandColor] = useState('#6B1D3C');
+
+  // Uber Direct state
+  const [deliveryMethod, setDeliveryMethod] = useState<'attenda' | 'uber_direct'>('attenda');
+  const [uberQuote, setUberQuote] = useState<UberQuote | null>(null);
+  const [uberAvailable, setUberAvailable] = useState(false);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+
+  const [hotelId, setHotelId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
@@ -31,8 +47,32 @@ function PartnerContent() {
     (async () => {
       const cfg = await getHotelConfig();
       if (cfg?.brandColor) setBrandColor(cfg.brandColor);
+      if (cfg?.id) setHotelId(cfg.id);
     })();
   }, []);
+
+  // Fetch Uber quote when cart has items and hotel/partner are loaded
+  useEffect(() => {
+    if (!partner || !hotelId) return;
+    const cartHasItems = Object.values(cart).some(qty => qty > 0);
+    if (!cartHasItems) { setUberQuote(null); setUberAvailable(false); return; }
+
+    setQuoteLoading(true);
+    fetch(`/api/uber-direct/quote?partnerId=${encodeURIComponent(partner.id)}&hotelId=${encodeURIComponent(hotelId)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.quote) {
+          setUberQuote(data.quote);
+          setUberAvailable(true);
+        } else {
+          setUberAvailable(false);
+          setUberQuote(null);
+          setDeliveryMethod('attenda');
+        }
+      })
+      .catch(() => { setUberAvailable(false); setUberQuote(null); setDeliveryMethod('attenda'); })
+      .finally(() => setQuoteLoading(false));
+  }, [cart, partner, hotelId]);
 
   if (loading) return (
     <div className="h-screen flex items-center justify-center">
@@ -60,9 +100,10 @@ function PartnerContent() {
       const room = qrRoom || session?.room || '?';
 
       const subtotal = cartItems.reduce((s, i) => s + Number(i.price) * i.qty, 0);
-
       const details = cartItems.map(i => `${i.qty}x ${i.name}`).join(', ');
-      await supabase.from('requests').insert({
+
+      // Insert request first
+      const { data: requestRow } = await supabase.from('requests').insert({
         hotel_id: partner.hotel_id,
         guest_name: guestName,
         room,
@@ -73,7 +114,23 @@ function PartnerContent() {
         vendor_status: 'new',
         total_amount: subtotal,
         vendor_payout: +(subtotal * 0.9).toFixed(2),
-      });
+        delivery_method: deliveryMethod,
+      }).select('id').single();
+
+      // If Uber Direct selected, dispatch delivery
+      if (deliveryMethod === 'uber_direct' && uberQuote && requestRow && hotelId) {
+        await fetch('/api/uber-direct/delivery', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requestId: requestRow.id,
+            quoteId: uberQuote.id,
+            partnerId: partner.id,
+            hotelId,
+            items: cartItems.map(i => ({ name: i.name, quantity: i.qty, price: Number(i.price) })),
+          }),
+        }).catch(err => console.warn('Uber delivery dispatch failed:', err));
+      }
 
       const hotelConfig = await getHotelConfig();
       fetch('/api/email', {
@@ -204,7 +261,36 @@ function PartnerContent() {
                   ))}
 
                   {cartItems.length > 0 && (
-                    <div className="pt-2 pb-4">
+                    <div className="pt-2 pb-4 space-y-3">
+                      {/* Delivery method toggle */}
+                      {(uberAvailable || quoteLoading) && (
+                        <div className="bg-white rounded-xl border border-gray-100 p-3">
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Delivery Method</p>
+                          {quoteLoading ? (
+                            <p className="text-[12px] text-gray-400">Checking delivery options...</p>
+                          ) : (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setDeliveryMethod('attenda')}
+                                className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold border-2 transition-colors ${deliveryMethod === 'attenda' ? 'border-current text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
+                                style={deliveryMethod === 'attenda' ? { backgroundColor: brandColor, borderColor: brandColor } : {}}
+                              >
+                                Hotel Delivery
+                              </button>
+                              <button
+                                onClick={() => setDeliveryMethod('uber_direct')}
+                                className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold border-2 transition-colors flex items-center justify-center gap-1 ${deliveryMethod === 'uber_direct' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
+                              >
+                                <Truck size={12} /> Uber Direct {uberQuote ? `· ${uberQuote.fee_display}` : ''}
+                              </button>
+                            </div>
+                          )}
+                          {deliveryMethod === 'uber_direct' && uberQuote && (
+                            <p className="text-[11px] text-gray-400 mt-2 text-center">~{uberQuote.eta_minutes} min · {uberQuote.fee_display} delivery fee added at checkout</p>
+                          )}
+                        </div>
+                      )}
+
                       <button onClick={placeOrder} disabled={ordering}
                         className="w-full text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-between px-5 active:scale-[0.97] transition-transform disabled:opacity-60"
                         style={{ backgroundColor: brandColor }}>
@@ -214,7 +300,7 @@ function PartnerContent() {
                         </div>
                         <span className="text-lg font-extrabold">${total.toFixed(2)}</span>
                       </button>
-                      <p className="text-[10px] text-gray-400 text-center mt-2">Charged to your room or pay at front desk</p>
+                      <p className="text-[10px] text-gray-400 text-center">Charged to your room or pay at front desk</p>
                     </div>
                   )}
                 </>
