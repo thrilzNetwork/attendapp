@@ -12,6 +12,7 @@ interface Request {
   status: 'pending' | 'in-progress' | 'completed' | 'closed';
   created_at: string;
   assigned_to?: string;
+  guest_verified?: boolean;
 }
 
 interface OrdersViewProps {
@@ -87,6 +88,14 @@ function OrdersView({
     setSelected(null);
   };
 
+  const handleVerify = async (req: Request) => {
+    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, guest_verified: true } : r));
+    if (selected?.id === req.id) setSelected({ ...req, guest_verified: true });
+    const { createClient } = await import('@supabase/supabase-js');
+    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    await sb.from('requests').update({ guest_verified: true }).eq('id', req.id);
+  };
+
   const handleTap = (req: Request) => setSelected(req);
 
   const isAssignedToMe = (req: Request) => req.assigned_to === staffName;
@@ -120,6 +129,27 @@ function OrdersView({
 
           {/* Details */}
           <div className="px-5 py-4 space-y-3">
+            {/* Guest verification */}
+            {req.guest_verified ? (
+              <div className="flex items-center gap-2 bg-emerald-50 rounded-xl px-3 py-2.5 border border-emerald-200">
+                <UserCheck size={14} className="text-emerald-600" />
+                <span className="text-[12px] font-bold text-emerald-800">Guest verified against PMS ✓</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2.5 border border-amber-200">
+                <div>
+                  <p className="text-[12px] font-bold text-amber-800">⚠ Unverified guest</p>
+                  <p className="text-[10px] text-amber-600">Check name + room in your PMS, then confirm</p>
+                </div>
+                <button
+                  onClick={() => handleVerify(req)}
+                  className="ml-3 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold shrink-0 active:scale-95"
+                >
+                  ✓ Verify
+                </button>
+              </div>
+            )}
+
             {req.details && req.details !== req.type && (
               <div>
                 <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1">Details</p>
@@ -284,13 +314,21 @@ function OrdersView({
                         <span className="text-[10px] text-gray-400">
                           {new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        {isInProgress ? (
-                          <span className="text-[10px] font-semibold text-blue-600 flex items-center gap-1">
-                            <UserCheck size={11} /> Assigned
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-semibold text-teal-600">Tap to accept →</span>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {!req.guest_verified && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">⚠ Unverified</span>
+                          )}
+                          {req.guest_verified && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✓ Verified</span>
+                          )}
+                          {isInProgress ? (
+                            <span className="text-[10px] font-semibold text-blue-600 flex items-center gap-1">
+                              <UserCheck size={11} /> Assigned
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-teal-600">Tap →</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

@@ -127,6 +127,7 @@ interface Request {
   status: 'pending' | 'in-progress' | 'completed' | 'closed';
   created_at: string;
   assigned_to?: string;
+  guest_verified?: boolean;
 }
 
 interface Message {

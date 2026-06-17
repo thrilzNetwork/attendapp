@@ -116,32 +116,29 @@ function HotelGuestApp({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isValidated, prevValidated, guest]);
 
-  const handleClick = (sheet: SheetName, requiresValidation = false) => {
+  const handleClick = (sheet: SheetName, requiresAuth = false) => {
+    // Check for a valid (non-expired) session
     const stored = localStorage.getItem('guestSession');
     if (stored) {
       try {
         const session = JSON.parse(stored);
         if (new Date(session.checkout) > new Date()) {
-          if (requiresValidation && session.validationStatus !== 'confirmed') {
-            setPendingTarget(sheet);
-            setModalOpen(true);
-            return;
-          }
+          // Valid session — open directly, no re-prompting
           setOpenSheet(sheet);
           return;
         }
-      } catch (err) {
-        console.error('Error parsing guest session:', err);
+        // Expired — clear it
+        localStorage.removeItem('guestSession');
+      } catch {
         localStorage.removeItem('guestSession');
       }
     }
-    // No valid session — only ask for info on features that need it
-    if (requiresValidation) {
+    // No valid session — only gate features that need guest identity
+    if (requiresAuth) {
       setPendingTarget(sheet);
       setModalOpen(true);
       return;
     }
-    // Everything else opens directly — no forms
     setOpenSheet(sheet);
   };
 

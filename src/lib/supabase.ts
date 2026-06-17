@@ -149,6 +149,7 @@ export interface RequestItem {
   details: string;
   status: string;
   createdAt: string;
+  guest_verified?: boolean;
 }
 
 // Hotel Config helpers
@@ -265,6 +266,7 @@ export async function getAllRequests(hotelId: string): Promise<RequestItem[]> {
     details: r.details as string,
     status: r.status as string,
     createdAt: r.created_at as string,
+    guest_verified: r.guest_verified as boolean | undefined,
   }));
 }
 
