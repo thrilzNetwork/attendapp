@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exchangeBouncieCode } from '@/lib/bouncie';
+import { exchangeBouncieCode, getActiveBouncieToken, listBouncieVehicles } from '@/lib/bouncie';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET(req: NextRequest) {
@@ -35,10 +35,46 @@ export async function GET(req: NextRequest) {
       { onConflict: 'hotel_id' }
     );
 
-    // Immediately discover vehicles for this hotel
-    await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/bouncie/sync-devices?hotelId=${encodeURIComponent(hotelId)}`, {
-      method: 'POST',
-    }).catch(() => {});
+    // Sync devices inline — no HTTP fetch needed, avoids APP_URL issues
+    try {
+      const accessToken = await getActiveBouncieToken(hotelId);
+      const vehicles = await listBouncieVehicles(accessToken);
+      for (const v of vehicles) {
+        if (!v.deviceId) continue;
+        await db.from('bouncie_devices').upsert(
+          {
+            hotel_id: hotelId,
+            device_id: v.deviceId,
+            vehicle_name: v.name || '',
+            vin: v.vin || '',
+            imei: v.imei || '',
+            is_active: true,
+            is_shuttle: true,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'hotel_id,device_id' }
+        );
+        const gps = v.stats?.gps;
+        if (gps?.lat !== undefined && gps?.lng !== undefined && gps.dt) {
+          await db.from('bouncie_locations').upsert(
+            {
+              device_id: v.deviceId,
+              hotel_id: hotelId,
+              lat: gps.lat,
+              lng: gps.lng,
+              speed_mph: gps.speed || 0,
+              heading: gps.heading || 0,
+              accuracy: gps.accuracy || 0,
+              recorded_at: gps.dt,
+              received_at: new Date().toISOString(),
+            },
+            { onConflict: 'device_id' }
+          );
+        }
+      }
+    } catch (syncErr) {
+      console.error('Bouncie device sync failed (non-fatal):', syncErr);
+    }
 
     return NextResponse.redirect(new URL(`/staff?tab=shuttle&bouncie_connected=1`, req.url));
   } catch (e) {
@@ -46,3 +82,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL(`/staff?tab=shuttle&error=bouncie_oauth_failed`, req.url));
   }
 }
+

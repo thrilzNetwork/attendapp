@@ -83,7 +83,8 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
       ]);
       setDevices(vehRes.devices || []);
       setTrips(tripsRes.trips || []);
-      setConnected((vehRes.devices ?? []).length > 0);
+      // Use explicit connected flag — true means OAuth token exists, regardless of device count
+      setConnected(vehRes.connected === true);
       setError('');
     } catch {
       setError('Failed to load shuttle location');
@@ -143,6 +144,20 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
     return (
       <div className="bg-red-50 rounded-2xl border border-red-100 p-4 mb-4">
         <p className="text-[12px] text-red-600">{error}</p>
+      </div>
+    );
+  }
+
+  // Connected but no devices discovered yet — show waiting state
+  if (devices.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Bus size={16} className="text-teal-600" />
+          <span className="font-bold text-[14px] text-gray-900">Live Shuttle</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✓ Bouncie Connected</span>
+        </div>
+        <p className="text-[12px] text-gray-500">Waiting for GPS tracker to come online. Start a trip and it will appear here automatically.</p>
       </div>
     );
   }

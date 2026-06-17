@@ -10,13 +10,19 @@ export async function GET(req: NextRequest) {
   }
 
   const db = getSupabaseAdmin();
-  const [{ data: devices, error: devicesError }, { data: locations, error: locationsError }] = await Promise.all([
+  const [{ data: connection }, { data: devices, error: devicesError }, { data: locations, error: locationsError }] = await Promise.all([
+    db.from('bouncie_connections').select('id').eq('hotel_id', hotelId).maybeSingle(),
     db.from('bouncie_devices').select('*').eq('hotel_id', hotelId).eq('is_active', true),
     db.from('bouncie_locations').select('*').eq('hotel_id', hotelId),
   ]);
 
   if (devicesError) return NextResponse.json({ error: devicesError.message }, { status: 500 });
   if (locationsError) return NextResponse.json({ error: locationsError.message }, { status: 500 });
+
+  // Not connected = no OAuth token at all
+  if (!connection) {
+    return NextResponse.json({ ok: true, connected: false, devices: [] });
+  }
 
   // Fetch hotel lat/lng for ETA calculation
   const { data: hotel } = await db.from('hotels').select('lat,lng').eq('id', hotelId).maybeSingle();
@@ -35,5 +41,5 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ ok: true, devices: merged });
+  return NextResponse.json({ ok: true, connected: true, devices: merged });
 }
