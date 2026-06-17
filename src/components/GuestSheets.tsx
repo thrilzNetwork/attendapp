@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import {
   X, Send, CheckCircle, Wifi, Check, Coffee, Dumbbell, Printer,
@@ -15,8 +15,7 @@ import {
   getAllShuttleSlotsForHotel, bookShuttleSlot, createShuttleRequest,
   getShuttleRoutes, getCruiseSchedules,
   ShuttleSlot, ShuttleRoute, CruiseSchedule,
-  getKnowledgeBase, KnowledgeEntry,
-  getMessages,
+
 } from '@/lib/supabase';
 
 const BURGUNDY = '#6B1D3C';
@@ -68,22 +67,73 @@ export function GuestSheet({
   );
 }
 
-/* ── Message / Chat ────────────────────────────────────────── */
-type ChatMsg = {
-  from: 'guest' | 'bot';
-  text: string;
-  isConfirm?: boolean;
-  confirmType?: string;
-  confirmDetails?: string;
-};
+/* ── Request Now ───────────────────────────────────────────── */
+
+const REQUEST_CATEGORIES = [
+  {
+    icon: <Bell size={22} />,
+    label: 'Towels',
+    type: 'Amenity Request',
+    details: 'Towel Service',
+    color: '#0D9488',
+  },
+  {
+    icon: <WashingMachine size={22} />,
+    label: 'Housekeeping',
+    type: 'Housekeeping',
+    details: 'Cleaning Service',
+    color: '#7C3AED',
+  },
+  {
+    icon: <Utensils size={22} />,
+    label: 'Room Service',
+    type: 'Amenity Request',
+    details: 'Room Service / Food',
+    color: '#D97706',
+  },
+  {
+    icon: <ShoppingBag size={22} />,
+    label: 'Amenities',
+    type: 'Amenity Request',
+    details: 'Toiletries / Amenities',
+    color: '#DB2777',
+  },
+  {
+    icon: <Clock size={22} />,
+    label: 'Late Check-out',
+    type: 'Front Desk Request',
+    details: 'Late Checkout',
+    color: '#2563EB',
+  },
+  {
+    icon: <Bell size={22} />,
+    label: 'Wake-Up Call',
+    type: 'Front Desk Request',
+    details: 'Wake-Up Call',
+    color: '#059669',
+  },
+  {
+    icon: <Flame size={22} />,
+    label: 'Maintenance',
+    type: 'Maintenance',
+    details: 'Maintenance Issue',
+    color: '#DC2626',
+  },
+  {
+    icon: <Phone size={22} />,
+    label: 'Contact Me',
+    type: 'Front Desk Request',
+    details: 'Please contact guest',
+    color: '#6B7280',
+  },
+];
 
 export function MessageSheetContent() {
-  const [text, setText] = useState('');
-  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [guestName, setGuestName] = useState('Guest');
   const [guestRoom, setGuestRoom] = useState('?');
-  const [kb, setKb] = useState<KnowledgeEntry[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [sent, setSent] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [hotelColor, setHotelColor] = useState(BURGUNDY);
 
   useEffect(() => {
     const stored = localStorage.getItem('guestSession');
@@ -94,185 +144,74 @@ export function MessageSheetContent() {
         setGuestRoom(s.room || '?');
       } catch { localStorage.removeItem('guestSession'); }
     }
-    // Load hotel knowledge base
-    getHotelConfig().then(async hotel => {
-      if (hotel?.id) {
-        getKnowledgeBase(hotel.id).then(setKb);
-        // Load past messages
-        const stored = localStorage.getItem('guestSession');
-        if (stored) {
-          try {
-            const s = JSON.parse(stored);
-            if (s.name && s.room) {
-              const pastMessages = await getMessages(hotel.id, s.name, s.room);
-              const chatMsgs: ChatMsg[] = pastMessages.map(m => ({
-                from: m.sender === 'guest' ? 'guest' : 'bot',
-                text: m.body,
-              }));
-              setMessages(chatMsgs);
-            }
-          } catch { /* ignore */ }
-        }
-      }
+    getHotelConfig().then(h => {
+      if (h?.brandColor) setHotelColor(h.brandColor);
     });
   }, []);
 
-  useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
-
-  const createRequest = useCallback(async (type: string, details: string) => {
-    const hotel = await getHotelConfig();
-    await supabase.from('requests').insert({ hotel_id: hotel?.id, guest_name: guestName, room: guestRoom, type, details, status: 'pending' });
-    if (hotel?.notificationEmail) {
-      fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-        body: JSON.stringify({ type: 'new_request', data: { notificationEmail: hotel.notificationEmail, hotelName: hotel.name, guestName, room: guestRoom, requestType: type, details } }),
-      }).catch(() => {});
-    }
-  }, [guestName, guestRoom]);
-
-  const handleConfirm = async (type: string, details: string) => {
-    await createRequest(type, details);
-    setMessages(prev => [...prev,
-      { from: 'guest', text: `Yes, please send ${details.toLowerCase()}` },
-      { from: 'bot', text: '✅ Request sent! Our team will take care of this shortly.' },
-    ]);
-  };
-
-  const handleDismiss = () => {
-    setMessages(prev => [...prev,
-      { from: 'guest', text: 'No thanks' },
-      { from: 'bot', text: 'No problem! Let me know if you need anything else.' },
-    ]);
-  };
-
-  // Fuzzy-match against knowledge base: returns best matching entry or null
-  const matchKb = (lower: string): KnowledgeEntry | null => {
-    let best: KnowledgeEntry | null = null;
-    let bestScore = 0;
-    for (const entry of kb) {
-      const qWords = entry.question.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-      const kwds = (entry.keywords || []).map(k => k.toLowerCase());
-      const allTerms = [...qWords, ...kwds];
-      const score = allTerms.filter(t => lower.includes(t)).length;
-      if (score > bestScore) { bestScore = score; best = entry; }
-    }
-    return bestScore >= 1 ? best : null;
-  };
-
-  const send = async (overrideText?: string) => {
-    const userMsg = (overrideText ?? text).trim();
-    if (!userMsg) return;
-    const hotel = await getHotelConfig();
-
-    // Save to messages table (guest chat log)
-    await supabase.from('messages').insert({ hotel_id: hotel?.id, guest_name: guestName, room: guestRoom, sender: 'guest', body: userMsg });
-
-    // Also insert into requests so it appears in Live Orders in real time
-    await supabase.from('requests').insert({ hotel_id: hotel?.id, guest_name: guestName, room: guestRoom, type: 'Guest Message', details: userMsg, status: 'pending' });
-
-    if (hotel?.notificationEmail) {
-      fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-        body: JSON.stringify({ type: 'guest_message', data: { notificationEmail: hotel.notificationEmail, hotelName: hotel.name, guestName, room: guestRoom, message: userMsg } }),
-      }).catch(() => {});
-    }
-    setMessages(prev => [...prev, { from: 'guest', text: userMsg }]);
-    setText('');
-
-    const lower = userMsg.toLowerCase();
-
-    // 1. Check knowledge base first
-    const kbMatch = matchKb(lower);
-    if (kbMatch) {
-      setTimeout(() => setMessages(prev => [...prev, { from: 'bot', text: kbMatch.answer }]), 600);
-      return;
-    }
-
-    // 2. Check for actionable service requests
-    const requestable = (() => {
-      if (lower.includes('towel')) return { type: 'Amenity Request', details: 'Towel Service', reply: 'I can send a towel request to housekeeping. Would you like me to?' };
-      if (lower.includes('water') || lower.includes('bottle')) return { type: 'Amenity Request', details: 'Water / Beverages', reply: 'I can send a water request to room service. Would you like me to?' };
-      if (lower.includes('taxi') || lower.includes('uber')) return { type: 'Transport Request', details: 'Ride Service', reply: 'I can request transport for you. Shall I send that?' };
-      if (lower.includes('food') || lower.includes('order')) return { type: 'Food Order', details: 'Restaurant Order', reply: 'I can place a food order request. Shall I?' };
-      if (lower.includes('clean') || lower.includes('housekeep')) return { type: 'Housekeeping', details: 'Cleaning Service', reply: 'I can send a housekeeping request. Would you like me to?' };
-      if (lower.includes('late') && lower.includes('check')) return { type: 'Front Desk Request', details: 'Late Checkout', reply: 'I can request late checkout from the front desk. Shall I?' };
-      if (lower.includes('wake') || lower.includes('alarm')) return { type: 'Front Desk Request', details: 'Wake-Up Call', reply: 'I can request a wake-up call. Would you like me to?' };
-      return undefined;
-    })();
-
-    setTimeout(() => {
-      if (requestable) {
-        setMessages(prev => [...prev, { from: 'bot', text: requestable.reply, isConfirm: true, confirmType: requestable.type, confirmDetails: requestable.details }]);
-      } else {
-        // 3. Generic fallback
-        let reply = 'Thanks! Our front desk team will assist you shortly.';
-        if (lower.includes('wifi') || lower.includes('internet')) reply = 'WiFi is complimentary! Ask the front desk for the network name and password.';
-        else if (lower.includes('pool')) reply = 'Our pool is open 6 AM – 10 PM daily. Towels available at the front desk.';
-        else if (lower.includes('breakfast')) reply = 'Complimentary breakfast is served 6:30 AM – 9:30 AM in the lobby.';
-        else if (lower.includes('check')) reply = 'Check-out is at 11:00 AM. Late check-out requests can be made at the front desk.';
-        setMessages(prev => [...prev, { from: 'bot', text: reply }]);
+  const sendRequest = async (type: string, details: string, label: string) => {
+    if (sending) return;
+    setSending(true);
+    try {
+      const hotel = await getHotelConfig();
+      await supabase.from('requests').insert({
+        hotel_id: hotel?.id,
+        guest_name: guestName,
+        room: guestRoom,
+        type,
+        details,
+        status: 'pending',
+      });
+      if (hotel?.notificationEmail) {
+        fetch('/api/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+          body: JSON.stringify({ type: 'new_request', data: { notificationEmail: hotel.notificationEmail, hotelName: hotel.name, guestName, room: guestRoom, requestType: type, details } }),
+        }).catch(() => {});
       }
-    }, 600);
+      setSent(label);
+    } catch { /* ignore */ }
+    setSending(false);
   };
 
-  // Quick replies all flow through the chat now
-  const quickReplies = [
-    { label: 'WiFi Password' },
-    { label: 'Pool Hours' },
-    { label: 'Breakfast Time' },
-    { label: 'Request Towels' },
-    { label: 'Late Check-out' },
-    { label: 'Housekeeping' },
-    { label: 'Wake-Up Call' },
-  ];
+  if (sent) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: `${hotelColor}15` }}>
+          <CheckCircle size={32} style={{ color: hotelColor }} />
+        </div>
+        <h3 className="text-[18px] font-extrabold text-gray-900 mb-1">Request Sent!</h3>
+        <p className="text-[14px] text-gray-500 mb-6">Our team has been notified and will assist you shortly.</p>
+        <div className="bg-gray-50 rounded-2xl px-4 py-3 text-[13px] text-gray-600 mb-6">
+          <span className="font-semibold">{sent}</span> · Room {guestRoom}
+        </div>
+        <button onClick={() => setSent(null)} className="text-[13px] font-bold" style={{ color: hotelColor }}>
+          + Make another request
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <div className="px-4 pb-1 shrink-0">
-        <p className="text-[11px] text-green-500 font-medium">● Online now</p>
-      </div>
-      {/* Chat messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-[#F4F4F5]">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.from === 'guest' ? 'justify-end' : 'justify-start'}`}>
-            {m.isConfirm ? (
-              <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-white border border-gray-100 px-4 py-3 shadow-sm">
-                <p className="text-[13px] text-gray-800 mb-3 leading-relaxed">{m.text}</p>
-                <div className="flex gap-2">
-                  <button onClick={() => handleConfirm(m.confirmType!, m.confirmDetails!)} className="flex-1 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: BURGUNDY }}>Yes, send request</button>
-                  <button onClick={handleDismiss} className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-[12px] font-bold">No thanks</button>
-                </div>
-              </div>
-            ) : (
-              <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed ${m.from === 'guest' ? 'text-white rounded-br-md' : 'bg-white text-gray-800 border border-gray-100 rounded-bl-md'}`} style={m.from === 'guest' ? { backgroundColor: BURGUNDY } : undefined}>
-                {m.text}
-              </div>
-            )}
-          </div>
+    <div className="flex-1 overflow-y-auto px-4 py-4">
+      <p className="text-[12px] text-gray-400 mb-4 text-center">Tap a request — our team will be right with you.</p>
+      <div className="grid grid-cols-2 gap-3">
+        {REQUEST_CATEGORIES.map((cat) => (
+          <button
+            key={cat.label}
+            onClick={() => sendRequest(cat.type, cat.details, cat.label)}
+            disabled={sending}
+            className="flex flex-col items-center justify-center gap-2.5 rounded-2xl border border-gray-100 bg-white py-5 px-3 shadow-sm active:scale-95 transition-transform disabled:opacity-50"
+          >
+            <div className="w-11 h-11 rounded-full flex items-center justify-center" style={{ backgroundColor: `${cat.color}15`, color: cat.color }}>
+              {cat.icon}
+            </div>
+            <span className="text-[13px] font-bold text-gray-800">{cat.label}</span>
+          </button>
         ))}
       </div>
-      {/* Quick replies — all route through send() so they appear in chat & Live Orders */}
-      {messages.length < 4 && (
-        <div className="shrink-0 px-4 py-2 flex gap-2 overflow-x-auto bg-white" style={{ scrollbarWidth: 'none' }}>
-          {quickReplies.map((q) => (
-            <button key={q.label} onClick={() => send(q.label)}
-              className="shrink-0 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-[11px] text-gray-600 font-medium">
-              {q.label}
-            </button>
-          ))}
-        </div>
-      )}
-      {/* Input */}
-      <div className="shrink-0 px-4 pb-5 pt-2 bg-white border-t border-gray-100">
-        <div className="flex items-center gap-2">
-          <input type="text" value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()}
-            placeholder="Type a message..." className="flex-1 bg-gray-50 rounded-full px-4 py-3 text-[16px] text-gray-800 outline-none border border-gray-200" />
-          <button onClick={() => send()} disabled={!text.trim()} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: text.trim() ? BURGUNDY : '#e5e7eb' }}>
-            <Send size={18} className="text-white" />
-          </button>
-        </div>
-      </div>
-    </>
+      <p className="text-[11px] text-gray-400 text-center mt-5">Room {guestRoom} · {guestName}</p>
+    </div>
   );
 }
 

@@ -236,7 +236,7 @@ function HotelGuestApp({
           <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: brandColor }}>
             <User size={20} className="text-white" strokeWidth={1.5} />
           </div>
-          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: brandColor }}>MESSAGE US</span>
+          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: brandColor }}>REQUEST NOW</span>
         </button>
       </div>
 
@@ -253,7 +253,7 @@ function HotelGuestApp({
         onClose={() => setShowValidationSuccess(false)}
         brandColor={brandColor}
       />
-      <GuestSheet open={openSheet === 'message'} onClose={closeSheet} title="Front Desk / Message" fullHeight>
+      <GuestSheet open={openSheet === 'message'} onClose={closeSheet} title="Request Now">
         <MessageSheetContent />
       </GuestSheet>
       <GuestSheet open={openSheet === 'transport'} onClose={closeSheet} title="Transport">
