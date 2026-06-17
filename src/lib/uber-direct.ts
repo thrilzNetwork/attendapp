@@ -17,9 +17,9 @@ async function getToken(): Promise<string> {
   });
   const data = await res.json();
   if (!data.access_token) throw new Error(`Uber auth failed: ${JSON.stringify(data)}`);
-  _token = data.access_token;
-  _tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
-  return _token;
+  _token = data.access_token as string;
+  _tokenExpiry = Date.now() + ((data.expires_in as number) - 60) * 1000;
+  return _token as string;
 }
 
 export interface UberQuote {
