@@ -51,3 +51,4 @@ sync-places.js
 scripts/*.mjs
 scripts/*.py
 .env.prod
+.claude/
