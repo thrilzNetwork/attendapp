@@ -112,17 +112,28 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
 
   if (connected === false) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-4">
-        <div className="flex items-center gap-2 text-gray-700 mb-2">
-          <Bus size={18} className="text-teal-600" />
-          <span className="font-bold text-[14px]">Live Shuttle</span>
+      <div className="bg-gradient-to-br from-teal-50 to-white rounded-2xl border border-teal-100 p-5 mb-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center">
+            <Bus size={20} className="text-teal-600" />
+          </div>
+          <div>
+            <p className="font-extrabold text-[15px] text-gray-900">Live Shuttle GPS</p>
+            <p className="text-[11px] text-gray-500">Powered by Bouncie</p>
+          </div>
         </div>
-        <p className="text-[12px] text-gray-500">Not connected to Bouncie.</p>
+        <p className="text-[13px] text-gray-600 mb-1">Connect your Bouncie GPS tracker to see:</p>
+        <ul className="text-[12px] text-gray-500 mb-4 space-y-0.5 ml-2">
+          <li>📍 Real-time shuttle location</li>
+          <li>⏱ Live trip timer & distance</li>
+          <li>🏨 ETA back to hotel</li>
+          <li>📋 Today&apos;s trip log</li>
+        </ul>
         <a
           href={`/api/bouncie-auth?hotelId=${encodeURIComponent(hotelId)}`}
-          className="inline-flex items-center gap-1 mt-2 text-[12px] font-bold text-teal-600 hover:text-teal-800"
+          className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-teal-600 text-white text-[13px] font-bold hover:bg-teal-700 transition-colors"
         >
-          Connect Bouncie <ExternalLink size={12} />
+          Connect Bouncie GPS <ExternalLink size={13} />
         </a>
       </div>
     );
