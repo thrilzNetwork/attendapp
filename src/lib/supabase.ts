@@ -461,11 +461,13 @@ export async function createPartner(partner: Omit<Partner, 'id' | 'is_active'>):
 }
 
 export async function updatePartner(id: string, updates: Partial<Partner>): Promise<void> {
-  await supabase.from('partners').update(updates).eq('id', id);
+  const { error } = await supabase.from('partners').update(updates).eq('id', id);
+  if (error) throw error;
 }
 
 export async function deletePartner(id: string): Promise<void> {
-  await supabase.from('partners').delete().eq('id', id);
+  const { error } = await supabase.from('partners').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function getPartnerMenuItems(partnerId: string): Promise<PartnerMenuItem[]> {
@@ -475,11 +477,13 @@ export async function getPartnerMenuItems(partnerId: string): Promise<PartnerMen
 }
 
 export async function createPartnerMenuItem(item: { partner_id: string; name: string; description: string; price: number }): Promise<void> {
-  await supabase.from('partner_menu_items').insert({ ...item, is_active: true });
+  const { error } = await supabase.from('partner_menu_items').insert({ ...item, is_active: true });
+  if (error) throw error;
 }
 
 export async function deletePartnerMenuItem(id: string): Promise<void> {
-  await supabase.from('partner_menu_items').delete().eq('id', id);
+  const { error } = await supabase.from('partner_menu_items').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Compset (competitive rate shop) ──────────────────────────
@@ -645,20 +649,28 @@ export async function deleteHotel(id: string) {
     await supabase.from('partner_menu_items').delete().in('partner_id', partners.map(p => p.id));
     await supabase.from('partners').delete().eq('hotel_id', id);
   }
-  await supabase.from('qr_codes').delete().eq('hotel_id', id);
-  await supabase.from('requests').delete().eq('hotel_id', id);
-  await supabase.from('messages').delete().eq('hotel_id', id);
-  await supabase.from('staff_accounts').delete().eq('hotel_id', id);
-  await supabase.from('attenda_fees').delete().eq('hotel_id', id);
-  await supabase.from('hotels').delete().eq('id', id);
+  const { error: e1 } = await supabase.from('qr_codes').delete().eq('hotel_id', id);
+  if (e1) throw e1;
+  const { error: e2 } = await supabase.from('requests').delete().eq('hotel_id', id);
+  if (e2) throw e2;
+  const { error: e3 } = await supabase.from('messages').delete().eq('hotel_id', id);
+  if (e3) throw e3;
+  const { error: e4 } = await supabase.from('staff_accounts').delete().eq('hotel_id', id);
+  if (e4) throw e4;
+  const { error: e5 } = await supabase.from('attenda_fees').delete().eq('hotel_id', id);
+  if (e5) throw e5;
+  const { error: e6 } = await supabase.from('hotels').delete().eq('id', id);
+  if (e6) throw e6;
 }
 
 export async function toggleHotelActive(hotelId: string, active: boolean) {
-  await supabase.from('hotels').update({ is_active: active }).eq('id', hotelId);
+  const { error } = await supabase.from('hotels').update({ is_active: active }).eq('id', hotelId);
+  if (error) throw error;
 }
 
 export async function togglePartnerOrdering(partnerId: string, enabled: boolean) {
-  await supabase.from('partners').update({ has_ordering: enabled }).eq('id', partnerId);
+  const { error } = await supabase.from('partners').update({ has_ordering: enabled }).eq('id', partnerId);
+  if (error) throw error;
 }
 
 // ─── QR Codes ─────────────────────────────────────────────────
@@ -679,11 +691,13 @@ export async function getQrCodes(hotelId: string): Promise<QrCode[]> {
 }
 
 export async function createQrCode(hotelId: string, label: string, locationType: string, url: string): Promise<void> {
-  await supabase.from('qr_codes').insert({ hotel_id: hotelId, label, location_type: locationType, url });
+  const { error } = await supabase.from('qr_codes').insert({ hotel_id: hotelId, label, location_type: locationType, url });
+  if (error) throw error;
 }
 
 export async function deleteQrCode(id: string): Promise<void> {
-  await supabase.from('qr_codes').delete().eq('id', id);
+  const { error } = await supabase.from('qr_codes').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Shuttle Types ──────────────────────────────────────────
@@ -762,11 +776,13 @@ export async function createShuttleRoute(route: { hotel_id: string; name: string
 }
 
 export async function deleteShuttleRoute(id: string) {
-  await supabase.from('shuttle_routes').delete().eq('id', id);
+  const { error } = await supabase.from('shuttle_routes').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function toggleShuttleRoute(id: string, active: boolean) {
-  await supabase.from('shuttle_routes').update({ active }).eq('id', id);
+  const { error } = await supabase.from('shuttle_routes').update({ active }).eq('id', id);
+  if (error) throw error;
 }
 
 export async function getShuttleSlots(routeId: string): Promise<ShuttleSlot[]> {
@@ -827,7 +843,8 @@ export async function createShuttleSlot(slot: {
 }
 
 export async function deleteShuttleSlot(id: string) {
-  await supabase.from('shuttle_slots').delete().eq('id', id);
+  const { error } = await supabase.from('shuttle_slots').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function getShuttleBookings(slotId: string): Promise<ShuttleBooking[]> {
@@ -867,7 +884,8 @@ export async function bookShuttleSlot(booking: {
 }
 
 export async function cancelShuttleBooking(id: string) {
-  await supabase.from('shuttle_bookings').update({ status: 'cancelled' }).eq('id', id);
+  const { error } = await supabase.from('shuttle_bookings').update({ status: 'cancelled' }).eq('id', id);
+  if (error) throw error;
 }
 
 export async function createShuttleRequest(req: {
@@ -911,7 +929,8 @@ export async function getShuttleRequests(hotelId: string): Promise<ShuttleReques
 export async function updateShuttleRequest(id: string, updates: {
   status?: string; assigned_driver_id?: string | null;
 }) {
-  await supabase.from('shuttle_requests').update(updates).eq('id', id);
+  const { error } = await supabase.from('shuttle_requests').update(updates).eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Cruise Schedules ────────────────────────────────────────
@@ -956,7 +975,8 @@ export async function createCruiseSchedule(schedule: {
 }
 
 export async function deleteCruiseSchedule(id: string) {
-  await supabase.from('cruise_schedules').update({ active: false }).eq('id', id);
+  const { error } = await supabase.from('cruise_schedules').update({ active: false }).eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Enhanced Staff CRUD (routed through API to bypass RLS) ──
@@ -1058,7 +1078,8 @@ export async function updateKnowledgeEntry(id: string, updates: {
 }
 
 export async function deleteKnowledgeEntry(id: string): Promise<void> {
-  await supabase.from('hotel_knowledge_base').delete().eq('id', id);
+  const { error } = await supabase.from('hotel_knowledge_base').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Hotel Rooms (bulk upload + CRUD) ─────────────────────────
@@ -1094,10 +1115,11 @@ export async function getAllHotelRooms(hotelId: string): Promise<HotelRoom[]> {
 
 export async function bulkInsertRooms(hotelId: string, rooms: { room_number: string; room_type?: string; floor?: number }[]) {
   // Delete existing active rooms first, then insert fresh
-  await supabase.from('hotel_rooms').delete().eq('hotel_id', hotelId);
-  
+  const { error: delErr } = await supabase.from('hotel_rooms').delete().eq('hotel_id', hotelId);
+  if (delErr) throw delErr;
+
   if (rooms.length === 0) return [];
-  
+
   const { data, error } = await supabase.from('hotel_rooms').insert(
     rooms.map(r => ({
       hotel_id: hotelId,
@@ -1113,7 +1135,8 @@ export async function bulkInsertRooms(hotelId: string, rooms: { room_number: str
 }
 
 export async function deleteRoom(id: string) {
-  await supabase.from('hotel_rooms').delete().eq('id', id);
+  const { error } = await supabase.from('hotel_rooms').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function createRoom(hotelId: string, room: { room_number: string; room_type?: string; floor?: number }) {
@@ -1235,7 +1258,8 @@ export async function updateChecklist(id: string, updates: { name?: string; item
 }
 
 export async function deleteChecklist(id: string) {
-  await supabase.from('staff_checklists').delete().eq('id', id);
+  const { error } = await supabase.from('staff_checklists').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function getChecklistInstances(hotelId: string, date?: string): Promise<ChecklistInstance[]> {
@@ -1448,8 +1472,11 @@ export async function updateOpsTool(id: string, updates: Partial<OpsTool>): Prom
 
 export async function deleteOpsTool(id: string): Promise<void> {
   // Also clean up hotel toggles
-  await supabase.from('hotel_ops_tools').delete().eq('tool_key', (await supabase.from('ops_tools').select('key').eq('id', id).single()).data?.key || '');
-  await supabase.from('ops_tools').delete().eq('id', id);
+  const keyRes = await supabase.from('ops_tools').select('key').eq('id', id).single();
+  const { error: e1 } = await supabase.from('hotel_ops_tools').delete().eq('tool_key', keyRes.data?.key || '');
+  if (e1) throw e1;
+  const { error: e2 } = await supabase.from('ops_tools').delete().eq('id', id);
+  if (e2) throw e2;
 }
 
 // ─── Per-Hotel Toggles ────────────────────────
@@ -1504,7 +1531,8 @@ export async function getCallAroundLogs(hotelId: string, date?: string): Promise
 }
 
 export async function createCallAroundLog(log: Omit<CallAroundLog, 'id' | 'created_at'>): Promise<void> {
-  await supabase.from('call_around_logs').insert(log);
+  const { error } = await supabase.from('call_around_logs').insert(log);
+  if (error) throw error;
 }
 
 // ─── Daily Logs ────────────────────────────────
@@ -1527,7 +1555,8 @@ export async function getDailyLogs(hotelId: string, date?: string, limit = 50): 
 }
 
 export async function createDailyLog(log: Omit<DailyLogEntry, 'id' | 'created_at'>): Promise<void> {
-  await supabase.from('daily_logs').insert(log);
+  const { error } = await supabase.from('daily_logs').insert(log);
+  if (error) throw error;
 }
 
 // ─── No Shows ─────────────────────────────────
@@ -1551,11 +1580,13 @@ export async function getNoShows(hotelId: string, date?: string): Promise<NoShow
 }
 
 export async function createNoShow(ns: Omit<NoShow, 'id' | 'created_at'>): Promise<void> {
-  await supabase.from('no_shows').insert(ns);
+  const { error } = await supabase.from('no_shows').insert(ns);
+  if (error) throw error;
 }
 
 export async function deleteNoShow(id: string): Promise<void> {
-  await supabase.from('no_shows').delete().eq('id', id);
+  const { error } = await supabase.from('no_shows').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Room Moves ───────────────────────────────
@@ -1580,11 +1611,13 @@ export async function getRoomMoves(hotelId: string, date?: string): Promise<Room
 }
 
 export async function createRoomMove(move: Omit<RoomMove, 'id' | 'created_at'>): Promise<void> {
-  await supabase.from('room_moves').insert(move);
+  const { error } = await supabase.from('room_moves').insert(move);
+  if (error) throw error;
 }
 
 export async function deleteRoomMove(id: string): Promise<void> {
-  await supabase.from('room_moves').delete().eq('id', id);
+  const { error } = await supabase.from('room_moves').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Bank Counts ───────────────────────────────
@@ -1610,7 +1643,8 @@ export async function getBankCounts(hotelId: string, date?: string): Promise<Ban
 }
 
 export async function createBankCount(bc: Omit<BankCount, 'id' | 'created_at'>): Promise<void> {
-  await supabase.from('bank_counts').insert(bc);
+  const { error } = await supabase.from('bank_counts').insert(bc);
+  if (error) throw error;
 }
 
 // ─── Daily Property Snapshot ──────────────────────────
@@ -1919,7 +1953,8 @@ export async function updatePositionTodoTemplate(id: string, updates: Partial<Po
 }
 
 export async function deletePositionTodoTemplate(id: string) {
-  await supabase.from('position_todo_templates').delete().eq('id', id);
+  const { error } = await supabase.from('position_todo_templates').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // Items CRUD
@@ -1946,7 +1981,8 @@ export async function updateTemplateItem(id: string, updates: Partial<PositionTo
 }
 
 export async function deleteTemplateItem(id: string) {
-  await supabase.from('position_todo_items').delete().eq('id', id);
+  const { error } = await supabase.from('position_todo_items').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // Instances
