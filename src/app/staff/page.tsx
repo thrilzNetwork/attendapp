@@ -2,7 +2,7 @@
 // deploy-2026-06-05-001 - force chunk hash change
 'use client';
 
-import { useState, useEffect, useCallback, useRef, Fragment, Component } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Fragment, Component } from 'react';
 
 class ErrorBoundary extends Component<{children: React.ReactNode, fallback?: React.ReactNode}, {hasError: boolean, error: Error | null}> {
   constructor(props: {children: React.ReactNode, fallback?: React.ReactNode}) {
@@ -211,6 +211,8 @@ export default function Dashboard() {
   // Impersonation
   const [impersonatingUser, setImpersonatingUser] = useState<{ name: string; role: Role } | null>(null);
   const [showImpersonatePicker, setShowImpersonatePicker] = useState(false);
+  // Tracks which tabs have been visited — once mounted, kept alive with display:none
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set());
   // ── Alert bar state (must be before early returns — React hooks rule) ──
   const [dismissedAlert, setDismissedAlert] = useState(false);
   const [lastRequestCount, setLastRequestCount] = useState(0);
@@ -546,6 +548,17 @@ export default function Dashboard() {
   // Vendors land on their manifest tab
   const effectiveTab = (effectiveRole === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab;
 
+  // Add tab to visited set on first open so it stays mounted (display:none) after
+  useEffect(() => {
+    setVisitedTabs(prev => { if (prev.has(effectiveTab)) return prev; const n = new Set(prev); n.add(effectiveTab); return n; });
+  }, [effectiveTab]);
+
+  // Helper: render a tab panel — mounts on first visit, hidden (not destroyed) when inactive
+  function tabPanel(tabId: string, condition: boolean, children: React.ReactNode) {
+    if (!visitedTabs.has(tabId) || !condition) return null;
+    return <div style={{ display: effectiveTab === tabId ? 'contents' : 'none' }}>{children}</div>;
+  }
+
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row">
 
@@ -751,30 +764,30 @@ export default function Dashboard() {
             </button>
           </div>
         )}
-        {effectiveTab === 'dailybrief' && (
+        {tabPanel('dailybrief', true,
           <ErrorBoundary fallback={<div className="p-4 md:p-8"><div className="bg-red-50 border border-red-200 rounded-2xl p-6"><p className="text-[16px] font-bold text-red-800 mb-2">Dashboard error</p><pre id="error-message" className="text-[12px] text-red-700 whitespace-pre-wrap bg-red-100 p-4 rounded-xl">{/* error will show here */}</pre></div></div>}>
             <DailyBriefView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} config={config} sessionName={session?.name || ''} department={session?.department} isAdmin={isAdmin} />
           </ErrorBoundary>
         )}
-        {effectiveTab === 'property_info' && config && (
-          <PropertyInfoView config={config} />
+        {tabPanel('property_info', !!config,
+          <PropertyInfoView config={config!} />
         )}
-        {effectiveTab === 'schedules' && (
+        {tabPanel('schedules', true,
           <SchedulesView hotelId={config?.id || ''} isAdmin={isAdmin} weekStartsOn={config?.weekStartsOn || 'Sunday'} staffName={s.name} hotelName={config?.name || 'Hotel'} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department, hire_date: s.hire_date, min_hours: s.min_hours || 0, employment_type: s.employment_type, email: s.email || '' }))} />
         )}
-        {effectiveTab === 'compset' && (
+        {tabPanel('compset', true,
           <CompsetView hotelId={config?.id || ''} isAdmin={isAdmin} staffId={staff.find(st => st.name === s.name)?.id || ''} staffName={s.name} />
         )}
-        {effectiveTab === 'checklists_tab' && (
+        {tabPanel('checklists_tab', true,
           <ChecklistsTabView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
-        {effectiveTab === 'kpis' && (
+        {tabPanel('kpis', true,
           <KpisView hotelId={config?.id || ''} isAdmin={isAdmin} userId="" userName={session?.name || 'Staff'} />
         )}
-        {effectiveTab === 'learning_hr' && (
+        {tabPanel('learning_hr', true,
           <LearningHRView hotelId={config?.id || ''} />
         )}
-        {effectiveTab === 'orders' && (
+        {tabPanel('orders', true,
           <OrdersView
             requests={requests}
             messages={messages}
@@ -784,51 +797,51 @@ export default function Dashboard() {
             onRefresh={() => reload(s.role)}
           />
         )}
-        {effectiveTab === 'messages' && (
+        {tabPanel('messages', true,
           <MessagesView messages={messages} hotelId={config?.id || ''} />
         )}
-        {effectiveTab === 'shuttle' && (
+        {tabPanel('shuttle', true,
           <ShuttleViewComponent hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} />
         )}
-        {effectiveTab === 'shuttle_schedule' && (
+        {tabPanel('shuttle_schedule', true,
           <ShuttleScheduleView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
-        {effectiveTab === 'forecast' && (
+        {tabPanel('forecast', true,
           <ForecastView hotelId={config?.id || ''} totalRooms={config?.roomCount || 0} timezone={config?.timezone} />
         )}
-        {effectiveTab === 'callouts' && (
+        {tabPanel('callouts', true,
           <AdminCalloutsView hotelId={config?.id || ''} />
         )}
-        {effectiveTab === 'todos' && (
+        {tabPanel('todos', true,
           <PositionTodosView hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} department={s.department} />
         )}
-        {effectiveTab === 'vendor_manifest' && (
+        {tabPanel('vendor_manifest', true,
           <VendorDashboard hotelId={config?.id || ''} vendorType={s.vendorType || 'shuttle'} vendorName={s.name} />
         )}
-        {effectiveTab === 'hotel' && isAdmin && config && (
-                  <ErrorBoundary>
-                    <HotelSettingsView
-                      config={config}
-                      onSaved={async () => { const c = await getHotelConfig(); if (c) setConfig(c); }}
-                    />
-                  </ErrorBoundary>
-                )}
-        {effectiveTab === 'staff_mgmt' && isAdmin && (
+        {tabPanel('hotel', isAdmin && !!config,
+          <ErrorBoundary>
+            <HotelSettingsView
+              config={config!}
+              onSaved={async () => { const c = await getHotelConfig(); if (c) setConfig(c); }}
+            />
+          </ErrorBoundary>
+        )}
+        {tabPanel('staff_mgmt', isAdmin,
           <StaffView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} hotelSlug={config?.slug || ''} staff={staff} onRefresh={async () => setStaff(await getStaffAccountsForHotel(config?.id || ''))} />
         )}
-        {effectiveTab === 'partners' && isAdmin && (
+        {tabPanel('partners', isAdmin,
           <PartnersView hotelId={config?.id || ''} />
         )}
-        {effectiveTab === 'qrcodes' && isAdmin && (
+        {tabPanel('qrcodes', isAdmin,
           <QrCodesView hotelId={config?.id || ''} hotelSlug={config?.slug || ''} />
         )}
-        {effectiveTab === 'knowledge' && (
+        {tabPanel('knowledge', true,
           <IncidentKBView hotelId={config?.id || ''} isAdmin={isAdmin} userName={s.name} />
         )}
-        {effectiveTab === 'rooms' && isAdmin && (
+        {tabPanel('rooms', isAdmin,
           <RoomsView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} />
         )}
-        {effectiveTab === 'properties' && s.role === 'superadmin' && (
+        {tabPanel('properties', s.role === 'superadmin',
           <PropertiesView
             onSwitchHotel={async (slug: string) => {
               localStorage.setItem('attenda_hotel_slug', slug);
@@ -837,7 +850,7 @@ export default function Dashboard() {
             }}
           />
         )}
-        {effectiveTab === 'guests' && (
+        {tabPanel('guests', true,
           <GuestsView hotelId={config?.id || ''} />
         )}
       </main>
