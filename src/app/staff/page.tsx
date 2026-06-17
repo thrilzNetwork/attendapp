@@ -228,6 +228,15 @@ export default function Dashboard() {
     setLastRequestCount(pendingCount);
   }, [pendingCount]);
 
+  // Track visited tabs — must be before early returns (Rules of Hooks)
+  const effectiveTabForVisit = session
+    ? ((session.role === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab)
+    : tab;
+  useEffect(() => {
+    if (!session) return;
+    setVisitedTabs(prev => { if (prev.has(effectiveTabForVisit)) return prev; const n = new Set(prev); n.add(effectiveTabForVisit); return n; });
+  }, [effectiveTabForVisit, session]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const hotel = params.get('hotel');
@@ -548,10 +557,6 @@ export default function Dashboard() {
   // Vendors land on their manifest tab
   const effectiveTab = (effectiveRole === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab;
 
-  // Add tab to visited set on first open so it stays mounted (display:none) after
-  useEffect(() => {
-    setVisitedTabs(prev => { if (prev.has(effectiveTab)) return prev; const n = new Set(prev); n.add(effectiveTab); return n; });
-  }, [effectiveTab]);
 
   // Helper: render a tab panel — mounts on first visit, hidden (not destroyed) when inactive
   function tabPanel(tabId: string, condition: boolean, children: React.ReactNode) {
