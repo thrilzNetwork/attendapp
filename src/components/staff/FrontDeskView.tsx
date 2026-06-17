@@ -249,7 +249,7 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
       {tab === 'recap' && (
         <div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-            {[{label:'Requests Today',count:recap?.requestsToday||0,color:'text-blue-600'},{label:'Completed',count:recap?.completedToday||0,color:'text-emerald-600'},{label:'Pending Now',count:recap?.pendingNow||0,color:'text-amber-600'},{label:'Avg Response',count:`${recap?.avgResponseMin||0}m`,color:'text-purple-600'}].map(s => (
+            {[{label:'Requests Today',count:recap?.requestsToday||0,color:'text-blue-600'},{label:'Completed',count:recap?.completedToday||0,color:'text-emerald-600'},{label:'Pending Now',count:recap?.pendingNow||0,color:'text-amber-600'},{label:'Staff on Duty',count:recap?.staffOnDuty||0,color:'text-teal-600'}].map(s => (
               <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"><p className="text-[11px] text-gray-400 uppercase font-bold">{s.label}</p><p className={`text-[28px] font-extrabold ${s.color}`}>{s.count}</p></div>
             ))}
           </div>
