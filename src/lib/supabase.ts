@@ -553,17 +553,19 @@ export async function deleteCompsetCallTime(id: string): Promise<void> {
 }
 
 export async function getCompsetEntries(hotelId: string, date: string): Promise<CompsetEntry[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('compset_entries').select('*')
     .eq('hotel_id', hotelId).eq('call_date', date);
+  if (error) throw error;
   return data || [];
 }
 
 export async function getCompsetEntriesRange(hotelId: string, startDate: string, endDate: string): Promise<CompsetEntry[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('compset_entries').select('*')
     .eq('hotel_id', hotelId).gte('call_date', startDate).lte('call_date', endDate)
     .order('call_date', { ascending: false }).order('call_time');
+  if (error) throw error;
   return data || [];
 }
 

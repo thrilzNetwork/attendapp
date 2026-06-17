@@ -339,7 +339,22 @@ export default function Dashboard() {
 
   const reload = useCallback(async (role: Role) => {
     // Always load config first so we can filter by hotel
-    const cfg = await getHotelConfig();
+    let cfg = await getHotelConfig();
+
+    // If no hotel found in localStorage (first login / cleared storage), auto-pick for admins
+    if (!cfg && (role === 'admin' || role === 'superadmin' || role === 'manager')) {
+      const hotels = await getAllHotels() as { id: string; slug: string; name: string }[];
+      setAllHotels(hotels);
+      if (hotels.length === 1) {
+        // Only one property — select it automatically
+        localStorage.setItem('attenda_hotel_slug', hotels[0].slug);
+        cfg = await getHotelConfig(hotels[0].slug);
+      } else if (hotels.length > 1) {
+        setShowHotelPicker(true);
+        return;
+      }
+    }
+
     if (cfg) setConfig(cfg);
     const hotelId = cfg?.id;
 

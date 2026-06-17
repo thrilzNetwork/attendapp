@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Phone, CheckCircle2, Circle, BarChart3, Pencil } from 'lucide-react';
+import { Plus, Trash2, Phone, CheckCircle2, Circle, BarChart3, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   getCompsetHotels, createCompsetHotel, updateCompsetHotel, deleteCompsetHotel,
   getCompsetCallTimes, createCompsetCallTime, updateCompsetCallTime, deleteCompsetCallTime,
@@ -12,7 +12,14 @@ import {
 const TEAL = '#0D9488';
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function offsetDate(base: string, days: number) {
+  const d = new Date(base + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function formatTime(t: string) {
@@ -46,15 +53,23 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
   const [entryForm, setEntryForm] = useState({ rate: '', rooms_sold: '', occupancy_pct: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(todayStr);
 
-  const date = todayStr();
+  const today = todayStr();
+
+  function formatDisplayDate(d: string) {
+    if (d === today) return 'Today';
+    if (d === offsetDate(today, -1)) return 'Yesterday';
+    return new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
 
   const load = useCallback(async () => {
+    if (!hotelId) return;
     try {
       const [h, t, e] = await Promise.all([
         getCompsetHotels(hotelId),
         getCompsetCallTimes(hotelId),
-        getCompsetEntries(hotelId, date),
+        getCompsetEntries(hotelId, selectedDate),
       ]);
       setHotels(h);
       setCallTimes(t);
@@ -62,16 +77,19 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not load compset data.');
     }
-  }, [hotelId, date]);
+  }, [hotelId, selectedDate]);
 
   useEffect(() => { load(); }, [load]);
 
   const loadHistory = async () => {
-    const start = new Date();
-    start.setDate(start.getDate() - 13);
-    const rows = await getCompsetEntriesRange(hotelId, start.toISOString().slice(0, 10), date);
-    setHistory(rows);
-    setShowHistory(true);
+    if (!hotelId) return;
+    try {
+      const rows = await getCompsetEntriesRange(hotelId, offsetDate(today, -30), today);
+      setHistory(rows);
+      setShowHistory(true);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not load history.');
+    }
   };
 
   const handleAddHotel = async () => {
@@ -188,7 +206,7 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
       await upsertCompsetEntry({
         hotel_id: hotelId,
         compset_hotel_id: activeSlot.hotelId,
-        call_date: date,
+        call_date: selectedDate,
         call_time: activeSlot.callTime,
         rate: entryForm.rate ? parseFloat(entryForm.rate) : null,
         rooms_total: roomsTotal,
@@ -225,10 +243,24 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
           <h1 className="text-[26px] font-extrabold text-gray-900">Compset</h1>
           <p className="text-[13px] text-gray-500 mt-0.5">Call nearby hotels at each scheduled time and log their rate, rooms, and occupancy.</p>
         </div>
-        <button onClick={() => (showHistory ? setShowHistory(false) : loadHistory())}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600">
-          <BarChart3 size={14} /> {showHistory ? 'Back to Today' : 'History'}
-        </button>
+        <div className="flex items-center gap-2">
+          {!showHistory && (
+            <div className="flex items-center gap-1 bg-gray-100 rounded-xl px-2 py-1.5">
+              <button onClick={() => setSelectedDate(d => offsetDate(d, -1))} className="p-1 rounded-lg hover:bg-gray-200 text-gray-500">
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-[13px] font-semibold text-gray-700 min-w-[80px] text-center">{formatDisplayDate(selectedDate)}</span>
+              <button onClick={() => setSelectedDate(d => offsetDate(d, 1))} disabled={selectedDate >= today}
+                className="p-1 rounded-lg hover:bg-gray-200 text-gray-500 disabled:opacity-30">
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+          <button onClick={() => (showHistory ? setShowHistory(false) : loadHistory())}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600">
+            <BarChart3 size={14} /> {showHistory ? 'Back' : 'History'}
+          </button>
+        </div>
       </div>
 
       {error && <p className="text-red-600 text-[12px] bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 mb-4">{error}</p>}
