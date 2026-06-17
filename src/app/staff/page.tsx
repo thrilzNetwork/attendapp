@@ -77,6 +77,7 @@ const LearningHRView = dynamic(() => import('@/components/staff/LearningHRView')
 const KpisView = dynamic(() => import('@/components/staff/KpisView'), { ssr: false });
 const DailyBriefView = dynamic(() => import('@/components/staff/DailyBriefView'), { ssr: false });
 const CompsetView = dynamic(() => import('@/components/staff/CompsetView'), { ssr: false });
+const SuperAdminView = dynamic(() => import('@/components/staff/SuperAdminView'), { ssr: false });
 import {
   listOps, createOps, updateOps, deleteOps,
   listKpiDefinitions, createKpiDefinition, deleteKpiDefinition,
@@ -345,6 +346,7 @@ export default function Dashboard() {
     localStorage.setItem('attenda_hotel_slug', slug);
     const c = await getHotelConfig(slug);
     if (c) { setConfig(c); setTab('orders'); }
+    await supabase.auth.refreshSession();
     if (session) await reload(session.role);
   };
 
@@ -847,13 +849,7 @@ export default function Dashboard() {
           <RoomsView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} />
         )}
         {tabPanel('properties', s.role === 'superadmin',
-          <PropertiesView
-            onSwitchHotel={async (slug: string) => {
-              localStorage.setItem('attenda_hotel_slug', slug);
-              const c = await getHotelConfig(slug);
-              if (c) { setConfig(c); setTab('orders'); }
-            }}
-          />
+          <SuperAdminView onSwitchHotel={switchHotel} />
         )}
         {tabPanel('guests', true,
           <GuestsView hotelId={config?.id || ''} />
