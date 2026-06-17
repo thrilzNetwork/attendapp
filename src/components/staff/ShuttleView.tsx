@@ -1,15 +1,28 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import {
-  getShuttleRoutes, createShuttleRoute, deleteShuttleRoute,
+  getShuttleRoutes, createShuttleRoute, deleteShuttleRoute, updateShuttleRoute,
   getAllShuttleSlotsForHotel, createShuttleSlot, deleteShuttleSlot,
   bookShuttleSlot, cancelShuttleBooking,
   getShuttleRequests, createShuttleRequest, updateShuttleRequest,
   getPartners,
   type ShuttleRoute, type ShuttleSlot, type ShuttleBooking, type ShuttleRequest, type Partner,
 } from '@/lib/supabase';
-import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings } from 'lucide-react';
+import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, Timer } from 'lucide-react';
+
+const BouncieLiveShuttle = dynamic(() => import('@/components/staff/BouncieLiveShuttle'), { ssr: false });
+
+// Haversine distance in miles (client-side copy)
+function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 3958.8;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
 
 const TEAL = '#0D9488';
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -179,6 +192,127 @@ function SlotRow({
   );
 }
 
+/* ── Route card with destination coords editor ── */
+function RouteCard({ route, slots, onDelete, onDeleteSlot, onSaved }: {
+  route: ShuttleRoute;
+  slots: ShuttleSlot[];
+  onDelete: () => void;
+  onDeleteSlot: (id: string) => void;
+  onSaved: () => void;
+}) {
+  const [editDest, setEditDest] = useState(false);
+  const [destAddr, setDestAddr] = useState(route.destination_address || '');
+  const [destLat,  setDestLat]  = useState(route.destination_lat?.toString() || '');
+  const [destLng,  setDestLng]  = useState(route.destination_lng?.toString() || '');
+  const [saving,   setSaving]   = useState(false);
+  const [msg,      setMsg]      = useState('');
+
+  const handleSaveDest = async () => {
+    setSaving(true);
+    setMsg('');
+    try {
+      await updateShuttleRoute(route.id, {
+        destination_address: destAddr.trim() || undefined,
+        destination_lat: destLat ? parseFloat(destLat) : undefined,
+        destination_lng: destLng ? parseFloat(destLng) : undefined,
+      });
+      setMsg('✅ Saved');
+      setEditDest(false);
+      onSaved();
+    } catch { setMsg('❌ Failed to save'); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[14px] font-bold text-gray-900">{route.name}</p>
+          <p className="text-[11px] text-gray-500">{slots.length} time slot{slots.length !== 1 ? 's' : ''}{route.price > 0 ? ` · $${route.price}/person` : ' · Complimentary'}</p>
+        </div>
+        <button onClick={onDelete} className="p-2 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
+          <Trash2 size={14} />
+        </button>
+      </div>
+
+      {slots.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {slots.map(s => (
+            <div key={s.id} className="flex items-center gap-1 bg-gray-50 rounded-lg px-2.5 py-1 border border-gray-100 group">
+              <span className="text-[12px] font-bold text-gray-700">{fmt(s.departure_time)}</span>
+              <button onClick={() => onDeleteSlot(s.id)} className="text-gray-200 hover:text-red-400 group-hover:text-gray-300 ml-0.5 transition-colors">
+                <X size={10} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Destination / GPS section */}
+      <div className="border-t border-gray-100 pt-3">
+        {!editDest ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Navigation size={12} className="text-gray-400" />
+              {route.destination_lat && route.destination_lng ? (
+                <span className="text-[12px] text-gray-700 font-medium">
+                  {route.destination_address || `${route.destination_lat.toFixed(4)}, ${route.destination_lng.toFixed(4)}`}
+                </span>
+              ) : (
+                <span className="text-[12px] text-gray-400 italic">No destination set — add for trip ETA</span>
+              )}
+            </div>
+            <button onClick={() => setEditDest(true)} className="text-[11px] font-bold text-teal-600 hover:text-teal-800 px-2 py-1 rounded-lg hover:bg-teal-50">
+              {route.destination_lat ? 'Edit' : '+ Add Destination'}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Destination Coordinates</p>
+            <input
+              value={destAddr}
+              onChange={e => setDestAddr(e.target.value)}
+              placeholder="e.g. Miami International Airport"
+              className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100"
+            />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-[10px] text-gray-400 block mb-0.5">Latitude</label>
+                <input
+                  type="number" step="0.0001" value={destLat}
+                  onChange={e => setDestLat(e.target.value)}
+                  placeholder="25.7959"
+                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 font-mono"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-[10px] text-gray-400 block mb-0.5">Longitude</label>
+                <input
+                  type="number" step="0.0001" value={destLng}
+                  onChange={e => setDestLng(e.target.value)}
+                  placeholder="-80.2870"
+                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 font-mono"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-400">Find coords: Google Maps → right-click location → copy lat/lng</p>
+            {msg && <p className={`text-[12px] ${msg.startsWith('✅') ? 'text-teal-700' : 'text-red-600'}`}>{msg}</p>}
+            <div className="flex gap-2">
+              <button onClick={handleSaveDest} disabled={saving}
+                className="flex-1 py-2 rounded-xl text-white text-[13px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                {saving ? 'Saving…' : 'Save Destination'}
+              </button>
+              <button onClick={() => { setEditDest(false); setMsg(''); }} className="px-4 py-2 rounded-xl text-[13px] text-gray-500 hover:text-gray-700">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Main ShuttleView ── */
 export default function ShuttleView({ hotelId, isAdmin }: Props) {
   const [tab,      setTab]      = useState<Tab>('runs');
@@ -189,6 +323,7 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
   const [shuttleEta, setShuttleEta] = useState<{ distanceMiles: number; etaMinutes: number } | null>(null);
+  const [shuttlePos, setShuttlePos] = useState<{ lat: number; lng: number; speed_mph: number } | null>(null);
 
   // Setup state — one wizard for creating the whole schedule
   const [schedule, setSchedule] = useState({
@@ -228,6 +363,8 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
       // Extract ETA from first shuttle device
       const shuttle = (vehRes.devices || []).find((d: { is_shuttle: boolean; eta?: { distanceMiles: number; etaMinutes: number } | null }) => d.is_shuttle) || (vehRes.devices || [])[0];
       setShuttleEta(shuttle?.eta ?? null);
+      const loc = shuttle?.bouncie_locations?.[0];
+      setShuttlePos(loc ? { lat: loc.lat, lng: loc.lng, speed_mph: loc.speed_mph ?? 0 } : null);
     } catch (e) { setError(e instanceof Error ? e.message : 'Load failed'); }
     setLoading(false);
   }, [hotelId]);
@@ -367,15 +504,50 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
           {/* ── TODAY'S RUNS ── */}
           {tab === 'runs' && (
             <div className="space-y-4">
-              {shuttleEta && (
-                <div className="bg-teal-50 border border-teal-100 rounded-2xl px-4 py-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-teal-700 text-[13px] font-semibold">
-                    <Bus size={15} style={{ color: TEAL }} />
-                    Shuttle ETA
+
+              {/* ── Bouncie Live GPS Widget ── */}
+              <BouncieLiveShuttle hotelId={hotelId} />
+
+              {/* ── Trip Estimator ── */}
+              {shuttlePos && routes.filter(r => r.destination_lat && r.destination_lng).length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Navigation size={14} style={{ color: TEAL }} />
+                    <span className="text-[13px] font-bold text-gray-800">Trip Estimator</span>
+                    <span className="text-[11px] text-gray-400 ml-1">from current shuttle location</span>
                   </div>
-                  <span className="text-[13px] font-bold text-teal-800">
-                    ~{shuttleEta.etaMinutes} min · {shuttleEta.distanceMiles.toFixed(1)} mi away
-                  </span>
+                  <div className="space-y-2">
+                    {routes.filter(r => r.destination_lat && r.destination_lng).map(route => {
+                      const mi = distanceMiles(shuttlePos.lat, shuttlePos.lng, route.destination_lat!, route.destination_lng!);
+                      const speed = shuttlePos.speed_mph > 2 ? shuttlePos.speed_mph : 30;
+                      const mins = Math.round((mi / speed) * 60);
+                      return (
+                        <div key={route.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2.5">
+                          <div>
+                            <p className="text-[13px] font-semibold text-gray-900">{route.name}</p>
+                            {route.destination_address && (
+                              <p className="text-[11px] text-gray-400">{route.destination_address}</p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[14px] font-extrabold" style={{ color: TEAL }}>~{mins} min</p>
+                            <p className="text-[11px] text-gray-400">{mi.toFixed(1)} mi</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Prompt to add destinations if shuttle is live but no routes have coords */}
+              {shuttlePos && isAdmin && routes.length > 0 && routes.filter(r => r.destination_lat && r.destination_lng).length === 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Timer size={13} className="text-amber-600" />
+                    <span className="text-[12px] font-semibold text-amber-800">Add destination coordinates in Setup to see trip ETAs (airport, cruise port, etc.)</span>
+                  </div>
+                  <button onClick={() => setTab('setup')} className="text-[12px] font-bold text-amber-700 underline ml-2 shrink-0">Setup →</button>
                 </div>
               )}
               {todaySlots.length === 0 ? (
@@ -633,36 +805,16 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
               {routes.length > 0 && (
                 <div className="space-y-3">
                   <h2 className="text-[13px] font-bold text-gray-500 uppercase tracking-wider">Active Schedules</h2>
-                  {routes.map(route => {
-                    const routeSlots = slots.filter(s => s.route_id === route.id).sort((a, b) => (a.departure_time || '').localeCompare(b.departure_time || ''));
-                    return (
-                      <div key={route.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <p className="text-[14px] font-bold text-gray-900">{route.name}</p>
-                            <p className="text-[11px] text-gray-500">{routeSlots.length} time slot{routeSlots.length !== 1 ? 's' : ''}{route.price > 0 ? ` · $${route.price}/person` : ' · Complimentary'}</p>
-                          </div>
-                          <button onClick={() => handleDeleteRoute(route.id)}
-                            className="p-2 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                        {routeSlots.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {routeSlots.map(s => (
-                              <div key={s.id} className="flex items-center gap-1 bg-gray-50 rounded-lg px-2.5 py-1 border border-gray-100 group">
-                                <span className="text-[12px] font-bold text-gray-700">{fmt(s.departure_time)}</span>
-                                <button onClick={() => handleDeleteSlot(s.id)}
-                                  className="text-gray-200 hover:text-red-400 group-hover:text-gray-300 ml-0.5 transition-colors">
-                                  <X size={10} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {routes.map(route => (
+                    <RouteCard
+                      key={route.id}
+                      route={route}
+                      slots={slots.filter(s => s.route_id === route.id).sort((a, b) => (a.departure_time || '').localeCompare(b.departure_time || ''))}
+                      onDelete={() => handleDeleteRoute(route.id)}
+                      onDeleteSlot={handleDeleteSlot}
+                      onSaved={load}
+                    />
+                  ))}
                 </div>
               )}
 

@@ -718,6 +718,9 @@ export interface ShuttleRoute {
   active: boolean;
   price: number;       // 0 = free
   currency: string;    // default "USD"
+  destination_address?: string;
+  destination_lat?: number;
+  destination_lng?: number;
 }
 
 export interface ShuttleSlot {
@@ -778,9 +781,14 @@ export async function getShuttleRoutes(hotelId: string): Promise<ShuttleRoute[]>
   return data || [];
 }
 
-export async function createShuttleRoute(route: { hotel_id: string; name: string; type: string; price?: number }) {
+export async function createShuttleRoute(route: { hotel_id: string; name: string; type: string; price?: number; destination_address?: string; destination_lat?: number; destination_lng?: number }) {
   const { data } = await supabase.from('shuttle_routes').insert({ ...route, price: route.price || 0 }).select().single();
   return data;
+}
+
+export async function updateShuttleRoute(id: string, updates: Partial<ShuttleRoute>) {
+  const { error } = await supabase.from('shuttle_routes').update(updates).eq('id', id);
+  if (error) throw error;
 }
 
 export async function deleteShuttleRoute(id: string) {
