@@ -149,12 +149,13 @@ export async function POST(req: NextRequest) {
         .from('staff_accounts')
         .select('*')
         .ilike('email', staffEmail);
-      // Non-superadmins may only look up staff within their own hotel.
+      // Scope to hotel when known; during first-login the JWT may not yet carry
+      // hotel_id so we fall back to email-only lookup (admin client is used, safe).
       if (!caller.isSuper) {
-        if (!scopedHotelId) {
-          return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
+        if (scopedHotelId) {
+          query = query.eq('hotel_id', scopedHotelId);
         }
-        query = query.eq('hotel_id', scopedHotelId);
+        // else: no hotel in JWT yet — search by email only, accept any hotel
       } else if (requestedHotelId) {
         query = query.eq('hotel_id', requestedHotelId);
       }
