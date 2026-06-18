@@ -7,6 +7,7 @@ import {
 import {
   getPartners, createPartner, updatePartner, deletePartner,
   getPartnerMenuItems, createPartnerMenuItem, deletePartnerMenuItem,
+  authedApiHeaders,
 } from '@/lib/supabase';
 
 /* ── Inline types ────────────────────────────────────── */
@@ -540,6 +541,42 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                               </div>
                             </div>
                           </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Stripe Connect payout setup ── */}
+                  {p.has_ordering && (
+                    <div className="border border-gray-200 rounded-xl p-3 bg-gray-50">
+                      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Vendor Payout (Stripe)</p>
+                      {(p as any).stripe_onboarding_complete ? (
+                        <div className="flex items-center gap-2 text-[12px] text-emerald-700 font-semibold">
+                          <span>✓ Connected — payouts active</span>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-[11px] text-gray-500 mb-2">Vendor receives 90% of each order automatically. They need to connect their bank account once.</p>
+                          <input
+                            placeholder="Vendor payout email"
+                            defaultValue={(p as any).payout_email || p.email || ''}
+                            onBlur={async e => { await updatePartner(p.id, { payout_email: e.target.value } as any); loadPartners(); }}
+                            className="w-full bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none mb-2"
+                          />
+                          <button
+                            onClick={async () => {
+                              const res = await fetch('/api/stripe/connect', {
+                                method: 'POST',
+                                headers: await authedApiHeaders(),
+                                body: JSON.stringify({ partnerId: p.id, hotelId, returnUrl: window.location.href }),
+                              });
+                              const data = await res.json();
+                              if (data.ok && data.url) window.open(data.url, '_blank');
+                            }}
+                            className="px-4 py-2 rounded-lg bg-[#635BFF] text-white text-[12px] font-bold hover:bg-[#5650E5]"
+                          >
+                            Connect Vendor Bank →
+                          </button>
                         </div>
                       )}
                     </div>

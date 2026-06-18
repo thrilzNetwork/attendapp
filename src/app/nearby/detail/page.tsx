@@ -3,8 +3,68 @@
 import { Suspense, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Minus, Plus, ShoppingBag, Star, Clock, MapPin, Phone, Navigation, ExternalLink, Truck } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, ShoppingBag, Star, Clock, MapPin, Phone, Navigation, ExternalLink, Truck, CreditCard, Lock } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { getPartnerById, getPartnerMenuItems, getHotelConfig, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
+
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
+
+function PaymentSheet({ clientSecret, onSuccess, onCancel, brandColor }: {
+  clientSecret: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+  brandColor: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [paying, setPaying] = useState(false);
+  const [error, setError] = useState('');
+
+  const handlePay = async () => {
+    if (!stripe || !elements) return;
+    setPaying(true);
+    setError('');
+    const { error: stripeError } = await stripe.confirmPayment({
+      elements,
+      confirmParams: { return_url: window.location.origin + '/confirmation' },
+      redirect: 'if_required',
+    });
+    if (stripeError) {
+      setError(stripeError.message || 'Payment failed');
+      setPaying(false);
+    } else {
+      onSuccess();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center">
+      <div className="bg-white w-full max-w-md rounded-t-2xl p-5 pb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Lock size={14} className="text-emerald-600" />
+            <span className="text-[13px] font-bold text-gray-900">Secure Payment</span>
+          </div>
+          <button onClick={onCancel} className="text-gray-400 text-[12px]">Cancel</button>
+        </div>
+        <PaymentElement />
+        {error && <p className="text-[11px] text-red-500 mt-2">{error}</p>}
+        <button
+          onClick={handlePay}
+          disabled={paying || !stripe}
+          className="mt-4 w-full py-3.5 rounded-xl text-white font-bold text-[14px] flex items-center justify-center gap-2 disabled:opacity-60"
+          style={{ backgroundColor: brandColor }}
+        >
+          <CreditCard size={16} /> {paying ? 'Processing…' : 'Pay Now'}
+        </button>
+        <p className="text-[10px] text-gray-400 text-center mt-2">Powered by Stripe · Your card is never stored</p>
+      </div>
+    </div>
+  );
+}
 
 interface UberQuote {
   id: string;
@@ -33,6 +93,9 @@ function PartnerContent() {
   const [quoteLoading, setQuoteLoading] = useState(false);
 
   const [hotelId, setHotelId] = useState<string | null>(null);
+  const [stripeEnabled, setStripeEnabled] = useState(false);
+  const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
@@ -49,6 +112,7 @@ function PartnerContent() {
       if (cfg?.brandColor) setBrandColor(cfg.brandColor);
       if (cfg?.id) setHotelId(cfg.id);
     })();
+    setStripeEnabled(!!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
   }, []);
 
   // Fetch Uber quote when cart has items and hotel/partner are loaded
@@ -89,69 +153,106 @@ function PartnerContent() {
     .map(i => ({ ...i, qty: cart[i.id] }));
   const total = cartItems.reduce((s, i) => s + Number(i.price) * i.qty, 0);
 
+  const createOrderRow = async () => {
+    const stored = localStorage.getItem('guestSession');
+    const session = stored ? JSON.parse(stored) : null;
+    const qrRoom = localStorage.getItem('attenda_qr_room');
+    const guestName = session?.name || 'Guest';
+    const room = qrRoom || session?.room || '?';
+    const subtotal = cartItems.reduce((s, i) => s + Number(i.price) * i.qty, 0);
+    const details = cartItems.map(i => `${i.qty}x ${i.name}`).join(', ');
+
+    const { data: requestRow } = await supabase.from('requests').insert({
+      hotel_id: partner.hotel_id,
+      guest_name: guestName,
+      room,
+      type: 'Food Order',
+      details: `${partner.name}: ${details} — $${subtotal.toFixed(2)}`,
+      status: 'pending',
+      partner_id: partner.id,
+      vendor_status: 'new',
+      total_amount: subtotal,
+      vendor_payout: +(subtotal * 0.9).toFixed(2),
+      delivery_method: deliveryMethod,
+      stripe_payment_status: stripeEnabled ? 'pending' : 'room_charge',
+    }).select('id').single();
+
+    return { requestRow, guestName, room, subtotal };
+  };
+
+  const finishOrder = async (requestRow: any, guestName: string, room: string, subtotal: number) => {
+    // Uber Direct dispatch
+    if (deliveryMethod === 'uber_direct' && uberQuote && requestRow && hotelId) {
+      fetch('/api/uber-direct/delivery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: requestRow.id,
+          quoteId: uberQuote.id,
+          partnerId: partner.id,
+          hotelId,
+          items: cartItems.map(i => ({ name: i.name, quantity: i.qty, price: Number(i.price) })),
+        }),
+      }).catch(err => console.warn('Uber delivery dispatch failed:', err));
+    }
+
+    const hotelConfig = await getHotelConfig();
+    fetch('/api/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+      body: JSON.stringify({
+        type: 'food_order',
+        data: {
+          notificationEmail: hotelConfig?.notificationEmail || '',
+          partnerEmail: partner.email || '',
+          hotelName: hotelConfig?.name || 'Hotel',
+          guestName,
+          room,
+          partnerName: partner.name,
+          items: cartItems.map(i => ({ name: i.name, qty: i.qty, price: Number(i.price) })),
+          total: subtotal.toFixed(2),
+        },
+      }),
+    }).catch(() => {});
+
+    router.push('/confirmation');
+  };
+
   const placeOrder = async () => {
     if (ordering) return;
     setOrdering(true);
     try {
-      const stored = localStorage.getItem('guestSession');
-      const session = stored ? JSON.parse(stored) : null;
-      const qrRoom = localStorage.getItem('attenda_qr_room');
-      const guestName = session?.name || 'Guest';
-      const room = qrRoom || session?.room || '?';
+      const { requestRow, guestName, room, subtotal } = await createOrderRow();
+      if (!requestRow) throw new Error('Failed to create order');
 
-      const subtotal = cartItems.reduce((s, i) => s + Number(i.price) * i.qty, 0);
-      const details = cartItems.map(i => `${i.qty}x ${i.name}`).join(', ');
-
-      // Insert request first
-      const { data: requestRow } = await supabase.from('requests').insert({
-        hotel_id: partner.hotel_id,
-        guest_name: guestName,
-        room,
-        type: 'Food Order',
-        details: `${partner.name}: ${details} — $${subtotal.toFixed(2)}`,
-        status: 'pending',
-        partner_id: partner.id,
-        vendor_status: 'new',
-        total_amount: subtotal,
-        vendor_payout: +(subtotal * 0.9).toFixed(2),
-        delivery_method: deliveryMethod,
-      }).select('id').single();
-
-      // If Uber Direct selected, dispatch delivery
-      if (deliveryMethod === 'uber_direct' && uberQuote && requestRow && hotelId) {
-        await fetch('/api/uber-direct/delivery', {
+      if (stripeEnabled) {
+        // Create Stripe payment intent, show payment sheet
+        const amountCents = Math.round(subtotal * 100);
+        const res = await fetch('/api/stripe/payment-intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             requestId: requestRow.id,
-            quoteId: uberQuote.id,
+            amountCents,
             partnerId: partner.id,
-            hotelId,
-            items: cartItems.map(i => ({ name: i.name, quantity: i.qty, price: Number(i.price) })),
+            description: `${partner.name} order — Room ${room}`,
           }),
-        }).catch(err => console.warn('Uber delivery dispatch failed:', err));
+        });
+        const data = await res.json();
+        if (data.ok && data.clientSecret) {
+          setPendingRequestId(requestRow.id);
+          setPaymentClientSecret(data.clientSecret);
+          // Store for finishOrder after payment
+          (window as any).__pendingOrder = { requestRow, guestName, room, subtotal };
+        } else {
+          // Stripe unavailable — fall back to room charge
+          await finishOrder(requestRow, guestName, room, subtotal);
+        }
+      } else {
+        await finishOrder(requestRow, guestName, room, subtotal);
       }
-
-      const hotelConfig = await getHotelConfig();
-      fetch('/api/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-        body: JSON.stringify({
-          type: 'food_order',
-          data: {
-            notificationEmail: hotelConfig?.notificationEmail || '',
-            partnerEmail: partner.email || '',
-            hotelName: hotelConfig?.name || 'Hotel',
-            guestName,
-            room,
-            partnerName: partner.name,
-            items: cartItems.map(i => ({ name: i.name, qty: i.qty, price: Number(i.price) })),
-            total: subtotal.toFixed(2),
-          },
-        }),
-      }).catch((err) => console.warn('Order notification email failed:', err));
-
-      router.push('/confirmation');
+    } catch (e) {
+      console.error('Order error:', e);
     } finally {
       setOrdering(false);
     }
@@ -159,6 +260,21 @@ function PartnerContent() {
 
   return (
     <div className="h-screen w-full max-w-md mx-auto bg-[#F5F5F5] flex flex-col overflow-hidden">
+      {/* Stripe payment sheet overlay */}
+      {paymentClientSecret && stripePromise && (
+        <Elements stripe={stripePromise} options={{ clientSecret: paymentClientSecret, appearance: { theme: 'stripe' } }}>
+          <PaymentSheet
+            clientSecret={paymentClientSecret}
+            brandColor={brandColor}
+            onCancel={() => { setPaymentClientSecret(null); setPendingRequestId(null); }}
+            onSuccess={async () => {
+              setPaymentClientSecret(null);
+              const pending = (window as any).__pendingOrder;
+              if (pending) await finishOrder(pending.requestRow, pending.guestName, pending.room, pending.subtotal);
+            }}
+          />
+        </Elements>
+      )}
       {/* Hero */}
       <div className="relative h-44 shrink-0">
         <Image src={partner.image_url || 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&fit=crop'} alt={partner.name} fill className="object-cover" sizes="100vw" />
@@ -303,12 +419,15 @@ function PartnerContent() {
                         className="w-full text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-between px-5 active:scale-[0.97] transition-transform disabled:opacity-60"
                         style={{ backgroundColor: brandColor }}>
                         <div className="flex items-center gap-2">
-                          <ShoppingBag size={18} />
-                          <span className="text-sm">{cartItems.reduce((s, i) => s + i.qty, 0)} items</span>
+                          {stripeEnabled ? <CreditCard size={18} /> : <ShoppingBag size={18} />}
+                          <span className="text-sm">{cartItems.reduce((s, i) => s + i.qty, 0)} item{cartItems.reduce((s, i) => s + i.qty, 0) !== 1 ? 's' : ''}</span>
                         </div>
-                        <span className="text-lg font-extrabold">${total.toFixed(2)}</span>
+                        <div className="text-right">
+                          <span className="text-lg font-extrabold">${total.toFixed(2)}</span>
+                          {stripeEnabled && <span className="block text-[10px] font-normal opacity-80">Pay by card</span>}
+                        </div>
                       </button>
-                      <p className="text-[10px] text-gray-400 text-center">Charged to your room or pay at front desk</p>
+                      {!stripeEnabled && <p className="text-[10px] text-gray-400 text-center">Charged to your room or pay at front desk</p>}
                     </div>
                   )}
                 </>
