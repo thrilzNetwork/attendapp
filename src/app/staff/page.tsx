@@ -65,6 +65,7 @@ import DailyLogsView from '@/components/ops-tools/DailyLogsView';
 import NoShowsView from '@/components/ops-tools/NoShowsView';
 import RoomMovesView from '@/components/ops-tools/RoomMovesView';
 import BankCountView from '@/components/ops-tools/BankCountView';
+import BouncieLiveShuttle from '@/components/staff/BouncieLiveShuttle';
 
 const RoomsView = dynamic(() => import('@/components/staff/RoomsView'), { ssr: false });
 const SchedulesView = dynamic(() => import('@/components/staff/SchedulesView'), { ssr: false });
@@ -1437,6 +1438,7 @@ function ShuttleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[26px] font-extrabold text-gray-900">Shuttle Schedule</h1>
       </div>
+      {hotelId && <BouncieLiveShuttle hotelId={hotelId} />}
       {calendarTab === 'calendar' ? calView : <ShuttleRoutesPanel hotelId={hotelId} isAdmin={isAdmin} />}
     </div>
   );
