@@ -14,6 +14,7 @@ import {
   suggestResponse,
   type OpRecord,
 } from '@/lib/opsStore';
+import { supabase } from '@/lib/supabase';
 
 const TEAL = '#0D9488';
 
@@ -101,6 +102,18 @@ export default function KpisView({ hotelId, isAdmin, userName }: { hotelId: stri
     setSubmitting(true);
     try {
       await createKpiSubmission(hotelId, { definition_id: kpi.id, kpi_name: def.kpi_name, value: v, shift_date: selectedDate, submitted_by: userName });
+      // Award 25 pts if KPI meets or exceeds target
+      try {
+        if (def.target > 0 && v >= def.target) {
+          await supabase.from('staff_points').insert({
+            hotel_id: hotelId,
+            staff_name: userName || 'Staff',
+            points: 25,
+            reason: 'kpi_target',
+            description: `Hit target: ${def.kpi_name} (${v} ${def.unit || ''})`,
+          });
+        }
+      } catch (_) {}
       const lg = await listKpiSubmissions(hotelId);
       setLogs(lg || []);
       setLogValues(p => { const n = { ...p }; delete n[kpi.id]; return n; });

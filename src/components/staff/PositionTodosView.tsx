@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import {
+  supabase,
   getPositionTodoTemplates, createPositionTodoTemplate, deletePositionTodoTemplate,
   getTemplateItems, createTemplateItem, deleteTemplateItem,
   getTodayInstances, createInstance, completeInstance,
@@ -319,6 +320,18 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
 
   const handleComplete = async (instId: string) => {
     await completeInstance(instId);
+    // Award 10 points for checklist completion — fire and forget, don't break existing flow
+    try {
+      const instance = instances.find(i => i.id === instId);
+      await supabase.from('staff_points').insert({
+        hotel_id: hotelId,
+        staff_name: staffName || 'Staff',
+        points: 10,
+        reason: 'checklist',
+        description: `Completed checklist`,
+        reference_id: instId,
+      });
+    } catch (_) {}
     await loadAll();
   };
 
