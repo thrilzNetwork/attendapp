@@ -1,5 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Local calendar date as YYYY-MM-DD (NOT UTC). Using toISOString() returns the
+// UTC date, which rolls over to "tomorrow" after ~7pm in US timezones and makes
+// same-day records appear to vanish. Always build dates from local parts.
+function localDate(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// True only for a well-formed UUID — used to skip queries with an empty/invalid
+// hotel_id that would otherwise make PostgREST throw "invalid input syntax for type uuid".
+function isUuid(v: unknown): v is string {
+  return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
 export interface FacilitiesAmenity {
   icon: string; // lucide icon name
   title: string;
@@ -136,6 +149,7 @@ export interface RequestItem {
   details: string;
   status: string;
   createdAt: string;
+  guest_verified?: boolean;
 }
 
 // Hotel Config helpers
@@ -241,6 +255,7 @@ export async function getAllRequests(hotelId: string): Promise<RequestItem[]> {
     .from('requests')
     .select('*')
     .eq('hotel_id', hotelId)
+    .neq('room', 'STAFF') // exclude ops-store rows that share this table
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message || JSON.stringify(error));
   return (data || []).map((r: Record<string, unknown>) => ({
@@ -251,6 +266,7 @@ export async function getAllRequests(hotelId: string): Promise<RequestItem[]> {
     details: r.details as string,
     status: r.status as string,
     createdAt: r.created_at as string,
+    guest_verified: r.guest_verified as boolean | undefined,
   }));
 }
 
@@ -284,18 +300,26 @@ export type ChatMessage = {
   created_at: string;
 };
 
-export async function insertRequest(req: { guestName: string; room: string; type: string; details: string; hotelId?: string }) {
+export async function insertRequest(req: { guestName: string; room: string; type: string; details: string; hotelId?: string; partnerId?: string; totalAmount?: number }) {
   const hid = req.hotelId || (await getHotelConfig())?.id;
-  const { data, error } = await supabase.from('requests').insert({
+  const row: Record<string, unknown> = {
     hotel_id: hid,
     guest_name: req.guestName,
     room: req.room,
     type: req.type,
     details: req.details,
     status: 'pending',
-  }).select().single();
+  };
+  if (req.partnerId) { row.partner_id = req.partnerId; row.vendor_status = 'new'; }
+  if (req.totalAmount) { row.total_amount = req.totalAmount; row.vendor_payout = +(req.totalAmount * 0.9).toFixed(2); }
+  const { data, error } = await supabase.from('requests').insert(row).select().single();
   if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
+}
+
+export async function updateVendorStatus(id: string, vendorStatus: 'new' | 'received' | 'preparing' | 'ready') {
+  const { error } = await supabase.from('requests').update({ vendor_status: vendorStatus }).eq('id', id);
+  if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
 export async function updateRequestStatus(id: string, status: string, assigned_to?: string) {
@@ -426,14 +450,18 @@ export interface PartnerMenuItem {
   description: string;
   price: number;
   is_active: boolean;
+  category?: string;
+  sort_order?: number;
 }
 
 export async function getPartners(hotelId: string): Promise<Partner[]> {
-  const { data } = await supabase
-    .from('partners').select('*')
-    .eq('hotel_id', hotelId).eq('is_active', true)
-    .order('category').order('name');
-  return data || [];
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'get_partners', data: { hotel_id: hotelId } }),
+  });
+  const json = await res.json();
+  return json.data || [];
 }
 
 export async function getPartnerById(id: string): Promise<Partner | null> {
@@ -442,30 +470,63 @@ export async function getPartnerById(id: string): Promise<Partner | null> {
 }
 
 export async function createPartner(partner: Omit<Partner, 'id' | 'is_active'>): Promise<Partner | null> {
-  const { data } = await supabase.from('partners').insert({ ...partner, is_active: true }).select().single();
-  return data;
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'create_partner', data: partner }),
+  });
+  const json = await res.json();
+  return json.data || null;
 }
 
 export async function updatePartner(id: string, updates: Partial<Partner>): Promise<void> {
-  await supabase.from('partners').update(updates).eq('id', id);
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'update_partner', data: { id, updates } }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'updatePartner failed');
 }
 
 export async function deletePartner(id: string): Promise<void> {
-  await supabase.from('partners').delete().eq('id', id);
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'delete_partner', data: { id } }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'deletePartner failed');
 }
 
 export async function getPartnerMenuItems(partnerId: string): Promise<PartnerMenuItem[]> {
-  const { data } = await supabase.from('partner_menu_items').select('*')
-    .eq('partner_id', partnerId).eq('is_active', true);
-  return data || [];
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'get_menu_items', data: { partner_id: partnerId } }),
+  });
+  const json = await res.json();
+  return json.data || [];
 }
 
-export async function createPartnerMenuItem(item: { partner_id: string; name: string; description: string; price: number }): Promise<void> {
-  await supabase.from('partner_menu_items').insert({ ...item, is_active: true });
+export async function createPartnerMenuItem(item: { partner_id: string; name: string; description: string; price: number; category?: string; sort_order?: number }): Promise<void> {
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'create_menu_item', data: item }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'createPartnerMenuItem failed');
 }
 
 export async function deletePartnerMenuItem(id: string): Promise<void> {
-  await supabase.from('partner_menu_items').delete().eq('id', id);
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'delete_menu_item', data: { id } }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'deletePartnerMenuItem failed');
 }
 
 // ─── Compset (competitive rate shop) ──────────────────────────
@@ -475,6 +536,7 @@ export interface CompsetHotel {
   hotel_id: string;
   name: string;
   phone: string;
+  room_keys: number;
   is_active: boolean;
   sort_order: number;
 }
@@ -503,54 +565,68 @@ export interface CompsetEntry {
 }
 
 export async function getCompsetHotels(hotelId: string): Promise<CompsetHotel[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('compset_hotels').select('*')
     .eq('hotel_id', hotelId).eq('is_active', true)
     .order('sort_order').order('name');
+  if (error) throw error;
   return data || [];
 }
 
-export async function createCompsetHotel(hotel: { hotel_id: string; name: string; phone: string }): Promise<CompsetHotel | null> {
-  const { data } = await supabase.from('compset_hotels').insert({ ...hotel, is_active: true }).select().single();
+export async function createCompsetHotel(hotel: { hotel_id: string; name: string; phone: string; room_keys?: number }): Promise<CompsetHotel | null> {
+  const { data, error } = await supabase.from('compset_hotels').insert({ ...hotel, is_active: true }).select().single();
+  if (error) throw error;
   return data;
 }
 
 export async function updateCompsetHotel(id: string, updates: Partial<CompsetHotel>): Promise<void> {
-  await supabase.from('compset_hotels').update(updates).eq('id', id);
+  const { error } = await supabase.from('compset_hotels').update(updates).eq('id', id);
+  if (error) throw error;
 }
 
 export async function deleteCompsetHotel(id: string): Promise<void> {
-  await supabase.from('compset_hotels').delete().eq('id', id);
+  const { error } = await supabase.from('compset_hotels').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function getCompsetCallTimes(hotelId: string): Promise<CompsetCallTime[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('compset_call_times').select('*')
     .eq('hotel_id', hotelId)
     .order('call_time');
+  if (error) throw error;
   return data || [];
 }
 
 export async function createCompsetCallTime(callTime: { hotel_id: string; call_time: string; label: string }): Promise<void> {
-  await supabase.from('compset_call_times').insert(callTime);
+  const { error } = await supabase.from('compset_call_times').insert(callTime);
+  if (error) throw error;
+}
+
+export async function updateCompsetCallTime(id: string, updates: Partial<CompsetCallTime>): Promise<void> {
+  const { error } = await supabase.from('compset_call_times').update(updates).eq('id', id);
+  if (error) throw error;
 }
 
 export async function deleteCompsetCallTime(id: string): Promise<void> {
-  await supabase.from('compset_call_times').delete().eq('id', id);
+  const { error } = await supabase.from('compset_call_times').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function getCompsetEntries(hotelId: string, date: string): Promise<CompsetEntry[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('compset_entries').select('*')
     .eq('hotel_id', hotelId).eq('call_date', date);
+  if (error) throw error;
   return data || [];
 }
 
 export async function getCompsetEntriesRange(hotelId: string, startDate: string, endDate: string): Promise<CompsetEntry[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('compset_entries').select('*')
     .eq('hotel_id', hotelId).gte('call_date', startDate).lte('call_date', endDate)
     .order('call_date', { ascending: false }).order('call_time');
+  if (error) throw error;
   return data || [];
 }
 
@@ -566,8 +642,9 @@ export async function upsertCompsetEntry(entry: {
   entered_by: string | null;
   entered_by_name: string;
 }): Promise<void> {
-  await supabase.from('compset_entries')
+  const { error } = await supabase.from('compset_entries')
     .upsert(entry, { onConflict: 'compset_hotel_id,call_date,call_time' });
+  if (error) throw error;
 }
 
 // ─── Hotels (multi-tenant) ────────────────────────────────────
@@ -615,20 +692,28 @@ export async function deleteHotel(id: string) {
     await supabase.from('partner_menu_items').delete().in('partner_id', partners.map(p => p.id));
     await supabase.from('partners').delete().eq('hotel_id', id);
   }
-  await supabase.from('qr_codes').delete().eq('hotel_id', id);
-  await supabase.from('requests').delete().eq('hotel_id', id);
-  await supabase.from('messages').delete().eq('hotel_id', id);
-  await supabase.from('staff_accounts').delete().eq('hotel_id', id);
-  await supabase.from('attenda_fees').delete().eq('hotel_id', id);
-  await supabase.from('hotels').delete().eq('id', id);
+  const { error: e1 } = await supabase.from('qr_codes').delete().eq('hotel_id', id);
+  if (e1) throw e1;
+  const { error: e2 } = await supabase.from('requests').delete().eq('hotel_id', id);
+  if (e2) throw e2;
+  const { error: e3 } = await supabase.from('messages').delete().eq('hotel_id', id);
+  if (e3) throw e3;
+  const { error: e4 } = await supabase.from('staff_accounts').delete().eq('hotel_id', id);
+  if (e4) throw e4;
+  const { error: e5 } = await supabase.from('attenda_fees').delete().eq('hotel_id', id);
+  if (e5) throw e5;
+  const { error: e6 } = await supabase.from('hotels').delete().eq('id', id);
+  if (e6) throw e6;
 }
 
 export async function toggleHotelActive(hotelId: string, active: boolean) {
-  await supabase.from('hotels').update({ is_active: active }).eq('id', hotelId);
+  const { error } = await supabase.from('hotels').update({ is_active: active }).eq('id', hotelId);
+  if (error) throw error;
 }
 
 export async function togglePartnerOrdering(partnerId: string, enabled: boolean) {
-  await supabase.from('partners').update({ has_ordering: enabled }).eq('id', partnerId);
+  const { error } = await supabase.from('partners').update({ has_ordering: enabled }).eq('id', partnerId);
+  if (error) throw error;
 }
 
 // ─── QR Codes ─────────────────────────────────────────────────
@@ -649,11 +734,13 @@ export async function getQrCodes(hotelId: string): Promise<QrCode[]> {
 }
 
 export async function createQrCode(hotelId: string, label: string, locationType: string, url: string): Promise<void> {
-  await supabase.from('qr_codes').insert({ hotel_id: hotelId, label, location_type: locationType, url });
+  const { error } = await supabase.from('qr_codes').insert({ hotel_id: hotelId, label, location_type: locationType, url });
+  if (error) throw error;
 }
 
 export async function deleteQrCode(id: string): Promise<void> {
-  await supabase.from('qr_codes').delete().eq('id', id);
+  const { error } = await supabase.from('qr_codes').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Shuttle Types ──────────────────────────────────────────
@@ -666,6 +753,9 @@ export interface ShuttleRoute {
   active: boolean;
   price: number;       // 0 = free
   currency: string;    // default "USD"
+  destination_address?: string;
+  destination_lat?: number;
+  destination_lng?: number;
 }
 
 export interface ShuttleSlot {
@@ -720,22 +810,30 @@ export interface ShuttleRequest {
 // ─── Shuttle CRUD ───────────────────────────────────────────
 
 export async function getShuttleRoutes(hotelId: string): Promise<ShuttleRoute[]> {
+  if (!isUuid(hotelId)) return [];
   const { data } = await supabase.from('shuttle_routes').select('*')
     .eq('hotel_id', hotelId).eq('active', true).order('name');
   return data || [];
 }
 
-export async function createShuttleRoute(route: { hotel_id: string; name: string; type: string; price?: number }) {
+export async function createShuttleRoute(route: { hotel_id: string; name: string; type: string; price?: number; destination_address?: string; destination_lat?: number; destination_lng?: number }) {
   const { data } = await supabase.from('shuttle_routes').insert({ ...route, price: route.price || 0 }).select().single();
   return data;
 }
 
+export async function updateShuttleRoute(id: string, updates: Partial<ShuttleRoute>) {
+  const { error } = await supabase.from('shuttle_routes').update(updates).eq('id', id);
+  if (error) throw error;
+}
+
 export async function deleteShuttleRoute(id: string) {
-  await supabase.from('shuttle_routes').delete().eq('id', id);
+  const { error } = await supabase.from('shuttle_routes').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function toggleShuttleRoute(id: string, active: boolean) {
-  await supabase.from('shuttle_routes').update({ active }).eq('id', id);
+  const { error } = await supabase.from('shuttle_routes').update({ active }).eq('id', id);
+  if (error) throw error;
 }
 
 export async function getShuttleSlots(routeId: string): Promise<ShuttleSlot[]> {
@@ -752,6 +850,7 @@ export async function getShuttleSlots(routeId: string): Promise<ShuttleSlot[]> {
 }
 
 export async function getAllShuttleSlotsForHotel(hotelId: string): Promise<ShuttleSlot[]> {
+  if (!isUuid(hotelId)) return [];
   const { data } = await supabase.from('shuttle_slots').select(`
     *, shuttle_routes!inner(name, type)
   `).eq('shuttle_routes.hotel_id', hotelId).eq('shuttle_routes.active', true).eq('shuttle_slots.active', true).order('departure_time');
@@ -783,7 +882,7 @@ export async function getAllShuttleSlotsForHotel(hotelId: string): Promise<Shutt
 }
 
 export async function createShuttleSlot(slot: {
-  route_id: string; departure_time: string;
+  route_id: string; hotel_id: string; departure_time: string;
   days_of_week?: number[]; date?: string; capacity?: number;
   event_label?: string; override_price?: number;
 }) {
@@ -795,7 +894,8 @@ export async function createShuttleSlot(slot: {
 }
 
 export async function deleteShuttleSlot(id: string) {
-  await supabase.from('shuttle_slots').delete().eq('id', id);
+  const { error } = await supabase.from('shuttle_slots').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function getShuttleBookings(slotId: string): Promise<ShuttleBooking[]> {
@@ -810,6 +910,7 @@ export async function getShuttleBookings(slotId: string): Promise<ShuttleBooking
 }
 
 export async function getAllShuttleBookingsForHotel(hotelId: string): Promise<ShuttleBooking[]> {
+  if (!isUuid(hotelId)) return [];
   const { data } = await supabase.from('shuttle_bookings').select(`
     *, shuttle_slots!inner(departure_time, shuttle_routes!inner(name, hotel_id))
   `).eq('shuttle_slots.shuttle_routes.hotel_id', hotelId)
@@ -834,7 +935,8 @@ export async function bookShuttleSlot(booking: {
 }
 
 export async function cancelShuttleBooking(id: string) {
-  await supabase.from('shuttle_bookings').update({ status: 'cancelled' }).eq('id', id);
+  const { error } = await supabase.from('shuttle_bookings').update({ status: 'cancelled' }).eq('id', id);
+  if (error) throw error;
 }
 
 export async function createShuttleRequest(req: {
@@ -865,6 +967,7 @@ export async function createShuttleRequest(req: {
 }
 
 export async function getShuttleRequests(hotelId: string): Promise<ShuttleRequest[]> {
+  if (!isUuid(hotelId)) return [];
   const { data } = await supabase.from('shuttle_requests').select(`
     *, staff_accounts!left(name)
   `).eq('hotel_id', hotelId).order('created_at', { ascending: false });
@@ -877,7 +980,8 @@ export async function getShuttleRequests(hotelId: string): Promise<ShuttleReques
 export async function updateShuttleRequest(id: string, updates: {
   status?: string; assigned_driver_id?: string | null;
 }) {
-  await supabase.from('shuttle_requests').update(updates).eq('id', id);
+  const { error } = await supabase.from('shuttle_requests').update(updates).eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Cruise Schedules ────────────────────────────────────────
@@ -896,9 +1000,9 @@ export interface CruiseSchedule {
 }
 
 export async function getCruiseSchedules(hotelId: string): Promise<CruiseSchedule[]> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
   const { data } = await supabase.from('cruise_schedules').select('*')
-    .eq('hotel_id', hotelId).eq('active', true)
+    .eq('hotel_id', hotelId)
     .gte('departure_date', today)
     .order('departure_date').order('departure_time');
   return data || [];
@@ -906,7 +1010,7 @@ export async function getCruiseSchedules(hotelId: string): Promise<CruiseSchedul
 
 export async function getCruiseSchedulesAll(hotelId: string): Promise<CruiseSchedule[]> {
   const { data } = await supabase.from('cruise_schedules').select('*')
-    .eq('hotel_id', hotelId).eq('active', true)
+    .eq('hotel_id', hotelId)
     .order('departure_date', { ascending: false }).order('departure_time');
   return data || [];
 }
@@ -922,7 +1026,8 @@ export async function createCruiseSchedule(schedule: {
 }
 
 export async function deleteCruiseSchedule(id: string) {
-  await supabase.from('cruise_schedules').update({ active: false }).eq('id', id);
+  const { error } = await supabase.from('cruise_schedules').update({ active: false }).eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Enhanced Staff CRUD (routed through API to bypass RLS) ──
@@ -1024,7 +1129,8 @@ export async function updateKnowledgeEntry(id: string, updates: {
 }
 
 export async function deleteKnowledgeEntry(id: string): Promise<void> {
-  await supabase.from('hotel_knowledge_base').delete().eq('id', id);
+  const { error } = await supabase.from('hotel_knowledge_base').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Hotel Rooms (bulk upload + CRUD) ─────────────────────────
@@ -1060,10 +1166,11 @@ export async function getAllHotelRooms(hotelId: string): Promise<HotelRoom[]> {
 
 export async function bulkInsertRooms(hotelId: string, rooms: { room_number: string; room_type?: string; floor?: number }[]) {
   // Delete existing active rooms first, then insert fresh
-  await supabase.from('hotel_rooms').delete().eq('hotel_id', hotelId);
-  
+  const { error: delErr } = await supabase.from('hotel_rooms').delete().eq('hotel_id', hotelId);
+  if (delErr) throw delErr;
+
   if (rooms.length === 0) return [];
-  
+
   const { data, error } = await supabase.from('hotel_rooms').insert(
     rooms.map(r => ({
       hotel_id: hotelId,
@@ -1079,7 +1186,8 @@ export async function bulkInsertRooms(hotelId: string, rooms: { room_number: str
 }
 
 export async function deleteRoom(id: string) {
-  await supabase.from('hotel_rooms').delete().eq('id', id);
+  const { error } = await supabase.from('hotel_rooms').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function createRoom(hotelId: string, room: { room_number: string; room_type?: string; floor?: number }) {
@@ -1201,11 +1309,12 @@ export async function updateChecklist(id: string, updates: { name?: string; item
 }
 
 export async function deleteChecklist(id: string) {
-  await supabase.from('staff_checklists').delete().eq('id', id);
+  const { error } = await supabase.from('staff_checklists').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function getChecklistInstances(hotelId: string, date?: string): Promise<ChecklistInstance[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const { data } = await supabase.from('staff_checklist_instances').select('*')
     .eq('hotel_id', hotelId).eq('shift_date', d).order('created_at');
   return (data || []).map((c: Record<string, unknown>) => ({
@@ -1219,7 +1328,7 @@ export async function createChecklistInstance(instance: {
 }) {
   const { data, error } = await supabase.from('staff_checklist_instances').insert({
     ...instance,
-    shift_date: instance.shift_date || new Date().toISOString().split('T')[0],
+    shift_date: instance.shift_date || localDate(),
     checked_items: [],
     completed: false,
   }).select().single();
@@ -1251,7 +1360,7 @@ export interface StaffSchedule {
 }
 
 export async function getStaffSchedules(hotelId: string, date?: string): Promise<StaffSchedule[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const res = await fetch('/api/ops-data', {
     method: 'POST',
     headers: await authedApiHeaders(),
@@ -1306,12 +1415,16 @@ export async function getDailyRecap(hotelId: string): Promise<{
   staffOnDuty: number;
   checklistsCompleted: number; checklistsTotal: number;
 }> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
 
   const [reqRes, msgRes, shuttleRes, staffRes, checklistRes] = await Promise.all([
-    supabase.from('requests').select('status, created_at').eq('hotel_id', hotelId).gte('created_at', today),
+    // Exclude ops-store rows (room='STAFF') that share the `requests` table — only count real guest requests
+    supabase.from('requests').select('status, created_at').eq('hotel_id', hotelId).neq('room', 'STAFF').gte('created_at', today),
     supabase.from('messages').select('id, created_at').eq('hotel_id', hotelId).gte('created_at', today),
-    supabase.from('shuttle_bookings').select('id, created_at, status').gte('created_at', today),
+    supabase.from('shuttle_bookings')
+      .select('id, created_at, status, shuttle_slots!inner(shuttle_routes!inner(hotel_id))')
+      .eq('shuttle_slots.shuttle_routes.hotel_id', hotelId)
+      .gte('created_at', today),
     // These two tables lacked RLS policies until migration 004; gracefully skip on 403
     supabase.from('staff_schedules').select('start_time, end_time').eq('hotel_id', hotelId).eq('shift_date', today),
     supabase.from('staff_checklist_instances').select('completed').eq('hotel_id', hotelId).eq('shift_date', today),
@@ -1410,8 +1523,11 @@ export async function updateOpsTool(id: string, updates: Partial<OpsTool>): Prom
 
 export async function deleteOpsTool(id: string): Promise<void> {
   // Also clean up hotel toggles
-  await supabase.from('hotel_ops_tools').delete().eq('tool_key', (await supabase.from('ops_tools').select('key').eq('id', id).single()).data?.key || '');
-  await supabase.from('ops_tools').delete().eq('id', id);
+  const keyRes = await supabase.from('ops_tools').select('key').eq('id', id).single();
+  const { error: e1 } = await supabase.from('hotel_ops_tools').delete().eq('tool_key', keyRes.data?.key || '');
+  if (e1) throw e1;
+  const { error: e2 } = await supabase.from('ops_tools').delete().eq('id', id);
+  if (e2) throw e2;
 }
 
 // ─── Per-Hotel Toggles ────────────────────────
@@ -1459,14 +1575,15 @@ export interface CallAroundLog {
 }
 
 export async function getCallAroundLogs(hotelId: string, date?: string): Promise<CallAroundLog[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const { data } = await supabase.from('call_around_logs').select('*')
     .eq('hotel_id', hotelId).eq('shift_date', d).order('created_at', { ascending: false });
   return (data || []) as CallAroundLog[];
 }
 
 export async function createCallAroundLog(log: Omit<CallAroundLog, 'id' | 'created_at'>): Promise<void> {
-  await supabase.from('call_around_logs').insert(log);
+  const { error } = await supabase.from('call_around_logs').insert(log);
+  if (error) throw error;
 }
 
 // ─── Daily Logs ────────────────────────────────
@@ -1482,14 +1599,15 @@ export interface DailyLogEntry {
 }
 
 export async function getDailyLogs(hotelId: string, date?: string, limit = 50): Promise<DailyLogEntry[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const { data } = await supabase.from('daily_logs').select('*')
     .eq('hotel_id', hotelId).eq('log_date', d).order('created_at', { ascending: false }).limit(limit);
   return (data || []) as DailyLogEntry[];
 }
 
 export async function createDailyLog(log: Omit<DailyLogEntry, 'id' | 'created_at'>): Promise<void> {
-  await supabase.from('daily_logs').insert(log);
+  const { error } = await supabase.from('daily_logs').insert(log);
+  if (error) throw error;
 }
 
 // ─── No Shows ─────────────────────────────────
@@ -1506,18 +1624,20 @@ export interface NoShow {
 }
 
 export async function getNoShows(hotelId: string, date?: string): Promise<NoShow[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const { data } = await supabase.from('no_shows').select('*')
     .eq('hotel_id', hotelId).eq('no_show_date', d).order('created_at', { ascending: false });
   return (data || []) as NoShow[];
 }
 
 export async function createNoShow(ns: Omit<NoShow, 'id' | 'created_at'>): Promise<void> {
-  await supabase.from('no_shows').insert(ns);
+  const { error } = await supabase.from('no_shows').insert(ns);
+  if (error) throw error;
 }
 
 export async function deleteNoShow(id: string): Promise<void> {
-  await supabase.from('no_shows').delete().eq('id', id);
+  const { error } = await supabase.from('no_shows').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Room Moves ───────────────────────────────
@@ -1535,18 +1655,20 @@ export interface RoomMove {
 }
 
 export async function getRoomMoves(hotelId: string, date?: string): Promise<RoomMove[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const { data } = await supabase.from('room_moves').select('*')
     .eq('hotel_id', hotelId).eq('move_date', d).order('created_at', { ascending: false });
   return (data || []) as RoomMove[];
 }
 
 export async function createRoomMove(move: Omit<RoomMove, 'id' | 'created_at'>): Promise<void> {
-  await supabase.from('room_moves').insert(move);
+  const { error } = await supabase.from('room_moves').insert(move);
+  if (error) throw error;
 }
 
 export async function deleteRoomMove(id: string): Promise<void> {
-  await supabase.from('room_moves').delete().eq('id', id);
+  const { error } = await supabase.from('room_moves').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── Bank Counts ───────────────────────────────
@@ -1565,14 +1687,15 @@ export interface BankCount {
 }
 
 export async function getBankCounts(hotelId: string, date?: string): Promise<BankCount[]> {
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || localDate();
   const { data } = await supabase.from('bank_counts').select('*')
     .eq('hotel_id', hotelId).eq('count_date', d).order('created_at', { ascending: false });
   return (data || []) as BankCount[];
 }
 
 export async function createBankCount(bc: Omit<BankCount, 'id' | 'created_at'>): Promise<void> {
-  await supabase.from('bank_counts').insert(bc);
+  const { error } = await supabase.from('bank_counts').insert(bc);
+  if (error) throw error;
 }
 
 // ─── Daily Property Snapshot ──────────────────────────
@@ -1583,7 +1706,7 @@ export async function getDailyPropertySnapshot(hotelId: string): Promise<{
   departures: number;
   oooRooms: number;
 }> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
 
   // Count total active rooms
   const { data: allRooms } = await supabase
@@ -1644,7 +1767,7 @@ export async function getShiftNotes(hotelId: string): Promise<{
       notes,
       created_at,
       staff_checklists!inner(name),
-      staff_accounts!inner(name)
+      staff_accounts(name)
     `)
     .eq('hotel_id', hotelId)
     .not('notes', 'is', null)
@@ -1729,9 +1852,9 @@ export interface WeeklyForecast {
 }
 
 export async function getWeeklyForecasts(hotelId: string, weekStart: string): Promise<WeeklyForecast[]> {
-  const weekEnd = new Date(weekStart);
+  const weekEnd = new Date(weekStart + 'T00:00:00');
   weekEnd.setDate(weekEnd.getDate() + 6);
-  const endStr = weekEnd.toISOString().split('T')[0];
+  const endStr = localDate(weekEnd);
 
   const { data, error } = await supabase
     .from('weekly_forecasts')
@@ -1881,7 +2004,8 @@ export async function updatePositionTodoTemplate(id: string, updates: Partial<Po
 }
 
 export async function deletePositionTodoTemplate(id: string) {
-  await supabase.from('position_todo_templates').delete().eq('id', id);
+  const { error } = await supabase.from('position_todo_templates').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // Items CRUD
@@ -1908,12 +2032,13 @@ export async function updateTemplateItem(id: string, updates: Partial<PositionTo
 }
 
 export async function deleteTemplateItem(id: string) {
-  await supabase.from('position_todo_items').delete().eq('id', id);
+  const { error } = await supabase.from('position_todo_items').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // Instances
 export async function getTodayInstances(hotelId: string, staffId?: string): Promise<PositionTodoInstance[]> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
   let q = supabase.from('position_todo_instances').select('*')
     .eq('hotel_id', hotelId).eq('shift_date', today).order('created_at');
   if (staffId) q = q.eq('staff_id', staffId);
