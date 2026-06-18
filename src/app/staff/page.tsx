@@ -1251,6 +1251,7 @@ function ShuttleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }
         if (route) {
           await createShuttleSlot({
             route_id: route.id,
+            hotel_id: hotelId,
             departure_time: newEvent.time + ':00',
             date: newEvent.date,
             days_of_week: [],
