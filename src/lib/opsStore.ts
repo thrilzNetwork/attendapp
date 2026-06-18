@@ -170,6 +170,8 @@ export interface KpiDefinition {
   target: number;        // daily target
   frequency: 'daily' | 'weekly' | 'monthly';
   category: string;      // 'Revenue', 'Operations', 'Guest Experience', etc
+  why?: string;          // coaching context shown to staff
+  pack_id?: string;      // uuid of kpi_pack this was installed from
 }
 
 export interface KpiSubmission {

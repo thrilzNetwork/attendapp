@@ -78,6 +78,7 @@ const KpisView = dynamic(() => import('@/components/staff/KpisView'), { ssr: fal
 const DailyBriefView = dynamic(() => import('@/components/staff/DailyBriefView'), { ssr: false });
 const CompsetView = dynamic(() => import('@/components/staff/CompsetView'), { ssr: false });
 const SuperAdminView = dynamic(() => import('@/components/staff/SuperAdminView'), { ssr: false });
+const MarketplaceView = dynamic(() => import('@/components/staff/MarketplaceView'), { ssr: false });
 import {
   listOps, createOps, updateOps, deleteOps,
   listKpiDefinitions, createKpiDefinition, deleteKpiDefinition,
@@ -116,7 +117,7 @@ type NavTab =
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
-  | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos';
+  | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos' | 'marketplace';
 
 interface Request {
   id: string;
@@ -171,6 +172,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'todos',            label: 'To-Dos',             icon: ClipboardList,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'shuttle',         label: 'Shuttle',            icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'kpis',            label: 'KPIs',               icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'marketplace',     label: 'Marketplace',        icon: Store,           roles: ['admin', 'manager', 'superadmin'], section: 'Operations' },
   { tab: 'knowledge',       label: 'Right Answers',     icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'learning_hr',     label: 'Learning & HR',      icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'property_info',   label: 'Property Info',      icon: HotelIcon,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
@@ -789,6 +791,9 @@ export default function Dashboard() {
         )}
         {tabPanel('kpis', true,
           <KpisView hotelId={config?.id || ''} isAdmin={isAdmin} userId="" userName={session?.name || 'Staff'} />
+        )}
+        {tabPanel('marketplace', true,
+          <MarketplaceView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
         {tabPanel('learning_hr', true,
           <LearningHRView hotelId={config?.id || ''} />
