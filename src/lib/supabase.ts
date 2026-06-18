@@ -449,6 +449,7 @@ export interface PartnerMenuItem {
   name: string;
   description: string;
   price: number;
+  image_url?: string;
   is_active: boolean;
   category?: string;
   sort_order?: number;
@@ -509,7 +510,7 @@ export async function getPartnerMenuItems(partnerId: string): Promise<PartnerMen
   return json.data || [];
 }
 
-export async function createPartnerMenuItem(item: { partner_id: string; name: string; description: string; price: number; category?: string; sort_order?: number }): Promise<void> {
+export async function createPartnerMenuItem(item: { partner_id: string; name: string; description: string; price: number; image_url?: string; category?: string; sort_order?: number }): Promise<void> {
   const res = await fetch('/api/partners', {
     method: 'POST',
     headers: await authedApiHeaders(),

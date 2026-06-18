@@ -8,6 +8,7 @@ import {
 import {
   getPartners, createPartner, updatePartner, deletePartner,
   getPartnerMenuItems, createPartnerMenuItem, deletePartnerMenuItem,
+  authedApiHeaders,
 } from '@/lib/supabase';
 
 /* ── Inline types ────────────────────────────────────── */
@@ -39,6 +40,7 @@ interface PartnerMenuItem {
   name: string;
   description: string;
   price: number;
+  image_url?: string;
   is_active: boolean;
 }
 
@@ -117,6 +119,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
   /* Add partner form */
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(BLANK_FORM);
+  const [formImageFile, setFormImageFile] = useState<{ base64: string; filename: string } | null>(null);
   const [deliveryProviders, setDeliveryProviders] = useState<{ name: string; url: string }[]>([]);
   const [deliveryProviderForm, setDeliveryProviderForm] = useState({ name: '', url: '' });
   const [saving, setSaving] = useState(false);
@@ -127,7 +130,8 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
   const [menuItems, setMenuItems] = useState<Record<string, PartnerMenuItem[]>>({});
   const [menuLoading, setMenuLoading] = useState<Record<string, boolean>>({});
   const [menuError, setMenuError] = useState<Record<string, string | null>>({});
-  const [menuForm, setMenuForm] = useState<Record<string, { name: string; description: string; price: string }>>({});
+  const [menuForm, setMenuForm] = useState<Record<string, { name: string; description: string; price: string; image_url?: string; imagePreview?: string }>>({});
+  const [menuImageUploading, setMenuImageUploading] = useState<Record<string, boolean>>({});
   const [menuSaving, setMenuSaving] = useState<Record<string, boolean>>({});
   const [dpForm, setDpForm] = useState<Record<string, { name: string; url: string }>>({});
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
@@ -174,12 +178,16 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
     setSaving(true);
     setSaveError(null);
     try {
+      let imageUrl = form.image_url;
+      if (formImageFile) {
+        imageUrl = await uploadImage(formImageFile.base64, formImageFile.filename, 'partners');
+      }
       await createPartner({
         hotel_id: hotelId,
         name: form.name,
         category: form.category,
         description: form.description,
-        image_url: form.image_url,
+        image_url: imageUrl,
         phone: form.phone,
         address: form.address,
         hours: form.hours,
@@ -192,6 +200,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
         hotel_revenue_share_percent: parseFloat(form.hotel_revenue_share_percent) || 5,
       });
       setForm(BLANK_FORM);
+      setFormImageFile(null);
       setDeliveryProviders([]);
       setDeliveryProviderForm({ name: '', url: '' });
       setShowForm(false);
@@ -254,6 +263,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
         name: mf.name,
         description: mf.description || '',
         price: parseFloat(mf.price),
+        image_url: mf.image_url,
       });
       setMenuForm(prev => ({ ...prev, [partnerId]: { name: '', description: '', price: '' } }));
       loadMenu(partnerId);
@@ -299,6 +309,17 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to remove delivery provider');
     }
+  };
+
+  const uploadImage = async (base64: string, filename: string, folder: string): Promise<string> => {
+    const res = await fetch('/api/partners', {
+      method: 'POST',
+      headers: await authedApiHeaders(),
+      body: JSON.stringify({ action: 'upload_image', data: { base64, filename, folder } }),
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Image upload failed');
+    return json.url as string;
   };
 
   const visiblePartners = partners.filter(p => p.category === activeTab);
@@ -381,7 +402,11 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                     const file = e.target.files?.[0];
                     if (!file) return;
                     const reader = new FileReader();
-                    reader.onload = ev => setForm(f => ({ ...f, image_url: ev.target?.result as string }));
+                    reader.onload = ev => {
+                      const base64 = ev.target?.result as string;
+                      setFormImageFile({ base64, filename: file.name });
+                      setForm(f => ({ ...f, image_url: base64 }));
+                    };
                     reader.readAsDataURL(file);
                   }}
                 />
@@ -391,7 +416,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={form.image_url} alt="preview" className="w-full h-full object-cover" />
                     </div>
-                    <button type="button" onClick={() => setForm(f => ({ ...f, image_url: '' }))} className="text-red-400 hover:text-red-600 text-[11px] font-medium">Clear</button>
+                    <button type="button" onClick={() => { setForm(f => ({ ...f, image_url: '' })); setFormImageFile(null); }} className="text-red-400 hover:text-red-600 text-[11px] font-medium">Clear</button>
                   </>
                 )}
               </div>
@@ -751,15 +776,22 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                         >
                           <Pencil size={14} />
                         </button>
-                        {(p.has_ordering || (p.delivery_providers && p.delivery_providers.length > 0)) && (
-                          <button
-                            onClick={() => toggle(p.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors"
-                            style={{ backgroundColor: `${TEAL}15`, color: TEAL }}
-                          >
-                            Menu {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                          </button>
-                        )}
+                        <button
+                          onClick={() => toggle(p.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors"
+                          style={{ backgroundColor: `${TEAL}15`, color: TEAL }}
+                        >
+                          Menu {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        </button>
+                        <a
+                          href={`/nearby/detail?id=${p.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-orange-50 text-orange-600 hover:bg-orange-100 transition-colors"
+                          title="Preview guest ordering page"
+                        >
+                          Test Order
+                        </a>
                         <button
                           onClick={() => handleDelete(p.id)}
                           className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400 transition-colors"
@@ -896,35 +928,81 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                         <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Menu Items</h4>
 
                         {/* Add item form */}
-                        <div className="flex gap-2 mb-3">
+                        <div className="bg-white rounded-xl border border-gray-200 p-3 mb-3 space-y-2">
+                          <div className="flex gap-2">
+                            <input
+                              placeholder="Item name *"
+                              value={menuForm[p.id]?.name || ''}
+                              onChange={e => setMenuForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], name: e.target.value } }))}
+                              className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none"
+                            />
+                            <input
+                              placeholder="$0.00"
+                              type="number"
+                              step="0.01"
+                              value={menuForm[p.id]?.price || ''}
+                              onChange={e => setMenuForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], price: e.target.value } }))}
+                              className="w-24 bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none"
+                            />
+                          </div>
                           <input
-                            placeholder="Item name *"
-                            value={menuForm[p.id]?.name || ''}
-                            onChange={e => setMenuForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], name: e.target.value } }))}
-                            className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none"
-                          />
-                          <input
-                            placeholder="Description"
+                            placeholder="Description (optional)"
                             value={menuForm[p.id]?.description || ''}
                             onChange={e => setMenuForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], description: e.target.value } }))}
-                            className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none"
+                            className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none"
                           />
-                          <input
-                            placeholder="$0.00"
-                            type="number"
-                            step="0.01"
-                            value={menuForm[p.id]?.price || ''}
-                            onChange={e => setMenuForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], price: e.target.value } }))}
-                            className="w-24 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none"
-                          />
-                          <button
-                            onClick={() => handleAddMenuItem(p.id)}
-                            disabled={menuSaving[p.id]}
-                            className="px-3 py-2 rounded-lg text-white text-[12px] font-bold shrink-0 disabled:opacity-60"
-                            style={{ backgroundColor: TEAL }}
-                          >
-                            {menuSaving[p.id] ? '…' : '+ Add'}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={menuImageUploading[p.id]}
+                              onClick={() => document.getElementById(`menu-img-${p.id}`)?.click()}
+                              className="text-[11px] font-semibold px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-600 disabled:opacity-50"
+                            >
+                              <Upload size={11} className="inline mr-1" />
+                              {menuImageUploading[p.id] ? 'Uploading…' : 'Add Photo'}
+                            </button>
+                            <input
+                              id={`menu-img-${p.id}`}
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async e => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                setMenuImageUploading(prev => ({ ...prev, [p.id]: true }));
+                                try {
+                                  const base64 = await new Promise<string>((resolve, reject) => {
+                                    const reader = new FileReader();
+                                    reader.onload = ev => resolve(ev.target?.result as string);
+                                    reader.onerror = reject;
+                                    reader.readAsDataURL(file);
+                                  });
+                                  const url = await uploadImage(base64, file.name, 'menu-items');
+                                  setMenuForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], image_url: url, imagePreview: url } }));
+                                } catch (err) {
+                                  setMenuError(prev => ({ ...prev, [p.id]: err instanceof Error ? err.message : 'Image upload failed' }));
+                                } finally {
+                                  setMenuImageUploading(prev => ({ ...prev, [p.id]: false }));
+                                  e.target.value = '';
+                                }
+                              }}
+                            />
+                            {menuForm[p.id]?.imagePreview && (
+                              <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={menuForm[p.id].imagePreview} alt="preview" className="w-8 h-8 rounded-lg object-cover border border-gray-200" />
+                                <button type="button" onClick={() => setMenuForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], image_url: undefined, imagePreview: undefined } }))} className="text-red-400 text-[11px]">Remove</button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => handleAddMenuItem(p.id)}
+                              disabled={menuSaving[p.id] || menuImageUploading[p.id]}
+                              className="ml-auto px-4 py-2 rounded-lg text-white text-[12px] font-bold shrink-0 disabled:opacity-60"
+                              style={{ backgroundColor: TEAL }}
+                            >
+                              {menuSaving[p.id] ? 'Saving…' : '+ Add Item'}
+                            </button>
+                          </div>
                         </div>
 
                         {menuError[p.id] && (
@@ -941,20 +1019,24 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                         ) : (
                           <div className="space-y-2">
                             {(menuItems[p.id] || []).map(item => (
-                              <div key={item.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-2.5 border border-gray-100">
-                                <div>
-                                  <span className="text-[13px] font-semibold text-gray-900">{item.name}</span>
-                                  {item.description && <span className="text-[11px] text-gray-400 ml-2">{item.description}</span>}
+                              <div key={item.id} className="flex items-center gap-3 bg-white rounded-lg px-3 py-2.5 border border-gray-100">
+                                {item.image_url ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={item.image_url} alt={item.name} className="w-10 h-10 rounded-lg object-cover border border-gray-100 shrink-0" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-lg bg-gray-100 shrink-0 flex items-center justify-center text-gray-300 text-[18px]">🍽</div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-[13px] font-semibold text-gray-900 block truncate">{item.name}</span>
+                                  {item.description && <span className="text-[11px] text-gray-400 truncate block">{item.description}</span>}
                                 </div>
-                                <div className="flex items-center gap-3">
-                                  <span className="text-[13px] font-bold text-gray-700">${Number(item.price).toFixed(2)}</span>
-                                  <button
-                                    onClick={() => handleDeleteMenuItem(item.id, p.id)}
-                                    className="text-red-400 hover:text-red-600 transition-colors"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                </div>
+                                <span className="text-[13px] font-bold text-gray-700 shrink-0">${Number(item.price).toFixed(2)}</span>
+                                <button
+                                  onClick={() => handleDeleteMenuItem(item.id, p.id)}
+                                  className="text-red-400 hover:text-red-600 transition-colors shrink-0"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
                               </div>
                             ))}
                           </div>

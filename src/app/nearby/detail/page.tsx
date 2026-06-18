@@ -178,7 +178,11 @@ function PartnerContent() {
                 <>
                   <div className="text-xs font-bold text-gray-400 uppercase tracking-wider pt-1">Menu</div>
                   {menuItems.map(item => (
-                    <div key={item.id} className="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-gray-100">
+                    <div key={item.id} className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100">
+                      {item.image_url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.image_url} alt={item.name} className="w-16 h-16 rounded-xl object-cover shrink-0 border border-gray-100" />
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="font-bold text-sm text-gray-900 truncate">{item.name}</div>
                         {item.description && <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.description}</div>}

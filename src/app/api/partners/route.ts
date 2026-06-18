@@ -5,6 +5,9 @@ import { getCaller } from '@/lib/supabase-admin';
 
 const SUPABASE_URL = 'https://bdmmstatrsenidlgjock.supabase.co';
 
+// Allow up to 8MB bodies (for base64 images)
+export const config = { api: { bodyParser: { sizeLimit: '8mb' } } };
+
 function getServiceClient() {
   const key = process.env.SUPABASE_SERVICE_KEY;
   if (!key) throw new Error('SUPABASE_SERVICE_KEY not configured');
@@ -74,7 +77,8 @@ export async function POST(req: NextRequest) {
           .from('partner_menu_items')
           .select('*')
           .eq('partner_id', data.partner_id)
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
         if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
         return NextResponse.json({ ok: true, data: rows });
       }
@@ -96,6 +100,22 @@ export async function POST(req: NextRequest) {
           .eq('id', data.id);
         if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
         return NextResponse.json({ ok: true });
+      }
+
+      case 'upload_image': {
+        const { base64, filename, folder } = data as { base64: string; filename: string; folder: string };
+        const match = (base64 as string).match(/^data:(.+?);base64,(.+)$/);
+        if (!match) return NextResponse.json({ ok: false, error: 'Invalid image data' }, { status: 400 });
+        const mimeType = match[1];
+        const buffer = Buffer.from(match[2], 'base64');
+        const ext = (filename as string).split('.').pop() || 'jpg';
+        const path = `${folder || 'misc'}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await db.storage.from('partner-images').upload(path, buffer, {
+          contentType: mimeType, upsert: false,
+        });
+        if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+        const { data: { publicUrl } } = db.storage.from('partner-images').getPublicUrl(path);
+        return NextResponse.json({ ok: true, url: publicUrl });
       }
 
       default:
