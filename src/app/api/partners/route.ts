@@ -5,8 +5,6 @@ import { getCaller } from '@/lib/supabase-admin';
 
 const SUPABASE_URL = 'https://bdmmstatrsenidlgjock.supabase.co';
 
-// Allow up to 8MB bodies (for base64 images)
-export const config = { api: { bodyParser: { sizeLimit: '8mb' } } };
 
 function getServiceClient() {
   const key = process.env.SUPABASE_SERVICE_KEY;
