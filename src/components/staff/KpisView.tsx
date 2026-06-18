@@ -1,50 +1,77 @@
 'use client';
 /* eslint-disable */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Info, Plus, Trash2, Save, ChevronLeft, ChevronRight, Check, Store } from 'lucide-react';
 import {
-  TrendingUp, Plus, X as XIcon, Trash2, BookOpen, Copy, Search,
-} from 'lucide-react';
-import {
-  listKpiDefinitions, createKpiDefinition,
-  listKpiSubmissions, createKpiSubmission,
-  deleteOps,
-  listKbSuggestionsByStatus, createKbSuggestionPending,
-  approveKbSuggestion, rejectKbSuggestion, deleteKbSuggestion,
-  suggestResponse,
+  listKpiDefinitions, createKpiDefinition, listKpiSubmissions, createKpiSubmission, deleteOps,
   type OpRecord,
 } from '@/lib/opsStore';
 import { supabase } from '@/lib/supabase';
 
 const TEAL = '#0D9488';
 
-function getWeekStart(date: string, weekStartsOn?: string): string {
-  const d = new Date(date + 'T00:00:00');
-  const day = d.getDay(); // 0=Sun
-  if (weekStartsOn === 'Monday') {
-    const monOffset = day === 0 ? 6 : day - 1;
-    d.setDate(d.getDate() - monOffset);
-  } else {
-    d.setDate(d.getDate() - day);
-  }
+// Returns the Monday of the week containing `date`
+function weekMonday(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function addDays(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function toYMD(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
-// ============================================================
-// KPI TRACKING VIEW
-// ============================================================
-export default function KpisView({ hotelId, isAdmin, userName }: { hotelId: string; isAdmin: boolean; userId: string; userName: string }) {
+function dayLabel(d: Date): string {
+  return d.toLocaleDateString('en-US', { weekday: 'short' });
+}
+
+function shortDate(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+}
+
+export default function KpisView({
+  hotelId,
+  isAdmin,
+  userName,
+}: {
+  hotelId: string;
+  isAdmin: boolean;
+  userId?: string;
+  userName: string;
+}) {
   const [kpis, setKpis] = useState<OpRecord[]>([]);
   const [logs, setLogs] = useState<OpRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ kpi_name: '', unit: '', target: 0, frequency: 'daily' as 'daily' | 'weekly' | 'monthly', category: 'Revenue' });
-  const [logValues, setLogValues] = useState<Record<string, number>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [viewingKpi, setViewingKpi] = useState<string | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week
+  const [dirtyValues, setDirtyValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [savedBanner, setSavedBanner] = useState(false);
+  const [expandedInfo, setExpandedInfo] = useState<Set<string>>(new Set());
+  const [showManage, setShowManage] = useState(false);
+  const [addForm, setAddForm] = useState({ kpi_name: '', unit: '', target: '', frequency: 'daily' as 'daily'|'weekly'|'monthly', category: 'Operations', why: '' });
+  const [addingKpi, setAddingKpi] = useState(false);
 
-  const CATEGORIES = ['Revenue', 'Operations', 'Guest Experience', 'Quality', 'Housekeeping', 'Front Desk'];
+  const today = new Date();
+  const todayYMD = toYMD(today);
+
+  // Compute 7 columns: Mon–Sun of the target week
+  const monday = weekMonday(addDays(today, weekOffset * 7));
+  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const weekLabel = (() => {
+    if (weekOffset === 0) return 'This Week';
+    if (weekOffset === -1) return 'Last Week';
+    return `${shortDate(monday)} – ${shortDate(days[6])}`;
+  })();
 
   useEffect(() => {
     (async () => {
@@ -56,630 +83,395 @@ export default function KpisView({ hotelId, isAdmin, userName }: { hotelId: stri
     })();
   }, [hotelId]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const today = new Date().toISOString().split('T')[0];
-  const isInWindow = (kpiId: string, freq: string, date?: string): boolean => {
-    const d = date || selectedDate;
-    if (freq === 'daily') return !logs.some(l => (l.details as any).definition_id === kpiId && (l.details as any).shift_date === d);
-    if (freq === 'weekly') {
-      const ws = getWeekStart(d);
-      return !logs.some(l => (l.details as any).definition_id === kpiId && getWeekStart((l.details as any).shift_date) === ws);
-    }
-    if (freq === 'monthly') {
-      const m = d.substring(0, 7);
-      return !logs.some(l => (l.details as any).definition_id === kpiId && (l.details as any).shift_date?.startsWith(m));
-    }
-    return true;
-  };
+  function getLogForDate(kpiId: string, dateYMD: string): OpRecord | undefined {
+    return logs.find(l => {
+      const d = l.details as any;
+      return d.definition_id === kpiId && d.shift_date === dateYMD;
+    });
+  }
 
-  const getLogsForKpi = (kpiId: string, limit = 30) => {
-    return logs
-      .filter(l => (l.details as any).definition_id === kpiId)
-      .sort((a, b) => (b.details as any).shift_date?.localeCompare((a.details as any).shift_date || ''))
-      .slice(0, limit);
-  };
+  function toggleInfo(id: string) {
+    setExpandedInfo(prev => {
+      const s = new Set(prev);
+      s.has(id) ? s.delete(id) : s.add(id);
+      return s;
+    });
+  }
 
-  const isMoney = (unit: string) => ['$', 'dollar', 'usd', 'money'].includes(unit.toLowerCase().trim());
-
-  const saveKpi = async () => {
-    if (!form.kpi_name) return;
-    setSubmitting(true);
+  async function handleSave() {
+    if (Object.keys(dirtyValues).length === 0) return;
+    setSaving(true);
     try {
-      await createKpiDefinition(hotelId, form);
-      const defs = await listKpiDefinitions(hotelId);
-      setKpis(defs || []);
-      setShowAdd(false);
-      setForm({ kpi_name: '', unit: '', target: 0, frequency: 'daily', category: 'Revenue' });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const submitLog = async (kpi: OpRecord) => {
-    const def = kpi.details as any;
-    const v = logValues[kpi.id];
-    if (v === undefined) return;
-    setSubmitting(true);
-    try {
-      await createKpiSubmission(hotelId, { definition_id: kpi.id, kpi_name: def.kpi_name, value: v, shift_date: selectedDate, submitted_by: userName });
-      // Award 25 pts if KPI meets or exceeds target
-      try {
-        if (def.target > 0 && v >= def.target) {
-          await supabase.from('staff_points').insert({
-            hotel_id: hotelId,
-            staff_name: userName || 'Staff',
-            points: 25,
-            reason: 'kpi_target',
-            description: `Hit target: ${def.kpi_name} (${v} ${def.unit || ''})`,
-          });
-        }
-      } catch (_) {}
+      for (const [kpiId, rawVal] of Object.entries(dirtyValues)) {
+        const val = parseFloat(rawVal);
+        if (isNaN(val)) continue;
+        const kpi = kpis.find(k => k.id === kpiId);
+        if (!kpi) continue;
+        const def = kpi.details as any;
+        await createKpiSubmission(hotelId, {
+          definition_id: kpiId,
+          kpi_name: def.kpi_name,
+          value: val,
+          shift_date: todayYMD,
+          submitted_by: userName,
+        });
+        // Award 25 pts if on target
+        try {
+          if (def.target > 0 && val >= Number(def.target)) {
+            await supabase.from('staff_points').insert({
+              hotel_id: hotelId,
+              staff_name: userName || 'Staff',
+              points: 25,
+              reason: 'kpi_target',
+              description: `Hit target: ${def.kpi_name} (${val} ${def.unit || ''})`,
+            });
+          }
+        } catch (_) {}
+      }
       const lg = await listKpiSubmissions(hotelId);
       setLogs(lg || []);
-      setLogValues(p => { const n = { ...p }; delete n[kpi.id]; return n; });
+      setDirtyValues({});
+      setSavedBanner(true);
+      setTimeout(() => setSavedBanner(false), 2500);
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
-  };
+  }
 
-  const deleteKpi = async (id: string) => {
-    if (!confirm('Delete this KPI?')) return;
+  async function handleAddKpi() {
+    if (!addForm.kpi_name || !addForm.unit) return;
+    setAddingKpi(true);
+    try {
+      await createKpiDefinition(hotelId, {
+        kpi_name: addForm.kpi_name,
+        unit: addForm.unit,
+        target: parseFloat(addForm.target) || 0,
+        frequency: addForm.frequency,
+        category: addForm.category,
+        why: addForm.why,
+      });
+      const defs = await listKpiDefinitions(hotelId);
+      setKpis(defs || []);
+      setAddForm({ kpi_name: '', unit: '', target: '', frequency: 'daily', category: 'Operations', why: '' });
+    } finally {
+      setAddingKpi(false);
+    }
+  }
+
+  async function handleDeleteKpi(id: string) {
+    if (!confirm('Delete this KPI and all its history?')) return;
     await deleteOps(id);
     setKpis(kpis.filter(k => k.id !== id));
-  };
+  }
 
-  /** Compute the single "current" value: most recent log for the window */
-  const getCurrentValue = (kpiId: string, def: any): { value: number; date: string } | null => {
-    const kpiLogs = getLogsForKpi(kpiId, 1);
-    if (kpiLogs.length === 0) return null;
-    const last = kpiLogs[0].details as any;
-    return { value: Number(last.value), date: last.shift_date };
-  };
+  // Stats for today
+  const loggedToday = kpis.filter(k => !!getLogForDate(k.id, todayYMD) || dirtyValues[k.id] !== undefined).length;
+  const onTarget = kpis.filter(k => {
+    const log = getLogForDate(k.id, todayYMD);
+    if (!log) return false;
+    const def = k.details as any;
+    return def.target > 0 && Number((log.details as any).value) >= Number(def.target);
+  }).length;
+  const below = kpis.filter(k => {
+    const log = getLogForDate(k.id, todayYMD);
+    if (!log) return false;
+    const def = k.details as any;
+    return def.target > 0 && Number((log.details as any).value) < Number(def.target);
+  }).length;
 
-  if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
-
-  // Detail view for a single KPI
-  if (viewingKpi) {
-    const kpi = kpis.find(k => k.id === viewingKpi);
-    if (!kpi) { setViewingKpi(null); return null; }
-    const def = kpi.details as any;
-    const allLogs = getLogsForKpi(kpi.id, 100);
-    const is$ = isMoney(def.unit);
-    const fmt = (v: number) => is$ ? `$${v.toFixed(2)}` : `${v}${def.unit ? ` ${def.unit}` : ''}`;
-
+  if (loading) {
     return (
-      <div className="p-4 md:p-6 max-w-4xl mx-auto">
-        <button onClick={() => setViewingKpi(null)} className="flex items-center gap-1 text-[12px] text-teal-600 font-bold mb-4">&larr; All KPIs</button>
-
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm mb-5">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <h2 className="text-[18px] font-extrabold text-gray-900">{def.kpi_name}</h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-bold capitalize">{def.frequency}</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-bold">{def.category}</span>
-            </div>
-          </div>
-          <p className="text-[12px] text-gray-500">Target: <strong>{fmt(def.target)}</strong> per {def.frequency}</p>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <h3 className="font-bold text-[14px] text-gray-900 mb-3">History ({allLogs.length} entries)</h3>
-          {allLogs.length === 0 ? (
-            <p className="text-[12px] text-gray-400 text-center py-6">No entries yet.</p>
-          ) : (
-            <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
-              {allLogs.map(l => {
-                const ld = l.details as any;
-                const pct = def.target > 0 ? Math.min(Math.round((Number(ld.value) / def.target) * 100), 999) : 0;
-                return (
-                  <div key={l.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <span className="text-[11px] text-gray-500 font-mono w-24">{ld.shift_date}</span>
-                      <span className="text-[13px] font-extrabold text-gray-900">{fmt(Number(ld.value))}</span>
-                      {def.target > 0 && (
-                        <span className={`text-[11px] font-bold ${Number(ld.value) >= def.target ? 'text-emerald-600' : 'text-amber-600'}`}>
-                          {pct}% of target
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-gray-400">{ld.submitted_by}</span>
-                      {isAdmin && (
-                        <button onClick={async () => { await deleteOps(l.id); const lg = await listKpiSubmissions(hotelId); setLogs(lg || []); }} className="text-red-400"><XIcon size={12} /></button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+      <div style={{ padding: 24, textAlign: 'center', color: '#9CA3AF', fontFamily: 'system-ui' }}>
+        Loading KPIs…
       </div>
     );
   }
 
-  // Group KPIs by category
-  const grouped = kpis.reduce((acc, k) => {
-    const cat = (k.details as any).category || 'Other';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(k);
-    return acc;
-  }, {} as Record<string, OpRecord[]>);
-
-  const categoryIcons: Record<string, string> = {
-    Revenue: '💰',
-    Operations: '⚙️',
-    'Guest Experience': '🌟',
-    Quality: '✅',
-    Housekeeping: '🧹',
-    'Front Desk': '🛎️',
-  };
-
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <div>
-          <h1 className="text-[20px] font-extrabold text-gray-900">KPIs</h1>
-          <p className="text-[12px] text-gray-500">Performance metrics · {selectedDate}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-            className="bg-gray-50 rounded-xl px-3 py-2 text-[12px] border border-gray-200 outline-none w-[140px]" />
-          {isAdmin && (
-            <button onClick={() => setShowAdd(true)} className="px-3 py-2 rounded-xl text-white font-bold text-[12px] flex items-center gap-1" style={{ backgroundColor: TEAL }}>
-              <Plus size={14} /> New KPI
+    <div style={{ fontFamily: 'system-ui, sans-serif', background: '#F9FAFB', minHeight: '100vh', paddingBottom: 80 }}>
+
+      {/* Header */}
+      <div style={{ background: '#fff', borderBottom: '1px solid #E5E7EB', padding: '14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ fontWeight: 800, fontSize: 18, color: '#111827' }}>📊 KPIs</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Week nav */}
+            <button onClick={() => setWeekOffset(w => w - 1)} style={navBtnStyle}><ChevronLeft size={16} /></button>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', minWidth: 90, textAlign: 'center' }}>{weekLabel}</span>
+            <button onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= 0} style={{ ...navBtnStyle, opacity: weekOffset >= 0 ? 0.3 : 1 }}><ChevronRight size={16} /></button>
+            {weekOffset !== 0 && (
+              <button onClick={() => setWeekOffset(0)} style={{ fontSize: 11, fontWeight: 700, color: TEAL, background: '#F0FDFA', border: `1px solid ${TEAL}`, borderRadius: 8, padding: '4px 8px', cursor: 'pointer' }}>
+                Today
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {isAdmin && (
+              <button
+                onClick={() => setShowManage(s => !s)}
+                style={{ fontSize: 12, fontWeight: 700, color: showManage ? TEAL : '#6B7280', background: showManage ? '#F0FDFA' : '#F3F4F6', border: '1px solid ' + (showManage ? TEAL : '#E5E7EB'), borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}
+              >
+                + Manage
+              </button>
+            )}
+            <button
+              onClick={handleSave}
+              disabled={saving || Object.keys(dirtyValues).length === 0}
+              style={{
+                fontSize: 12, fontWeight: 700, padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: savedBanner ? '#D1FAE5' : TEAL,
+                color: savedBanner ? '#065F46' : '#fff',
+                opacity: Object.keys(dirtyValues).length === 0 && !savedBanner ? 0.4 : 1,
+                display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.2s',
+              }}
+            >
+              {savedBanner ? <><Check size={14} /> Saved</> : saving ? 'Saving…' : <><Save size={14} /> Save</>}
             </button>
-          )}
+          </div>
         </div>
       </div>
 
-      {kpis.length === 0 ? (
-        <div className="bg-gray-50 rounded-2xl p-8 text-center">
-          <TrendingUp size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-[14px] text-gray-500 font-medium">No KPIs yet</p>
-          <p className="text-[12px] text-gray-400 mt-1">{isAdmin ? 'Tap "New KPI" to add metrics like ADR, parking charges, early check-in fees' : 'Your manager will add KPIs'}</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {Object.entries(grouped).map(([cat, catKpis]) => (
-            <div key={cat}>
-              <h2 className="text-[13px] font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                {categoryIcons[cat] || '📊'} {cat}
-              </h2>
-              <div className="space-y-3">
-                {catKpis.map(k => {
-                  const def = k.details as any;
-                  const is$ = isMoney(def.unit);
-                  const fmt = (v: number) => is$ ? `$${v.toFixed(2)}` : `${v}${def.unit ? ` ${def.unit}` : ''}`;
-                  const current = getCurrentValue(k.id, def);
-                  const due = !isAdmin && isInWindow(k.id, def.frequency);
-                  const recent = getLogsForKpi(k.id, 5);
-
-                  return (
-                    <div key={k.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setViewingKpi(k.id)}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <p className="text-[14px] font-bold text-gray-900">{def.kpi_name}</p>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-bold capitalize">{def.frequency}</span>
-                          </div>
-                          <p className="text-[11px] text-gray-400">Target: <strong>{fmt(def.target)}</strong></p>
+      {/* Table */}
+      <div style={{ overflowX: 'auto', padding: '12px 0' }}>
+        <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 600 }}>
+          <thead>
+            <tr style={{ background: '#F9FAFB' }}>
+              <th style={{ ...stickyColStyle, textAlign: 'left', fontWeight: 700, fontSize: 12, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '8px 16px', borderBottom: '1px solid #E5E7EB' }}>
+                KPI
+              </th>
+              {days.map((d, i) => {
+                const ymd = toYMD(d);
+                const isToday = ymd === todayYMD;
+                return (
+                  <th key={i} style={{
+                    minWidth: isToday ? 80 : 60, textAlign: 'center', padding: '8px 4px',
+                    borderBottom: '1px solid #E5E7EB',
+                    background: isToday ? '#F0FDFA' : undefined,
+                    borderLeft: isToday ? `2px solid ${TEAL}` : undefined,
+                    borderRight: isToday ? `2px solid ${TEAL}` : undefined,
+                  }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: isToday ? TEAL : '#9CA3AF', textTransform: 'uppercase' }}>{dayLabel(d)}</div>
+                    <div style={{ fontSize: 10, color: isToday ? TEAL : '#D1D5DB', fontWeight: 600 }}>{shortDate(d)}</div>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {kpis.length === 0 && (
+              <tr>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '40px 16px', color: '#9CA3AF', fontSize: 13 }}>
+                  No KPIs yet. {isAdmin ? 'Use "+ Manage" to add one, or install a pack from the Marketplace.' : 'Ask your admin to set up KPIs.'}
+                </td>
+              </tr>
+            )}
+            {kpis.map((kpi, rowIdx) => {
+              const def = kpi.details as any;
+              const infoOpen = expandedInfo.has(kpi.id);
+              const rowBg = rowIdx % 2 === 0 ? '#fff' : '#FAFAFA';
+              return [
+                <tr key={kpi.id} style={{ background: rowBg }}>
+                  {/* KPI name cell */}
+                  <td style={{ ...stickyColStyle, background: rowBg, padding: '10px 16px', borderBottom: infoOpen ? 'none' : '1px solid #F3F4F6', verticalAlign: 'middle' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {def.kpi_name}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {current && (
-                            <div className="text-right">
-                              <p className="text-[16px] font-extrabold" style={{ color: current.value >= def.target ? '#059669' : '#D97706' }}>
-                                {fmt(current.value)}
-                              </p>
-                              <p className="text-[9px] text-gray-400">{current.date}</p>
-                            </div>
-                          )}
-                          {!current && <p className="text-[11px] text-gray-300">No data</p>}
-                          {isAdmin && (
-                            <button onClick={e => { e.stopPropagation(); deleteKpi(k.id); }} className="p-1 text-gray-300 hover:text-red-500"><Trash2 size={13} /></button>
-                          )}
+                        <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>
+                          {def.unit} · target {def.target}
                         </div>
                       </div>
-
-                      {/* Progress bar */}
-                      {def.target > 0 && current && (
-                        <div className="mt-3">
-                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full transition-all" style={{ width: `${Math.min((current.value / def.target) * 100, 100)}%`, backgroundColor: current.value >= def.target ? '#059669' : '#D97706' }} />
-                          </div>
-                          <p className="text-[10px] text-gray-400 mt-1">{Math.round((current.value / def.target) * 100)}% of {def.frequency} target</p>
-                        </div>
-                      )}
-
-                      {/* Staff: log entry form */}
-                      {!isAdmin && due && (
-                        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                          <input type="number" step={is$ ? '0.01' : '1'} value={logValues[k.id] ?? ''}
-                            onChange={e => setLogValues(p => ({ ...p, [k.id]: Number(e.target.value) }))}
-                            placeholder={`Enter ${def.unit || 'value'}...`}
-                            className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 outline-none" />
-                          <button onClick={() => submitLog(k)} disabled={submitting || logValues[k.id] === undefined}
-                            className="px-4 py-2 rounded-lg text-white font-bold text-[12px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                            {submitting ? '...' : 'Log'}
-                          </button>
-                        </div>
-                      )}
-                      {!isAdmin && !due && current && (
-                        <p className="text-[11px] text-emerald-600 font-semibold mt-2" onClick={e => e.stopPropagation()}>✓ Logged ({current.value}) this {def.frequency.replace('ly', '')}</p>
-                      )}
-
-                      {/* Recent entries (any role can see) */}
-                      {recent.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-gray-100" onClick={e => e.stopPropagation()}>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Recent</p>
-                          <div className="space-y-1">
-                            {recent.slice(0, 3).map(l => {
-                              const ld = l.details as any;
-                              return (
-                                <div key={l.id} className="flex items-center justify-between text-[11px]">
-                                  <span className="text-gray-500">{ld.shift_date} · {ld.submitted_by}</span>
-                                  <span className="font-bold text-gray-800">{fmt(Number(ld.value))}</span>
-                                </div>
-                              );
-                            })}
-                            {recent.length > 3 && <p className="text-[10px] text-teal-600 font-bold">+{recent.length - 3} more →</p>}
-                          </div>
-                        </div>
+                      {def.why && (
+                        <button
+                          onClick={() => toggleInfo(kpi.id)}
+                          title="Why we track this"
+                          style={{ flexShrink: 0, background: infoOpen ? '#F0FDFA' : 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, color: infoOpen ? TEAL : '#9CA3AF' }}
+                        >
+                          <Info size={14} />
+                        </button>
                       )}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+                  </td>
+
+                  {/* Day cells */}
+                  {days.map((d, i) => {
+                    const ymd = toYMD(d);
+                    const isToday = ymd === todayYMD;
+                    const log = getLogForDate(kpi.id, ymd);
+                    const logVal = log ? Number((log.details as any).value) : null;
+                    const target = Number(def.target);
+                    const isGood = logVal !== null && target > 0 && logVal >= target;
+                    const isBad = logVal !== null && target > 0 && logVal < target;
+
+                    return (
+                      <td key={i} style={{
+                        textAlign: 'center', padding: isToday ? '8px 6px' : '8px 4px',
+                        borderBottom: infoOpen ? 'none' : '1px solid #F3F4F6',
+                        background: isToday ? '#F0FDFA' : undefined,
+                        borderLeft: isToday ? `2px solid ${TEAL}` : undefined,
+                        borderRight: isToday ? `2px solid ${TEAL}` : undefined,
+                        verticalAlign: 'middle',
+                      }}>
+                        {isToday ? (
+                          log ? (
+                            <div style={{
+                              fontWeight: 800, fontSize: 14, color: isGood ? '#059669' : isBad ? '#DC2626' : '#111827',
+                            }}>
+                              {logVal}
+                            </div>
+                          ) : (
+                            <input
+                              type="number"
+                              value={dirtyValues[kpi.id] ?? ''}
+                              onChange={e => setDirtyValues(p => ({ ...p, [kpi.id]: e.target.value }))}
+                              placeholder="—"
+                              style={{
+                                width: 62, height: 34, textAlign: 'center', border: `1.5px solid ${TEAL}`,
+                                borderRadius: 8, fontSize: 14, fontWeight: 700, color: '#111827',
+                                background: '#fff', outline: 'none', padding: '0 4px',
+                              }}
+                            />
+                          )
+                        ) : (
+                          logVal !== null ? (
+                            <span style={{
+                              fontSize: 13, fontWeight: 700,
+                              color: isGood ? '#059669' : isBad ? '#DC2626' : '#374151',
+                              display: 'inline-flex', alignItems: 'center', gap: 2,
+                            }}>
+                              {logVal}
+                              {isGood && <span style={{ fontSize: 9, color: '#059669' }}>✓</span>}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#D1D5DB', fontSize: 12 }}>—</span>
+                          )
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>,
+
+                // Why coaching row (accordion)
+                infoOpen && def.why ? (
+                  <tr key={`why-${kpi.id}`} style={{ background: rowBg }}>
+                    <td colSpan={8} style={{ padding: '0 16px 12px', borderBottom: '1px solid #F3F4F6' }}>
+                      <div style={{ background: '#F0FDFA', border: `1px solid ${TEAL}20`, borderRadius: 10, padding: '10px 14px', display: 'flex', gap: 10 }}>
+                        <div style={{ color: TEAL, marginTop: 1, flexShrink: 0 }}>💡</div>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: TEAL, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 3 }}>Why we track this</div>
+                          <div style={{ fontSize: 13, color: '#0F766E', lineHeight: 1.5 }}>{def.why}</div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null,
+              ];
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Bottom stat chips */}
+      {kpis.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, padding: '0 16px', flexWrap: 'wrap' }}>
+          <Chip label={`${loggedToday} / ${kpis.length} logged today`} color="#6B7280" bg="#F3F4F6" />
+          {onTarget > 0 && <Chip label={`${onTarget} on target ✓`} color="#065F46" bg="#D1FAE5" />}
+          {below > 0 && <Chip label={`${below} below target`} color="#92400E" bg="#FEF3C7" />}
         </div>
       )}
 
-      {/* New KPI modal */}
-      {showAdd && isAdmin && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowAdd(false)}>
-          <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-            <h2 className="text-[15px] font-bold mb-4">New KPI</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Name</label>
-                <input value={form.kpi_name} onChange={e => setForm(p => ({ ...p, kpi_name: e.target.value }))} placeholder="e.g. ADR, Parking Charges, Early Check-in Fee"
-                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Target</label>
-                  <input type="number" step="0.01" value={form.target} onChange={e => setForm(p => ({ ...p, target: Number(e.target.value) }))}
-                    className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Unit</label>
-                  <select value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value }))}
-                    className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none">
-                    <option value="$">$ (dollars)</option>
-                    <option value="%">% (percent)</option>
-                    <option value="count">Count</option>
-                    <option value="minutes">Minutes</option>
-                    <option value="score">Score</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Frequency</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['daily', 'weekly', 'monthly'] as const).map(f => (
-                    <button key={f} onClick={() => setForm(p => ({ ...p, frequency: f }))}
-                      className={`py-2.5 rounded-xl text-[12px] font-bold border capitalize ${form.frequency === f ? 'border-gray-900 text-gray-900 bg-gray-100' : 'bg-white border-gray-200 text-gray-600'}`}>{f}</button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Category</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {CATEGORIES.map(c => (
-                    <button key={c} onClick={() => setForm(p => ({ ...p, category: c }))}
-                      className={`py-2.5 rounded-xl text-[11px] font-bold border ${form.category === c ? 'border-gray-900 text-gray-900 bg-gray-100' : 'bg-white border-gray-200 text-gray-600'}`}>{categoryIcons[c] || ''} {c}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button onClick={saveKpi} disabled={submitting || !form.kpi_name}
-                  className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                  {submitting ? 'Saving…' : 'Save KPI'}
-                </button>
-                <button onClick={() => setShowAdd(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
-              </div>
-            </div>
+      {/* Admin Manage Panel */}
+      {isAdmin && showManage && (
+        <div style={{ margin: '16px', background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+          <div style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6', fontWeight: 700, fontSize: 14, color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            Manage KPIs
+            <a
+              href="#"
+              onClick={e => { e.preventDefault(); }}
+              style={{ fontSize: 12, color: TEAL, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}
+            >
+              <Store size={13} /> Browse Marketplace
+            </a>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
-// ============================================================
-// INCIDENT / KNOWLEDGE BASE VIEW (paste incident → AI suggestion → save)
-// ============================================================
-function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdmin: boolean; userName: string }) {
-  const [approved, setApproved] = useState<OpRecord[]>([]);
-  const [pending, setPending] = useState<OpRecord[]>([]);
-  const [rejected, setRejected] = useState<OpRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [incident, setIncident] = useState('');
-  const [category, setCategory] = useState<string>('Complaint');
-  const [suggestion, setSuggestion] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [filter, setFilter] = useState<'approved' | 'pending' | 'rejected' | 'all'>('approved');
-  const [ask, setAsk] = useState('');
-  const [askResult, setAskResult] = useState<{ id: string; title: string; category: string; situation: string; response: string; score: number } | null>(null);
-  const [askNotFound, setAskNotFound] = useState(false);
-  const [askCopied, setAskCopied] = useState(false);
-
-  const load = async () => {
-    setLoading(true);
-    const [a, p, r] = await Promise.all([
-      listKbSuggestionsByStatus(hotelId, 'active'),
-      listKbSuggestionsByStatus(hotelId, 'pending'),
-      listKbSuggestionsByStatus(hotelId, 'rejected'),
-    ]);
-    setApproved(a || []);
-    setPending(p || []);
-    setRejected(r || []);
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, [hotelId]);
-
-  const generateSuggestion = () => {
-    if (!incident) return;
-    const result = suggestResponse(incident, category as any);
-    setSuggestion(result.response);
-  };
-
-  const save = async () => {
-    if (!incident || !suggestion) return;
-    setSaving(true);
-    try {
-      // New flow: staff submissions start in 'pending' for admin review
-      await createKbSuggestionPending(hotelId, {
-        title: category + ' response',
-        category,
-        situation: incident,
-        response: suggestion,
-        added_by: userName,
-      });
-      await load();
-      setIncident('');
-      setSuggestion('');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const approve = async (id: string) => {
-    await approveKbSuggestion(id);
-    await load();
-  };
-
-  const reject = async (id: string) => {
-    if (!confirm('Reject this entry? It will be moved to Rejected and not appear in search.')) return;
-    await rejectKbSuggestion(id);
-    await load();
-  };
-
-  const del = async (id: string) => {
-    if (!confirm('Delete this KB entry?')) return;
-    await deleteKbSuggestion(id);
-    await load();
-  };
-
-  const askKb = () => {
-    if (!ask.trim()) { setAskResult(null); setAskNotFound(false); return; }
-    const q = ask.toLowerCase().trim();
-    // Score each approved entry by keyword overlap on situation + response + category
-    const scored = approved.map(e => {
-      const d = e.details as any;
-      const haystack = [d.situation || '', d.response || '', d.category || '', d.title || ''].join(' ').toLowerCase();
-      const qWords = q.split(/\s+/).filter(w => w.length > 1);
-      let score = 0;
-      for (const w of qWords) {
-        if (haystack.includes(w)) score += 2;
-        // Whole phrase bonus
-        if (haystack.includes(q)) score += 3;
-      }
-      // Exact phrase match big bonus
-      if (haystack.includes(q)) score += 5;
-      return { id: e.id, title: d.title, category: d.category, situation: d.situation, response: d.response, score };
-    }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
-    if (scored.length === 0) {
-      setAskResult(null);
-      setAskNotFound(true);
-    } else {
-      setAskResult(scored[0]);
-      setAskNotFound(false);
-      setAskCopied(false);
-    }
-  };
-
-  if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
-
-  const categories = [
-    { key: 'SOP', label: 'SOP', icon: '📋' },
-    { key: 'Best Practice', label: 'Best Practice', icon: '✅' },
-    { key: 'GM Guidance', label: 'GM Guidance', icon: '🎯' },
-    { key: 'Complaint', label: 'Complaint', icon: '⚠️' },
-    { key: 'Service', label: 'Service', icon: '💬' },
-    { key: 'Procedures', label: 'Procedures', icon: '⚙️' },
-    { key: 'Safety', label: 'Safety', icon: '🚨' },
-    { key: 'General', label: 'General', icon: '📌' },
-  ];
-
-  const visible = filter === 'all'
-    ? [...pending, ...approved, ...rejected]
-    : filter === 'pending' ? pending
-    : filter === 'rejected' ? rejected
-    : approved;
-
-  return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto">
-      <div className="mb-4">
-        <h1 className="text-[20px] font-extrabold text-gray-900">Write Answers</h1>
-        <p className="text-[12px] text-gray-500">Knowledge base · best practices · SOPs · GM guidance · what to do in any situation</p>
-      </div>
-
-      {/* Ask the KB — chatbot-style search bar */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm mb-4">
-        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5">
-          <Search size={11} /> Search answers
-        </label>
-        <div className="flex gap-2 mt-1.5">
-          <input
-            type="text"
-            value={ask}
-            onChange={e => { setAsk(e.target.value); if (!e.target.value) { setAskResult(null); setAskNotFound(false); } }}
-            onKeyDown={e => { if (e.key === 'Enter') askKb(); }}
-            placeholder="Search: check-in, breakfast, noise complaint, late checkout..."
-            className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100"
-          />
-          <button onClick={askKb} disabled={!ask.trim()} className="px-4 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-            Ask
-          </button>
-        </div>
-
-        {askResult && (
-          <div className="mt-3 bg-gray-50 rounded-xl p-3 border border-gray-200">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700 font-semibold capitalize">{askResult.category}</span>
-              <span className="text-[10px] text-gray-500">{askResult.title}</span>
-            </div>
-            <p className="text-[10px] font-bold text-gray-500 uppercase mt-2 mb-0.5">Situation</p>
-            <p className="text-[12px] text-gray-700">{askResult.situation}</p>
-            <p className="text-[10px] font-bold text-gray-500 uppercase mt-2 mb-0.5">Suggested response</p>
-            <p className="text-[12px] text-gray-700 whitespace-pre-wrap">{askResult.response}</p>
-            <div className="flex gap-2 mt-2">
-              <button onClick={() => { navigator.clipboard.writeText(askResult.response); setAskCopied(true); setTimeout(() => setAskCopied(false), 1500); }} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
-                <Copy size={11} /> {askCopied ? 'Copied' : 'Copy response'}
-              </button>
-            </div>
+          {/* Existing KPIs list */}
+          <div style={{ padding: '12px 16px' }}>
+            {kpis.map(kpi => {
+              const def = kpi.details as any;
+              return (
+                <div key={kpi.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F9FAFB' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{def.kpi_name}</div>
+                    <div style={{ fontSize: 11, color: '#9CA3AF' }}>{def.unit} · target {def.target} · {def.frequency}</div>
+                  </div>
+                  <button onClick={() => handleDeleteKpi(kpi.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 4 }}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
-        )}
 
-        {askNotFound && ask.trim() && (
-          <div className="mt-3 bg-gray-50 rounded-xl p-3 text-[12px] text-gray-600">
-            No match found for &ldquo;{ask}&rdquo;. {isAdmin ? 'Check the Pending tab below.' : 'Let your manager know or log a new entry below for admin review.'}
-          </div>
-        )}
-      </div>
-
-      {/* Submit a new entry */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm mb-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Plus size={14} className="text-gray-700" />
-          <p className="text-[14px] font-bold text-gray-900">Add a new answer</p>
-        </div>
-        <p className="text-[11px] text-gray-500 mb-3">SOPs, best practices, procedures, and GM guidance. Staff submissions go to <span className="font-semibold">Pending</span> for admin review. Admins can publish directly.</p>
-        <label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
-        <div className="flex flex-wrap gap-1 mt-1 mb-3">
-          {categories.map(c => (
-            <button key={c.key} onClick={() => setCategory(c.key)} className={`px-3 py-1.5 rounded-full text-[11px] font-bold border ${category === c.key ? 'text-white border-transparent' : 'bg-white border-gray-200 text-gray-600'}`} style={category === c.key ? { backgroundColor: TEAL } : {}}>
-              <span className="mr-1">{c.icon}</span>{c.label}
+          {/* Add KPI form */}
+          <div style={{ padding: '12px 16px', background: '#F9FAFB', borderTop: '1px solid #E5E7EB' }}>
+            <div style={{ fontWeight: 700, fontSize: 12, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Add Custom KPI</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <input value={addForm.kpi_name} onChange={e => setAddForm(f => ({ ...f, kpi_name: e.target.value }))} placeholder="KPI Name *" style={inputStyle} />
+              <input value={addForm.unit} onChange={e => setAddForm(f => ({ ...f, unit: e.target.value }))} placeholder="Unit (USD, %, rooms…) *" style={inputStyle} />
+              <input value={addForm.target} onChange={e => setAddForm(f => ({ ...f, target: e.target.value }))} placeholder="Target" type="number" style={inputStyle} />
+              <select value={addForm.frequency} onChange={e => setAddForm(f => ({ ...f, frequency: e.target.value as any }))} style={inputStyle}>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              <select value={addForm.category} onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))} style={inputStyle}>
+                {['Revenue','Operations','Guest Experience','Quality','Housekeeping','Front Desk','Security','Food & Beverage'].map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <textarea
+              value={addForm.why}
+              onChange={e => setAddForm(f => ({ ...f, why: e.target.value }))}
+              placeholder="Why do we track this? (coaching context shown to staff)"
+              rows={2}
+              style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 8, resize: 'none', gridColumn: '1/-1' }}
+            />
+            <button
+              onClick={handleAddKpi}
+              disabled={addingKpi || !addForm.kpi_name || !addForm.unit}
+              style={{ marginTop: 10, width: '100%', padding: '10px', background: TEAL, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: (!addForm.kpi_name || !addForm.unit) ? 0.5 : 1 }}
+            >
+              {addingKpi ? 'Adding…' : '+ Add KPI'}
             </button>
-          ))}
-        </div>
-        <label className="text-[10px] font-bold text-gray-500 uppercase">Situation / Topic</label>
-        <textarea value={incident} onChange={e => setIncident(e.target.value)} rows={3} placeholder="e.g. How to handle a late checkout, breakfast hours, noise complaint procedure..." className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
-        <button onClick={generateSuggestion} disabled={!incident} className="mt-3 w-full py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-          ✨ Suggest Response
-        </button>
-        {suggestion && (
-          <>
-            <label className="text-[10px] font-bold text-gray-500 uppercase mt-3 block">Suggested response (edit if needed)</label>
-            <textarea value={suggestion} onChange={e => setSuggestion(e.target.value)} rows={5} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 mt-1" />
-            <div className="flex gap-2 mt-3">
-              <button onClick={save} disabled={saving} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{saving ? 'Submitting…' : 'Submit for Review'}</button>
-              <button onClick={() => { setIncident(''); setSuggestion(''); }} className="px-4 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Clear</button>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Filter tabs */}
-      <div className="flex gap-1 mb-3 overflow-x-auto">
-        {([
-          { key: 'approved', label: `✓ Approved (${approved.length})` },
-          ...(isAdmin ? [{ key: 'pending', label: `⏳ Pending (${pending.length})` }] : []),
-          ...(isAdmin ? [{ key: 'rejected', label: `✗ Rejected (${rejected.length})` }] : []),
-          ...(isAdmin ? [{ key: 'all', label: `All (${approved.length + pending.length + rejected.length})` }] : []),
-        ] as { key: 'approved' | 'pending' | 'rejected' | 'all'; label: string }[]).map(t => (
-          <button key={t.key} onClick={() => setFilter(t.key)} className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap ${filter === t.key ? 'text-white' : 'bg-white border border-gray-200 text-gray-600'}`} style={filter === t.key ? { backgroundColor: TEAL } : {}}>{t.label}</button>
-        ))}
-      </div>
-
-      {/* KB entries */}
-      {visible.length === 0 ? (
-        <div className="bg-gray-50 rounded-2xl p-8 text-center">
-          <BookOpen size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-[14px] text-gray-500 font-medium">
-            {filter === 'pending' ? 'No pending entries' : filter === 'rejected' ? 'No rejected entries' : 'No answers yet'}
-          </p>
-          <p className="text-[12px] text-gray-400 mt-1">
-            {filter === 'pending' ? 'New staff submissions will appear here for your review.' : 'Share what you know below to start adding answers.'}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {visible.map(e => {
-            const d = e.details as any;
-            const isPending = e.status === 'pending';
-            const isRejected = e.status === 'rejected';
-            return (
-              <details key={e.id} className={`bg-white rounded-2xl border shadow-sm group ${isPending ? 'border-amber-200' : isRejected ? 'border-gray-200 opacity-70' : 'border-gray-200'}`}>
-                <summary className="p-4 cursor-pointer list-none flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold capitalize">{d.category}</span>
-                      {isPending && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">⏳ Pending</span>}
-                      {isRejected && <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 font-semibold">✗ Rejected</span>}
-                      <span className="text-[10px] text-gray-400">{e.created_at?.split('T')[0]}</span>
-                      <span className="text-[10px] text-gray-400">by {d.added_by}</span>
-                    </div>
-                    <p className="text-[13px] text-gray-700 line-clamp-2">{d.situation}</p>
-                  </div>
-                  {isAdmin && (
-                    <button onClick={ev => { ev.preventDefault(); del(e.id); }} className="p-1 text-gray-400 hover:text-gray-700 ml-2" title="Delete"><Trash2 size={14} /></button>
-                  )}
-                </summary>
-                <div className="px-4 pb-4 pt-0 border-t border-gray-100">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase mt-3 mb-1">Suggested response</p>
-                  <p className="text-[12px] text-gray-700 leading-relaxed whitespace-pre-wrap">{d.response}</p>
-                  <div className="flex items-center gap-2 mt-3">
-                    <button onClick={() => { navigator.clipboard.writeText(d.response); }} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
-                      <Copy size={11} /> Copy
-                    </button>
-                    {isAdmin && isPending && (
-                      <>
-                        <button onClick={() => approve(e.id)} className="ml-auto px-3 py-1.5 rounded-lg text-white font-bold text-[11px]" style={{ backgroundColor: TEAL }}>
-                          ✓ Approve
-                        </button>
-                        <button onClick={() => reject(e.id)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 font-bold text-[11px]">
-                          ✗ Reject
-                        </button>
-                      </>
-                    )}
-                    {isAdmin && isRejected && (
-                      <button onClick={() => approve(e.id)} className="ml-auto px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 font-bold text-[11px]">
-                        Restore
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </details>
-            );
-          })}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-export { IncidentKBView };
+function Chip({ label, color, bg }: { label: string; color: string; bg: string }) {
+  return (
+    <div style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, color, background: bg }}>
+      {label}
+    </div>
+  );
+}
+
+const stickyColStyle: React.CSSProperties = {
+  position: 'sticky',
+  left: 0,
+  zIndex: 1,
+  minWidth: 160,
+  maxWidth: 200,
+};
+
+const navBtnStyle: React.CSSProperties = {
+  background: '#F3F4F6', border: 'none', borderRadius: 8, width: 30, height: 30,
+  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#374151',
+};
+
+const inputStyle: React.CSSProperties = {
+  padding: '8px 10px', border: '1px solid #E5E7EB', borderRadius: 8,
+  fontSize: 13, color: '#111827', background: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box',
+};

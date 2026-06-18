@@ -77,6 +77,7 @@ const KpisView = dynamic(() => import('@/components/staff/KpisView'), { ssr: fal
 const DailyBriefView = dynamic(() => import('@/components/staff/DailyBriefView'), { ssr: false });
 const CompsetView = dynamic(() => import('@/components/staff/CompsetView'), { ssr: false });
 const LeaderboardView = dynamic(() => import('@/components/staff/LeaderboardView'), { ssr: false });
+const MarketplaceView = dynamic(() => import('@/components/staff/MarketplaceView'), { ssr: false });
 import {
   listOps, createOps, updateOps, deleteOps,
   listKpiDefinitions, createKpiDefinition, deleteKpiDefinition,
@@ -115,7 +116,7 @@ type NavTab =
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
-  | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos' | 'leaderboard';
+  | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos' | 'leaderboard' | 'marketplace';
 
 interface Request {
   id: string;
@@ -171,6 +172,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'shuttle',         label: 'Shuttle',            icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'kpis',            label: 'KPIs',               icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'leaderboard',     label: 'Leaderboard',        icon: Trophy,          roles: ['admin', 'manager', 'superadmin', 'staff'], section: 'Operations' },
+  { tab: 'marketplace',    label: 'Marketplace',        icon: Store,           roles: ['admin', 'superadmin'], section: 'Operations' },
   { tab: 'knowledge',       label: 'Right Answers',     icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'learning_hr',     label: 'Learning & HR',      icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'property_info',   label: 'Property Info',      icon: HotelIcon,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
@@ -753,6 +755,9 @@ export default function Dashboard() {
         )}
         {effectiveTab === 'leaderboard' && (
           <LeaderboardView hotelId={config?.id || ''} staffName={s.name} isAdmin={isAdmin} />
+        )}
+        {effectiveTab === 'marketplace' && (
+          <MarketplaceView hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} />
         )}
         {effectiveTab === 'checklists_tab' && (
           <ChecklistsTabView hotelId={config?.id || ''} isAdmin={isAdmin} />
