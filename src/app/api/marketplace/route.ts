@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
         ? db.from('kpi_pack_installs').select('pack_id').eq('hotel_id', hotelId)
         : Promise.resolve({ data: [] }),
     ]);
-    const installedPackIds = (installs || []).map((i: any) => i.pack_id);
+    const installedPackIds = (installs || []).map((i: { pack_id: string }) => i.pack_id);
     return NextResponse.json({ ok: true, packs: packs || [], installedPackIds });
   } else {
     const [{ data: packs }, { data: installs }] = await Promise.all([
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
         ? db.from('todo_pack_installs').select('pack_id').eq('hotel_id', hotelId)
         : Promise.resolve({ data: [] }),
     ]);
-    const installedPackIds = (installs || []).map((i: any) => i.pack_id);
+    const installedPackIds = (installs || []).map((i: { pack_id: string }) => i.pack_id);
     return NextResponse.json({ ok: true, packs: packs || [], installedPackIds });
   }
 }
@@ -55,10 +55,10 @@ export async function POST(req: NextRequest) {
       .eq('type', 'kpi_definition');
 
     const existingNames = new Set(
-      (existingKpis || []).map((r: any) => (r.details?.kpi_name || '').toLowerCase())
+      (existingKpis || []).map((r: { details?: { kpi_name?: string } }) => (r.details?.kpi_name || '').toLowerCase())
     );
 
-    const items: any[] = pack.items || [];
+    const items = (pack.items || []) as { name?: string; unit?: string; target?: number; frequency?: string; category?: string; why?: string }[];
     let installed = 0;
     for (const item of items) {
       if (existingNames.has((item.name || '').toLowerCase())) continue;
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: tErr?.message || 'Template insert failed' }, { status: 500 });
     }
 
-    const items: any[] = pack.items || [];
+    const items = (pack.items || []) as { label?: string; item_type?: string; required?: boolean; sort_order?: number; config?: Record<string, unknown> }[];
     for (const item of items) {
       await db.from('position_todo_items').insert({
         template_id: template.id,

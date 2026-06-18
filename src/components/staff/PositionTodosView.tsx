@@ -322,7 +322,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     await completeInstance(instId);
     // Award 10 points for checklist completion — fire and forget, don't break existing flow
     try {
-      const instance = instances.find(i => i.id === instId);
       await supabase.from('staff_points').insert({
         hotel_id: hotelId,
         staff_name: staffName || 'Staff',
@@ -331,7 +330,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
         description: `Completed checklist`,
         reference_id: instId,
       });
-    } catch (_) {}
+    } catch { /* non-fatal */ }
     await loadAll();
   };
 
