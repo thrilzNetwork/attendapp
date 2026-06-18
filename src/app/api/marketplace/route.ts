@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
 
       // Record install (idempotent via unique constraint)
       await db.from('kpi_pack_installs').upsert(
-        { pack_id: packId, hotel_id: scopedHotelId, installed_by: caller.name || 'admin' },
+        { pack_id: packId, hotel_id: scopedHotelId, installed_by: caller.email || 'admin' },
         { onConflict: 'pack_id,hotel_id', ignoreDuplicates: true }
       );
 
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
         await db.from('todo_pack_installs').insert({
           pack_id: packId,
           hotel_id: scopedHotelId,
-          installed_by: caller.name || 'admin',
+          installed_by: caller.email || 'admin',
         });
 
         await db.from('todo_packs').update({ install_count: (pack.install_count || 0) + 1 }).eq('id', packId);

@@ -13,7 +13,7 @@ function RideCard({ brandColor }: { brandColor: string }) {
   const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
-    getHotelConfig().then(cfg => { if (cfg?.phone) setPhone(cfg.phone); });
+    getHotelConfig().then(cfg => { if (cfg?.frontDeskPhone) setPhone(cfg.frontDeskPhone); });
   }, []);
 
   const requestRide = async () => {

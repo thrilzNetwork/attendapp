@@ -40,6 +40,8 @@ interface PartnerMenuItem {
   description: string;
   price: number;
   is_active: boolean;
+  category?: string;
+  sort_order?: number;
 }
 
 /* ── Constants ─────────────────────────────────────────── */
@@ -145,7 +147,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
       price: parseFloat(mf.price),
       category: mf.category || 'Main',
     });
-    setMenuForm(prev => ({ ...prev, [partnerId]: { name: '', description: '', price: '' } }));
+    setMenuForm(prev => ({ ...prev, [partnerId]: { name: '', description: '', price: '', category: 'Main' } }));
     loadMenu(partnerId);
   };
 
