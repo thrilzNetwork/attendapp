@@ -450,6 +450,8 @@ export interface PartnerMenuItem {
   description: string;
   price: number;
   is_active: boolean;
+  category?: string;
+  sort_order?: number;
 }
 
 export async function getPartners(hotelId: string): Promise<Partner[]> {
@@ -486,7 +488,7 @@ export async function getPartnerMenuItems(partnerId: string): Promise<PartnerMen
   return data || [];
 }
 
-export async function createPartnerMenuItem(item: { partner_id: string; name: string; description: string; price: number }): Promise<void> {
+export async function createPartnerMenuItem(item: { partner_id: string; name: string; description: string; price: number; category?: string; sort_order?: number }): Promise<void> {
   const { error } = await supabase.from('partner_menu_items').insert({ ...item, is_active: true });
   if (error) throw error;
 }

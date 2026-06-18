@@ -80,7 +80,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
   });
   const [deliveryProviders, setDeliveryProviders] = useState<{ name: string; url: string }[]>([]);
   const [deliveryProviderForm, setDeliveryProviderForm] = useState({ name: '', url: '' });
-  const [menuForm, setMenuForm] = useState<Record<string, { name: string; description: string; price: string }>>({});
+  const [menuForm, setMenuForm] = useState<Record<string, { name: string; description: string; price: string; category: string }>>({});
   const [dpForm, setDpForm] = useState<Record<string, { name: string; url: string }>>({});
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
 
@@ -142,6 +142,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
       name: mf.name,
       description: mf.description || '',
       price: parseFloat(mf.price),
+      category: mf.category || 'Main',
     });
     setMenuForm(prev => ({ ...prev, [partnerId]: { name: '', description: '', price: '' } }));
     loadMenu(partnerId);
@@ -548,31 +549,42 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                   {p.has_ordering && (
                     <div>
                       <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Menu Items</h4>
-                  <div className="flex gap-2 mb-4">
+                  <div className="grid grid-cols-2 gap-2 mb-2">
                     <input
                       placeholder="Item name *"
                       value={menuForm[p.id]?.name || ''}
                       onChange={e => setMenuForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], name: e.target.value } }))}
-                      className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none"
+                      className="bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none"
                     />
                     <input
-                      placeholder="Description"
+                      placeholder="Description (optional)"
                       value={menuForm[p.id]?.description || ''}
                       onChange={e => setMenuForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], description: e.target.value } }))}
-                      className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none"
+                      className="bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none"
                     />
-                    <input
-                      placeholder="$0.00"
-                      type="number"
-                      step="0.01"
-                      value={menuForm[p.id]?.price || ''}
-                      onChange={e => setMenuForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], price: e.target.value } }))}
-                      className="w-20 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none"
-                    />
-                    <button onClick={() => handleAddMenuItem(p.id)}
-                      className="px-3 py-2 rounded-lg text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
-                      Add
-                    </button>
+                    <select
+                      value={menuForm[p.id]?.category || 'Main'}
+                      onChange={e => setMenuForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], category: e.target.value } }))}
+                      className="bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none"
+                    >
+                      {['Appetizer','Main','Side','Dessert','Drink','Cocktail','Special'].map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                    <div className="flex gap-2">
+                      <input
+                        placeholder="Price $"
+                        type="number"
+                        step="0.01"
+                        value={menuForm[p.id]?.price || ''}
+                        onChange={e => setMenuForm(prev => ({ ...prev, [p.id]: { ...prev[p.id], price: e.target.value } }))}
+                        className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200 focus:outline-none"
+                      />
+                      <button onClick={() => handleAddMenuItem(p.id)}
+                        className="px-4 py-2 rounded-lg text-white text-[12px] font-bold shrink-0" style={{ backgroundColor: TEAL }}>
+                        Add
+                      </button>
+                    </div>
                   </div>
                   {(menuItems[p.id] || []).length === 0 ? (
                     <p className="text-[12px] text-gray-400">No menu items yet.</p>
@@ -582,6 +594,9 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                         <div key={item.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-2.5 border border-gray-100">
                           <div>
                             <span className="text-[13px] font-semibold text-gray-900">{item.name}</span>
+                            {item.category && item.category !== 'Main' && (
+                              <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{item.category}</span>
+                            )}
                             {item.description && <span className="text-[11px] text-gray-400 ml-2">{item.description}</span>}
                           </div>
                           <div className="flex items-center gap-3">

@@ -237,28 +237,36 @@ function PartnerContent() {
 
               {menuItems.length > 0 && (
                 <>
-                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider pt-1">Menu</div>
-                  {menuItems.map(item => (
-                    <div key={item.id} className="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-gray-100">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-sm text-gray-900 truncate">{item.name}</div>
-                        {item.description && <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.description}</div>}
-                        <div className="text-sm font-extrabold mt-1" style={{ color: brandColor }}>${Number(item.price).toFixed(2)}</div>
+                  {/* Group by category */}
+                  {Array.from(new Set(menuItems.map(i => i.category || 'Main'))).map(cat => {
+                    const catItems = menuItems.filter(i => (i.category || 'Main') === cat);
+                    return (
+                      <div key={cat}>
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider pt-2 pb-1">{cat}</div>
+                        {catItems.map(item => (
+                          <div key={item.id} className="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-gray-100 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-sm text-gray-900 truncate">{item.name}</div>
+                              {item.description && <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.description}</div>}
+                              <div className="text-sm font-extrabold mt-1" style={{ color: brandColor }}>${Number(item.price).toFixed(2)}</div>
+                            </div>
+                            <div className="flex items-center gap-2 ml-3">
+                              <button onClick={() => setCart(c => ({ ...c, [item.id]: Math.max((c[item.id] || 0) - 1, 0) }))}
+                                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center active:scale-90">
+                                <Minus size={14} />
+                              </button>
+                              <span className="w-4 text-center text-sm font-bold">{cart[item.id] || 0}</span>
+                              <button onClick={() => setCart(c => ({ ...c, [item.id]: (c[item.id] || 0) + 1 }))}
+                                className="w-7 h-7 rounded-full text-white flex items-center justify-center active:scale-90"
+                                style={{ backgroundColor: brandColor }}>
+                                <Plus size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="flex items-center gap-2 ml-3">
-                        <button onClick={() => setCart(c => ({ ...c, [item.id]: Math.max((c[item.id] || 0) - 1, 0) }))}
-                          className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center active:scale-90">
-                          <Minus size={14} />
-                        </button>
-                        <span className="w-4 text-center text-sm font-bold">{cart[item.id] || 0}</span>
-                        <button onClick={() => setCart(c => ({ ...c, [item.id]: (c[item.id] || 0) + 1 }))}
-                          className="w-7 h-7 rounded-full text-white flex items-center justify-center active:scale-90"
-                          style={{ backgroundColor: brandColor }}>
-                          <Plus size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {cartItems.length > 0 && (
                     <div className="pt-2 pb-4 space-y-3">
