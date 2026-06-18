@@ -50,37 +50,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
     }
 
-    const results: { date: string; ok: boolean }[] = [];
+    const db = getServiceClient();
+    const now = new Date().toISOString();
 
-    const serviceClient = getServiceClient();
+    const rows = forecasts.map((f) => ({
+      hotel_id: scopedHotelId,
+      week_start: f.week_start,
+      date: f.date,
+      occupancy_pct: f.occupancy_pct,
+      arrivals: f.arrivals,
+      rooms_occupied: f.rooms_occupied,
+      departures: f.departures,
+      total_rooms: f.total_rooms,
+      prev_night_occ: f.prev_night_occ,
+      updated_at: now,
+    }));
 
-    for (const f of forecasts) {
-      const { error } = await serviceClient
-        .from('weekly_forecasts')
-        .upsert(
-          {
-            hotel_id: scopedHotelId,
-            week_start: f.week_start,
-            date: f.date,
-            occupancy_pct: f.occupancy_pct,
-            arrivals: f.arrivals,
-            rooms_occupied: f.rooms_occupied,
-            departures: f.departures,
-            total_rooms: f.total_rooms,
-            prev_night_occ: f.prev_night_occ,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'hotel_id, date' }
-        );
+    const { error } = await db
+      .from('weekly_forecasts')
+      .upsert(rows, { onConflict: 'hotel_id,date' });
 
-      results.push({ date: f.date, ok: !error });
-      if (error) {
-        console.error(`Forecast upsert error for ${f.date}:`, error.message);
-      }
+    if (error) {
+      console.error('Forecast batch upsert error:', error.message);
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     }
 
-    const allOk = results.every((r) => r.ok);
-    return NextResponse.json({ ok: allOk, results });
+    return NextResponse.json({ ok: true });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Server error';
     console.error('upsert-forecast error:', msg);
