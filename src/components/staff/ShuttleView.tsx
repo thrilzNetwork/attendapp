@@ -12,7 +12,7 @@ import {
   getStaffSchedulesRange,
   type ShuttleRoute, type ShuttleSlot, type ShuttleBooking, type ShuttleRequest, type Partner, type StaffAccount,
 } from '@/lib/supabase';
-import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, Timer, Truck, ExternalLink, User } from 'lucide-react';
+import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, Truck, ExternalLink, User } from 'lucide-react';
 
 function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 3958.8;
@@ -319,7 +319,7 @@ function RouteCard({ route, slots, onDelete, onDeleteSlot, onSaved }: {
 }
 
 /* ── Main ShuttleView ── */
-export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [] }: Props) {
+export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props) {
   const [tab,      setTab]      = useState<Tab>('today');
   const [routes,   setRoutes]   = useState<ShuttleRoute[]>([]);
   const [slots,    setSlots]    = useState<ShuttleSlot[]>([]);

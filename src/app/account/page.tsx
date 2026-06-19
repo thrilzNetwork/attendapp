@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase, getHotelConfig, type HotelConfig } from '@/lib/supabase';
-import { QrCode, ArrowLeft, ChevronRight, Clock, CheckCircle, Loader2 } from 'lucide-react';
+import { QrCode, ArrowLeft, ChevronRight, CheckCircle, Loader2 } from 'lucide-react';
 
 const TEAL = '#0D9488';
 
