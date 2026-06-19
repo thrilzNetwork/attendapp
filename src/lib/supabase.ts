@@ -814,6 +814,10 @@ export interface ShuttleRequest {
   assigned_driver_id: string | null;
   assigned_driver_name?: string;
   created_at: string;
+  uber_delivery_id?: string | null;
+  uber_tracking_url?: string | null;
+  uber_status?: string | null;
+  uber_fee_cents?: number | null;
 }
 
 // ─── Shuttle CRUD ───────────────────────────────────────────

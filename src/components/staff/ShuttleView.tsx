@@ -11,7 +11,7 @@ import {
   getPartners, supabase,
   type ShuttleRoute, type ShuttleSlot, type ShuttleBooking, type ShuttleRequest, type Partner,
 } from '@/lib/supabase';
-import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, Timer } from 'lucide-react';
+import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, Timer, Truck, ExternalLink } from 'lucide-react';
 
 // Haversine distance in miles (client-side copy)
 function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -451,6 +451,27 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
     await load();
   };
 
+  const [uberDispatching, setUberDispatching] = useState<string | null>(null);
+  const [uberError, setUberError] = useState<string | null>(null);
+
+  const handleUberDispatch = async (r: ShuttleRequest) => {
+    setUberDispatching(r.id);
+    setUberError(null);
+    try {
+      const res = await fetch('/api/uber-direct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'dispatch', requestId: r.id, mode: 'transport' }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Dispatch failed');
+      await load();
+    } catch (e) {
+      setUberError(e instanceof Error ? e.message : 'Uber dispatch failed');
+    }
+    setUberDispatching(null);
+  };
+
   const statusColors: Record<string, string> = {
     pending:     'bg-amber-50 text-amber-700 border-amber-200',
     assigned:    'bg-blue-50 text-blue-700 border-blue-200',
@@ -616,6 +637,11 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
           {/* ── REQUESTS ── */}
           {tab === 'requests' && (
             <div className="space-y-3">
+              {uberError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-[13px] text-red-700 font-medium">
+                  ⚠️ {uberError}
+                </div>
+              )}
               {requests.length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
                   <AlertCircle size={40} className="mx-auto text-gray-300 mb-3" />
@@ -668,6 +694,30 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                           Cancel
                         </button>
                       </div>
+                    )}
+
+                    {/* Uber Direct dispatch */}
+                    {r.status !== 'completed' && r.status !== 'cancelled' && (
+                      !r.uber_delivery_id ? (
+                        <button
+                          onClick={() => handleUberDispatch(r)}
+                          disabled={uberDispatching === r.id}
+                          className="mt-2 w-full py-2 rounded-xl text-white font-bold text-[12px] bg-black flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform">
+                          <Truck size={13} />
+                          {uberDispatching === r.id ? 'Dispatching…' : 'Send Uber Driver'}
+                        </button>
+                      ) : (
+                        <div className="mt-2 flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                          <Truck size={13} className="text-black shrink-0" />
+                          <span className="text-[12px] font-bold text-gray-700 capitalize">{r.uber_status?.replace(/_/g, ' ') || 'Dispatched'}</span>
+                          {r.uber_tracking_url && (
+                            <a href={r.uber_tracking_url} target="_blank" rel="noopener noreferrer"
+                              className="ml-auto text-[11px] font-bold text-teal-600 flex items-center gap-1">
+                              Track <ExternalLink size={10} />
+                            </a>
+                          )}
+                        </div>
+                      )
                     )}
                   </div>
                 ))
