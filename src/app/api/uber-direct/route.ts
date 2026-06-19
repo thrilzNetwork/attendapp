@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { createUberDelivery, getUberDelivery } from '@/lib/uber-direct';
+import { createUberDelivery, getUberDelivery, toE164 } from '@/lib/uber-direct';
 
 export async function POST(req: NextRequest) {
   const { action, requestId, mode } = await req.json();
@@ -13,13 +13,13 @@ export async function POST(req: NextRequest) {
       // shuttle_requests: hotel is pickup, guest destination is dropoff
       const { data: trip, error } = await db
         .from('shuttle_requests')
-        .select('*, hotels(name, address, phone)')
+        .select('*, hotels(name, address, front_desk_phone)')
         .eq('id', requestId)
         .maybeSingle();
       if (error || !trip) return NextResponse.json({ ok: false, error: 'Trip not found' }, { status: 404 });
       if (trip.uber_delivery_id) return NextResponse.json({ ok: false, error: 'Already dispatched' }, { status: 400 });
 
-      const hotel = trip.hotels as { name: string; address: string; phone: string } | null;
+      const hotel = trip.hotels as { name: string; address: string; front_desk_phone: string } | null;
       if (!hotel?.address) return NextResponse.json({ ok: false, error: 'Hotel address not set' }, { status: 400 });
       if (!trip.destination) return NextResponse.json({ ok: false, error: 'No destination on trip' }, { status: 400 });
 
@@ -27,10 +27,10 @@ export async function POST(req: NextRequest) {
       const delivery = await createUberDelivery({
         pickupAddress: `${hotel.address}, Fort Lauderdale, FL`,
         pickupName: hotel.name,
-        pickupPhone: hotel.phone || '+19543000000',
+        pickupPhone: toE164(hotel.front_desk_phone),
         dropoffAddress: trip.destination,
         dropoffName: `${trip.guest_name} (Room ${trip.room_number})`,
-        dropoffPhone: '+19543000000',
+        dropoffPhone: toE164(hotel.front_desk_phone),
         dropoffNotes: `Guest: ${trip.guest_name}, Room ${trip.room_number}. ${trip.pax} pax. ${when}. ${trip.notes || ''}`.trim(),
         items: [{ name: `Transport for ${trip.guest_name}`, quantity: trip.pax || 1, price: 0 }],
         externalId: requestId,
@@ -56,14 +56,14 @@ export async function POST(req: NextRequest) {
     // Food order: partner is pickup, hotel is dropoff
     const { data: order, error: oErr } = await db
       .from('requests')
-      .select('*, partners(name, address, phone), hotels(name, address, phone)')
+      .select('*, partners(name, address, phone), hotels(name, address, front_desk_phone)')
       .eq('id', requestId)
       .maybeSingle();
     if (oErr || !order) return NextResponse.json({ ok: false, error: 'Order not found' }, { status: 404 });
     if (order.uber_delivery_id) return NextResponse.json({ ok: false, error: 'Already dispatched' }, { status: 400 });
 
     const partner = order.partners as { name: string; address: string; phone: string } | null;
-    const hotel = order.hotels as { name: string; address: string; phone: string } | null;
+    const hotel = order.hotels as { name: string; address: string; front_desk_phone: string } | null;
     if (!partner?.address || !hotel?.address) {
       return NextResponse.json({ ok: false, error: 'Missing pickup or dropoff address' }, { status: 400 });
     }
@@ -71,10 +71,10 @@ export async function POST(req: NextRequest) {
     const delivery = await createUberDelivery({
       pickupAddress: partner.address,
       pickupName: partner.name,
-      pickupPhone: partner.phone || '+19543000000',
+      pickupPhone: toE164(partner.phone),
       dropoffAddress: `${hotel.address}, Fort Lauderdale, FL`,
       dropoffName: `${hotel.name} — Room ${order.room}`,
-      dropoffPhone: hotel.phone || '+19543000000',
+      dropoffPhone: toE164(hotel.front_desk_phone),
       dropoffNotes: `Guest: ${order.guest_name}, Room ${order.room}. ${order.details}`,
       items: [{ name: order.details, quantity: 1, price: Number(order.total_amount || 0) }],
       externalId: requestId,
