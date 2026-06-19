@@ -163,7 +163,16 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
       setWeekShifts(schedules || []);
       setChecklistTemplates(templates || []);
       setChecklistInstances(instances || []);
-      const snapshot = (kpiDefs || []).slice(0, 6).map((def: OpRecord) => {
+      // Filter to score-related KPIs only — exclude checklist completion counts and parking items
+      const SCORE_KEYWORDS = ['score', 'satisfaction', 'rating', 'review', 'nps', 'tripadvisor', 'google'];
+      const EXCLUDE_KEYWORDS = ['checklist', 'parking', 'completion'];
+      const scoreDefs = (kpiDefs || []).filter((def: OpRecord) => {
+        const d = def.details as Record<string, unknown>;
+        const name = ((d.kpi_name as string) || '').toLowerCase();
+        if (EXCLUDE_KEYWORDS.some(kw => name.includes(kw))) return false;
+        return SCORE_KEYWORDS.some(kw => name.includes(kw));
+      });
+      const snapshot = scoreDefs.slice(0, 6).map((def: OpRecord) => {
         const d = def.details as Record<string, unknown>;
         const todayLogs = (kpiLogs || []).filter((l: OpRecord) => {
           const ld = l.details as Record<string, unknown>;
