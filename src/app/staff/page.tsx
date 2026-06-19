@@ -3868,7 +3868,11 @@ function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: b
 
   if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
 
-  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // Day columns honor the property's "week starts on" setting. The stored
+  // day_of_week uses 0=Sun..6=Sat (Date.getDay), so we keep that index in
+  // dayIdx and only reorder how the columns are displayed.
+  const ALL_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const DAY_ORDER = config?.weekStartsOn === 'Monday' ? [1, 2, 3, 4, 5, 6, 0] : [0, 1, 2, 3, 4, 5, 6];
   const SERVICE_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
     regular: { bg: 'bg-gray-100', text: 'text-gray-700', ring: 'ring-gray-300' },
     express: { bg: 'bg-gray-900', text: 'text-white', ring: 'ring-gray-700' },
@@ -3909,14 +3913,14 @@ function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: b
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="sticky left-0 z-10 bg-gray-50 text-left p-2 font-bold text-gray-500 uppercase text-[10px] min-w-[80px]">Time</th>
-                  {DAYS.map(d => <th key={d} className="text-center p-2 font-bold text-gray-500 uppercase text-[10px] min-w-[110px]">{d}</th>)}
+                  {DAY_ORDER.map(dayIdx => <th key={dayIdx} className="text-center p-2 font-bold text-gray-500 uppercase text-[10px] min-w-[110px]">{ALL_DAYS[dayIdx]}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {allTimes.map(time => (
                   <tr key={time} className="border-b border-gray-100">
                     <td className="sticky left-0 z-10 bg-white p-2 font-bold text-gray-700 text-[11px]">{time}</td>
-                    {DAYS.map((_, dayIdx) => {
+                    {DAY_ORDER.map(dayIdx => {
                       const cellSlots = slots.filter(s => s.day_of_week === dayIdx && s.departure_time === time);
                       return (
                         <td key={dayIdx} className="p-1 align-top">
@@ -3955,8 +3959,8 @@ function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: b
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase">Day</label>
                 <div className="grid grid-cols-7 gap-1 mt-1">
-                  {DAYS.map((d, i) => (
-                    <button key={d} onClick={() => setForm(p => ({ ...p, day_of_week: i }))} className={`py-2 rounded-lg text-[10px] font-bold ${form.day_of_week === i ? 'text-white' : 'bg-gray-100 text-gray-600'}`} style={form.day_of_week === i ? { backgroundColor: TEAL } : {}}>{d}</button>
+                  {DAY_ORDER.map(i => (
+                    <button key={i} onClick={() => setForm(p => ({ ...p, day_of_week: i }))} className={`py-2 rounded-lg text-[10px] font-bold ${form.day_of_week === i ? 'text-white' : 'bg-gray-100 text-gray-600'}`} style={form.day_of_week === i ? { backgroundColor: TEAL } : {}}>{ALL_DAYS[i]}</button>
                   ))}
                 </div>
               </div>
