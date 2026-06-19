@@ -360,6 +360,58 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
     setEnrolling(null);
   };
 
+  // Vendor self-onboarding applications awaiting approval
+  interface VendorApp { id: string; restaurant_name: string; contact_name: string; contact_email: string; contact_phone: string; message: string; created_at: string; }
+  const [applications, setApplications] = useState<VendorApp[]>([]);
+  const [appBusy, setAppBusy] = useState<string | null>(null);
+
+  const loadApplications = useCallback(async () => {
+    try {
+      const res = await fetch('/api/partners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        body: JSON.stringify({ action: 'list_applications', data: { hotel_id: hotelId } }),
+      });
+      const json = await res.json();
+      if (json.ok) setApplications(json.data || []);
+    } catch { /* non-fatal */ }
+  }, [hotelId]);
+
+  useEffect(() => { loadApplications(); }, [loadApplications]);
+
+  const approveApplication = async (app: VendorApp) => {
+    setAppBusy(app.id);
+    try {
+      const res = await fetch('/api/partners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        body: JSON.stringify({ action: 'approve_application', data: { applicationId: app.id, hotel_id: hotelId } }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Approval failed');
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://attendaapp.com';
+      const url = `${origin}/vendor/setup?email=${encodeURIComponent(json.vendorEmail || '')}&token=${encodeURIComponent(json.setupToken)}`;
+      setEnrollInfo({ partnerId: json.partnerId, url, email: json.vendorEmail || '' });
+      await Promise.all([loadApplications(), loadPartners()]);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Approval failed');
+    }
+    setAppBusy(null);
+  };
+
+  const rejectApplication = async (app: VendorApp) => {
+    setAppBusy(app.id);
+    try {
+      await fetch('/api/partners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        body: JSON.stringify({ action: 'reject_application', data: { applicationId: app.id } }),
+      });
+      await loadApplications();
+    } catch { /* non-fatal */ }
+    setAppBusy(null);
+  };
+
   const visiblePartners = partners.filter(p => p.category === activeTab);
 
   /* ── Render ─────────────────────────────────────────── */
@@ -381,6 +433,37 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
           <Plus size={14} /> Add Partner
         </button>
       </div>
+
+      {/* Vendor self-onboarding applications */}
+      {applications.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
+          <p className="text-[13px] font-bold text-amber-800 mb-2">
+            {applications.length} restaurant {applications.length === 1 ? 'application' : 'applications'} awaiting review
+          </p>
+          <div className="space-y-2">
+            {applications.map(app => (
+              <div key={app.id} className="bg-white rounded-xl border border-amber-100 p-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[14px] font-bold text-gray-900 truncate">{app.restaurant_name}</p>
+                  <p className="text-[12px] text-gray-500 truncate">{app.contact_name} · {app.contact_email} · {app.contact_phone}</p>
+                  {app.message && <p className="text-[11px] text-gray-400 italic truncate">{app.message}</p>}
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  <button onClick={() => approveApplication(app)} disabled={appBusy === app.id}
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50">
+                    {appBusy === app.id ? '…' : 'Approve + Enroll'}
+                  </button>
+                  <button onClick={() => rejectApplication(app)} disabled={appBusy === app.id}
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-50">
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-amber-600 mt-2">Approving creates the restaurant + their vendor login in one step.</p>
+        </div>
+      )}
 
       {/* Add Partner slide-down form */}
       {showForm && (
