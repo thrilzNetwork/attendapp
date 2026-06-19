@@ -405,6 +405,14 @@ export function subscribeToRequests(hotelId: string | null, callback: (payload: 
   return channel;
 }
 
+export function subscribeToShuttleRequests(hotelId: string, callback: () => void) {
+  const channel = supabase.channel(`shuttle-requests-${hotelId}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (channel as any).on('postgres_changes', { event: '*', schema: 'public', table: 'shuttle_requests', filter: `hotel_id=eq.${hotelId}` }, callback);
+  channel.subscribe();
+  return channel;
+}
+
 export function subscribeToMessages(hotelId: string | null, callback: (payload?: Record<string, unknown>) => void) {
   const channelName = hotelId ? `messages-live-${hotelId}` : 'messages-live-all';
   const channel = supabase

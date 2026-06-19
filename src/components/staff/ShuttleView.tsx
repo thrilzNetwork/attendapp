@@ -7,7 +7,8 @@ import {
   getAllShuttleSlotsForHotel, createShuttleSlot, deleteShuttleSlot,
   bookShuttleSlot, cancelShuttleBooking,
   getShuttleRequests, createShuttleRequest, updateShuttleRequest,
-  getPartners,
+  subscribeToShuttleRequests,
+  getPartners, supabase,
   type ShuttleRoute, type ShuttleSlot, type ShuttleBooking, type ShuttleRequest, type Partner,
 } from '@/lib/supabase';
 import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, Timer } from 'lucide-react';
@@ -367,6 +368,12 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!hotelId) return;
+    const ch = subscribeToShuttleRequests(hotelId, load);
+    return () => { supabase.removeChannel(ch); };
+  }, [hotelId, load]);
+
   const todaySlots = getTodaySlots(slots);
 
   // Generate a full schedule from wizard
@@ -434,6 +441,7 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
       });
       setReqDone(true);
       setReqForm({ guest_name: '', room_number: '', destination: '', date: todayStr(), time: '', pax: 1, notes: '' });
+      load();
     } catch (e) { setError(e instanceof Error ? e.message : 'Submit failed'); }
     setReqSaving(false);
   };
