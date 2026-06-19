@@ -1691,28 +1691,28 @@ function EnrollForm() {
     if (!form.propertyName || !form.email || !form.contactName) return;
     setStatus('sending');
     try {
-      const res = await fetch('/api/email', {
+      const res = await fetch('/api/hotel-onboard', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'enrollment_inquiry',
-          data: {
-            contactName: form.contactName,
-            contactEmail: form.email,
-            contactPhone: form.phone,
-            propertyName: form.propertyName,
-            propertyType: 'Property',
-            rooms: form.rooms || 'Not specified',
-            city: '',
-            message: form.message,
-          },
+          propertyName: form.propertyName,
+          contactName: form.contactName,
+          email: form.email,
+          phone: form.phone,
+          rooms: form.rooms,
+          message: form.message,
         }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || 'Email failed');
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error((data as { error?: string }).error || 'Onboarding failed');
       }
-      setStatus('sent');
+      // Redirect to staff setup — they'll set their password and land in their dashboard
+      if (data.setupUrl) {
+        window.location.href = data.setupUrl;
+      } else {
+        setStatus('sent');
+      }
     } catch (err) {
       console.error('Enrollment submission error:', err);
       setStatus('error');
@@ -1725,8 +1725,8 @@ function EnrollForm() {
         <div className="w-16 h-16 rounded-full bg-teal-500/20 flex items-center justify-center mx-auto mb-4">
           <CheckCircle size={32} className="text-teal-600" />
         </div>
-        <h3 className="text-[20px] font-bold text-gray-900 mb-2">We&apos;ll be in touch!</h3>
-        <p className="text-[14px] text-gray-600">Expect a reply within one business day with a personalized demo for your property.</p>
+        <h3 className="text-[20px] font-bold text-gray-900 mb-2">Your property is being set up!</h3>
+        <p className="text-[14px] text-gray-600">Redirecting you to complete your account…</p>
       </div>
     );
   }
@@ -1756,7 +1756,7 @@ function EnrollForm() {
       <button onClick={handleSubmit} disabled={status === 'sending'}
         className="w-full py-4 rounded-xl text-white font-bold text-[15px] disabled:opacity-50 shadow-sm"
         style={{ backgroundColor: TEAL }}>
-        {status === 'sending' ? 'Sending...' : 'Show me on my property →'}
+        {status === 'sending' ? 'Setting up…' : 'Get my property live →'}
       </button>
       <div className="grid grid-cols-3 gap-3 pt-2">
         <div className="text-center">

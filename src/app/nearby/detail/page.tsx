@@ -5,66 +5,13 @@ import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Minus, Plus, ShoppingBag, Star, Clock, MapPin, Phone, Navigation, ExternalLink, Truck, CreditCard, Lock } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import PaymentSheet, { FeeBreakdown } from '@/components/PaymentSheet';
 import { getPartnerById, getPartnerMenuItems, getHotelConfig, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
   : null;
-
-function PaymentSheet({ clientSecret, onSuccess, onCancel, brandColor }: {
-  clientSecret: string;
-  onSuccess: () => void;
-  onCancel: () => void;
-  brandColor: string;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [paying, setPaying] = useState(false);
-  const [error, setError] = useState('');
-
-  const handlePay = async () => {
-    if (!stripe || !elements) return;
-    setPaying(true);
-    setError('');
-    const { error: stripeError } = await stripe.confirmPayment({
-      elements,
-      confirmParams: { return_url: window.location.origin + '/confirmation' },
-      redirect: 'if_required',
-    });
-    if (stripeError) {
-      setError(stripeError.message || 'Payment failed');
-      setPaying(false);
-    } else {
-      onSuccess();
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center">
-      <div className="bg-white w-full max-w-md rounded-t-2xl p-5 pb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Lock size={14} className="text-emerald-600" />
-            <span className="text-[13px] font-bold text-gray-900">Secure Payment</span>
-          </div>
-          <button onClick={onCancel} className="text-gray-400 text-[12px]">Cancel</button>
-        </div>
-        <PaymentElement />
-        {error && <p className="text-[11px] text-red-500 mt-2">{error}</p>}
-        <button
-          onClick={handlePay}
-          disabled={paying || !stripe}
-          className="mt-4 w-full py-3.5 rounded-xl text-white font-bold text-[14px] flex items-center justify-center gap-2 disabled:opacity-60"
-          style={{ backgroundColor: brandColor }}
-        >
-          <CreditCard size={16} /> {paying ? 'Processing…' : 'Pay Now'}
-        </button>
-        <p className="text-[10px] text-gray-400 text-center mt-2">Powered by Stripe · Your card is never stored</p>
-      </div>
-    </div>
-  );
-}
 
 interface UberQuote {
   id: string;
@@ -91,6 +38,8 @@ function PartnerContent() {
   const [uberQuote, setUberQuote] = useState<UberQuote | null>(null);
   const [uberAvailable, setUberAvailable] = useState(false);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [tipPercent, setTipPercent] = useState<number>(0);
+  const [tipCustom, setTipCustom] = useState<string>('');
 
   const [hotelId, setHotelId] = useState<string | null>(null);
   const [stripeEnabled, setStripeEnabled] = useState(false);
@@ -218,6 +167,12 @@ function PartnerContent() {
     router.push('/confirmation');
   };
 
+  const tipAmount = tipCustom ? parseFloat(tipCustom) || 0 : total * tipPercent / 100;
+  const tipCents = Math.round(tipAmount * 100);
+  const attendaFee = total * 0.10;
+  const stripeFee = (total + tipAmount) * 0.029 + 0.30;
+  const grandTotal = total + tipAmount;
+
   const placeOrder = async () => {
     if (ordering) return;
     setOrdering(true);
@@ -234,6 +189,7 @@ function PartnerContent() {
           body: JSON.stringify({
             requestId: requestRow.id,
             amountCents,
+            tipCents,
             partnerId: partner.id,
             description: `${partner.name} order — Room ${room}`,
           }),
@@ -272,6 +228,7 @@ function PartnerContent() {
               const pending = (window as any).__pendingOrder;
               if (pending) await finishOrder(pending.requestRow, pending.guestName, pending.room, pending.subtotal);
             }}
+            breakdown={{ subtotal: total, attendaFee, stripeFee, tip: tipAmount, total: grandTotal }}
           />
         </Elements>
       )}
@@ -415,6 +372,58 @@ function PartnerContent() {
                         </div>
                       )}
 
+                      {/* Tip / Gratuity */}
+                      <div className="bg-white rounded-xl border border-gray-100 p-3">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Add a tip</p>
+                        <div className="flex gap-2 mb-2">
+                          {[15, 18, 20].map(pct => (
+                            <button
+                              key={pct}
+                              onClick={() => { setTipPercent(pct); setTipCustom(''); }}
+                              className={`flex-1 py-2 rounded-xl text-[12px] font-bold border-2 transition-colors ${
+                                tipPercent === pct && !tipCustom
+                                  ? 'border-current text-white'
+                                  : 'border-gray-200 text-gray-600 bg-white'
+                              }`}
+                              style={tipPercent === pct && !tipCustom ? { backgroundColor: brandColor, borderColor: brandColor } : {}}
+                            >
+                              {pct}%
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => { setTipPercent(0); setTipCustom(''); }}
+                            className={`flex-1 py-2 rounded-xl text-[12px] font-bold border-2 transition-colors ${
+                              tipPercent === 0 && !tipCustom
+                                ? 'border-current text-white'
+                                : 'border-gray-200 text-gray-600 bg-white'
+                            }`}
+                            style={tipPercent === 0 && !tipCustom ? { backgroundColor: brandColor, borderColor: brandColor } : {}}
+                          >
+                            None
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-gray-400">Custom:</span>
+                          <div className="relative flex-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-gray-400">$</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.50"
+                              placeholder="0.00"
+                              value={tipCustom}
+                              onChange={e => { setTipCustom(e.target.value); setTipPercent(0); }}
+                              className="w-full bg-gray-50 rounded-xl pl-7 pr-3 py-2 border border-gray-200 text-[13px] text-gray-800 outline-none"
+                            />
+                          </div>
+                        </div>
+                        {(tipPercent > 0 || parseFloat(tipCustom) > 0) && (
+                          <p className="text-[11px] text-gray-500 mt-2 text-center">
+                            Tip: ${tipCustom ? parseFloat(tipCustom).toFixed(2) : (total * tipPercent / 100).toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+
                       <button onClick={placeOrder} disabled={ordering}
                         className="w-full text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-between px-5 active:scale-[0.97] transition-transform disabled:opacity-60"
                         style={{ backgroundColor: brandColor }}>
@@ -423,7 +432,7 @@ function PartnerContent() {
                           <span className="text-sm">{cartItems.reduce((s, i) => s + i.qty, 0)} item{cartItems.reduce((s, i) => s + i.qty, 0) !== 1 ? 's' : ''}</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-lg font-extrabold">${total.toFixed(2)}</span>
+                          <span className="text-lg font-extrabold">${grandTotal.toFixed(2)}</span>
                           {stripeEnabled && <span className="block text-[10px] font-normal opacity-80">Pay by card</span>}
                         </div>
                       </button>

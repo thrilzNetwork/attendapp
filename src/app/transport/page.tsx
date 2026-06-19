@@ -3,10 +3,17 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Send, Plane, Bus, Ship, Car, UserCheck, X } from 'lucide-react';
-import { getHotelConfig, HotelConfig, getAllShuttleSlotsForHotel, bookShuttleSlot, createShuttleRequest, getCruiseSchedules, ShuttleSlot, CruiseSchedule } from '@/lib/supabase';
+import { getHotelConfig, HotelConfig, getAllShuttleSlotsForHotel, bookShuttleSlot, createShuttleRequest, getCruiseSchedules, ShuttleSlot, CruiseSchedule, supabase } from '@/lib/supabase';
 import { goBackToHotel } from '@/lib/guest-context';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import PaymentSheet, { FeeBreakdown } from '@/components/PaymentSheet';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 export default function TransportPage() {
   const router = useRouter();
@@ -483,12 +490,63 @@ function PrivateTransport({ brandColor }: { brandColor: string }) {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [price, setPrice] = useState<string>('');
+  const [tipPercent, setTipPercent] = useState<number>(0);
+  const [tipCustom, setTipCustom] = useState<string>('');
+  const [stripeEnabled, setStripeEnabled] = useState(false);
+  const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setStripeEnabled(!!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+  }, []);
 
   const handleSubmit = async () => {
     if (!form.guestName || !form.room) { setError('Name and room are required.'); return; }
     setSubmitting(true); setError('');
     try {
       const hotel = await getHotelConfig();
+      const priceNum = parseFloat(price) || 0;
+      const tipAmount = tipCustom ? parseFloat(tipCustom) || 0 : priceNum * tipPercent / 100;
+      const totalCents = Math.round((priceNum + tipAmount) * 100);
+
+      if (stripeEnabled && priceNum > 0) {
+        // Create request row first
+        const { data: requestRow } = await supabase.from('requests').insert({
+          hotel_id: hotel?.id || '',
+          guest_name: form.guestName,
+          room: form.room,
+          type: 'Transport',
+          details: `${form.destination || 'Private ride'} — ${form.date || 'Today'} ${form.time || ''} · ${form.pax} pax`,
+          status: 'pending',
+          total_amount: priceNum + tipAmount,
+          vendor_payout: +(priceNum * 0.9).toFixed(2),
+          stripe_payment_status: 'pending',
+        }).select('id').single();
+
+        if (requestRow) {
+          const res = await fetch('/api/stripe/payment-intent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requestId: requestRow.id,
+              amountCents: Math.round(priceNum * 100),
+              tipCents: Math.round(tipAmount * 100),
+              partnerId: '',
+              description: `Transport — Room ${form.room}`,
+            }),
+          });
+          const data = await res.json();
+          if (data.ok && data.clientSecret) {
+            setPendingRequestId(requestRow.id);
+            setPaymentClientSecret(data.clientSecret);
+            setSubmitting(false);
+            return;
+          }
+        }
+      }
+
+      // Fallback: no Stripe or payment failed — create as room charge
       await createShuttleRequest({
         hotel_id: hotel?.id || '',
         guest_name: form.guestName,
@@ -501,11 +559,10 @@ function PrivateTransport({ brandColor }: { brandColor: string }) {
         notes: form.notes,
       });
       setSent(true);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to submit request.');
-    } finally {
-      setSubmitting(false);
+    } catch (e) {
+      setError('Something went wrong. Please try again.');
     }
+    setSubmitting(false);
   };
 
   if (sent) {
@@ -521,8 +578,29 @@ function PrivateTransport({ brandColor }: { brandColor: string }) {
     );
   }
 
+  const priceNum = parseFloat(price) || 0;
+  const computedTip = tipCustom ? parseFloat(tipCustom) || 0 : priceNum * tipPercent / 100;
+  const attendaFee = priceNum * 0.10;
+  const stripeFee = (priceNum + computedTip) * 0.029 + 0.30;
+  const grandTotal = priceNum + computedTip;
+
   return (
-    <div className="space-y-3">
+    <>
+      {paymentClientSecret && stripePromise && (
+        <Elements stripe={stripePromise} options={{ clientSecret: paymentClientSecret, appearance: { theme: 'stripe' } }}>
+          <PaymentSheet
+            clientSecret={paymentClientSecret}
+            brandColor={brandColor}
+            onCancel={() => { setPaymentClientSecret(null); setPendingRequestId(null); }}
+            onSuccess={() => {
+              setPaymentClientSecret(null);
+              setSent(true);
+            }}
+            breakdown={{ subtotal: priceNum, attendaFee, stripeFee, tip: computedTip, total: grandTotal }}
+          />
+        </Elements>
+      )}
+      <div className="space-y-3">
       <div className="bg-amber-50 rounded-2xl p-3 border border-amber-200 flex items-start gap-2.5">
         <Car size={18} className="text-amber-600" />
         <div>
@@ -564,17 +642,63 @@ function PrivateTransport({ brandColor }: { brandColor: string }) {
             className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" />
         </div>
 
-        <div className="flex gap-2 items-end">
-          <div className="w-20">
+        <div className="w-20">
             <label className="text-[11px] text-gray-400 block mb-1 font-semibold uppercase tracking-wider">Pax</label>
             <input type="number" min={1} max={20} value={form.pax} onChange={e => setForm({ ...form, pax: parseInt(e.target.value) || 1 })}
               className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" />
           </div>
-          <div className="flex-1">
+
+          <div>
+            <label className="text-[12px] font-semibold text-gray-600 block mb-1">Estimated Price</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-gray-400">$</span>
+              <input
+                type="number"
+                min="0"
+                step="0.50"
+                placeholder="0.00"
+                value={price}
+                onChange={e => setPrice(e.target.value)}
+                className="w-full bg-gray-50 rounded-xl pl-7 pr-4 py-3 text-[14px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-200"
+              />
+            </div>
+          </div>
+
+          {parseFloat(price) > 0 && (
+            <div className="bg-white rounded-xl border border-gray-100 p-3">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Add a tip</p>
+              <div className="flex gap-2 mb-2">
+                {[15, 18, 20].map(pct => (
+                  <button key={pct} onClick={() => { setTipPercent(pct); setTipCustom(''); }}
+                    className={`flex-1 py-2 rounded-xl text-[12px] font-bold border-2 ${
+                      tipPercent === pct && !tipCustom ? 'border-current text-white' : 'border-gray-200 text-gray-600 bg-white'
+                    }`}
+                    style={tipPercent === pct && !tipCustom ? { backgroundColor: brandColor, borderColor: brandColor } : {}}
+                  >{pct}%</button>
+                ))}
+                <button onClick={() => { setTipPercent(0); setTipCustom(''); }}
+                  className={`flex-1 py-2 rounded-xl text-[12px] font-bold border-2 ${
+                    tipPercent === 0 && !tipCustom ? 'border-current text-white' : 'border-gray-200 text-gray-600 bg-white'
+                  }`}
+                  style={tipPercent === 0 && !tipCustom ? { backgroundColor: brandColor, borderColor: brandColor } : {}}
+                >None</button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-400">Custom:</span>
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-gray-400">$</span>
+                  <input type="number" min="0" step="0.50" placeholder="0.00"
+                    value={tipCustom} onChange={e => { setTipCustom(e.target.value); setTipPercent(0); }}
+                    className="w-full bg-gray-50 rounded-xl pl-7 pr-3 py-2 border border-gray-200 text-[13px] text-gray-800 outline-none" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div>
             <textarea placeholder="Notes (optional)" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
               className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none resize-none h-[42px]" />
           </div>
-        </div>
       </div>
 
       {error && <p className="text-[12px] text-red-600 bg-red-50 rounded-xl px-4 py-2.5 text-center">{error}</p>}
@@ -582,12 +706,13 @@ function PrivateTransport({ brandColor }: { brandColor: string }) {
       <button onClick={handleSubmit} disabled={submitting}
         className="w-full py-3.5 rounded-xl text-white font-bold text-[14px] active:scale-[0.98] shadow-sm disabled:opacity-60"
         style={{ backgroundColor: brandColor }}>
-        {submitting ? 'Submitting…' : 'Request Ride'}
+        {submitting ? 'Submitting…' : stripeEnabled && priceNum > 0 ? 'Pay & Request' : 'Request Ride'}
       </button>
 
       <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
         <p className="text-[11px] text-amber-700">Private transport is arranged with local vendors. Pricing is per trip. Front desk will confirm availability.</p>
       </div>
     </div>
+    </>
   );
 }
