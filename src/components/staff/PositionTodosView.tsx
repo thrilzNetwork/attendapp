@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import {
-  getPositionTodoTemplates, createPositionTodoTemplate, deletePositionTodoTemplate,
+  getPositionTodoTemplates, createPositionTodoTemplate, updatePositionTodoTemplate, deletePositionTodoTemplate,
   getTemplateItems, createTemplateItem, deleteTemplateItem,
   getTodayInstances, createInstance, completeInstance,
   getInstanceResponses, upsertResponse,
@@ -200,6 +200,8 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [installedId, setInstalledId] = useState<string | null>(null);
+  const [renamingTemplate, setRenamingTemplate] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   // New template form
   const [newName, setNewName] = useState('');
@@ -298,6 +300,24 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     if (!confirm('Delete this To-Do template? All items will be removed.')) return;
     await deletePositionTodoTemplate(id);
     await loadAll();
+  };
+
+  const startRenameTpl = (tpl: PositionTodoTemplate) => {
+    setRenamingTemplate(tpl.id);
+    setRenameValue(tpl.name);
+  };
+
+  const confirmRenameTpl = async (id: string) => {
+    if (!renameValue.trim()) return;
+    setSubmitting(true); setError(null);
+    try {
+      await updatePositionTodoTemplate(id, { name: renameValue.trim() });
+      setRenamingTemplate(null);
+      await loadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to rename');
+    }
+    setSubmitting(false);
   };
 
   const addItem = async (templateId: string) => {
@@ -613,15 +633,34 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                               return (
                                 <div key={tpl.id} className="px-4 py-3">
                                   <div className="flex items-center justify-between mb-2">
-                                    <div>
-                                      <p className="text-[14px] font-semibold text-gray-900">{tpl.name}
-                                        {tpl.assigned_position && <span className="ml-2 text-[10px] text-gray-500 font-normal">· {POSITIONS.find(p => p.key === tpl.assigned_position)?.label}</span>}
-                                      </p>
-                                      <p className="text-[11px] text-gray-500">{tpl.description || 'No description'} · {items.length} items</p>
+                                    <div className="flex-1 min-w-0 mr-2">
+                                      {renamingTemplate === tpl.id ? (
+                                        <div className="flex items-center gap-1.5">
+                                          <input
+                                            autoFocus
+                                            value={renameValue}
+                                            onChange={e => setRenameValue(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') confirmRenameTpl(tpl.id); if (e.key === 'Escape') setRenamingTemplate(null); }}
+                                            className="flex-1 bg-white border border-teal-300 rounded-lg px-2.5 py-1 text-[14px] font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                                          />
+                                          <button onClick={() => confirmRenameTpl(tpl.id)} disabled={submitting || !renameValue.trim()} className="px-2.5 py-1 rounded-lg text-white text-[11px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Save</button>
+                                          <button onClick={() => setRenamingTemplate(null)} className="px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-[11px] font-bold"><XIcon size={12} /></button>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <p className="text-[14px] font-semibold text-gray-900">{tpl.name}
+                                            {tpl.assigned_position && <span className="ml-2 text-[10px] text-gray-500 font-normal">· {POSITIONS.find(p => p.key === tpl.assigned_position)?.label}</span>}
+                                          </p>
+                                          <p className="text-[11px] text-gray-500">{tpl.description || 'No description'} · {items.length} items</p>
+                                        </>
+                                      )}
                                     </div>
                                     <div className="flex items-center gap-1">
-                                      <button onClick={() => setEditingTemplate(editing ? null : tpl.id)} className={`p-2 rounded-lg transition-colors ${editing ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+                                      <button onClick={() => startRenameTpl(tpl)} className="p-2 text-gray-400 hover:text-teal-600 rounded-lg hover:bg-teal-50" title="Rename template">
                                         <Edit3 size={14} />
+                                      </button>
+                                      <button onClick={() => setEditingTemplate(editing ? null : tpl.id)} className={`p-2 rounded-lg transition-colors text-[10px] font-bold ${editing ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`} title="Edit items">
+                                        {editing ? '▲' : '▼'}
                                       </button>
                                       <button onClick={() => deleteTpl(tpl.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
                                         <Trash2 size={14} />
