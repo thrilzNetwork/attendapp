@@ -25,9 +25,9 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase.from('partner_applications').insert({
       restaurant_name: name,
       contact_name: contact,
-      phone,
-      email,
-      hotel_name: hotel || null,
+      contact_phone: phone,
+      contact_email: email,
+      hotel_slug: hotel || '',
       status: 'pending',
     });
 

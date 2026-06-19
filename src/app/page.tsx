@@ -232,6 +232,10 @@ function HotelGuestApp({
           <Globe size={14} className="text-gray-400" />
           <span className="text-[11px] text-gray-400 leading-none">powered by Attenda</span>
         </div>
+        <button onClick={() => (window.location.href = '/account')}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200 shadow-sm active:scale-[0.97]">
+          <span className="text-[11px] font-bold tracking-[0.08em] uppercase" style={{ color: brandColor }}>My Orders</span>
+        </button>
         <button onClick={() => handleClick('message', true)} className="flex items-center gap-2 shrink-0">
           <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: brandColor }}>
             <User size={20} className="text-white" strokeWidth={1.5} />

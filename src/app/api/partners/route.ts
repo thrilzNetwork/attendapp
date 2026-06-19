@@ -116,6 +116,67 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, url: publicUrl });
       }
 
+      case 'list_applications': {
+        // Pending vendor self-onboarding applications for this hotel
+        const { data: hotel } = await db.from('hotels').select('slug').eq('id', data.hotel_id).maybeSingle();
+        const slug = hotel?.slug;
+        const { data: rows, error } = await db
+          .from('partner_applications')
+          .select('*')
+          .eq('status', 'pending')
+          .or(slug ? `hotel_slug.eq.${slug},hotel_slug.eq.` : 'hotel_slug.eq.')
+          .order('created_at', { ascending: false });
+        if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ ok: true, data: rows });
+      }
+
+      case 'approve_application': {
+        const { applicationId, hotel_id } = data as { applicationId: string; hotel_id: string };
+        const { data: app } = await db.from('partner_applications').select('*').eq('id', applicationId).maybeSingle();
+        if (!app) return NextResponse.json({ ok: false, error: 'Application not found' }, { status: 404 });
+
+        // 1. Create the partner (active) under this hotel
+        const { data: partner, error: pErr } = await db.from('partners').insert({
+          hotel_id,
+          name: app.restaurant_name,
+          category: 'restaurant',
+          phone: app.contact_phone || '',
+          email: app.contact_email || '',
+          description: app.message || '',
+          has_ordering: true,
+          is_active: true,
+        }).select('id').single();
+        if (pErr || !partner) return NextResponse.json({ ok: false, error: pErr?.message || 'Partner create failed' }, { status: 500 });
+
+        // 2. Create the vendor login account (role=vendor) with a setup token
+        const setupToken = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
+        const setupExpires = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+        const pin = Math.floor(1000 + Math.random() * 9000).toString();
+        await db.from('staff_accounts').insert({
+          hotel_id,
+          name: `${app.restaurant_name} (Vendor)`,
+          role: 'vendor',
+          email: app.contact_email || '',
+          partner_id: partner.id,
+          permissions: [],
+          pin_code: pin,
+          setup_token: setupToken,
+          setup_token_expires_at: setupExpires,
+          active: true,
+        });
+
+        // 3. Mark the application approved
+        await db.from('partner_applications').update({ status: 'approved' }).eq('id', applicationId);
+
+        return NextResponse.json({ ok: true, partnerId: partner.id, vendorEmail: app.contact_email, setupToken });
+      }
+
+      case 'reject_application': {
+        const { error } = await db.from('partner_applications').update({ status: 'rejected' }).eq('id', data.applicationId);
+        if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ ok: true });
+      }
+
       default:
         return NextResponse.json({ ok: false, error: `Unknown action: ${action}` }, { status: 400 });
     }

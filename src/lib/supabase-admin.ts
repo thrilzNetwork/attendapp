@@ -36,10 +36,22 @@ export const supabaseAdmin = {
   get functions() { return getAdmin().functions; },
 };
 
+// Reuse a single anon client for token verification instead of constructing a
+// fresh one on every request (each createClient call has non-trivial setup cost
+// and we make this call on every authenticated API request).
+let _anonVerifier: SupabaseClient | null = null;
+function getAnonVerifier(): SupabaseClient {
+  if (!_anonVerifier) {
+    _anonVerifier = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+  }
+  return _anonVerifier;
+}
+
 // Verify a user's session (works with anon key — no service_role needed for this)
 export async function verifySession(token: string) {
-  const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  const { data, error } = await anonClient.auth.getUser(token);
+  const { data, error } = await getAnonVerifier().auth.getUser(token);
   if (error || !data?.user) return null;
   return data.user;
 }
@@ -79,17 +91,19 @@ export async function getCaller(req: Request): Promise<Caller | null> {
   const user = await verifySession(token);
   if (!user) return null;
 
-  const isSuper = await isSuperAdmin(user.id);
+  // Run the superadmin check and the staff-account lookup in parallel rather than
+  // sequentially. We may discard the staff result if the caller is a superadmin,
+  // but saving a network round trip on every authenticated request matters more.
+  const [isSuper, staffRes] = await Promise.all([
+    isSuperAdmin(user.id),
+    user.email
+      ? getAdmin().from('staff_accounts').select('hotel_id').ilike('email', user.email).limit(1)
+      : Promise.resolve({ data: null }),
+  ]);
+
   let hotelId: string | null = null;
-  if (!isSuper && user.email) {
-    // Case-insensitive match — staff_accounts.email may have been entered with
-    // different casing than the auth user's email.
-    const { data } = await getAdmin()
-      .from('staff_accounts')
-      .select('hotel_id')
-      .ilike('email', user.email)
-      .limit(1);
-    hotelId = (data && data[0]?.hotel_id) || null;
+  if (!isSuper) {
+    hotelId = (staffRes.data && staffRes.data[0]?.hotel_id) || null;
   }
 
   return { userId: user.id, email: user.email ?? null, hotelId, isSuper };

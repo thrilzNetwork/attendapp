@@ -3,8 +3,64 @@
 import { Suspense, useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Minus, Plus, Star, Clock, MapPin, Phone, Navigation, ExternalLink, X, ChevronRight, CheckCircle, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Star, Clock, MapPin, Phone, Navigation, ExternalLink, X, ChevronRight, CheckCircle, ShoppingBag, CreditCard, Lock } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { getPartnerById, getPartnerMenuItems, getHotelConfig, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
+
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
+
+// Inline Stripe card-payment step shown inside the checkout sheet.
+function PaymentForm({ onSuccess, onBack, brandColor, amountLabel }: {
+  onSuccess: () => void;
+  onBack: () => void;
+  brandColor: string;
+  amountLabel: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [paying, setPaying] = useState(false);
+  const [error, setError] = useState('');
+
+  const pay = async () => {
+    if (!stripe || !elements) return;
+    setPaying(true);
+    setError('');
+    const { error: stripeError } = await stripe.confirmPayment({
+      elements,
+      confirmParams: { return_url: window.location.origin + '/confirmation' },
+      redirect: 'if_required',
+    });
+    if (stripeError) {
+      setError(stripeError.message || 'Payment failed');
+      setPaying(false);
+    } else {
+      onSuccess();
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Lock size={13} className="text-emerald-600" />
+        <span className="text-[13px] font-bold text-gray-900">Secure Card Payment</span>
+      </div>
+      <PaymentElement />
+      {error && <p className="text-[12px] text-red-600 font-medium">{error}</p>}
+      <button onClick={pay} disabled={paying || !stripe}
+        className="w-full text-white font-extrabold py-4 rounded-2xl text-[16px] shadow-lg active:scale-[0.97] transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+        style={{ backgroundColor: brandColor }}>
+        <CreditCard size={17} /> {paying ? 'Processing…' : `Pay ${amountLabel}`}
+      </button>
+      <button onClick={onBack} disabled={paying} className="w-full text-[13px] font-bold text-gray-400 py-1">
+        ← Back
+      </button>
+      <p className="text-[10px] text-gray-400 text-center">Powered by Stripe · Your card is never stored</p>
+    </div>
+  );
+}
 
 function PartnerContent() {
   const router = useRouter();
@@ -24,23 +80,20 @@ function PartnerContent() {
   const [notes, setNotes] = useState('');
   const [ordering, setOrdering] = useState(false);
   const [orderDone, setOrderDone] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const stripeEnabled = !!stripePromise;
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
-    Promise.all([getPartnerById(id), getPartnerMenuItems(id)]).then(([p, m]) => {
+    Promise.all([getPartnerById(id), getPartnerMenuItems(id), getHotelConfig()]).then(([p, m, cfg]) => {
       setPartner(p);
       setMenuItems(m);
+      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
       setLoading(false);
     });
   }, [id]);
-
-  useEffect(() => {
-    (async () => {
-      const cfg = await getHotelConfig();
-      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
-    })();
-  }, []);
 
   // Pre-fill from session
   useEffect(() => {
@@ -86,7 +139,7 @@ function PartnerContent() {
     setOrdering(true);
     try {
       const details = cartItems.map(i => `${i.qty}x ${i.name}`).join(', ');
-      const { error } = await supabase.from('requests').insert({
+      const { data: row, error } = await supabase.from('requests').insert({
         hotel_id: partner.hotel_id,
         guest_name: guestName.trim(),
         room: roomNumber.trim(),
@@ -97,36 +150,77 @@ function PartnerContent() {
         vendor_status: 'new',
         total_amount: total,
         vendor_payout: +(total * 0.9).toFixed(2),
-      });
+        stripe_payment_status: stripeEnabled ? 'pending' : 'room_charge',
+      }).select('id').single();
       if (error) throw error;
 
-      // Fire-and-forget email
-      getHotelConfig().then(hotelConfig => {
-        fetch('/api/email', {
+      // If card payments are enabled, fetch a PaymentIntent and show the card step.
+      if (stripeEnabled && row?.id) {
+        const res = await fetch('/api/stripe/payment-intent', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            type: 'food_order',
-            data: {
-              notificationEmail: hotelConfig?.notificationEmail || '',
-              partnerEmail: partner.email || '',
-              hotelName: hotelConfig?.name || 'Hotel',
-              guestName: guestName.trim(),
-              room: roomNumber.trim(),
-              partnerName: partner.name,
-              items: cartItems.map(i => ({ name: i.name, qty: i.qty, price: Number(i.price) })),
-              total: total.toFixed(2),
-            },
+            requestId: row.id,
+            amountCents: Math.round(total * 100),
+            partnerId: partner.id,
+            description: `${partner.name} — Room ${roomNumber.trim()}`,
           }),
-        }).catch(() => {});
-      });
+        });
+        const data = await res.json();
+        if (data.ok && data.clientSecret) {
+          setPendingRequestId(row.id);
+          setClientSecret(data.clientSecret);
+          setOrdering(false);
+          return; // wait for card payment; email sent on success
+        }
+        // Stripe not configured server-side → fall through to room-charge confirmation
+      }
 
+      sendOrderEmail();
       setOrderDone(true);
     } catch (e) {
       console.error('Order failed:', e);
       alert('Something went wrong. Please try again.');
     }
     setOrdering(false);
+  };
+
+  const sendOrderEmail = () => {
+    if (!partner) return;
+    getHotelConfig().then(hotelConfig => {
+      fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        body: JSON.stringify({
+          type: 'food_order',
+          data: {
+            notificationEmail: hotelConfig?.notificationEmail || '',
+            partnerEmail: partner.email || '',
+            hotelName: hotelConfig?.name || 'Hotel',
+            guestName: guestName.trim(),
+            room: roomNumber.trim(),
+            partnerName: partner.name,
+            items: cartItems.map(i => ({ name: i.name, qty: i.qty, price: Number(i.price) })),
+            total: total.toFixed(2),
+          },
+        }),
+      }).catch(() => {});
+    });
+  };
+
+  const onPaymentSuccess = () => {
+    sendOrderEmail();
+    setClientSecret(null);
+    setOrderDone(true);
+  };
+
+  const onPaymentBack = async () => {
+    // Guest backed out of card payment — cancel the pending order row
+    if (pendingRequestId) {
+      await supabase.from('requests').update({ status: 'closed', stripe_payment_status: 'abandoned' }).eq('id', pendingRequestId);
+    }
+    setClientSecret(null);
+    setPendingRequestId(null);
   };
 
   return (
@@ -369,6 +463,18 @@ function PartnerContent() {
                   Done
                 </button>
               </div>
+            ) : clientSecret ? (
+              /* ── Card payment step ── */
+              <div className="flex-1 overflow-y-auto px-5 py-4">
+                <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+                  <PaymentForm
+                    onSuccess={onPaymentSuccess}
+                    onBack={onPaymentBack}
+                    brandColor={brandColor}
+                    amountLabel={`$${total.toFixed(2)}`}
+                  />
+                </Elements>
+              </div>
             ) : (
               /* ── Order form ── */
               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
@@ -448,9 +554,11 @@ function PartnerContent() {
                     disabled={ordering || !guestName.trim() || !roomNumber.trim()}
                     className="w-full text-white font-extrabold py-4 rounded-2xl text-[16px] shadow-lg active:scale-[0.97] transition-transform disabled:opacity-50"
                     style={{ backgroundColor: brandColor }}>
-                    {ordering ? 'Placing Order…' : `Place Order · $${total.toFixed(2)}`}
+                    {ordering ? 'Placing Order…' : stripeEnabled ? `Continue to Payment · $${total.toFixed(2)}` : `Place Order · $${total.toFixed(2)}`}
                   </button>
-                  <p className="text-[11px] text-gray-400 text-center mt-2">Charged to your room or pay at front desk</p>
+                  <p className="text-[11px] text-gray-400 text-center mt-2">
+                    {stripeEnabled ? 'Pay securely by card · powered by Stripe' : 'Charged to your room or pay at front desk'}
+                  </p>
                 </div>
               </div>
             )}
