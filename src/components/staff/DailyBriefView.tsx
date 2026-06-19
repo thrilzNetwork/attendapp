@@ -197,16 +197,25 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
       .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0];
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto print:p-2 print:max-w-none">
       {/* ── Header Row ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900">{greeting}, {sessionName || config?.managerName || 'team'} {greetingEmoji}</h1>
           <p className="text-[13px] text-gray-500 mt-0.5">{new Date().toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · {hotelName}</p>
         </div>
-        <div className="hidden md:flex items-center gap-2">
-          <span className="text-[11px] text-gray-400">{new Date().toLocaleTimeString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit' })}</span>
-          <span className="text-[11px] font-bold text-gray-900">{new Date().toLocaleDateString('en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric' })}</span>
+        <div className="flex items-center gap-2">
+          <span className="hidden md:inline text-[11px] text-gray-400">{new Date().toLocaleTimeString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="hidden md:inline text-[11px] font-bold text-gray-900">{new Date().toLocaleDateString('en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric' })}</span>
+          {isAdmin && (
+            <button
+              onClick={() => window.print()}
+              className="print:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              title="Print morning brief"
+            >
+              🖨️ Print Brief
+            </button>
+          )}
         </div>
       </div>
 

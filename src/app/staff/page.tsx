@@ -81,6 +81,8 @@ const LeaderboardView = dynamic(() => import('@/components/staff/LeaderboardView
 const CultureView = dynamic(() => import('@/components/staff/CultureView'), { ssr: false });
 const SuperAdminView = dynamic(() => import('@/components/staff/SuperAdminView'), { ssr: false });
 const MarketplaceView = dynamic(() => import('@/components/staff/MarketplaceView'), { ssr: false });
+const RevenueView = dynamic(() => import('@/components/staff/RevenueView'), { ssr: false });
+const CalloutsView = dynamic(() => import('@/components/staff/CalloutsView'), { ssr: false });
 import {
   listOps, createOps, updateOps, deleteOps,
   listKpiDefinitions, createKpiDefinition, deleteKpiDefinition,
@@ -119,7 +121,8 @@ type NavTab =
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
-  | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture';
+  | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture'
+  | 'revenue';
 
 interface Request {
   id: string;
@@ -164,36 +167,37 @@ const DEPARTMENTS = [
 type DepartmentKey = typeof DEPARTMENTS[number]['key'];
 
 const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; section?: string }[] = [
-  // ── TODAY — staff daily ops ──
-  { tab: 'dailybrief',      label: 'Dashboard',         icon: BarChart3,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'orders',          label: 'Requests',           icon: Bell,            roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'schedules',       label: 'Schedules',          icon: CalendarDays,    roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'compset',         label: 'Compset',            icon: PhoneCall,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+  // ── TODAY — what staff needs to do right now ──
+  { tab: 'dailybrief',      label: 'Dashboard',          icon: BarChart3,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'orders',          label: 'Requests',            icon: Bell,            roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'todos',           label: 'To-Dos',              icon: ClipboardList,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'kpis',            label: 'KPIs',                icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'schedules',       label: 'Schedules',           icon: CalendarDays,    roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
 
-  // ── OPERATIONS — property tools ──
-  { tab: 'todos',            label: 'To-Dos',             icon: ClipboardList,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'shuttle',         label: 'Shuttle',            icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'kpis',            label: 'KPIs',               icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'culture',         label: 'Culture',            icon: Heart,           roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'marketplace',     label: 'Marketplace',        icon: Store,           roles: ['admin', 'manager', 'superadmin'], section: 'Operations' },
-  { tab: 'knowledge',       label: 'Right Answers',     icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'learning_hr',     label: 'Learning & HR',      icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'property_info',   label: 'Property Info',      icon: HotelIcon,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  // ── OPERATIONS — property tools & planning ──
+  { tab: 'shuttle',         label: 'Shuttle',             icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'compset',         label: 'Compset',             icon: PhoneCall,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'forecast',        label: 'Forecast',            icon: BarChart3,       roles: ['admin', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'culture',         label: 'Culture',             icon: Heart,           roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'knowledge',       label: 'Right Answers',       icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'learning_hr',     label: 'Learning & HR',       icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'marketplace',     label: 'Marketplace',         icon: Store,           roles: ['admin', 'manager', 'superadmin'], section: 'Operations' },
+  { tab: 'property_info',   label: 'Property Info',       icon: HotelIcon,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
 
   // ── ADMIN — settings & management ──
-  { tab: 'forecast',         label: 'Forecast',          icon: TrendingUp,      roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
-  { tab: 'callouts',         label: 'Staff Callouts',    icon: ClipboardList,   roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
+  { tab: 'revenue',         label: 'Revenue',             icon: DollarSign,      roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
+  { tab: 'callouts',        label: 'Staff Callouts',      icon: ClipboardList,   roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'], section: 'Admin' },
-  { tab: 'staff_mgmt',      label: 'Staff Management',   icon: Users,           roles: ['admin', 'superadmin'], section: 'Admin' },
-  { tab: 'partners',        label: 'Partners & Menu',    icon: Store,           roles: ['admin', 'superadmin'], section: 'Admin' },
-  { tab: 'qrcodes',         label: 'QR Codes',           icon: QrCodeIcon,       roles: ['admin', 'superadmin'], section: 'Admin' },
-  { tab: 'rooms',            label: 'Room Management',    icon: DoorOpen,        roles: ['admin', 'superadmin'], section: 'Admin' },
+  { tab: 'staff_mgmt',      label: 'Staff Management',    icon: Users,           roles: ['admin', 'superadmin'], section: 'Admin' },
+  { tab: 'partners',        label: 'Partners & Menu',     icon: Store,           roles: ['admin', 'superadmin'], section: 'Admin' },
+  { tab: 'qrcodes',         label: 'QR Codes',            icon: QrCodeIcon,      roles: ['admin', 'superadmin'], section: 'Admin' },
+  { tab: 'rooms',           label: 'Room Management',     icon: DoorOpen,        roles: ['admin', 'superadmin'], section: 'Admin' },
 
   // ── PLATFORM — superadmin only ──
-  { tab: 'properties',      label: 'All Properties',     icon: Building2,      roles: ['superadmin'], section: 'Platform' },
+  { tab: 'properties',      label: 'All Properties',      icon: Building2,       roles: ['superadmin'], section: 'Platform' },
 
   // ── VENDOR ──
-  { tab: 'vendor_manifest', label: 'Vendor Dashboard',   icon: Users,           roles: ['vendor'], section: '' },
+  { tab: 'vendor_manifest', label: 'Vendor Dashboard',    icon: Users,           roles: ['vendor'], section: '' },
 ];
 
 /* ── Main Component ───────────────────────────────────── */
@@ -828,9 +832,6 @@ export default function Dashboard() {
         {tabPanel('forecast', true,
           <ForecastView hotelId={config?.id || ''} totalRooms={config?.roomCount || 0} timezone={config?.timezone} />
         )}
-        {tabPanel('callouts', true,
-          <AdminCalloutsView hotelId={config?.id || ''} />
-        )}
         {tabPanel('todos', true,
           <PositionTodosView hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} department={s.department} />
         )}
@@ -865,6 +866,12 @@ export default function Dashboard() {
         )}
         {tabPanel('guests', true,
           <GuestsView hotelId={config?.id || ''} />
+        )}
+        {tabPanel('revenue', isAdmin,
+          <RevenueView hotelId={config?.id || ''} isAdmin={isAdmin} />
+        )}
+        {tabPanel('callouts', isAdmin || s.role === 'staff',
+          <CalloutsView hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} />
         )}
       </main>
     </div>
