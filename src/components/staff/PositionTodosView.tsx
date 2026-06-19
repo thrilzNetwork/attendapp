@@ -406,18 +406,36 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     setSubmitting(false);
   };
 
+  const DENOMS = [
+    { key: 'd100', label: '$100', value: 100 },
+    { key: 'd50',  label: '$50',  value: 50  },
+    { key: 'd20',  label: '$20',  value: 20  },
+    { key: 'd10',  label: '$10',  value: 10  },
+    { key: 'd5',   label: '$5',   value: 5   },
+    { key: 'd1',   label: '$1',   value: 1   },
+  ];
+
+  const calcDrawerTotal = (f: Record<string, string>) => {
+    const bills = DENOMS.reduce((sum, d) => sum + (parseFloat(f[d.key] || '0') || 0) * d.value, 0);
+    const paidOut = parseFloat(f.paid_out || '0') || 0;
+    const petty   = parseFloat(f.petty_cash || '0') || 0;
+    return bills - paidOut - petty;
+  };
+
   const handleBankCount = async (instId: string, itemId: string) => {
     const f = opsForm[itemId] || {};
-    if (!f.cash_total?.trim()) { setError('Cash total is required.'); return; }
+    const total = calcDrawerTotal(f);
     setSubmitting(true); setError(null);
     try {
+      const billsBreakdown = DENOMS.map(d => `${d.label}×${f[d.key] || '0'}`).join(' ');
       await createBankCount({
         hotel_id: hotelId, count_date: localDateStr(), shift: f.shift || 'AM',
-        counted_by: staffName || '', cash_total: parseFloat(f.cash_total) || 0,
-        card_total: parseFloat(f.card_total || '0') || 0, room_charges: parseFloat(f.room_charges || '0') || 0,
-        discrepancies: f.discrepancies?.trim() || '', notes: '',
+        counted_by: staffName || '', cash_total: total,
+        card_total: 0, room_charges: 0,
+        discrepancies: f.discrepancies?.trim() || '',
+        notes: `Bills: ${billsBreakdown} | Paid Out: $${f.paid_out || '0'} | Petty Cash: $${f.petty_cash || '0'}${f.notes ? ' | Notes: ' + f.notes : ''}`,
       });
-      await upsertResponse({ instance_id: instId, item_id: itemId, checked: true, text_value: `Cash $${f.cash_total} · Card $${f.card_total || '0'}` });
+      await upsertResponse({ instance_id: instId, item_id: itemId, checked: true, text_value: `Cash $${total.toFixed(2)}` });
       const updated = await getInstanceResponses(instId);
       setResponsesByInstance(prev => ({ ...prev, [instId]: updated }));
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to log bank count'); }
@@ -813,18 +831,67 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                                                 {resp?.checked ? (
                                                   <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
                                                 ) : (
-                                                  <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                  <div className="space-y-2 bg-gray-50 rounded-xl p-3 border border-gray-100">
                                                     <select value={opsForm[item.id]?.shift || 'AM'} onChange={e => setOpsField(item.id, 'shift', e.target.value)} className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200">
                                                       <option value="AM">AM Shift</option>
                                                       <option value="PM">PM Shift</option>
                                                       <option value="Overnight">Overnight</option>
                                                     </select>
-                                                    <div className="flex gap-1.5">
-                                                      <input type="number" value={opsForm[item.id]?.cash_total || ''} onChange={e => setOpsField(item.id, 'cash_total', e.target.value)} placeholder="Cash total ($)" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                      <input type="number" value={opsForm[item.id]?.card_total || ''} onChange={e => setOpsField(item.id, 'card_total', e.target.value)} placeholder="Card total ($)" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+
+                                                    {/* Bill denominations */}
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pt-1">Bill Count</p>
+                                                    <div className="grid grid-cols-3 gap-1.5">
+                                                      {DENOMS.map(d => (
+                                                        <div key={d.key}>
+                                                          <label className="text-[10px] text-gray-500 font-bold block mb-0.5">{d.label} bills</label>
+                                                          <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden">
+                                                            <span className="text-[11px] text-gray-400 px-2">#</span>
+                                                            <input
+                                                              type="number" min="0"
+                                                              value={opsForm[item.id]?.[d.key] || ''}
+                                                              onChange={e => setOpsField(item.id, d.key, e.target.value)}
+                                                              placeholder="0"
+                                                              className="flex-1 py-2 pr-2 text-[13px] font-bold text-gray-900 w-0 min-w-0 outline-none bg-transparent"
+                                                            />
+                                                          </div>
+                                                          {opsForm[item.id]?.[d.key] ? (
+                                                            <p className="text-[10px] text-teal-600 font-semibold mt-0.5">= ${((parseFloat(opsForm[item.id][d.key]) || 0) * d.value).toFixed(0)}</p>
+                                                          ) : null}
+                                                        </div>
+                                                      ))}
                                                     </div>
-                                                    <input type="number" value={opsForm[item.id]?.room_charges || ''} onChange={e => setOpsField(item.id, 'room_charges', e.target.value)} placeholder="Room charges ($)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+
+                                                    {/* Paid Out + Petty Cash */}
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pt-1">Deductions</p>
+                                                    <div className="grid grid-cols-2 gap-1.5">
+                                                      <div>
+                                                        <label className="text-[10px] text-gray-500 font-bold block mb-0.5">Paid Out ($)</label>
+                                                        <input type="number" min="0" step="0.01"
+                                                          value={opsForm[item.id]?.paid_out || ''}
+                                                          onChange={e => setOpsField(item.id, 'paid_out', e.target.value)}
+                                                          placeholder="0.00"
+                                                          className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[10px] text-gray-500 font-bold block mb-0.5">Petty Cash ($)</label>
+                                                        <input type="number" min="0" step="0.01"
+                                                          value={opsForm[item.id]?.petty_cash || ''}
+                                                          onChange={e => setOpsField(item.id, 'petty_cash', e.target.value)}
+                                                          placeholder="0.00"
+                                                          className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                      </div>
+                                                    </div>
+
+                                                    {/* Running total */}
+                                                    <div className="bg-white rounded-xl px-4 py-3 border border-gray-200 flex items-center justify-between">
+                                                      <span className="text-[12px] font-bold text-gray-600">Drawer Total</span>
+                                                      <span className="text-[20px] font-extrabold" style={{ color: TEAL }}>
+                                                        ${calcDrawerTotal(opsForm[item.id] || {}).toFixed(2)}
+                                                      </span>
+                                                    </div>
+
                                                     <input value={opsForm[item.id]?.discrepancies || ''} onChange={e => setOpsField(item.id, 'discrepancies', e.target.value)} placeholder="Discrepancies (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                    <input value={opsForm[item.id]?.notes || ''} onChange={e => setOpsField(item.id, 'notes', e.target.value)} placeholder="Notes (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
                                                     <button onClick={() => handleBankCount(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log Drawer Count</button>
                                                   </div>
                                                 )}
