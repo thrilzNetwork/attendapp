@@ -49,6 +49,9 @@ export async function POST(req: NextRequest) {
     if (action === 'create_staff') {
       const insert: Record<string, unknown> = {};
       const pin = Math.floor(1000 + Math.random() * 9000).toString();
+      // Issue a one-time setup token (used by the password-setup flow for staff + vendors)
+      const setupToken = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
+      const setupExpires = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 days
       const fields: [string, unknown][] = [
         ['hotel_id', data.hotel_id],
         ['name', data.name],
@@ -59,9 +62,12 @@ export async function POST(req: NextRequest) {
         ['permissions', data.permissions || ['orders', 'messages', 'shuttle']],
         ['department', data.department],
         ['vendor_type', data.vendor_type],
+        ['partner_id', data.partner_id],
         ['hire_date', data.hire_date],
         ['min_hours', data.min_hours || 0],
         ['employment_type', data.employment_type],
+        ['setup_token', setupToken],
+        ['setup_token_expires_at', setupExpires],
         ['active', true],
       ];
       for (const [k, v] of fields) {
@@ -69,7 +75,7 @@ export async function POST(req: NextRequest) {
       }
       const { data: staff, error } = await supabaseAdmin.from('staff_accounts').insert(insert).select().single();
       if (error) throw new Error(error.message || JSON.stringify(error));
-      return NextResponse.json({ ok: true, staff });
+      return NextResponse.json({ ok: true, staff, setupToken });
     }
 
     if (action === 'update_staff') {

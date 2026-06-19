@@ -322,6 +322,44 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
     return json.url as string;
   };
 
+  // Vendor login enrollment — creates a role='vendor' account linked to this partner
+  // and returns a one-time setup link to share with the restaurant.
+  const [enrollInfo, setEnrollInfo] = useState<{ partnerId: string; url: string; email: string } | null>(null);
+  const [enrolling, setEnrolling] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleEnrollVendor = async (p: Partner) => {
+    const email = p.email || window.prompt(`Vendor login email for ${p.name}:`, '') || '';
+    if (!email.trim()) return;
+    setEnrolling(p.id);
+    try {
+      const res = await fetch('/api/superadmin-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        body: JSON.stringify({
+          action: 'create_staff',
+          data: {
+            hotel_id: hotelId,
+            name: `${p.name} (Vendor)`,
+            role: 'vendor',
+            email: email.trim(),
+            partner_id: p.id,
+            permissions: [],
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Enrollment failed');
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://attendaapp.com';
+      const url = `${origin}/vendor/setup?email=${encodeURIComponent(email.trim())}&token=${encodeURIComponent(json.setupToken)}`;
+      setEnrollInfo({ partnerId: p.id, url, email: email.trim() });
+      setCopied(false);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Enrollment failed');
+    }
+    setEnrolling(null);
+  };
+
   const visiblePartners = partners.filter(p => p.category === activeTab);
 
   /* ── Render ─────────────────────────────────────────── */
@@ -793,6 +831,14 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                           Test Order
                         </a>
                         <button
+                          onClick={() => handleEnrollVendor(p)}
+                          disabled={enrolling === p.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors disabled:opacity-50"
+                          title="Create a login for this vendor"
+                        >
+                          {enrolling === p.id ? 'Enrolling…' : 'Enroll Login'}
+                        </button>
+                        <button
                           onClick={() => handleDelete(p.id)}
                           className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400 transition-colors"
                           title="Delete"
@@ -802,6 +848,35 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                       </div>
                     )}
                   </div>
+
+                  {/* Vendor setup link banner */}
+                  {enrollInfo?.partnerId === p.id && (
+                    <div className="mt-3 bg-teal-50 border border-teal-200 rounded-xl p-3">
+                      <p className="text-[12px] font-bold text-teal-800 mb-1">Vendor login created for {enrollInfo.email}</p>
+                      <p className="text-[11px] text-teal-700 mb-2">Send this one-time setup link to the vendor so they can pick a password:</p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          readOnly
+                          value={enrollInfo.url}
+                          onFocus={e => e.currentTarget.select()}
+                          className="flex-1 bg-white border border-teal-200 rounded-lg px-2 py-1.5 text-[11px] text-gray-700 font-mono"
+                        />
+                        <button
+                          onClick={() => { navigator.clipboard?.writeText(enrollInfo.url); setCopied(true); }}
+                          className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-teal-600 text-white hover:bg-teal-700 shrink-0"
+                        >
+                          {copied ? 'Copied!' : 'Copy'}
+                        </button>
+                        <button
+                          onClick={() => setEnrollInfo(null)}
+                          className="px-2 py-1.5 rounded-lg text-[11px] font-bold text-teal-700 hover:bg-teal-100 shrink-0"
+                        >
+                          Done
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-teal-600 mt-2">After setup they log in at <span className="font-mono">/vendor/login</span> · link expires in 14 days</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Expanded panel */}

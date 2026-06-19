@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase, subscribeToRequests, updateVendorStatus, getPartnerById } from '@/lib/supabase';
 import { ShoppingBag, Clock, CheckCircle, Bell, RefreshCw, Truck, ExternalLink } from 'lucide-react';
 
@@ -41,13 +41,38 @@ function timeAgo(iso: string) {
 
 function VendorDashboard() {
   const searchParams = useSearchParams();
-  const partnerId = searchParams.get('partnerId') || '';
+  const router = useRouter();
+  const previewPartnerId = searchParams.get('partnerId') || '';
 
+  const [partnerId, setPartnerId] = useState(previewPartnerId);
+  const [authChecked, setAuthChecked] = useState(!!previewPartnerId);
   const [partnerName, setPartnerName] = useState('');
   const [orders, setOrders] = useState<VendorOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [hotelId, setHotelId] = useState<string | null>(null);
   const [newCount, setNewCount] = useState(0);
+
+  // Resolve which partner this dashboard is for:
+  //  - ?partnerId=xxx  → admin preview (no login needed)
+  //  - otherwise       → the logged-in vendor's own partner (from their session)
+  useEffect(() => {
+    if (previewPartnerId) return; // preview mode, already set
+    (async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) { router.replace('/vendor/login'); return; }
+      const res = await fetch('/api/vendor-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'whoami', token }),
+      });
+      const data = await res.json();
+      if (!data.ok || !data.vendor?.partner_id) { router.replace('/vendor/login'); return; }
+      setPartnerId(data.vendor.partner_id);
+      if (data.vendor.hotel_id) setHotelId(data.vendor.hotel_id);
+      setAuthChecked(true);
+    })();
+  }, [previewPartnerId, router]);
 
   const load = useCallback(async () => {
     if (!partnerId) return;
@@ -65,10 +90,10 @@ function VendorDashboard() {
   }, [partnerId, hotelId]);
 
   useEffect(() => {
-    if (!partnerId) { setLoading(false); return; }
+    if (!partnerId) { if (authChecked) setLoading(false); return; }
     getPartnerById(partnerId).then(p => { if (p) setPartnerName(p.name); });
     load();
-  }, [partnerId, load]);
+  }, [partnerId, authChecked, load]);
 
   // Real-time: subscribe once we know the hotel_id
   useEffect(() => {
@@ -115,8 +140,8 @@ function VendorDashboard() {
   const done = orders.filter(o => o.status === 'completed');
 
   if (!partnerId) return (
-    <div className="h-screen flex items-center justify-center text-gray-500 font-semibold">
-      Missing partnerId in URL
+    <div className="h-screen flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
