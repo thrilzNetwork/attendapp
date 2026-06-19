@@ -150,6 +150,7 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
       const mm = String(m % 60).padStart(2, '0');
       await createShuttleSlot({
         route_id: r.route_id,
+        hotel_id: hotelId,
         departure_time: `${hh}:${mm}:00`,
         days_of_week: r.days,
         capacity: r.capacity,

@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Minus, Plus, ShoppingBag, Star, Clock, MapPin, Phone, Navigation, ExternalLink, X, ChevronRight, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Star, Clock, MapPin, Phone, Navigation, ExternalLink, X, ChevronRight, CheckCircle } from 'lucide-react';
 import { getPartnerById, getPartnerMenuItems, getHotelConfig, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
 
 function PartnerContent() {

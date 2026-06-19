@@ -166,6 +166,7 @@ export interface KpiDefinition {
   target: number;        // daily target
   frequency: 'daily' | 'weekly' | 'monthly';
   category: string;      // 'Revenue', 'Operations', 'Guest Experience', etc
+  why?: string;          // coaching context — why this KPI matters
 }
 
 export interface KpiSubmission {
