@@ -407,12 +407,18 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   };
 
   const DENOMS = [
-    { key: 'd100', label: '$100 bills' },
-    { key: 'd50',  label: '$50 bills'  },
-    { key: 'd20',  label: '$20 bills'  },
-    { key: 'd10',  label: '$10 bills'  },
-    { key: 'd5',   label: '$5 bills'   },
-    { key: 'd1',   label: '$1 bills'   },
+    { key: 'd100',    label: '$100 bills' },
+    { key: 'd50',     label: '$50 bills'  },
+    { key: 'd20',     label: '$20 bills'  },
+    { key: 'd10',     label: '$10 bills'  },
+    { key: 'd5',      label: '$5 bills'   },
+    { key: 'd1',      label: '$1 bills'   },
+    { key: 'c100',    label: '$1 coins'   },
+    { key: 'c50',     label: '50¢ coins'  },
+    { key: 'c25',     label: '25¢ coins'  },
+    { key: 'c10',     label: '10¢ coins'  },
+    { key: 'c5',      label: '5¢ coins'   },
+    { key: 'c1',      label: '1¢ coins'   },
   ];
 
   const calcDrawerTotal = (f: Record<string, string>) => {
@@ -838,10 +844,30 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                                                       <option value="Overnight">Overnight</option>
                                                     </select>
 
-                                                    {/* Bill denominations — enter dollar total per denomination */}
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pt-1">Bills (enter total $ per denomination)</p>
+                                                    {/* Bills */}
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pt-1">Bills — enter total $ per denomination</p>
                                                     <div className="grid grid-cols-3 gap-1.5">
-                                                      {DENOMS.map(d => (
+                                                      {DENOMS.filter(d => d.key.startsWith('d')).map(d => (
+                                                        <div key={d.key}>
+                                                          <label className="text-[10px] text-gray-500 font-bold block mb-0.5">{d.label}</label>
+                                                          <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden">
+                                                            <span className="text-[11px] text-gray-400 px-2">$</span>
+                                                            <input
+                                                              type="number" min="0" step="0.01"
+                                                              value={opsForm[item.id]?.[d.key] || ''}
+                                                              onChange={e => setOpsField(item.id, d.key, e.target.value)}
+                                                              placeholder="0"
+                                                              className="flex-1 py-2 pr-2 text-[13px] font-bold text-gray-900 w-0 min-w-0 outline-none bg-transparent"
+                                                            />
+                                                          </div>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+
+                                                    {/* Coins */}
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pt-1">Coins — enter total $ per denomination</p>
+                                                    <div className="grid grid-cols-3 gap-1.5">
+                                                      {DENOMS.filter(d => d.key.startsWith('c')).map(d => (
                                                         <div key={d.key}>
                                                           <label className="text-[10px] text-gray-500 font-bold block mb-0.5">{d.label}</label>
                                                           <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden">
