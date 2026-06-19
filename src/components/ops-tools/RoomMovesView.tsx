@@ -7,7 +7,7 @@ import { Trash2, ArrowRight } from 'lucide-react';
 const TEAL = '#0D9488';
 
 export default function RoomMovesView({ hotelId }: { hotelId: string }) {
-  const today = new Date().toISOString().split('T')[0];
+  const _d = new Date(); const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
   const [moves, setMoves] = useState<RoomMove[]>([]);
   const [date, setDate] = useState(today);
   const [form, setForm] = useState({ guest_name: '', from_room: '', to_room: '', reason: '', initiated_by: '', notes: '' });

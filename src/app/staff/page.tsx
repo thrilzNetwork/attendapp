@@ -2,7 +2,7 @@
 // deploy-2026-06-05-001 - force chunk hash change
 'use client';
 
-import { useState, useEffect, useCallback, useRef, Fragment, Component } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Fragment, Component } from 'react';
 
 class ErrorBoundary extends Component<{children: React.ReactNode, fallback?: React.ReactNode}, {hasError: boolean, error: Error | null}> {
   constructor(props: {children: React.ReactNode, fallback?: React.ReactNode}) {
@@ -30,7 +30,7 @@ import {
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
-  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign, ShieldCheck, MapPin, PhoneCall, Trophy,
+  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign, ShieldCheck, MapPin, PhoneCall, Trophy, Heart,
 } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
@@ -65,19 +65,21 @@ import DailyLogsView from '@/components/ops-tools/DailyLogsView';
 import NoShowsView from '@/components/ops-tools/NoShowsView';
 import RoomMovesView from '@/components/ops-tools/RoomMovesView';
 import BankCountView from '@/components/ops-tools/BankCountView';
-import BouncieLiveShuttle from '@/components/staff/BouncieLiveShuttle';
 
 const RoomsView = dynamic(() => import('@/components/staff/RoomsView'), { ssr: false });
 const SchedulesView = dynamic(() => import('@/components/staff/SchedulesView'), { ssr: false });
 const ForecastView = dynamic(() => import('@/components/staff/ForecastView'), { ssr: false });
 const FrontDeskView = dynamic(() => import('@/components/staff/FrontDeskView'), { ssr: false });
 const PositionTodosView = dynamic(() => import('@/components/staff/PositionTodosView'), { ssr: false });
+const ShuttleViewComponent = dynamic(() => import('@/components/staff/ShuttleView'), { ssr: false });
 const HotelSettingsView = dynamic(() => import('@/components/staff/HotelSettingsView'), { ssr: false });
 const LearningHRView = dynamic(() => import('@/components/staff/LearningHRView'), { ssr: false });
 const KpisView = dynamic(() => import('@/components/staff/KpisView'), { ssr: false });
 const DailyBriefView = dynamic(() => import('@/components/staff/DailyBriefView'), { ssr: false });
 const CompsetView = dynamic(() => import('@/components/staff/CompsetView'), { ssr: false });
 const LeaderboardView = dynamic(() => import('@/components/staff/LeaderboardView'), { ssr: false });
+const CultureView = dynamic(() => import('@/components/staff/CultureView'), { ssr: false });
+const SuperAdminView = dynamic(() => import('@/components/staff/SuperAdminView'), { ssr: false });
 const MarketplaceView = dynamic(() => import('@/components/staff/MarketplaceView'), { ssr: false });
 import {
   listOps, createOps, updateOps, deleteOps,
@@ -117,7 +119,7 @@ type NavTab =
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
-  | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos' | 'leaderboard' | 'marketplace';
+  | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture';
 
 interface Request {
   id: string;
@@ -128,6 +130,7 @@ interface Request {
   status: 'pending' | 'in-progress' | 'completed' | 'closed';
   created_at: string;
   assigned_to?: string;
+  guest_verified?: boolean;
 }
 
 interface Message {
@@ -164,7 +167,6 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   // ── TODAY — staff daily ops ──
   { tab: 'dailybrief',      label: 'Dashboard',         icon: BarChart3,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'orders',          label: 'Requests',           icon: Bell,            roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'messages',        label: 'Messages',           icon: MessageSquare,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'schedules',       label: 'Schedules',          icon: CalendarDays,    roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'compset',         label: 'Compset',            icon: PhoneCall,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
 
@@ -172,14 +174,13 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'todos',            label: 'To-Dos',             icon: ClipboardList,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'shuttle',         label: 'Shuttle',            icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'kpis',            label: 'KPIs',               icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'leaderboard',     label: 'Leaderboard',        icon: Trophy,          roles: ['admin', 'manager', 'superadmin', 'staff'], section: 'Operations' },
-  { tab: 'marketplace',    label: 'Marketplace',        icon: Store,           roles: ['admin', 'superadmin'], section: 'Operations' },
+  { tab: 'culture',         label: 'Culture',            icon: Heart,           roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'marketplace',     label: 'Marketplace',        icon: Store,           roles: ['admin', 'manager', 'superadmin'], section: 'Operations' },
   { tab: 'knowledge',       label: 'Right Answers',     icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'learning_hr',     label: 'Learning & HR',      icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'property_info',   label: 'Property Info',      icon: HotelIcon,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
 
   // ── ADMIN — settings & management ──
-  { tab: 'shuttle_schedule', label: 'Shuttle Grid',      icon: Bus,             roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'forecast',         label: 'Forecast',          icon: TrendingUp,      roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'callouts',         label: 'Staff Callouts',    icon: ClipboardList,   roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'], section: 'Admin' },
@@ -215,6 +216,8 @@ export default function Dashboard() {
   // Impersonation
   const [impersonatingUser, setImpersonatingUser] = useState<{ name: string; role: Role } | null>(null);
   const [showImpersonatePicker, setShowImpersonatePicker] = useState(false);
+  // Tracks which tabs have been visited — once mounted, kept alive with display:none
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set());
   // ── Alert bar state (must be before early returns — React hooks rule) ──
   const [dismissedAlert, setDismissedAlert] = useState(false);
   const [lastRequestCount, setLastRequestCount] = useState(0);
@@ -229,6 +232,15 @@ export default function Dashboard() {
     }
     setLastRequestCount(pendingCount);
   }, [pendingCount]);
+
+  // Track visited tabs — must be before early returns (Rules of Hooks)
+  const effectiveTabForVisit = session
+    ? ((session.role === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab)
+    : tab;
+  useEffect(() => {
+    if (!session) return;
+    setVisitedTabs(prev => { if (prev.has(effectiveTabForVisit)) return prev; const n = new Set(prev); n.add(effectiveTabForVisit); return n; });
+  }, [effectiveTabForVisit, session]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -338,12 +350,28 @@ export default function Dashboard() {
     localStorage.setItem('attenda_hotel_slug', slug);
     const c = await getHotelConfig(slug);
     if (c) { setConfig(c); setTab('orders'); }
+    await supabase.auth.refreshSession();
     if (session) await reload(session.role);
   };
 
   const reload = useCallback(async (role: Role) => {
     // Always load config first so we can filter by hotel
-    const cfg = await getHotelConfig();
+    let cfg = await getHotelConfig();
+
+    // If no hotel found in localStorage (first login / cleared storage), auto-pick for admins
+    if (!cfg && (role === 'admin' || role === 'superadmin' || role === 'manager')) {
+      const hotels = await getAllHotels() as { id: string; slug: string; name: string }[];
+      setAllHotels(hotels);
+      if (hotels.length === 1) {
+        // Only one property — select it automatically
+        localStorage.setItem('attenda_hotel_slug', hotels[0].slug);
+        cfg = await getHotelConfig(hotels[0].slug);
+      } else if (hotels.length > 1) {
+        setShowHotelPicker(true);
+        return;
+      }
+    }
+
     if (cfg) setConfig(cfg);
     const hotelId = cfg?.id;
 
@@ -355,7 +383,7 @@ export default function Dashboard() {
     }
 
     const [req, msg] = await Promise.all([
-      supabase.from('requests').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
+      supabase.from('requests').select('*').eq('hotel_id', hotelId).neq('room', 'STAFF').order('created_at', { ascending: false }),
       supabase.from('messages').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
     ]);
     if (req.data) setRequests(req.data);
@@ -534,6 +562,13 @@ export default function Dashboard() {
   const isAdmin = s.role === 'admin' || s.role === 'superadmin';
   // Vendors land on their manifest tab
   const effectiveTab = (effectiveRole === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab;
+
+
+  // Helper: render a tab panel — mounts on first visit, hidden (not destroyed) when inactive
+  function tabPanel(tabId: string, condition: boolean, children: React.ReactNode) {
+    if (!visitedTabs.has(tabId) || !condition) return null;
+    return <div style={{ display: effectiveTab === tabId ? 'block' : 'none' }}>{children}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row">
@@ -740,36 +775,39 @@ export default function Dashboard() {
             </button>
           </div>
         )}
-        {effectiveTab === 'dailybrief' && (
+        {tabPanel('dailybrief', true,
           <ErrorBoundary fallback={<div className="p-4 md:p-8"><div className="bg-red-50 border border-red-200 rounded-2xl p-6"><p className="text-[16px] font-bold text-red-800 mb-2">Dashboard error</p><pre id="error-message" className="text-[12px] text-red-700 whitespace-pre-wrap bg-red-100 p-4 rounded-xl">{/* error will show here */}</pre></div></div>}>
             <DailyBriefView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} config={config} sessionName={session?.name || ''} department={session?.department} isAdmin={isAdmin} />
           </ErrorBoundary>
         )}
-        {effectiveTab === 'property_info' && config && (
-          <PropertyInfoView config={config} />
+        {tabPanel('property_info', !!config,
+          <PropertyInfoView config={config!} />
         )}
-        {effectiveTab === 'schedules' && (
+        {tabPanel('schedules', true,
           <SchedulesView hotelId={config?.id || ''} isAdmin={isAdmin} weekStartsOn={config?.weekStartsOn || 'Sunday'} staffName={s.name} hotelName={config?.name || 'Hotel'} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department, hire_date: s.hire_date, min_hours: s.min_hours || 0, employment_type: s.employment_type, email: s.email || '' }))} />
         )}
-        {effectiveTab === 'compset' && (
+        {tabPanel('compset', true,
           <CompsetView hotelId={config?.id || ''} isAdmin={isAdmin} staffId={staff.find(st => st.name === s.name)?.id || ''} staffName={s.name} />
         )}
-        {effectiveTab === 'leaderboard' && (
+        {tabPanel('leaderboard', true,
           <LeaderboardView hotelId={config?.id || ''} staffName={s.name} isAdmin={isAdmin} />
         )}
-        {effectiveTab === 'marketplace' && (
-          <MarketplaceView hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} />
+        {tabPanel('culture', true,
+          <CultureView hotelId={config?.id || ''} staffName={s.name || session?.name || 'Staff'} isAdmin={isAdmin} />
         )}
-        {effectiveTab === 'checklists_tab' && (
+        {tabPanel('checklists_tab', true,
           <ChecklistsTabView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
-        {effectiveTab === 'kpis' && (
+        {tabPanel('kpis', true,
           <KpisView hotelId={config?.id || ''} isAdmin={isAdmin} userId="" userName={session?.name || 'Staff'} />
         )}
-        {effectiveTab === 'learning_hr' && (
+        {tabPanel('marketplace', true,
+          <MarketplaceView hotelId={config?.id || ''} isAdmin={isAdmin} />
+        )}
+        {tabPanel('learning_hr', true,
           <LearningHRView hotelId={config?.id || ''} />
         )}
-        {effectiveTab === 'orders' && (
+        {tabPanel('orders', true,
           <OrdersView
             requests={requests}
             messages={messages}
@@ -779,60 +817,54 @@ export default function Dashboard() {
             onRefresh={() => reload(s.role)}
           />
         )}
-        {effectiveTab === 'messages' && (
+        {tabPanel('messages', true,
           <MessagesView messages={messages} hotelId={config?.id || ''} />
         )}
-        {effectiveTab === 'shuttle' && (
-          <ShuttleView hotelId={config?.id || ''} isAdmin={isAdmin} />
+        {tabPanel('shuttle', true,
+          <ShuttleViewComponent hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} />
         )}
-        {effectiveTab === 'shuttle_schedule' && (
+        {tabPanel('shuttle_schedule', true,
           <ShuttleScheduleView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
-        {effectiveTab === 'forecast' && (
+        {tabPanel('forecast', true,
           <ForecastView hotelId={config?.id || ''} totalRooms={config?.roomCount || 0} timezone={config?.timezone} />
         )}
-        {effectiveTab === 'callouts' && (
+        {tabPanel('callouts', true,
           <AdminCalloutsView hotelId={config?.id || ''} />
         )}
-        {effectiveTab === 'todos' && (
+        {tabPanel('todos', true,
           <PositionTodosView hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} department={s.department} />
         )}
-        {effectiveTab === 'vendor_manifest' && (
+        {tabPanel('vendor_manifest', true,
           <VendorDashboard hotelId={config?.id || ''} vendorType={s.vendorType || 'shuttle'} vendorName={s.name} />
         )}
-        {effectiveTab === 'hotel' && isAdmin && config && (
-                  <ErrorBoundary>
-                    <HotelSettingsView
-                      config={config}
-                      onSaved={async () => { const c = await getHotelConfig(); if (c) setConfig(c); }}
-                    />
-                  </ErrorBoundary>
-                )}
-        {effectiveTab === 'staff_mgmt' && isAdmin && (
+        {tabPanel('hotel', isAdmin && !!config,
+          <ErrorBoundary>
+            <HotelSettingsView
+              config={config!}
+              onSaved={async () => { const c = await getHotelConfig(); if (c) setConfig(c); }}
+            />
+          </ErrorBoundary>
+        )}
+        {tabPanel('staff_mgmt', isAdmin,
           <StaffView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} hotelSlug={config?.slug || ''} staff={staff} onRefresh={async () => setStaff(await getStaffAccountsForHotel(config?.id || ''))} />
         )}
-        {effectiveTab === 'partners' && isAdmin && (
+        {tabPanel('partners', isAdmin,
           <PartnersView hotelId={config?.id || ''} />
         )}
-        {effectiveTab === 'qrcodes' && isAdmin && (
+        {tabPanel('qrcodes', isAdmin,
           <QrCodesView hotelId={config?.id || ''} hotelSlug={config?.slug || ''} />
         )}
-        {effectiveTab === 'knowledge' && (
+        {tabPanel('knowledge', true,
           <IncidentKBView hotelId={config?.id || ''} isAdmin={isAdmin} userName={s.name} />
         )}
-        {effectiveTab === 'rooms' && isAdmin && (
+        {tabPanel('rooms', isAdmin,
           <RoomsView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} />
         )}
-        {effectiveTab === 'properties' && s.role === 'superadmin' && (
-          <PropertiesView
-            onSwitchHotel={async (slug: string) => {
-              localStorage.setItem('attenda_hotel_slug', slug);
-              const c = await getHotelConfig(slug);
-              if (c) { setConfig(c); setTab('orders'); }
-            }}
-          />
+        {tabPanel('properties', s.role === 'superadmin',
+          <SuperAdminView onSwitchHotel={switchHotel} />
         )}
-        {effectiveTab === 'guests' && (
+        {tabPanel('guests', true,
           <GuestsView hotelId={config?.id || ''} />
         )}
       </main>
@@ -1154,361 +1186,6 @@ function MessagesView({ messages, hotelId }: { messages: Message[]; hotelId?: st
   );
 }
 
-/* ── Shuttle View (In-App) ──────────────────────────────── */
-function ShuttleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
-  const [calendarTab, setCalendarTab] = useState<'calendar' | 'routes'>('calendar');
-  const [calendarEntries, setCalendarEntries] = useState<{ id: string; name: string; date: string; time: string; price: number; link: string; type: string }[]>([]);
-  const [loadingCal, setLoadingCal] = useState(true);
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [showAddEvent, setShowAddEvent] = useState(false);
-  const [newEvent, setNewEvent] = useState({ name: '', date: '', time: '', price: '0', link: '', type: 'airport' });
-  // editingEvent unused - reserved for future inline editing
-  // setEditingEvent unused - reserved for future inline editing
-
-  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-  useEffect(() => {
-    const loadCal = async () => {
-      setLoadingCal(true);
-      try {
-        const [slots, cruises] = await Promise.all([
-          getAllShuttleSlotsForHotel(hotelId),
-          getCruiseSchedulesAll(hotelId),
-        ]);
-        const entries: typeof calendarEntries = [];
-        slots.forEach(s => {
-          (s.days_of_week || []).forEach(() => {
-            entries.push({
-              id: `slot-${s.id}`,
-              name: s.route_name || s.event_label || 'Shuttle',
-              date: s.date || new Date().toISOString().split('T')[0],
-              time: s.departure_time?.slice(0,5) || '',
-              price: s.override_price ?? s.route_price ?? 0,
-              link: '',
-              type: s.route_type || 'custom',
-            });
-          });
-        });
-        cruises.forEach(c => {
-          entries.push({
-            id: `cruise-${c.id}`,
-            name: `${c.ship_name}${c.cruise_line ? ` (${c.cruise_line})` : ''}`,
-            date: c.departure_date,
-            time: c.departure_time?.slice(0,5) || '',
-            price: 0,
-            link: '',
-            type: 'cruise',
-          });
-        });
-        setCalendarEntries(entries);
-      } catch (e) { console.error('Load calendar error:', e); }
-      setLoadingCal(false);
-    };
-    loadCal();
-  }, [hotelId]);
-
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-  const today = new Date().toISOString().split('T')[0];
-
-  const getEventsForDay = (day: number) => {
-    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return calendarEntries.filter(e => e.date === dateStr);
-  };
-
-  const handlePrevMonth = () => {
-    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
-    else setCurrentMonth(currentMonth - 1);
-  };
-  const handleNextMonth = () => {
-    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); }
-    else setCurrentMonth(currentMonth + 1);
-  };
-
-  const handleAddEvent = async () => {
-    if (!newEvent.name || !newEvent.date || !newEvent.time) return;
-    try {
-      if (newEvent.type === 'cruise') {
-        await createCruiseSchedule({
-          hotel_id: hotelId,
-          ship_name: newEvent.name,
-          cruise_line: newEvent.name,
-          terminal: '',
-          departure_date: newEvent.date,
-          departure_time: newEvent.time,
-          notes: newEvent.link ? `Link: ${newEvent.link}` : '',
-        });
-      } else {
-        const routeName = `Calendar: ${newEvent.name}`;
-        const route = await createShuttleRoute({
-          hotel_id: hotelId,
-          name: routeName,
-          type: newEvent.type as 'airport' | 'cruise' | 'custom',
-          price: parseFloat(newEvent.price) || 0,
-        });
-        if (route) {
-          await createShuttleSlot({
-            route_id: route.id,
-            hotel_id: hotelId,
-            departure_time: newEvent.time + ':00',
-            date: newEvent.date,
-            days_of_week: [],
-            capacity: 0,
-            event_label: newEvent.name,
-            override_price: parseFloat(newEvent.price) || 0,
-          });
-        }
-      }
-    } catch (e) { console.error('Add event error:', e); }
-    setNewEvent({ name: '', date: '', time: '', price: '0', link: '', type: 'airport' });
-    setShowAddEvent(false);
-    window.location.reload();
-  };
-
-  const calView = (
-    <div className="space-y-4">
-      {/* Calendar header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button onClick={handlePrevMonth} className="px-3 py-1.5 text-[13px] font-bold text-gray-600 hover:bg-gray-100 rounded-lg">&lt;</button>
-          <h2 className="text-[18px] font-extrabold text-gray-900">{MONTH_NAMES[currentMonth]} {currentYear}</h2>
-          <button onClick={handleNextMonth} className="px-3 py-1.5 text-[13px] font-bold text-gray-600 hover:bg-gray-100 rounded-lg">&gt;</button>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => setCalendarTab(calendarTab === 'calendar' ? 'routes' : 'calendar')}
-            className={`px-4 py-2 rounded-full text-[13px] font-semibold ${calendarTab === 'calendar' ? 'bg-white border border-gray-200 shadow-sm text-gray-900' : 'bg-gray-100 text-gray-500'}`}>
-            {calendarTab === 'calendar' ? '📋 Routes View' : '📅 Calendar View'}
-          </button>
-          {isAdmin && (
-            <button onClick={() => setShowAddEvent(!showAddEvent)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-[13px] font-semibold" style={{ backgroundColor: TEAL }}>
-              <Plus size={14} /> Add Calendar Entry
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Add event form */}
-      {showAddEvent && isAdmin && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-3">
-          <h3 className="font-bold text-[15px]">New Calendar Entry</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Calendar Name *</label>
-              <input value={newEvent.name} onChange={e => setNewEvent({ ...newEvent, name: e.target.value })}
-                placeholder='e.g. "Airport Shuttle" or "Royal Caribbean"'
-                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-            </div>
-            <div>
-              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Type</label>
-              <select value={newEvent.type} onChange={e => setNewEvent({ ...newEvent, type: e.target.value })}
-                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
-                <option value="airport">Airport (free)</option>
-                <option value="cruise">Cruise Port</option>
-                <option value="custom">Custom</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Date *</label>
-              <input type="date" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })}
-                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-            </div>
-            <div>
-              <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Time *</label>
-              <input type="time" value={newEvent.time} onChange={e => setNewEvent({ ...newEvent, time: e.target.value })}
-                className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-            </div>
-            {newEvent.type !== 'airport' && (
-              <>
-                <div>
-                  <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Price ($)</label>
-                  <input type="number" min="0" step="0.01" value={newEvent.price}
-                    onChange={e => setNewEvent({ ...newEvent, price: e.target.value })}
-                    className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-                </div>
-                <div>
-                  <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Link to Order (optional)</label>
-                  <input value={newEvent.link} onChange={e => setNewEvent({ ...newEvent, link: e.target.value })}
-                    placeholder="https://..."
-                    className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-                </div>
-              </>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handleAddEvent} className="flex-1 py-2.5 rounded-xl text-white font-bold text-[13px]" style={{ backgroundColor: TEAL }}>
-              Add to Calendar
-            </button>
-            <button onClick={() => setShowAddEvent(false)} className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Calendar grid */}
-      {loadingCal ? (
-        <div className="text-center py-12"><div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mx-auto" style={{ borderColor: TEAL }} /></div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
-            {DAY_NAMES.map(d => (
-              <div key={d} className="px-2 py-2 text-[11px] font-bold text-gray-400 uppercase text-center">{d}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7">
-            {Array.from({ length: firstDay }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[80px] bg-gray-50/50 border-b border-r border-gray-100" />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              const events = getEventsForDay(day);
-              const isToday = dateStr === today;
-              return (
-                <div key={day}
-                  className={`min-h-[80px] p-1.5 border-b border-r border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${isToday ? 'bg-teal-50' : ''}`}
-                  onClick={() => isAdmin && setShowAddEvent(true)}>
-                  <div className={`text-[12px] font-bold mb-1 ${isToday ? 'text-teal-600' : 'text-gray-700'}`}>{day}</div>
-                  <div className="space-y-0.5">
-                    {events.slice(0, 2).map(e => (
-                      <div key={e.id}
-                        className={`text-[9px] font-bold px-1 py-0.5 rounded truncate ${
-                          e.type === 'airport' ? 'bg-blue-100 text-blue-700' :
-                          e.type === 'cruise' ? 'bg-purple-100 text-purple-700' :
-                          'bg-amber-100 text-amber-700'
-                        }`}
-                        title={`${e.name} ${e.time}${e.price > 0 ? ` $${e.price}` : ''}`}>
-                        {e.name.split(' ')[0]} {e.time}
-                      </div>
-                    ))}
-                    {events.length > 2 && <div className="text-[9px] text-gray-400 font-bold px-1">+{events.length - 2} more</div>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Event list below calendar */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
-        <div className="px-5 py-3 border-b border-gray-100">
-          <h3 className="font-bold text-[14px]">All Upcoming ({calendarEntries.filter(e => e.date >= today).length})</h3>
-        </div>
-        {calendarEntries.filter(e => e.date >= today).length === 0 ? (
-          <div className="px-5 py-8 text-center"><p className="text-[13px] text-gray-400">No scheduled events.</p></div>
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {calendarEntries.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date)).map(e => (
-              <div key={e.id} className="px-5 py-3 flex items-center gap-3">
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                  e.type === 'airport' ? 'bg-blue-100 text-blue-700' :
-                  e.type === 'cruise' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'
-                }`}>{e.type}</span>
-                <div className="flex-1">
-                  <p className="text-[13px] font-semibold text-gray-900">{e.name}</p>
-                  <p className="text-[11px] text-gray-400">{e.date} at {e.time}</p>
-                </div>
-                {e.price > 0 && <span className="text-[12px] font-bold text-amber-700">${e.price}</span>}
-                {e.price === 0 && e.type === 'airport' && <span className="text-[10px] font-bold text-emerald-700">Free</span>}
-                {e.link && (
-                  <a href={e.link} target="_blank" rel="noopener noreferrer"
-                    className="text-[11px] font-bold px-2 py-1 rounded bg-teal-50 text-teal-600 hover:bg-teal-100">Order</a>
-                )}
-                {isAdmin && (
-                  <button onClick={async () => {
-                    const id = e.id;
-                    if (id.startsWith('slot-')) await deleteShuttleSlot(id.replace('slot-', ''));
-                    if (id.startsWith('cruise-')) await deleteCruiseSchedule(id.replace('cruise-', ''));
-                    window.location.reload();
-                  }} className="text-red-400 hover:text-red-600"><Trash2 size={12} /></button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-[26px] font-extrabold text-gray-900">Shuttle Schedule</h1>
-      </div>
-      {hotelId && <BouncieLiveShuttle hotelId={hotelId} />}
-      {calendarTab === 'calendar' ? calView : <ShuttleRoutesPanel hotelId={hotelId} isAdmin={isAdmin} />}
-    </div>
-  );
-}
-
-/* ── Add Guest to Slot (front desk walk-up) ─────────────── */
-function AddGuestToSlot({ slotId, routeName, onDone }: { slotId: string; routeName: string; onDone: () => void }) {
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState('');
-  const [room, setRoom] = useState('');
-  const [pax, setPax] = useState(1);
-  const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleAdd = async () => {
-    if (!name || !room) return;
-    setSubmitting(true);
-    try {
-      await bookShuttleSlot({
-        slot_id: slotId,
-        guest_name: name,
-        room_number: room,
-        pax,
-        notes,
-        price_charged: 0,
-        charge_accepted: false,
-      });
-      setName(''); setRoom(''); setPax(1); setNotes('');
-      setShowForm(false);
-      onDone();
-    } catch (e) {
-      alert('Failed to add guest');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="mt-3 pt-3 border-t border-gray-100">
-      {showForm ? (
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Guest name"
-              className="flex-1 bg-gray-50 rounded-lg px-3 py-2 border text-[12px] outline-none" />
-            <input value={room} onChange={e => setRoom(e.target.value)} placeholder="Room"
-              className="w-20 bg-gray-50 rounded-lg px-3 py-2 border text-[12px] outline-none" />
-            <input type="number" min={1} max={20} value={pax} onChange={e => setPax(parseInt(e.target.value)||1)}
-              className="w-16 bg-gray-50 rounded-lg px-3 py-2 border text-[12px] outline-none text-center" />
-          </div>
-          <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (optional)"
-            className="w-full bg-gray-50 rounded-lg px-3 py-2 border text-[12px] outline-none" />
-          <div className="flex gap-2">
-            <button onClick={handleAdd} disabled={submitting || !name || !room}
-              className="px-4 py-2 rounded-lg text-white font-bold text-[12px] disabled:opacity-50" style={{ backgroundColor: '#0D9488' }}>
-              {submitting ? 'Adding...' : 'Add Guest'}
-            </button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-[12px] text-gray-500">Cancel</button>
-          </div>
-        </div>
-      ) : (
-        <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-1 text-[11px] font-bold text-teal-600 hover:text-teal-800">
-          + Add Guest (walk-up)
-        </button>
-      )}
-    </div>
-  );
-}
-
 /* ── Shuttle Routes Panel ───────────────────────────────── */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
@@ -1517,14 +1194,15 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
   const [bookings, setBookings] = useState<Record<string, ShuttleBooking[]>>({});
   const [loading, setLoading] = useState(true);
   const [newRoute, setNewRoute] = useState({ name: '', type: 'airport', price: 0 });
-  const [newSlot, setNewSlot] = useState<{ route_id: string; show: boolean; time: string; days: number[]; capacity: number; event_label: string; override_price: number | null }>({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null });
-  const [batch, setBatch] = useState<{ route_id: string; show: boolean; from: string; to: string; interval: number; days: number[]; capacity: number; override_price: number | null }>({ route_id: '', show: false, from: '', to: '', interval: 60, days: [1,2,3,4,5,6,7], capacity: 0, override_price: null });
+  const [newSlot, setNewSlot] = useState<{ route_id: string; show: boolean; time: string; days: number[]; capacity: number; event_label: string; override_price: number | null }>({ route_id: '', show: false, time: '', days: [0,1,2,3,4,5,6], capacity: 0, event_label: '', override_price: null });
+  const [batch, setBatch] = useState<{ route_id: string; show: boolean; from: string; to: string; interval: number; days: number[]; capacity: number; override_price: number | null }>({ route_id: '', show: false, from: '', to: '', interval: 60, days: [0,1,2,3,4,5,6], capacity: 0, override_price: null });
   const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
   const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
 
   const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
   const load = useCallback(async () => {
+    if (!hotelId) { setLoading(false); return; }
     const r = await getShuttleRoutes(hotelId);
     setRoutes(r);
     const s = await getAllShuttleSlotsForHotel(hotelId);
@@ -1548,7 +1226,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
   const handleAddSlot = async () => {
     if (!newSlot.time || !newSlot.route_id) return;
     await createShuttleSlot({ route_id: newSlot.route_id, hotel_id: hotelId, departure_time: newSlot.time + ':00', days_of_week: newSlot.days, capacity: newSlot.capacity, event_label: newSlot.event_label, override_price: newSlot.override_price ?? undefined });
-    setNewSlot({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null });
+    setNewSlot({ route_id: '', show: false, time: '', days: [0,1,2,3,4,5,6], capacity: 0, event_label: '', override_price: null });
     load();
   };
 
@@ -1566,7 +1244,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
       generated.push({ route_id: batch.route_id, hotel_id: hotelId, days_of_week: batch.days, departure_time, capacity: batch.capacity, override_price: batch.override_price ?? undefined });
     }
     await Promise.all(generated.map(g => createShuttleSlot(g)));
-    setBatch({ route_id: '', show: false, from: '', to: '', interval: 60, days: [1,2,3,4,5,6,7], capacity: 0, override_price: null });
+    setBatch({ route_id: '', show: false, from: '', to: '', interval: 60, days: [0,1,2,3,4,5,6], capacity: 0, override_price: null });
     load();
   };
 
@@ -1616,7 +1294,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
               <div className="flex items-center gap-2">
                 {isAdmin && (
                   <>
-                    <button onClick={e => { e.stopPropagation(); setNewSlot({ route_id: route.id, show: true, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null }); }}
+                    <button onClick={e => { e.stopPropagation(); setNewSlot({ route_id: route.id, show: true, time: '', days: [0,1,2,3,4,5,6], capacity: 0, event_label: '', override_price: null }); }}
                       className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-600">+ Slot</button>
                     <button onClick={e => { e.stopPropagation(); if(confirm('Delete this route and all slots?')) { deleteShuttleRoute(route.id); load(); } }}
                       className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
@@ -1649,7 +1327,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                             className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none w-[80px]" />
                         </div>
                         <button onClick={handleAddSlot} className="px-4 py-2 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#0D9488' }}>Save</button>
-                        <button onClick={() => setNewSlot({ route_id: '', show: false, time: '', days: [1,2,3,4,5,6,7], capacity: 0, event_label: '', override_price: null })} className="px-3 py-2 text-[12px] text-gray-400">Cancel</button>
+                        <button onClick={() => setNewSlot({ route_id: '', show: false, time: '', days: [0,1,2,3,4,5,6], capacity: 0, event_label: '', override_price: null })} className="px-3 py-2 text-[12px] text-gray-400">Cancel</button>
                       </div>
                       <div>
                         <label className="text-[10px] text-gray-400 block">Event / Cruise Line (optional)</label>
@@ -1659,7 +1337,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                     </div>
                     <div className="flex gap-1.5 flex-wrap">
                       {DAYS.map((d, i) => {
-                        const dayNum = i + 1;
+                        const dayNum = (i + 1) % 7;
                         const active = newSlot.days.includes(dayNum);
                         return (
                           <button key={d} onClick={() => setNewSlot({ ...newSlot, days: active ? newSlot.days.filter(x => x !== dayNum) : [...newSlot.days, dayNum] })}
@@ -1674,7 +1352,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                   <div className="bg-white rounded-xl p-4 border border-gray-200 mb-4">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-bold text-[13px] text-gray-800">⚡ Generate Hours</h4>
-                      <button onClick={() => setBatch(batch.show && batch.route_id === route.id ? { ...batch, show: false } : { route_id: route.id, show: true, from: '', to: '', interval: 60, days: [1,2,3,4,5,6,7], capacity: 0, override_price: null })}
+                      <button onClick={() => setBatch(batch.show && batch.route_id === route.id ? { ...batch, show: false } : { route_id: route.id, show: true, from: '', to: '', interval: 60, days: [0,1,2,3,4,5,6], capacity: 0, override_price: null })}
                         className="text-[11px] font-bold text-teal-600">{batch.show && batch.route_id === route.id ? 'Close' : 'Open'}</button>
                     </div>
                     {batch.show && batch.route_id === route.id && (
@@ -1715,7 +1393,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                         </div>
                         <div className="flex gap-1.5 flex-wrap">
                           {DAYS.map((d, i) => {
-                            const dayNum = i + 1;
+                            const dayNum = (i + 1) % 7;
                             const active = batch.days.includes(dayNum);
                             return (
                               <button key={d} onClick={() => setBatch({ ...batch, days: active ? batch.days.filter(x => x !== dayNum) : [...batch.days, dayNum] })}
@@ -1733,7 +1411,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                   <p className="text-[13px] text-gray-400 py-2">No time slots yet.</p>
                 ) : routeSlots.map(slot => {
                   const slotBookings = bookings[slot.id] || [];
-                  const dayNames = (slot.days_of_week || []).map(d => DAYS[d-1]).join(', ') || 'One-off';
+                  const dayNames = (slot.days_of_week || []).map(d => DAYS[(d+6)%7]).join(', ') || 'One-off';
                   return (
                     <div key={slot.id} className="bg-white rounded-xl border border-gray-100 mb-2 overflow-hidden">
                       <div className="px-4 py-3 flex items-center justify-between cursor-pointer" onClick={() => setExpandedSlot(expandedSlot === slot.id ? null : slot.id)}>
@@ -1909,7 +1587,7 @@ function CruiseCalendarPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: b
 
   if (loading) return <div className="text-center py-12"><div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" /></div>;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const upcoming = schedules.filter(s => s.departure_date >= today);
   const past = schedules.filter(s => s.departure_date < today);
 
@@ -2044,7 +1722,7 @@ function ShuttleVendorView({ hotelId, vendorName, vendorType }: { hotelId: strin
 
   if (loading) return <div className="text-center py-12"><div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" /></div>;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const slotMap = Object.fromEntries(slots.map(s => [s.id, s]));
   const filteredBookings = bookings.filter(b => {
     if (!dateFilter) return true;
@@ -2320,7 +1998,39 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   const [sendInvite, setSendInvite] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resentId, setResentId] = useState<string | null>(null);
   const ALL_PERMS = ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes'];
+
+  const handleResendInvite = async (s: StaffAccount) => {
+    if (!s.email) return;
+    setResendingId(s.id!);
+    try {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://attendaapp.com';
+      await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        body: JSON.stringify({
+          type: 'staff_invitation',
+          data: {
+            staffEmail: s.email,
+            staffName: s.name,
+            staffRole: s.role,
+            hotelName,
+            hotelSlug,
+            pin: '',
+            setupUrl: `${baseUrl}/staff/setup?email=${encodeURIComponent(s.email)}&hotel=${encodeURIComponent(hotelSlug)}&mode=setup`,
+          },
+        }),
+      });
+      setResentId(s.id!);
+      setTimeout(() => setResentId(null), 3000);
+    } catch {
+      // ignore — admin can retry
+    } finally {
+      setResendingId(null);
+    }
+  };
 
   const adminFetch = async (action: string, body: any) => {
     const res = await fetch('/api/superadmin-db', {
@@ -2562,6 +2272,12 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                       className={`text-[10px] font-bold px-2 py-1 rounded ${editingProfile === s.id ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600'}`}>Edit Profile</button>
                     <button onClick={() => setEditingPerms(editingPerms === s.id ? null : s.id!)}
                       className="text-[10px] font-bold px-2 py-1 rounded bg-gray-100 text-gray-600">Permissions</button>
+                    {s.email && (
+                      <button onClick={() => handleResendInvite(s)} disabled={resendingId === s.id}
+                        className="text-[10px] font-bold px-2 py-1 rounded bg-teal-50 text-teal-700 disabled:opacity-50">
+                        {resentId === s.id ? 'Sent!' : resendingId === s.id ? 'Sending...' : 'Resend Invite'}
+                      </button>
+                    )}
                     <button onClick={() => handleToggleActive(s)} className="text-[10px] font-bold px-2 py-1 rounded bg-amber-100 text-amber-700">Deactivate</button>
                     <button onClick={() => { if(confirm('Delete?')) { deleteStaffAccount(s.id!); onRefresh(); } }}
                       className="text-red-400"><Trash2 size={13} /></button>
@@ -2670,7 +2386,15 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
               {staff.filter(s => !s.active).map(s => (
                 <div key={s.id} className="flex items-center justify-between text-[12px] py-1">
                   <span className="text-gray-500">{s.name} · {s.role}</span>
-                  <button onClick={() => handleToggleActive(s)} className="text-[10px] font-bold text-emerald-600">Reactivate</button>
+                  <div className="flex items-center gap-2">
+                    {s.email && (
+                      <button onClick={() => handleResendInvite(s)} disabled={resendingId === s.id}
+                        className="text-[10px] font-bold text-teal-600 disabled:opacity-50">
+                        {resentId === s.id ? 'Sent!' : resendingId === s.id ? 'Sending...' : 'Resend Invite'}
+                      </button>
+                    )}
+                    <button onClick={() => handleToggleActive(s)} className="text-[10px] font-bold text-emerald-600">Reactivate</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -3726,6 +3450,10 @@ function PropertyInfoView({ config }: { config: HotelConfig }) {
   );
 }
 
+// Local calendar date as YYYY-MM-DD (never UTC — avoids the ~7pm rollover bug).
+function localDateStr(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 // Week helpers
 function getWeekStart(date: string, weekStartsOn?: string): string {
   const d = new Date(date + 'T00:00:00');
@@ -3736,7 +3464,7 @@ function getWeekStart(date: string, weekStartsOn?: string): string {
   } else {
     d.setDate(d.getDate() - day);
   }
-  return d.toISOString().split('T')[0];
+  return localDateStr(d);
 }
 function getWeekDates(weekStart: string): string[] {
   return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -3744,7 +3472,7 @@ function getWeekDates(weekStart: string): string[] {
 function addDays(date: string, n: number): string {
   const d = new Date(date + 'T00:00:00');
   d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  return localDateStr(d);
 }
 function dayName(date: string): string {
   return new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
@@ -3792,7 +3520,7 @@ function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boo
   };
   useEffect(() => { load(); }, [hotelId]);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
 
   const create = async () => {
     if (!newName.trim()) return;
@@ -4006,6 +3734,40 @@ function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boo
   );
 }
 
+function AddGuestToSlot({ slotId, routeName, onDone }: { slotId: string; routeName: string; onDone: () => void }) {
+  const [show, setShow] = useState(false);
+  const [form, setForm] = useState({ guest_name: '', room_number: '', pax: '1', notes: '' });
+  const [saving, setSaving] = useState(false);
+  if (!show) return (
+    <button onClick={() => setShow(true)} className="flex items-center gap-1 text-[11px] font-bold text-teal-600 hover:text-teal-800">
+      + Add Guest (walk-up)
+    </button>
+  );
+  const save = async () => {
+    if (!form.guest_name) return;
+    setSaving(true);
+    await bookShuttleSlot({ slot_id: slotId, guest_name: form.guest_name, room_number: form.room_number, pax: parseInt(form.pax) || 1, notes: form.notes });
+    setForm({ guest_name: '', room_number: '', pax: '1', notes: '' });
+    setShow(false);
+    onDone();
+    setSaving(false);
+  };
+  return (
+    <div className="mt-2 p-2 bg-gray-50 rounded-lg border border-gray-200 space-y-1">
+      <p className="text-[10px] font-bold text-gray-500">Add Guest to {routeName}</p>
+      <input placeholder="Guest name" value={form.guest_name} onChange={e => setForm(f => ({...f, guest_name: e.target.value}))} className="w-full text-[11px] border rounded px-2 py-1" />
+      <div className="flex gap-1">
+        <input placeholder="Room" value={form.room_number} onChange={e => setForm(f => ({...f, room_number: e.target.value}))} className="w-20 text-[11px] border rounded px-2 py-1" />
+        <input placeholder="Pax" type="number" value={form.pax} onChange={e => setForm(f => ({...f, pax: e.target.value}))} className="w-16 text-[11px] border rounded px-2 py-1" />
+      </div>
+      <div className="flex gap-2 justify-end">
+        <button onClick={() => setShow(false)} className="text-[11px] text-gray-500">Cancel</button>
+        <button onClick={save} disabled={saving} className="text-[11px] font-bold text-teal-600">{saving ? 'Saving…' : 'Add'}</button>
+      </div>
+    </div>
+  );
+}
+
 /* ── Learning View ───────────────────────────────────── */
 /* ── Learning & HR (combined) ─────────────────────────── */
 function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
@@ -4014,7 +3776,7 @@ function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: b
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
-  const [genMonth, setGenMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [genMonth, setGenMonth] = useState(localDateStr().slice(0, 7));
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState<string | null>(null);
   const [form, setForm] = useState<{ day_of_week: number; departure_time: string; pickup_location: string; destination: string; service_type: 'regular' | 'express'; capacity: number; notes: string }>({ day_of_week: 1, departure_time: '08:00', pickup_location: '', destination: '', service_type: 'regular', capacity: 12, notes: '' });

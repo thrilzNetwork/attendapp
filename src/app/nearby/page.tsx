@@ -3,9 +3,75 @@
 import { Suspense, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, MapPin, Phone, Clock, Star, ShoppingBag } from 'lucide-react';
-import { getHotelConfig, getPartners, Partner } from '@/lib/supabase';
+import { ArrowLeft, MapPin, Phone, Clock, Star, ShoppingBag, Car, Check } from 'lucide-react';
+import { getHotelConfig, getPartners, Partner, supabase } from '@/lib/supabase';
 import { goBackToHotel } from '@/lib/guest-context';
+
+function RideCard({ brandColor }: { brandColor: string }) {
+  const [phone, setPhone] = useState('');
+  const [requested, setRequested] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+
+  useEffect(() => {
+    getHotelConfig().then(cfg => { if (cfg?.frontDeskPhone) setPhone(cfg.frontDeskPhone); });
+  }, []);
+
+  const requestRide = async () => {
+    setRequesting(true);
+    try {
+      const stored = localStorage.getItem('guestSession');
+      const session = stored ? JSON.parse(stored) : null;
+      const qrRoom = localStorage.getItem('attenda_qr_room');
+      const cfg = await getHotelConfig();
+      await supabase.from('requests').insert({
+        hotel_id: cfg?.id,
+        guest_name: session?.name || 'Guest',
+        room: qrRoom || session?.room || '?',
+        type: 'Transport Request',
+        details: 'Guest needs a ride — destination to be confirmed by front desk.',
+        status: 'pending',
+      });
+      setRequested(true);
+    } finally {
+      setRequesting(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+      <div className="flex items-start gap-3">
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${brandColor}10` }}>
+          <Car size={22} style={{ color: brandColor }} />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-[14px] font-bold text-black">Need a ride?</h3>
+          <p className="text-[12px] text-gray-500 mt-0.5">Airport shuttle, taxi, or Uber — front desk will arrange it.</p>
+          <div className="flex gap-2 mt-2.5">
+            {requested ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
+                <Check size={12} /> Requested — front desk will contact you
+              </div>
+            ) : (
+              <button
+                onClick={requestRide}
+                disabled={requesting}
+                className="px-3 py-1.5 rounded-lg text-white text-[11px] font-bold active:scale-95 disabled:opacity-60"
+                style={{ backgroundColor: brandColor }}
+              >
+                {requesting ? '...' : 'Request Ride'}
+              </button>
+            )}
+            {phone && (
+              <a href={`tel:${phone}`} className="px-3 py-1.5 rounded-lg bg-gray-100 text-[11px] font-bold text-gray-700 active:scale-95">
+                Call Front Desk
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function NearbyContent() {
   const router = useRouter();
@@ -102,21 +168,7 @@ function NearbyContent() {
 
               {/* Transport — only when tab=attractions */}
               {tab === 'attractions' && (
-              <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${brandColor}10` }}>
-                    <MapPin size={22} style={{ color: brandColor }} />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-[14px] font-bold text-black">Need a ride?</h3>
-                    <p className="text-[12px] text-gray-500 mt-0.5">Taxi, Uber, or Lyft available 24/7. Ask front desk to book.</p>
-                    <div className="flex gap-2 mt-2">
-                      <a href="tel:+13051234567" className="px-3 py-1.5 rounded-lg bg-gray-100 text-[11px] font-bold text-gray-700 active:scale-95">Call Taxi</a>
-                      <a href="https://m.uber.com" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg text-white text-[11px] font-bold active:scale-95" style={{ backgroundColor: brandColor }}>Open Uber</a>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <RideCard brandColor={brandColor} />
               )}
 
               {/* Attractions — only when tab=attractions */}

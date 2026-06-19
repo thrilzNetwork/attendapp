@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Phone, CheckCircle2, Circle, BarChart3 } from 'lucide-react';
+import { Plus, Trash2, Phone, CheckCircle2, Circle, BarChart3, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
-  getCompsetHotels, createCompsetHotel, deleteCompsetHotel,
-  getCompsetCallTimes, createCompsetCallTime, deleteCompsetCallTime,
+  getCompsetHotels, createCompsetHotel, updateCompsetHotel, deleteCompsetHotel,
+  getCompsetCallTimes, createCompsetCallTime, updateCompsetCallTime, deleteCompsetCallTime,
   getCompsetEntries, getCompsetEntriesRange, upsertCompsetEntry,
   CompsetHotel, CompsetCallTime, CompsetEntry,
 } from '@/lib/supabase';
@@ -12,7 +12,14 @@ import {
 const TEAL = '#0D9488';
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function offsetDate(base: string, days: number) {
+  const d = new Date(base + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function formatTime(t: string) {
@@ -23,61 +30,153 @@ function formatTime(t: string) {
   return `${h}:${m} ${ampm}`;
 }
 
+function cacheKey(hotelId: string) {
+  return `compset_meta_${hotelId}`;
+}
+function readCache(hotelId: string): { hotels: CompsetHotel[]; callTimes: CompsetCallTime[] } | null {
+  try {
+    const raw = localStorage.getItem(cacheKey(hotelId));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function writeCache(hotelId: string, hotels: CompsetHotel[], callTimes: CompsetCallTime[]) {
+  try { localStorage.setItem(cacheKey(hotelId), JSON.stringify({ hotels, callTimes })); } catch {}
+}
+
 export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
   hotelId: string;
   isAdmin: boolean;
   staffId: string;
   staffName: string;
 }) {
-  const [hotels, setHotels] = useState<CompsetHotel[]>([]);
-  const [callTimes, setCallTimes] = useState<CompsetCallTime[]>([]);
+  const [hotels, setHotels] = useState<CompsetHotel[]>(() => (hotelId ? readCache(hotelId)?.hotels ?? [] : []));
+  const [callTimes, setCallTimes] = useState<CompsetCallTime[]>(() => (hotelId ? readCache(hotelId)?.callTimes ?? [] : []));
   const [entries, setEntries] = useState<CompsetEntry[]>([]);
   const [history, setHistory] = useState<CompsetEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showHotelForm, setShowHotelForm] = useState(false);
   const [showTimeForm, setShowTimeForm] = useState(false);
-  const [hotelForm, setHotelForm] = useState({ name: '', phone: '' });
+  const [hotelForm, setHotelForm] = useState({ name: '', phone: '', room_keys: '' });
   const [timeForm, setTimeForm] = useState({ call_time: '08:00', label: '' });
+  const [editingHotelId, setEditingHotelId] = useState<string | null>(null);
+  const [editHotelForm, setEditHotelForm] = useState({ name: '', phone: '', room_keys: '' });
+  const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
+  const [editTimeForm, setEditTimeForm] = useState({ call_time: '08:00', label: '' });
   const [activeSlot, setActiveSlot] = useState<{ hotelId: string; callTime: string } | null>(null);
-  const [entryForm, setEntryForm] = useState({ rate: '', rooms_total: '', rooms_sold: '' });
+  const [entryForm, setEntryForm] = useState({ rate: '', rooms_sold: '', occupancy_pct: '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [showSetup, setShowSetup] = useState(false);
 
-  const date = todayStr();
+  const today = todayStr();
+
+  function formatDisplayDate(d: string) {
+    if (d === today) return 'Today';
+    if (d === offsetDate(today, -1)) return 'Yesterday';
+    return new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
 
   const load = useCallback(async () => {
-    const [h, t, e] = await Promise.all([
-      getCompsetHotels(hotelId),
-      getCompsetCallTimes(hotelId),
-      getCompsetEntries(hotelId, date),
-    ]);
-    setHotels(h);
-    setCallTimes(t);
-    setEntries(e);
-  }, [hotelId, date]);
+    if (!hotelId) return;
+    try {
+      const [h, t, e] = await Promise.all([
+        getCompsetHotels(hotelId),
+        getCompsetCallTimes(hotelId),
+        getCompsetEntries(hotelId, selectedDate),
+      ]);
+      setHotels(h);
+      setCallTimes(t);
+      setEntries(e);
+      writeCache(hotelId, h, t);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not load compset data.');
+    }
+  }, [hotelId, selectedDate]);
 
   useEffect(() => { load(); }, [load]);
 
   const loadHistory = async () => {
-    const start = new Date();
-    start.setDate(start.getDate() - 13);
-    const rows = await getCompsetEntriesRange(hotelId, start.toISOString().slice(0, 10), date);
-    setHistory(rows);
-    setShowHistory(true);
+    if (!hotelId) return;
+    try {
+      const rows = await getCompsetEntriesRange(hotelId, offsetDate(today, -30), today);
+      setHistory(rows);
+      setShowHistory(true);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not load history.');
+    }
   };
 
   const handleAddHotel = async () => {
     if (!hotelForm.name) return;
-    await createCompsetHotel({ hotel_id: hotelId, name: hotelForm.name, phone: hotelForm.phone });
-    setHotelForm({ name: '', phone: '' });
-    setShowHotelForm(false);
-    load();
+    setError('');
+    try {
+      await createCompsetHotel({ hotel_id: hotelId, name: hotelForm.name, phone: hotelForm.phone, room_keys: hotelForm.room_keys ? parseInt(hotelForm.room_keys, 10) : 0 });
+      setHotelForm({ name: '', phone: '', room_keys: '' });
+      setShowHotelForm(false);
+      load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not save hotel.');
+    }
   };
 
   const handleAddTime = async () => {
     if (!timeForm.call_time) return;
-    await createCompsetCallTime({ hotel_id: hotelId, call_time: timeForm.call_time, label: timeForm.label });
-    setTimeForm({ call_time: '08:00', label: '' });
-    setShowTimeForm(false);
-    load();
+    setError('');
+    try {
+      await createCompsetCallTime({ hotel_id: hotelId, call_time: timeForm.call_time, label: timeForm.label });
+      setTimeForm({ call_time: '08:00', label: '' });
+      setShowTimeForm(false);
+      load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not save call time.');
+    }
+  };
+
+  const startEditHotel = (h: CompsetHotel) => {
+    setEditingHotelId(h.id);
+    setEditHotelForm({ name: h.name, phone: h.phone || '', room_keys: h.room_keys ? String(h.room_keys) : '' });
+  };
+
+  const saveEditHotel = async (id: string) => {
+    setError('');
+    try {
+      await updateCompsetHotel(id, {
+        name: editHotelForm.name,
+        phone: editHotelForm.phone,
+        room_keys: editHotelForm.room_keys ? parseInt(editHotelForm.room_keys, 10) : 0,
+      });
+      setEditingHotelId(null);
+      load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not update hotel.');
+    }
+  };
+
+  const startEditTime = (t: CompsetCallTime) => {
+    setEditingTimeId(t.id);
+    setEditTimeForm({ call_time: t.call_time, label: t.label || '' });
+  };
+
+  const saveEditTime = async (id: string) => {
+    setError('');
+    try {
+      await updateCompsetCallTime(id, { call_time: editTimeForm.call_time, label: editTimeForm.label });
+      setEditingTimeId(null);
+      load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not update call time.');
+    }
+  };
+
+  const handleDeleteHotel = async (id: string) => {
+    setError('');
+    try { await deleteCompsetHotel(id); load(); } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Could not delete hotel.'); }
+  };
+
+  const handleDeleteTime = async (id: string) => {
+    setError('');
+    try { await deleteCompsetCallTime(id); load(); } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Could not delete call time.'); }
   };
 
   const entryFor = (compsetHotelId: string, callTime: string) =>
@@ -87,31 +186,57 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
     const existing = entryFor(compsetHotelId, callTime);
     setEntryForm({
       rate: existing?.rate != null ? String(existing.rate) : '',
-      rooms_total: existing?.rooms_total != null ? String(existing.rooms_total) : '',
       rooms_sold: existing?.rooms_sold != null ? String(existing.rooms_sold) : '',
+      occupancy_pct: existing?.occupancy_pct != null ? String(existing.occupancy_pct) : '',
     });
     setActiveSlot({ hotelId: compsetHotelId, callTime });
   };
 
+  const activeRoomKeys = activeSlot ? (hotels.find(h => h.id === activeSlot.hotelId)?.room_keys || 0) : 0;
+
+  // Rooms sold and occupancy % are kept in sync against the competitor's fixed
+  // room key count — staff can fill in whichever number they got on the call.
+  const handleRoomsSoldChange = (val: string) => {
+    const sold = val ? parseInt(val, 10) : null;
+    const pct = sold != null && activeRoomKeys ? String(Math.round((sold / activeRoomKeys) * 1000) / 10) : entryForm.occupancy_pct;
+    setEntryForm({ ...entryForm, rooms_sold: val, occupancy_pct: sold != null && activeRoomKeys ? pct : entryForm.occupancy_pct });
+  };
+
+  const handleOccupancyChange = (val: string) => {
+    const pct = val ? parseFloat(val) : null;
+    const sold = pct != null && activeRoomKeys ? String(Math.round((pct / 100) * activeRoomKeys)) : entryForm.rooms_sold;
+    setEntryForm({ ...entryForm, occupancy_pct: val, rooms_sold: pct != null && activeRoomKeys ? sold : entryForm.rooms_sold });
+  };
+
   const saveEntry = async () => {
     if (!activeSlot) return;
-    const roomsTotal = entryForm.rooms_total ? parseInt(entryForm.rooms_total, 10) : null;
-    const roomsSold = entryForm.rooms_sold ? parseInt(entryForm.rooms_sold, 10) : null;
-    const occupancyPct = roomsTotal && roomsSold != null ? Math.round((roomsSold / roomsTotal) * 1000) / 10 : null;
-    await upsertCompsetEntry({
-      hotel_id: hotelId,
-      compset_hotel_id: activeSlot.hotelId,
-      call_date: date,
-      call_time: activeSlot.callTime,
-      rate: entryForm.rate ? parseFloat(entryForm.rate) : null,
-      rooms_total: roomsTotal,
-      rooms_sold: roomsSold,
-      occupancy_pct: occupancyPct,
-      entered_by: staffId || null,
-      entered_by_name: staffName,
-    });
-    setActiveSlot(null);
-    load();
+    setError('');
+    setSaving(true);
+    try {
+      const roomsTotal = activeRoomKeys || null;
+      const roomsSold = entryForm.rooms_sold ? parseInt(entryForm.rooms_sold, 10) : null;
+      const occupancyPct = entryForm.occupancy_pct
+        ? parseFloat(entryForm.occupancy_pct)
+        : (roomsTotal && roomsSold != null ? Math.round((roomsSold / roomsTotal) * 1000) / 10 : null);
+      await upsertCompsetEntry({
+        hotel_id: hotelId,
+        compset_hotel_id: activeSlot.hotelId,
+        call_date: selectedDate,
+        call_time: activeSlot.callTime,
+        rate: entryForm.rate ? parseFloat(entryForm.rate) : null,
+        rooms_total: roomsTotal,
+        rooms_sold: roomsSold,
+        occupancy_pct: occupancyPct,
+        entered_by: staffId || null,
+        entered_by_name: staffName,
+      });
+      setActiveSlot(null);
+      load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not save call log.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (hotels.length === 0 && callTimes.length === 0 && !isAdmin) {
@@ -133,13 +258,35 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
           <h1 className="text-[26px] font-extrabold text-gray-900">Compset</h1>
           <p className="text-[13px] text-gray-500 mt-0.5">Call nearby hotels at each scheduled time and log their rate, rooms, and occupancy.</p>
         </div>
-        <button onClick={() => (showHistory ? setShowHistory(false) : loadHistory())}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600">
-          <BarChart3 size={14} /> {showHistory ? 'Back to Today' : 'History'}
-        </button>
+        <div className="flex items-center gap-2">
+          {!showHistory && (
+            <div className="flex items-center gap-1 bg-gray-100 rounded-xl px-2 py-1.5">
+              <button onClick={() => setSelectedDate(d => offsetDate(d, -1))} className="p-1 rounded-lg hover:bg-gray-200 text-gray-500">
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-[13px] font-semibold text-gray-700 min-w-[80px] text-center">{formatDisplayDate(selectedDate)}</span>
+              <button onClick={() => setSelectedDate(d => offsetDate(d, 1))} disabled={selectedDate >= today}
+                className="p-1 rounded-lg hover:bg-gray-200 text-gray-500 disabled:opacity-30">
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+          {isAdmin && !showHistory && (
+            <button onClick={() => setShowSetup(v => !v)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600">
+              <Pencil size={14} /> {showSetup ? 'Done' : 'Configure'}
+            </button>
+          )}
+          <button onClick={() => (showHistory ? setShowHistory(false) : loadHistory())}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600">
+            <BarChart3 size={14} /> {showHistory ? 'Back' : 'History'}
+          </button>
+        </div>
       </div>
 
-      {isAdmin && (
+      {error && <p className="text-red-600 text-[12px] bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 mb-4">{error}</p>}
+
+      {isAdmin && showSetup && (
         <div className="grid grid-cols-2 gap-4 mb-6">
           {/* Competitor hotels admin panel */}
           <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
@@ -154,21 +301,45 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
                 <input placeholder="Hotel name" value={hotelForm.name} onChange={e => setHotelForm({ ...hotelForm, name: e.target.value })}
                   className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-100 focus:outline-none" />
                 <input placeholder="Phone" value={hotelForm.phone} onChange={e => setHotelForm({ ...hotelForm, phone: e.target.value })}
-                  className="w-32 bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-100 focus:outline-none" />
+                  className="w-28 bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-100 focus:outline-none" />
+                <input type="number" placeholder="Room keys" value={hotelForm.room_keys} onChange={e => setHotelForm({ ...hotelForm, room_keys: e.target.value })}
+                  className="w-24 bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-100 focus:outline-none" />
                 <button onClick={handleAddHotel} className="px-3 py-2 rounded-lg text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>Save</button>
               </div>
             )}
             <div className="space-y-1.5">
               {hotels.map(h => (
-                <div key={h.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                  <div>
-                    <p className="text-[12px] font-semibold text-gray-800">{h.name}</p>
-                    {h.phone && <p className="text-[11px] text-gray-400">{h.phone}</p>}
+                editingHotelId === h.id ? (
+                  <div key={h.id} className="bg-gray-50 rounded-lg px-3 py-2 space-y-2">
+                    <div className="flex gap-2">
+                      <input placeholder="Hotel name" value={editHotelForm.name} onChange={e => setEditHotelForm({ ...editHotelForm, name: e.target.value })}
+                        className="flex-1 bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                      <input placeholder="Phone" value={editHotelForm.phone} onChange={e => setEditHotelForm({ ...editHotelForm, phone: e.target.value })}
+                        className="w-28 bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                      <input type="number" placeholder="Room keys" value={editHotelForm.room_keys} onChange={e => setEditHotelForm({ ...editHotelForm, room_keys: e.target.value })}
+                        className="w-24 bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => saveEditHotel(h.id)} className="px-3 py-1.5 rounded-lg text-white text-[11px] font-bold" style={{ backgroundColor: TEAL }}>Save</button>
+                      <button onClick={() => setEditingHotelId(null)} className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-600 text-[11px] font-semibold">Cancel</button>
+                    </div>
                   </div>
-                  <button onClick={() => deleteCompsetHotel(h.id).then(load)} className="text-red-400 hover:text-red-600">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+                ) : (
+                  <div key={h.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                    <button onClick={() => startEditHotel(h)} className="text-left flex-1">
+                      <p className="text-[12px] font-semibold text-gray-800">{h.name}</p>
+                      <p className="text-[11px] text-gray-400">{h.phone && <span>{h.phone} · </span>}{h.room_keys || 0} room keys</p>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => startEditHotel(h)} className="text-gray-400 hover:text-gray-600">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => handleDeleteHotel(h.id)} className="text-red-400 hover:text-red-600">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                )
               ))}
               {hotels.length === 0 && <p className="text-[11px] text-gray-400">No competitor hotels added yet.</p>}
             </div>
@@ -193,12 +364,34 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
             )}
             <div className="space-y-1.5">
               {callTimes.map(t => (
-                <div key={t.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                  <p className="text-[12px] font-semibold text-gray-800">{formatTime(t.call_time)} {t.label && <span className="text-gray-400 font-normal">— {t.label}</span>}</p>
-                  <button onClick={() => deleteCompsetCallTime(t.id).then(load)} className="text-red-400 hover:text-red-600">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+                editingTimeId === t.id ? (
+                  <div key={t.id} className="bg-gray-50 rounded-lg px-3 py-2 space-y-2">
+                    <div className="flex gap-2">
+                      <input type="time" value={editTimeForm.call_time} onChange={e => setEditTimeForm({ ...editTimeForm, call_time: e.target.value })}
+                        className="bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                      <input placeholder="Label (optional)" value={editTimeForm.label} onChange={e => setEditTimeForm({ ...editTimeForm, label: e.target.value })}
+                        className="flex-1 bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => saveEditTime(t.id)} className="px-3 py-1.5 rounded-lg text-white text-[11px] font-bold" style={{ backgroundColor: TEAL }}>Save</button>
+                      <button onClick={() => setEditingTimeId(null)} className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-600 text-[11px] font-semibold">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={t.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                    <button onClick={() => startEditTime(t)} className="text-left flex-1">
+                      <p className="text-[12px] font-semibold text-gray-800">{formatTime(t.call_time)} {t.label && <span className="text-gray-400 font-normal">— {t.label}</span>}</p>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => startEditTime(t)} className="text-gray-400 hover:text-gray-600">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => handleDeleteTime(t.id)} className="text-red-400 hover:text-red-600">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                )
               ))}
               {callTimes.length === 0 && <p className="text-[11px] text-gray-400">No call times set yet.</p>}
             </div>
@@ -222,7 +415,10 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
                 <tr key={h.id} className="border-b border-gray-50 last:border-0">
                   <td className="px-5 py-3">
                     <p className="font-bold text-gray-900">{h.name}</p>
-                    {h.phone && <p className="text-[11px] text-gray-400 flex items-center gap-1"><Phone size={10} />{h.phone}</p>}
+                    <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                      {h.phone && <span className="flex items-center gap-1"><Phone size={10} />{h.phone}</span>}
+                      {h.phone && ' · '}{h.room_keys || 0} room keys
+                    </p>
                   </td>
                   {callTimes.map(t => {
                     const e = entryFor(h.id, t.call_time);
@@ -233,7 +429,10 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
                           {e ? (
                             <span className="flex flex-col items-center gap-0.5">
                               <span className="flex items-center gap-1"><CheckCircle2 size={11} /> ${e.rate}</span>
-                              <span className="text-[10px] text-teal-500">{e.occupancy_pct != null ? `${e.occupancy_pct}% occ` : ''}</span>
+                              <span className="text-[10px] text-teal-500">
+                                {e.occupancy_pct != null ? `${e.occupancy_pct}%` : ''}
+                                {e.rooms_sold != null ? ` · ${e.rooms_sold}/${e.rooms_total ?? h.room_keys ?? '—'}` : ''}
+                              </span>
                             </span>
                           ) : (
                             <span className="flex items-center justify-center gap-1"><Circle size={11} /> Log call</span>
@@ -291,7 +490,9 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
             <h3 className="font-bold text-[15px] mb-1">
               {hotels.find(h => h.id === activeSlot.hotelId)?.name}
             </h3>
-            <p className="text-[12px] text-gray-400 mb-4">{formatTime(activeSlot.callTime)} call</p>
+            <p className="text-[12px] text-gray-400 mb-4">
+              {formatTime(activeSlot.callTime)} call · {activeRoomKeys || 0} room keys total
+            </p>
             <div className="space-y-3">
               <div>
                 <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Rate ($)</label>
@@ -300,20 +501,26 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Total Rooms</label>
-                  <input type="number" value={entryForm.rooms_total} onChange={e => setEntryForm({ ...entryForm, rooms_total: e.target.value })}
+                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Rooms Sold</label>
+                  <input type="number" max={activeRoomKeys || undefined} value={entryForm.rooms_sold} onChange={e => handleRoomsSoldChange(e.target.value)}
                     className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none" />
                 </div>
                 <div>
-                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Rooms Sold</label>
-                  <input type="number" value={entryForm.rooms_sold} onChange={e => setEntryForm({ ...entryForm, rooms_sold: e.target.value })}
+                  <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">Occupancy %</label>
+                  <input type="number" step="0.1" max={100} value={entryForm.occupancy_pct} onChange={e => handleOccupancyChange(e.target.value)}
                     className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none" />
                 </div>
               </div>
+              {!activeRoomKeys && (
+                <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                  No room key count set for this hotel — ask your admin to add it so occupancy can be calculated.
+                </p>
+              )}
             </div>
+            {error && <p className="text-red-600 text-[11px] bg-red-50 border border-red-100 rounded-lg px-3 py-2 mt-3">{error}</p>}
             <div className="flex gap-2 mt-5">
-              <button onClick={saveEntry} className="flex-1 py-3 rounded-xl text-white font-semibold text-[13px]" style={{ backgroundColor: TEAL }}>
-                Save
+              <button onClick={saveEntry} disabled={saving} className="flex-1 py-3 rounded-xl text-white font-semibold text-[13px] disabled:opacity-60" style={{ backgroundColor: TEAL }}>
+                {saving ? 'Saving...' : 'Save'}
               </button>
               <button onClick={() => setActiveSlot(null)} className="px-5 py-3 rounded-xl bg-gray-100 text-gray-600 font-semibold text-[13px]">
                 Cancel

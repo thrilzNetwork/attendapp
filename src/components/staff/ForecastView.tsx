@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { supabase, getWeeklyForecasts, authedApiHeaders, type WeeklyForecast } from '@/lib/supabase';
-import { TrendingUp, Save, RefreshCw } from 'lucide-react';
+import { TrendingUp, Save, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
 interface DayData {
-  date: string;          // YYYY-MM-DD
-  label: string;         // Mon, Tue, etc
+  date: string;
+  label: string;
   occupancyPct: number;
   roomsOccupied: number;
   arrivals: number;
@@ -20,36 +20,43 @@ function getWeekDates(ref: Date): { date: string; label: string }[] {
   return days.map((label, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return { date: d.toISOString().split('T')[0], label };
+    return { date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, label };
   });
 }
 
 function getMonday(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return d.toISOString().split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '00')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** Get today's YYYY-MM-DD in the hotel's timezone */
 function getTodayInTimezone(tz: string): string {
   try {
     const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: tz,
-      year: 'numeric', month: '2-digit', day: '2-digit'
+      timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit'
     }).formatToParts(new Date());
     const y = parts.find(p => p.type === 'year')?.value || '';
     const m = parts.find(p => p.type === 'month')?.value || '';
     const d = parts.find(p => p.type === 'day')?.value || '';
     return `${y}-${m}-${d}`;
   } catch {
-    return new Date().toISOString().split('T')[0];
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
+}
+
+function formatWeekLabel(monday: string, offset: number): string {
+  if (offset === 0) return 'This Week';
+  if (offset === 1) return 'Next Week';
+  if (offset === -1) return 'Last Week';
+  const d = new Date(monday + 'T12:00:00');
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
 interface ForecastViewProps {
   hotelId: string;
   totalRooms: number;
-  timezone?: string; // IANA timezone, e.g. 'America/New_York'
+  timezone?: string;
 }
 
 export default function ForecastView({ hotelId, totalRooms, timezone }: ForecastViewProps) {
@@ -58,27 +65,20 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
-  const [prevNightOcc, setPrevNightOcc] = useState(0); // previous night's occupied rooms
-  const [weekOffset, setWeekOffset] = useState(0); // 0=current, 1=next, -1=last, etc
+  const [prevNightOcc, setPrevNightOcc] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(0);
   const [resolvedHotelId, setResolvedHotelId] = useState(hotelId);
   const [resolvedTotalRooms, setResolvedTotalRooms] = useState(totalRooms);
   const [resolvedTimezone, setResolvedTimezone] = useState(timezone || 'America/New_York');
+  const [mondayStr, setMondayStr] = useState('');
 
-  // Always fetch room_count from DB — the DB is the source of truth.
-  // Props are used as initial state only; the DB fetch overwrites them.
   useEffect(() => {
-    // Set initial values from props immediately (no flash of 0)
     if (hotelId) setResolvedHotelId(hotelId);
     if (totalRooms > 0) setResolvedTotalRooms(totalRooms);
-
     const fetchSelf = async () => {
       const slug = localStorage.getItem('attenda_hotel_slug');
       if (slug) {
-        const { data } = await supabase
-          .from('hotels')
-          .select('id, room_count, timezone')
-          .eq('slug', slug)
-          .single();
+        const { data } = await supabase.from('hotels').select('id,room_count,timezone').eq('slug', slug).single();
         if (data) {
           setResolvedHotelId(data.id);
           setResolvedTotalRooms(data.room_count || 0);
@@ -89,46 +89,37 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
     fetchSelf();
   }, [hotelId, totalRooms]);
 
-  const loadWeek = async (offset: number = weekOffset) => {
+  const loadWeek = async (offset: number) => {
     setLoading(true);
     const todayLocal = getTodayInTimezone(resolvedTimezone);
     const ref = new Date(todayLocal + 'T12:00:00');
     ref.setDate(ref.getDate() + offset * 7);
     const days = getWeekDates(ref);
     const monday = getMonday(days[0].date);
+    setMondayStr(monday);
 
-    // Try loading saved forecasts
     let savedForecasts: WeeklyForecast[] = [];
-    try {
-      savedForecasts = await getWeeklyForecasts(resolvedHotelId, monday) as WeeklyForecast[];
-    } catch { /* ignore */ }
+    try { savedForecasts = await getWeeklyForecasts(resolvedHotelId, monday) as WeeklyForecast[]; } catch { /* ignore */ }
 
     const dayMap = new Map(savedForecasts.map(f => [f.date, f]));
-
-    // Load prev_night_occ from the first saved day (all days share the same value)
     const savedPrevNight = savedForecasts.length > 0 ? (savedForecasts[0].prev_night_occ ?? prevNightOcc) : prevNightOcc;
-    if (savedPrevNight !== prevNightOcc) {
-      setPrevNightOcc(savedPrevNight);
-    }
+    setPrevNightOcc(savedPrevNight);
 
     const data = days.map(d => {
-      const saved = dayMap.get(d.date);
-      const occPct = saved?.occupancy_pct ?? 0;
+      const sv = dayMap.get(d.date);
+      const occPct = sv?.occupancy_pct ?? 0;
       return {
         date: d.date,
         label: d.label,
         occupancyPct: occPct,
-        roomsOccupied: saved?.rooms_occupied ?? Math.round(resolvedTotalRooms * occPct / 100),
-        arrivals: saved?.arrivals ?? 0,
-        departures: saved?.departures ?? 0,
+        roomsOccupied: sv?.rooms_occupied ?? Math.round(resolvedTotalRooms * occPct / 100),
+        arrivals: sv?.arrivals ?? 0,
+        departures: sv?.departures ?? 0,
       };
     });
 
-    // Auto-calc departures using previous night
     let prevRooms = savedPrevNight;
     for (const day of data) {
-      // departure = previous night's rooms + arrivals - tonight's rooms
-      // clamped to 0
       day.departures = Math.max(0, prevRooms + day.arrivals - day.roomsOccupied);
       prevRooms = day.roomsOccupied;
     }
@@ -151,7 +142,6 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
       } else {
         updated[idx].arrivals = value;
       }
-      // Recalc departures from current day onward
       let prevRooms = idx > 0 ? updated[idx - 1].roomsOccupied : prevNightOcc;
       for (let j = idx; j < updated.length; j++) {
         updated[j].departures = Math.max(0, prevRooms + updated[j].arrivals - updated[j].roomsOccupied);
@@ -161,9 +151,24 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
     });
   };
 
+  const updatePrevNight = (v: number) => {
+    const clamped = Math.min(resolvedTotalRooms, Math.max(0, v));
+    setPrevNightOcc(clamped);
+    setWeekDays(prev => {
+      const updated = prev.map(d => ({ ...d }));
+      let prevR = clamped;
+      for (const day of updated) {
+        day.departures = Math.max(0, prevR + day.arrivals - day.roomsOccupied);
+        prevR = day.roomsOccupied;
+      }
+      return updated;
+    });
+  };
+
   const handleSave = async () => {
+    if (!resolvedHotelId) { setSaveError('Hotel not loaded yet — please wait.'); return; }
     setSaving(true); setSaveError('');
-    const monday = getMonday(weekDays[0].date);
+    const monday = weekDays.length > 0 ? getMonday(weekDays[0].date) : mondayStr;
     try {
       const forecasts = weekDays.map(day => ({
         hotel_id: resolvedHotelId,
@@ -186,191 +191,223 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Save failed';
-      setSaveError(msg);
+      setSaveError(e instanceof Error ? e.message : 'Save failed');
     }
     setSaving(false);
   };
 
-  const weekTotal = weekDays.reduce((s, d) => ({
-    arrivals: s.arrivals + d.arrivals,
-    departures: s.departures + d.departures,
-    rooms: s.rooms + d.roomsOccupied,
-  }), { arrivals: 0, departures: 0, rooms: 0 });
+  const todayLocal = getTodayInTimezone(resolvedTimezone);
+  const avgOcc = weekDays.length > 0 ? Math.round(weekDays.reduce((s, d) => s + d.occupancyPct, 0) / weekDays.length) : 0;
+  const totalArrivals = weekDays.reduce((s, d) => s + d.arrivals, 0);
+  const totalDepartures = weekDays.reduce((s, d) => s + d.departures, 0);
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-4 md:p-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-3">
-        <div>
-          <h1 className="text-[22px] md:text-[26px] font-extrabold text-gray-900 flex items-center gap-2">
-            <TrendingUp size={20} className="text-teal-600 shrink-0" />
-            Forecast
-          </h1>
-          <p className="text-[12px] md:text-[13px] text-gray-500 mt-0.5">
-            {resolvedTotalRooms} total rooms · Week of {weekDays[0]?.date}
-          </p>
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-2">
+          <TrendingUp size={18} className="text-teal-600 shrink-0" />
+          <h1 className="text-[18px] font-extrabold text-gray-900">Forecast</h1>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Week Navigation */}
-          <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <button
-              onClick={() => setWeekOffset(w => w - 1)}
-              className="px-2.5 md:px-3 py-1.5 text-[12px] md:text-[13px] font-semibold text-gray-600 hover:bg-gray-50 border-r border-gray-200"
-            >
-              ←
-            </button>
-            <span className="px-2 md:px-3 py-1.5 text-[11px] md:text-[12px] font-bold text-gray-700 bg-gray-50 whitespace-nowrap">
-              {weekOffset === 0 ? 'This Week' : weekOffset === 1 ? 'Next Week' : weekOffset > 0 ? `+${weekOffset}` : `${weekOffset}`}
-            </span>
-            <button
-              onClick={() => setWeekOffset(w => w + 1)}
-              className="px-2.5 md:px-3 py-1.5 text-[12px] md:text-[13px] font-semibold text-gray-600 hover:bg-gray-50 border-l border-gray-200"
-            >
-              →
-            </button>
-          </div>
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => { loadWeek(weekOffset); }}
-            className="flex items-center gap-1.5 bg-white border border-gray-200 px-2.5 md:px-3 py-1.5 rounded-lg text-[12px] md:text-[13px] font-semibold text-gray-600 hover:bg-gray-50"
+            onClick={() => loadWeek(weekOffset)}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            title="Refresh"
           >
-            <RefreshCw size={13} /> Refresh
+            <RefreshCw size={14} />
           </button>
-          {saveError && (
-            <p className="text-[11px] text-red-500 bg-red-50 px-3 py-1.5 rounded-lg w-full md:w-auto order-last md:order-none">{saveError}</p>
-          )}
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white px-3 md:px-4 py-1.5 rounded-lg text-[12px] md:text-[13px] font-semibold transition-colors"
+            className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors"
           >
-            <Save size={13} /> {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save'}
+            <Save size={12} /> {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}
           </button>
         </div>
       </div>
 
-      {/* Previous Night Baseline */}
-      <div className="mb-4 md:mb-6 bg-white border border-gray-200 rounded-xl p-3 md:p-4 shadow-sm">
-        <label className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">
-          Previous Night Rooms Occupied (Sunday)
-        </label>
-        <div className="flex items-center gap-3">
-          <input
-            type="number"
-            min={0}
-            max={resolvedTotalRooms}
-            value={prevNightOcc}
-            onChange={e => {
-              const v = Math.min(resolvedTotalRooms, Math.max(0, Number(e.target.value) || 0));
-              setPrevNightOcc(v);
-              // Recalc all departures
-              setWeekDays(prev => {
-                const updated = prev.map(d => ({ ...d }));
-                let prevR = v;
-                for (const day of updated) {
-                  day.departures = Math.max(0, prevR + day.arrivals - day.roomsOccupied);
-                  prevR = day.roomsOccupied;
-                }
-                return updated;
-              });
-            }}
-            className="w-20 md:w-24 px-2 md:px-3 py-1.5 border border-gray-300 rounded-lg text-[14px] font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
-          />
-          <span className="text-[11px] md:text-[12px] text-gray-400">/ {resolvedTotalRooms} rooms</span>
-        </div>
+      <p className="text-[12px] text-gray-400 mb-4">{resolvedTotalRooms} total rooms · weekly occupancy planner</p>
+
+      {/* Week navigation */}
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          onClick={() => setWeekOffset(w => w - 1)}
+          className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
+        >
+          <ChevronLeft size={15} />
+        </button>
+        <span className="flex-1 text-center text-[13px] font-bold text-gray-700 bg-white border border-gray-200 rounded-lg py-1.5">
+          {formatWeekLabel(mondayStr, weekOffset)}
+          {mondayStr && (
+            <span className="text-[11px] font-normal text-gray-400 ml-1.5">
+              {new Date(mondayStr + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })}
+            </span>
+          )}
+        </span>
+        <button
+          onClick={() => setWeekOffset(w => w + 1)}
+          className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
+        >
+          <ChevronRight size={15} />
+        </button>
+        {weekOffset !== 0 && (
+          <button
+            onClick={() => setWeekOffset(0)}
+            className="text-[11px] font-semibold text-teal-600 hover:text-teal-800 px-2 py-1.5 rounded-lg border border-teal-200 bg-teal-50"
+          >
+            Today
+          </button>
+        )}
       </div>
 
+      {saveError && (
+        <p className="mb-3 text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{saveError}</p>
+      )}
+
       {loading ? (
-        <div className="text-center py-12 text-gray-400 text-[14px]">Loading...</div>
+        <div className="text-center py-16 text-gray-400 text-[13px]">Loading…</div>
       ) : (
         <>
-          {/* Week Grid — scrollable on mobile, 7-col on desktop */}
-          <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0 pb-2">
-            <div className="flex md:grid md:grid-cols-7 gap-2 md:gap-3 min-w-[700px] md:min-w-0">
-              {weekDays.map((day, idx) => (
-                <div
-                  key={day.date}
-                  className={`bg-white border-2 rounded-xl p-3 md:p-4 shadow-sm shrink-0 w-[160px] md:w-auto ${
-                    day.date === getTodayInTimezone(resolvedTimezone)
-                      ? 'border-teal-400 ring-1 ring-teal-200'
-                      : 'border-gray-200'
-                  }`}
-                >
-                  {/* Day header */}
-                  <div className="text-center mb-2 md:mb-3">
-                    <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-gray-400">{day.label}</p>
-                    <p className="text-[11px] md:text-[12px] text-gray-500">
-                      {new Date(day.date + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                    </p>
-                    {day.date === getTodayInTimezone(resolvedTimezone) && (
-                      <span className="inline-block mt-1 text-[8px] md:text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700">Today</span>
-                    )}
-                  </div>
+          {/* Main table — horizontal scroll on mobile */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-4">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 w-28 sticky left-0 bg-gray-50 z-10">
+                      Metric
+                    </th>
+                    {weekDays.map(day => (
+                      <th
+                        key={day.date}
+                        className={`px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider ${
+                          day.date === todayLocal ? 'text-teal-700' : 'text-gray-400'
+                        }`}
+                      >
+                        <span className="block">{day.label}</span>
+                        <span className={`block text-[9px] font-normal mt-0.5 ${day.date === todayLocal ? 'text-teal-500' : 'text-gray-300'}`}>
+                          {new Date(day.date + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                        </span>
+                        {day.date === todayLocal && (
+                          <span className="inline-block mt-0.5 text-[8px] font-bold px-1 py-0.5 rounded-full bg-teal-100 text-teal-700">Today</span>
+                        )}
+                      </th>
+                    ))}
+                    <th className="px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-gray-300 w-14">
+                      Avg
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {/* Occupancy % row */}
+                  <tr className="hover:bg-gray-50/50">
+                    <td className="px-3 py-3 sticky left-0 bg-white hover:bg-gray-50/50 z-10">
+                      <span className="text-[11px] font-semibold text-gray-600">Occ %</span>
+                    </td>
+                    {weekDays.map((day, idx) => (
+                      <td key={day.date} className={`px-2 py-2 text-center ${day.date === todayLocal ? 'bg-teal-50/40' : ''}`}>
+                        <div className="flex items-center justify-center gap-0.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={day.occupancyPct}
+                            onChange={e => updateDay(idx, 'occupancyPct', Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                            className="w-12 text-center px-1 py-1 border border-gray-200 rounded text-[12px] font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400"
+                          />
+                          <span className="text-[10px] text-gray-400">%</span>
+                        </div>
+                      </td>
+                    ))}
+                    <td className="px-2 py-2 text-center text-[12px] font-bold text-gray-500">{avgOcc}%</td>
+                  </tr>
 
-                  {/* Occupancy */}
-                  <div className="mb-1.5 md:mb-2">
-                    <label className="text-[8px] md:text-[9px] font-bold uppercase tracking-wider text-gray-400">Occ%</label>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={day.occupancyPct}
-                        onChange={e => updateDay(idx, 'occupancyPct', Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
-                        className="w-full px-1.5 md:px-2 py-1 border border-gray-200 rounded text-[12px] md:text-[13px] font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                      />
-                      <span className="text-[10px] md:text-[11px] text-gray-400">%</span>
-                    </div>
-                  </div>
+                  {/* Rooms Occupied row */}
+                  <tr className="bg-teal-50/30 hover:bg-teal-50/50">
+                    <td className="px-3 py-3 sticky left-0 bg-teal-50/30 z-10">
+                      <span className="text-[11px] font-semibold text-teal-700">Occupied</span>
+                    </td>
+                    {weekDays.map(day => (
+                      <td key={day.date} className={`px-2 py-2 text-center ${day.date === todayLocal ? 'bg-teal-50/60' : ''}`}>
+                        <span className="text-[14px] font-extrabold text-teal-800">{day.roomsOccupied}</span>
+                      </td>
+                    ))}
+                    <td className="px-2 py-2 text-center text-[12px] font-bold text-teal-600">
+                      {weekDays.length > 0 ? Math.round(weekDays.reduce((s, d) => s + d.roomsOccupied, 0) / weekDays.length) : 0}
+                    </td>
+                  </tr>
 
-                  {/* Rooms Occupied (auto) */}
-                  <div className="mb-1.5 md:mb-2 bg-teal-50 rounded-lg px-1.5 md:px-2 py-1 md:py-1.5 border border-teal-100">
-                    <label className="text-[8px] md:text-[9px] font-bold uppercase tracking-wider text-teal-600">Occupied</label>
-                    <p className="text-[14px] md:text-[16px] font-extrabold text-teal-800">{day.roomsOccupied}</p>
-                  </div>
+                  {/* Arrivals row */}
+                  <tr className="hover:bg-blue-50/20">
+                    <td className="px-3 py-3 sticky left-0 bg-white hover:bg-blue-50/20 z-10">
+                      <span className="text-[11px] font-semibold text-blue-600">Arrivals</span>
+                    </td>
+                    {weekDays.map((day, idx) => (
+                      <td key={day.date} className={`px-2 py-2 text-center ${day.date === todayLocal ? 'bg-teal-50/40' : ''}`}>
+                        <input
+                          type="number"
+                          min={0}
+                          max={resolvedTotalRooms}
+                          value={day.arrivals}
+                          onChange={e => updateDay(idx, 'arrivals', Math.max(0, Number(e.target.value) || 0))}
+                          className="w-12 text-center px-1 py-1 border border-blue-200 rounded text-[12px] font-bold text-blue-800 bg-blue-50/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                        />
+                      </td>
+                    ))}
+                    <td className="px-2 py-2 text-center text-[12px] font-bold text-blue-500">{totalArrivals}</td>
+                  </tr>
 
-                  {/* Arrivals */}
-                  <div className="mb-1.5 md:mb-2">
-                    <label className="text-[8px] md:text-[9px] font-bold uppercase tracking-wider text-blue-500">Arrivals</label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={resolvedTotalRooms}
-                      value={day.arrivals}
-                      onChange={e => updateDay(idx, 'arrivals', Math.max(0, Number(e.target.value) || 0))}
-                      className="w-full px-1.5 md:px-2 py-1 border border-blue-200 rounded text-[12px] md:text-[13px] font-bold text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50"
-                    />
-                  </div>
-
-                  {/* Departures (auto) */}
-                  <div className="bg-gray-50 rounded-lg px-1.5 md:px-2 py-1 md:py-1.5 border border-gray-200">
-                    <label className="text-[8px] md:text-[9px] font-bold uppercase tracking-wider text-gray-500">Departures</label>
-                    <p className="text-[14px] md:text-[16px] font-extrabold text-gray-700">{day.departures}</p>
-                  </div>
-                </div>
-              ))}
+                  {/* Departures row */}
+                  <tr className="bg-gray-50/50 hover:bg-gray-50">
+                    <td className="px-3 py-3 sticky left-0 bg-gray-50/50 z-10">
+                      <span className="text-[11px] font-semibold text-gray-500">Departures</span>
+                    </td>
+                    {weekDays.map(day => (
+                      <td key={day.date} className={`px-2 py-2 text-center ${day.date === todayLocal ? 'bg-teal-50/40' : ''}`}>
+                        <span className="text-[14px] font-bold text-gray-600">{day.departures}</span>
+                      </td>
+                    ))}
+                    <td className="px-2 py-2 text-center text-[12px] font-bold text-gray-400">{totalDepartures}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
-          {/* Week Summary */}
-          <div className="mt-4 md:mt-6 bg-gradient-to-r from-teal-50 to-blue-50 border border-teal-200 rounded-xl p-4 md:p-5 shadow-sm">
-            <h2 className="text-[11px] md:text-[12px] font-bold uppercase tracking-wider text-teal-700 mb-2 md:mb-3">Week Summary</h2>
-            <div className="grid grid-cols-3 gap-3 md:gap-4">
+          {/* Previous night baseline */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-3 mb-4">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-gray-500">Total Arrivals</p>
-                <p className="text-[18px] md:text-[22px] font-extrabold text-gray-900">{weekTotal.arrivals}</p>
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Prev Night Baseline</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Rooms occupied the night before Monday — used to calc departures</p>
               </div>
-              <div>
-                <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-gray-500">Total Departures</p>
-                <p className="text-[18px] md:text-[22px] font-extrabold text-gray-900">{weekTotal.departures}</p>
-              </div>
-              <div>
-                <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-gray-500">Avg Occupancy</p>
-                <p className="text-[18px] md:text-[22px] font-extrabold text-gray-900">
-                  {weekDays.length > 0 ? Math.round(weekDays.reduce((s, d) => s + d.occupancyPct, 0) / weekDays.length) : 0}%
-                </p>
+              <div className="flex items-center gap-2 shrink-0">
+                <input
+                  type="number"
+                  min={0}
+                  max={resolvedTotalRooms}
+                  value={prevNightOcc}
+                  onChange={e => updatePrevNight(Number(e.target.value) || 0)}
+                  className="w-16 text-center px-2 py-1.5 border border-gray-300 rounded-lg text-[13px] font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                />
+                <span className="text-[11px] text-gray-400">/ {resolvedTotalRooms}</span>
               </div>
             </div>
+          </div>
+
+          {/* Week summary chips */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: 'Avg Occ', value: `${avgOcc}%`, color: 'text-teal-700', bg: 'bg-teal-50 border-teal-200' },
+              { label: 'Arrivals', value: totalArrivals, color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
+              { label: 'Departures', value: totalDepartures, color: 'text-gray-700', bg: 'bg-gray-50 border-gray-200' },
+            ].map(s => (
+              <div key={s.label} className={`rounded-xl border px-3 py-2.5 ${s.bg}`}>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{s.label}</p>
+                <p className={`text-[20px] font-extrabold ${s.color}`}>{s.value}</p>
+              </div>
+            ))}
           </div>
         </>
       )}

@@ -25,7 +25,7 @@ function getWeekStart(date: string, weekStartsOn?: string): string {
   } else {
     d.setDate(d.getDate() - day);
   }
-  return d.toISOString().split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function getWeekDates(weekStart: string): string[] {
@@ -35,7 +35,7 @@ function getWeekDates(weekStart: string): string[] {
 function addDays(date: string, n: number): string {
   const d = new Date(date + 'T00:00:00');
   d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function dayName(date: string): string {

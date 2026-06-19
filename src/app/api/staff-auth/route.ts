@@ -22,7 +22,12 @@ export async function POST(req: NextRequest) {
     const { action, email, password, name, hotelSlug, token } = await req.json();
 
     if (action === 'setup') {
-      // First-time staff setup: create auth user with hotel_id in metadata
+      // First-time staff setup: an admin already invited this person, which created
+      // their staff_accounts row. Create their auth user here (server-side, confirmed)
+      // and update that existing row — the client-side supabase.auth.signUp() path this
+      // replaced created an UNCONFIRMED user whenever the project requires email
+      // confirmation, permanently locking staff out of login until they confirmed an
+      // email they often never received.
       if (!email || !password || !name || !hotelSlug) {
         return NextResponse.json({ ok: false, error: 'Missing required fields.' }, { status: 400 });
       }
@@ -41,7 +46,19 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, error: 'Hotel not found for that slug.' }, { status: 404 });
       }
 
-      // Create the auth user with hotel_id embedded in user_metadata
+      // The invited staff_accounts row must already exist
+      const { data: existingStaff } = await supabaseAdmin
+        .from('staff_accounts')
+        .select('id, role')
+        .eq('hotel_id', hotel.id)
+        .ilike('email', email)
+        .maybeSingle();
+
+      if (!existingStaff) {
+        return NextResponse.json({ ok: false, error: 'Staff account not found for this email. Contact your admin.' }, { status: 404 });
+      }
+
+      // Create the auth user pre-confirmed — skips the email confirmation step entirely
       const { data: authData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
@@ -49,19 +66,21 @@ export async function POST(req: NextRequest) {
         user_metadata: {
           hotel_id: hotel.id,
           name,
-          role: 'staff',
+          role: existingStaff.role || 'staff',
         },
       });
-      if (createErr) throw createErr;
+      if (createErr) {
+        if (createErr.message?.toLowerCase().includes('already registered') || createErr.message?.toLowerCase().includes('already exists')) {
+          return NextResponse.json({ ok: false, error: 'An account already exists for this email. Use "Forgot your password?" to sign in.' }, { status: 409 });
+        }
+        throw createErr;
+      }
 
-      // Also create staff_account record
-      const { error: staffErr } = await supabaseAdmin.from('staff_accounts').insert({
-        hotel_id: hotel.id,
-        name,
-        role: 'staff',
-        active: true,
-        email,
-      });
+      // Update the existing invited row instead of inserting a duplicate
+      const { error: staffErr } = await supabaseAdmin
+        .from('staff_accounts')
+        .update({ name, active: true, setup_token: null, setup_token_expires_at: null })
+        .eq('id', existingStaff.id);
       if (staffErr) throw staffErr;
 
       return NextResponse.json({ ok: true, user: authData.user });

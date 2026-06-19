@@ -114,9 +114,9 @@ function AirportShuttle({ brandColor, config }: { brandColor: string; config: Ho
   // Group slots by day, then sort by time
   const byDay: Record<string, ShuttleSlot[]> = {};
   slots.forEach(slot => {
-    const days = (slot.days_of_week || []).length > 0 ? slot.days_of_week : [new Date().getDay() + 1];
+    const days = (slot.days_of_week || []).length > 0 ? slot.days_of_week : [new Date().getDay()];
     days.forEach(d => {
-      const dayLabel = DAYS[d - 1];
+      const dayLabel = DAYS[d];
       if (!byDay[dayLabel]) byDay[dayLabel] = [];
       byDay[dayLabel].push(slot);
     });

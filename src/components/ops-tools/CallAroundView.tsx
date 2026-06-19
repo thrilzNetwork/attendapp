@@ -6,7 +6,7 @@ import { getCallAroundLogs, createCallAroundLog, type CallAroundLog } from '@/li
 const TEAL = '#0D9488';
 
 export default function CallAroundView({ hotelId }: { hotelId: string }) {
-  const today = new Date().toISOString().split('T')[0];
+  const _d = new Date(); const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
   const [logs, setLogs] = useState<CallAroundLog[]>([]);
   const [date, setDate] = useState(today);
   const [form, setForm] = useState({ shift: 'AM', handed_off_by: '', received_by: '', occupancy: 0, arrivals: 0, departures: 0, notes: '' });

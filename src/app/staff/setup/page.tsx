@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase, getHotelConfig, getStaffAccountByEmail } from '@/lib/supabase';
+import { supabase, getHotelConfig } from '@/lib/supabase';
 import { Eye, EyeOff, Check, Lock, Mail } from 'lucide-react';
 
 const TEAL = '#0D9488';
@@ -18,7 +18,6 @@ function SetupContent() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
   const [hotelName, setHotelName] = useState('');
 
   useEffect(() => {
@@ -32,40 +31,22 @@ function SetupContent() {
     setLoading(true);
     setError('');
     try {
-      // Check if this email already has a staff account
-      const existing = await getStaffAccountByEmail(email);
-      if (!existing) {
-        setError('Staff account not found for this email. Contact your admin.');
-        setLoading(false);
-        return;
-      }
-
-      // Create Supabase Auth user
-      const { data, error: authErr } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: `${window.location.origin}/staff?hotel=${hotel}` },
+      // Create the auth user server-side (pre-confirmed) and link it to the existing
+      // invited staff_accounts row — avoids the client signUp() email-confirmation
+      // trap that previously locked staff out of their accounts.
+      const res = await fetch('/api/staff-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        body: JSON.stringify({ action: 'setup', email, password, name, hotelSlug: hotel }),
       });
-      if (authErr) {
-        // If already registered, the password was set — try signing in
-        if (authErr.message?.includes('already registered') || authErr.message?.includes('already exists')) {
-          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-          if (signInErr) throw signInErr;
-          // Already registered and signed in — redirect to dashboard
-          router.push(`/staff?hotel=${hotel}`);
-          return;
-        }
-        throw authErr;
-      }
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Setup failed.');
 
-      if (data.session) {
-        // Auto-confirm is ON — logged in immediately, redirect to dashboard
-        router.push(`/staff?hotel=${hotel}`);
-        return;
-      } else {
-        // Email confirmation required
-        setDone(true);
-      }
+      // Sign in immediately so the dashboard has a session
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInErr) throw signInErr;
+
+      router.push(`/staff?hotel=${hotel}`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Setup failed.';
       setError(msg);
@@ -73,29 +54,6 @@ function SetupContent() {
       setLoading(false);
     }
   };
-
-  if (done) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
-        <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
-          <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-5">
-            <Check size={28} className="text-emerald-500" />
-          </div>
-          <h2 className="text-lg font-bold mb-2">Account Created!</h2>
-          <p className="text-sm text-gray-500 mb-6">
-            Go to the staff dashboard and sign in with your email and password.
-          </p>
-          <button
-            onClick={() => router.push(`/staff?hotel=${hotel}`)}
-            className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px]"
-            style={{ backgroundColor: TEAL }}
-          >
-            Go to Staff Dashboard →
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">

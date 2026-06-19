@@ -8,10 +8,11 @@ import { ArrowLeft } from "lucide-react";
 
 export default function BlogPostPage({ params }: { params: { slug: string } }) {
   const post = blogPosts.find((p) => p.slug === params.slug);
-  if (!post) notFound();
 
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+
+  if (!post) notFound();
 
   const handleSubmit = async () => {
     if (!email) return;

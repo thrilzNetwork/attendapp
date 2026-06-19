@@ -22,8 +22,13 @@ import {
 } from '@/lib/supabase';
 import {
   listShuttleSlots,
+  listKpiDefinitions,
+  listKpiSubmissions,
   today,
+  localDateStr,
+  addDaysStr,
   type ShuttleSlot as OpsShuttleSlot,
+  type OpRecord,
 } from '@/lib/opsStore';
 
 const TEAL = '#0D9488';
@@ -52,6 +57,7 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
     avgResponseMin: number; staffOnDuty: number;
     checklistsCompleted: number; checklistsTotal: number;
   } | null>(null);
+  const [kpiSnapshot, setKpiSnapshot] = useState<{ name: string; value: number; unit: string; target: number }[]>([]);
   const [todayShuttleSlots, setTodayShuttleSlots] = useState<ShuttleSlot[]>([]);
   const [monthShuttleSlots, setMonthShuttleSlots] = useState<(OpsShuttleSlot & { id: string })[]>([]);
   const [todayShuttleRoutes, setTodayShuttleRoutes] = useState<ShuttleRoute[]>([]);
@@ -61,11 +67,18 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
   const [checklistInstances, setChecklistInstances] = useState<ChecklistInstance[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const tz = config?.timezone || 'America/New_York';
+  const todayStr = localDateStr();
+
+  // Timezone-aware current time for greeting
+  const nowInTz = new Date().toLocaleString('en-US', { timeZone: tz });
+  const hotelHour = new Date(nowInTz).getHours();
+  const greeting = hotelHour < 12 ? 'Good morning' : hotelHour < 17 ? 'Good afternoon' : 'Good evening';
+  const greetingEmoji = hotelHour < 12 ? '☀️' : hotelHour < 17 ? '👋' : '🌙';
 
   useEffect(() => {
     (async () => {
-      const [r, slots, routes, monthSlots, schedules, templates, instances] = await Promise.all([
+      const [r, slots, routes, monthSlots, schedules, templates, instances, kpiDefs, kpiLogs] = await Promise.all([
         getDailyRecap(hotelId),
         getAllShuttleSlotsForHotel(hotelId),
         getShuttleRoutes(hotelId),
@@ -73,6 +86,8 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
         getStaffSchedulesRange(hotelId, today(), addDays(today(), 7)),
         getChecklists(hotelId),
         getChecklistInstances(hotelId, todayStr),
+        listKpiDefinitions(hotelId),
+        listKpiSubmissions(hotelId),
       ]);
       setRecap(r);
       setTodayShuttleSlots(slots);
@@ -81,6 +96,25 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
       setWeekShifts(schedules || []);
       setChecklistTemplates(templates || []);
       setChecklistInstances(instances || []);
+      // Build KPI snapshot: latest logged value per KPI for today
+      const snapshot = (kpiDefs || []).slice(0, 6).map((def: OpRecord) => {
+        const d = def.details as Record<string, unknown>;
+        const todayLogs = (kpiLogs || []).filter((l: OpRecord) => {
+          const ld = l.details as Record<string, unknown>;
+          return ld.definition_id === def.id && ld.shift_date === todayStr;
+        });
+        const latest = todayLogs.sort((a: OpRecord, b: OpRecord) =>
+          new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
+        )[0];
+        const ld = latest ? (latest.details as Record<string, unknown>) : null;
+        return {
+          name: d.kpi_name as string || 'KPI',
+          value: ld ? Number(ld.value) : NaN,
+          unit: d.unit as string || '',
+          target: Number(d.target) || 0,
+        };
+      });
+      setKpiSnapshot(snapshot);
     })();
   }, [hotelId, todayStr]);
 
@@ -139,20 +173,17 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
         return false;
       });
 
-  const todayDay = new Date().getDay() || 7;
+  // Day-of-week 0=Sun..6=Sat, matching getDay() used everywhere else in this file.
+  const todayDay = new Date().getDay();
   const daySlots = todayShuttleSlots.filter(s =>
     (s.date === todayStr) || (s.days_of_week?.includes(todayDay) && !s.date)
   );
 
-  const addDays = (d: string, n: number) => {
-    const dt = new Date(d);
-    dt.setDate(dt.getDate() + n);
-    return dt.toISOString().split('T')[0];
-  };
+  const addDays = addDaysStr;
   const next14 = Array.from({ length: 14 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() + i);
-    const ds = d.toISOString().split('T')[0];
+    const ds = localDateStr(d);
     const dow = d.getDay();
     const slotsCount = monthShuttleSlots.filter(s => s.day_of_week === dow).length;
     const shiftsCount = weekShifts.filter(s => s.shift_date === ds).length;
@@ -170,12 +201,12 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
       {/* ── Header Row ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-[22px] font-extrabold text-gray-900">Good morning, {sessionName || config?.managerName || 'team'} ☀️</h1>
-          <p className="text-[13px] text-gray-500 mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · {hotelName}</p>
+          <h1 className="text-[22px] font-extrabold text-gray-900">{greeting}, {sessionName || config?.managerName || 'team'} {greetingEmoji}</h1>
+          <p className="text-[13px] text-gray-500 mt-0.5">{new Date().toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · {hotelName}</p>
         </div>
         <div className="hidden md:flex items-center gap-2">
-          <span className="text-[11px] text-gray-400">Today</span>
-          <span className="text-[11px] font-bold text-gray-900">{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+          <span className="text-[11px] text-gray-400">{new Date().toLocaleTimeString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="text-[11px] font-bold text-gray-900">{new Date().toLocaleDateString('en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric' })}</span>
         </div>
       </div>
 
@@ -196,7 +227,7 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
 
       {/* ── Quick Stats Row ── */}
       {recap && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-3 gap-3 mb-5">
           <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
             <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.pendingNow}</p>
@@ -209,9 +240,39 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Staff on Duty</p>
             <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.staffOnDuty}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Avg Response</p>
-            <p className="text-[20px] font-extrabold text-gray-900 mt-1">{recap.avgResponseMin}<span className="text-[12px] font-normal text-gray-400"> min</span></p>
+        </div>
+      )}
+
+      {/* ── KPI Snapshot ── */}
+      {kpiSnapshot.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[13px] font-bold text-gray-900">Today&apos;s KPIs</h3>
+            <span className="text-[11px] text-gray-400">Staff input · {new Date().toLocaleDateString('en-US', { timeZone: tz, month: 'short', day: 'numeric' })}</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {kpiSnapshot.map((k, i) => {
+              const hasValue = !isNaN(k.value);
+              const pct = hasValue && k.target > 0 ? Math.min((k.value / k.target) * 100, 100) : 0;
+              const onTarget = hasValue && k.target > 0 && k.value >= k.target;
+              return (
+                <div key={i} className="border border-gray-100 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">{k.name}</p>
+                  <p className="text-[20px] font-extrabold mt-0.5" style={{ color: hasValue ? (onTarget ? '#16A34A' : TEAL) : '#D1D5DB' }}>
+                    {hasValue ? `${k.value}${k.unit ? ' ' + k.unit : ''}` : '—'}
+                  </p>
+                  {k.target > 0 && (
+                    <div className="mt-1.5">
+                      <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: onTarget ? '#16A34A' : TEAL }} />
+                      </div>
+                      <p className="text-[9px] text-gray-400 mt-0.5">Target: {k.target} {k.unit}</p>
+                    </div>
+                  )}
+                  {!hasValue && <p className="text-[9px] text-gray-400 mt-0.5">Not logged yet</p>}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -225,7 +286,7 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
             <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-[13px] font-bold text-gray-900">Today&apos;s Activity</h3>
-                <span className="text-[11px] text-gray-400">{recap.requestsToday} requests · {recap.messagesToday} messages</span>
+                <span className="text-[11px] text-gray-400">{recap.requestsToday} requests today</span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex-1 bg-gray-100 rounded-full h-2.5">

@@ -13,6 +13,16 @@ import { useGuest } from '@/lib/guest-context';
 import { getHotelConfig } from '@/lib/supabase';
 import Reveal from '@/components/landing/Reveal';
 import { PhoneFrame, BrowserFrame } from '@/components/landing/DeviceFrames';
+import {
+  RequestsScreenMockup,
+  ScheduleScreenMockup,
+  AdminDashboardMockup,
+  ShuttleScreenMockup,
+  MessagesScreenMockup,
+  GuestRequestsMockup,
+  BouncieGPSMockup,
+  UberDirectMockup,
+} from '@/components/landing/AppMockups';
 
 /* ──────────────────────────────────────────────────────────── */
 /*  Root — detects hotel context and switches view             */
@@ -109,32 +119,29 @@ function HotelGuestApp({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isValidated, prevValidated, guest]);
 
-  const handleClick = (sheet: SheetName, requiresValidation = false) => {
+  const handleClick = (sheet: SheetName, requiresAuth = false) => {
+    // Check for a valid (non-expired) session
     const stored = localStorage.getItem('guestSession');
     if (stored) {
       try {
         const session = JSON.parse(stored);
         if (new Date(session.checkout) > new Date()) {
-          if (requiresValidation && session.validationStatus !== 'confirmed') {
-            setPendingTarget(sheet);
-            setModalOpen(true);
-            return;
-          }
+          // Valid session — open directly, no re-prompting
           setOpenSheet(sheet);
           return;
         }
-      } catch (err) {
-        console.error('Error parsing guest session:', err);
+        // Expired — clear it
+        localStorage.removeItem('guestSession');
+      } catch {
         localStorage.removeItem('guestSession');
       }
     }
-    // No valid session — only ask for info on features that need it
-    if (requiresValidation) {
+    // No valid session — only gate features that need guest identity
+    if (requiresAuth) {
       setPendingTarget(sheet);
       setModalOpen(true);
       return;
     }
-    // Everything else opens directly — no forms
     setOpenSheet(sheet);
   };
 
@@ -229,7 +236,7 @@ function HotelGuestApp({
           <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: brandColor }}>
             <User size={20} className="text-white" strokeWidth={1.5} />
           </div>
-          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: brandColor }}>MESSAGE US</span>
+          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: brandColor }}>REQUEST NOW</span>
         </button>
       </div>
 
@@ -246,7 +253,7 @@ function HotelGuestApp({
         onClose={() => setShowValidationSuccess(false)}
         brandColor={brandColor}
       />
-      <GuestSheet open={openSheet === 'message'} onClose={closeSheet} title="Front Desk / Message" fullHeight>
+      <GuestSheet open={openSheet === 'message'} onClose={closeSheet} title="Request Now">
         <MessageSheetContent />
       </GuestSheet>
       <GuestSheet open={openSheet === 'transport'} onClose={closeSheet} title="Transport">
@@ -317,7 +324,7 @@ function AttendaLandingPage() {
       {/* ANNOUNCEMENT BAR */}
       <div className="bg-gray-900 text-white text-center py-2 px-4 relative">
         <p className="text-[12px] font-semibold">
-          Now live at our first property &middot; Attenda Ordering coming soon
+          Live GPS shuttle tracking + instant guest requests → now in production
         </p>
       </div>
 
@@ -363,7 +370,7 @@ function AttendaLandingPage() {
                 <span style={{ color: '#0D9488' }}>Built For Independent Hotels.</span>
               </h1>
               <p className="text-[18px] text-gray-600 leading-relaxed mb-8">
-                Attenda is the operating system for independent hotels &mdash; guest requests, staff tasks, <strong>labor</strong>, vendors, shuttle, and <strong>revenue</strong> in one thread. No app, no rip-and-replace, no monthly per-room upcharge.
+                Attenda is the all-in-one operating system for independent hotels — instant guest requests, live GPS shuttle tracking, Uber Direct food delivery, and staff operations in one thread. No app. No rip-and-replace.
               </p>
               <a href="#demo"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-[16px] transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
@@ -396,7 +403,11 @@ function AttendaLandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-8 items-end">
             <Reveal direction="up" delay={0} className="flex flex-col items-center">
-              <PhoneGuestMockup />
+              <PhoneFrame width={240} className="mx-auto">
+                <div className="h-[476px] overflow-hidden">
+                  <GuestRequestsMockup />
+                </div>
+              </PhoneFrame>
               <div className="mt-5 text-center">
                 <div className="text-[15px] font-black text-gray-900">For Guests</div>
                 <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Scan the QR — requests, shuttle, food, and local tips. No app to download.</p>
@@ -404,7 +415,13 @@ function AttendaLandingPage() {
             </Reveal>
 
             <Reveal direction="up" delay={120} className="flex flex-col items-center">
-              <div className="animate-float-slow"><StaffDashboardMockup /></div>
+              <div className="animate-float-slow">
+                <PhoneFrame width={220} className="mx-auto">
+                  <div className="h-[476px] overflow-hidden">
+                    <RequestsScreenMockup />
+                  </div>
+                </PhoneFrame>
+              </div>
               <div className="mt-5 text-center">
                 <div className="text-[15px] font-black text-gray-900">For Staff</div>
                 <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Every request, task, and shift in one live thread — nothing slips.</p>
@@ -412,7 +429,13 @@ function AttendaLandingPage() {
             </Reveal>
 
             <Reveal direction="up" delay={240} className="flex flex-col items-center">
-              <div className="animate-float"><GmDashboardMockup /></div>
+              <div className="animate-float">
+                <PhoneFrame width={220} className="mx-auto">
+                  <div className="h-[476px] overflow-hidden">
+                    <AdminDashboardMockup />
+                  </div>
+                </PhoneFrame>
+              </div>
               <div className="mt-5 text-center">
                 <div className="text-[15px] font-black text-gray-900">For Management</div>
                 <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Labor, revenue, and performance across the property at a glance.</p>
@@ -442,11 +465,11 @@ function AttendaLandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { icon: QrCode, title: 'Zero apps for guests', desc: 'A QR code in the room. No download, no account, no app store. Every feature loads in the browser in under five seconds.' },
-              { icon: Users, title: 'Built by hoteliers', desc: 'Front-desk to GM workflows. Not a tech team guessing what shifts look like. Attenda runs on the founder&apos;s own properties.' },
-              { icon: DollarSign, title: 'Revenue your PMS misses', desc: 'Shuttle bookings, in-room dining, late checkout &mdash; revenue that walked past the front desk before. Now attributed and tracked.' },
-              { icon: ClipboardList, title: 'One thread for the whole property', desc: 'Guest request &rarr; staff task &rarr; vendor job &rarr; GM dashboard. No sticky notes, no radio calls, no missed handoffs.' },
-              { icon: Store, title: 'Partner-ready architecture', desc: 'Restaurants plug into Attenda, not UberEats. Hotels earn a share of every order. 10% flat vs 30% the delivery apps charge.' },
+              { icon: QrCode, title: 'Zero apps for guests', desc: 'Scan the QR — tap to request towels, housekeeping, or maintenance. One tap, instant delivery to the front desk. No download, no account.' },
+              { icon: Bus, title: 'Live GPS shuttle tracking', desc: 'Bouncie integration shows real-time shuttle location, speed, ETA to hotel, and today\'s trip log. Arrival alerts when the shuttle is 0.5 mi away.' },
+              { icon: Truck, title: 'Uber Direct food delivery', desc: 'Partner restaurants, Uber last-mile delivery. Guest picks "Pay via Uber" at checkout. Uber tracks the courier; the hotel earns its share on every order.' },
+              { icon: ClipboardList, title: 'One thread for the property', desc: 'Guest request → staff task → vendor job → GM dashboard. No radio calls, no missed handoffs, no sticky notes.' },
+              { icon: Users, title: 'Guest identity without PMS', desc: 'Guests enter name + checkout date once. Session persists until checkout. Staff visually verify against PMS with one tap — no integration required.' },
               { icon: Globe, title: 'Works alongside your PMS', desc: 'No rip-and-replace. Attenda runs beside your current system from day one. 11 days from contract to live.' },
             ].map((item, i) => {
               const ItemIcon = item.icon;
@@ -466,6 +489,34 @@ function AttendaLandingPage() {
 
       {/* FULL PLATFORM INVENTORY — 6 tabbed cards */}
       <PlatformTabs />
+
+      {/* TWO NEW SUPERPOWERS */}
+      <Reveal>
+        <section className="py-20 bg-gray-50">
+          <div className="max-w-5xl mx-auto px-4 text-center">
+            <h2 className="text-3xl font-bold mb-2">Two new superpowers</h2>
+            <p className="text-gray-500 mb-12">GPS tracking and last-mile delivery — both live, both built in.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 justify-items-center">
+              <div className="flex flex-col items-center gap-4">
+                <PhoneFrame width={240}>
+                  <div className="h-[476px] overflow-hidden">
+                    <BouncieGPSMockup />
+                  </div>
+                </PhoneFrame>
+                <p className="text-sm text-gray-500 font-medium">Live Shuttle GPS · Bouncie</p>
+              </div>
+              <div className="flex flex-col items-center gap-4">
+                <PhoneFrame width={240}>
+                  <div className="h-[476px] overflow-hidden">
+                    <UberDirectMockup />
+                  </div>
+                </PhoneFrame>
+                <p className="text-sm text-gray-500 font-medium">Uber Direct Delivery</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </Reveal>
 
       {/* APP BY ROLE — existing showcase (keep) */}
       <section id="modules" className="py-16 md:py-24 px-5">
@@ -525,8 +576,8 @@ function AttendaLandingPage() {
                         <span className="text-[11px] font-black" style={{ color: TEAL }}>1</span>
                       </div>
                       <div>
-                        <p className="text-[15px] font-bold text-gray-900">Guest scans the code</p>
-                        <p className="text-[13px] text-gray-600">No app to download. Opens in their camera or browser. Name and room are pre-filled.</p>
+                        <p className="text-[15px] font-bold text-gray-900">Scans QR code in room</p>
+                        <p className="text-[13px] text-gray-600">Opens instantly in their browser. Name + checkout date entered once. Saved until check-out.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -534,8 +585,8 @@ function AttendaLandingPage() {
                         <span className="text-[11px] font-black" style={{ color: TEAL }}>2</span>
                       </div>
                       <div>
-                        <p className="text-[15px] font-bold text-gray-900">Orders towels, food, or shuttle</p>
-                        <p className="text-[13px] text-gray-600">Real-time chat. No phone tag. The front desk sees every request the moment it lands.</p>
+                        <p className="text-[15px] font-bold text-gray-900">Taps to request anything</p>
+                        <p className="text-[13px] text-gray-600">Towels, housekeeping, room service, or maintenance in one tap. No chat, no waiting on hold.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -543,8 +594,8 @@ function AttendaLandingPage() {
                         <span className="text-[11px] font-black" style={{ color: TEAL }}>3</span>
                       </div>
                       <div>
-                        <p className="text-[15px] font-bold text-gray-900">Browses nearby, reviews restaurant</p>
-                        <p className="text-[13px] text-gray-600">Transport schedules, local attractions, in-room dining menus &mdash; all from the same QR code.</p>
+                        <p className="text-[15px] font-bold text-gray-900">Tracks shuttle live</p>
+                        <p className="text-[13px] text-gray-600">Real-time GPS location and ETA straight from the guest app. No third-party app.</p>
                       </div>
                     </div>
                   </div>
@@ -554,7 +605,11 @@ function AttendaLandingPage() {
                   </div>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <PhoneGuestMockup />
+                  <PhoneFrame width={240}>
+                    <div className="h-[476px] overflow-hidden">
+                      <GuestRequestsMockup />
+                    </div>
+                  </PhoneFrame>
                 </div>
               </div>
             </div>
@@ -614,7 +669,13 @@ function AttendaLandingPage() {
                   </div>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <StaffDashboardMockup />
+                  <div className="animate-float-slow">
+                    <PhoneFrame width={240} className="mx-auto">
+                      <div className="h-[520px] overflow-hidden">
+                        <RequestsScreenMockup />
+                      </div>
+                    </PhoneFrame>
+                  </div>
                 </div>
               </div>
             </div>
@@ -674,7 +735,13 @@ function AttendaLandingPage() {
                   </div>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <GmDashboardMockup />
+                  <div className="animate-float">
+                    <PhoneFrame width={240} className="mx-auto">
+                      <div className="h-[520px] overflow-hidden">
+                        <AdminDashboardMockup />
+                      </div>
+                    </PhoneFrame>
+                  </div>
                 </div>
               </div>
             </div>
@@ -725,7 +792,13 @@ function AttendaLandingPage() {
                   </a>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <PartnerPortalMockup />
+                  <div className="animate-float-slow">
+                    <PhoneFrame width={240} className="mx-auto">
+                      <div className="h-[520px] overflow-hidden">
+                        <ShuttleScreenMockup />
+                      </div>
+                    </PhoneFrame>
+                  </div>
                 </div>
               </div>
             </div>
@@ -809,18 +882,30 @@ function AttendaLandingPage() {
         </div>
       </section>
 
+      <LogoStrip />
+
       {/* TESTIMONIAL */}
       <section id="case-study" className="py-12 md:py-20 px-5">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
             <div className="lg:col-span-5 lg:order-1 order-2">
-              <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 p-8 md:p-12 aspect-[4/5] flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-20 h-20 mx-auto rounded-full bg-white shadow-md flex items-center justify-center mb-4">
-                    <span className="text-3xl" style={{ color: '#0D9488' }}>â˜…</span>
+              <div className="rounded-2xl overflow-hidden aspect-[4/5] relative shadow-lg">
+                <Image
+                  src="https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=600&fit=crop&q=80"
+                  alt="Boutique hotel lobby"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 40vw"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6">
+                  <div className="flex gap-1 mb-2">
+                    {[1,2,3,4,5].map(s => (
+                      <svg key={s} width="16" height="16" viewBox="0 0 24 24" fill="#FBBF24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    ))}
                   </div>
-                  <div className="text-[14px] font-bold text-gray-900 mb-1">5-star reviews</div>
-                  <div className="text-[12px] text-gray-500">recovered pre-checkout</div>
+                  <div className="text-[13px] font-black text-white">5-star reviews recovered</div>
+                  <div className="text-[11px] text-white/70 mt-0.5">before guests check out</div>
                 </div>
               </div>
             </div>
@@ -1327,12 +1412,12 @@ const PLATFORM_AREAS: PlatformArea[] = [
     headline: 'One QR code replaces the binder, the flyer, and the front-desk call.',
     sub: 'Guests get the whole property in their browser &mdash; WiFi, facilities, safety, food, shuttle &mdash; in under five seconds.',
     features: [
-      'QR per room &mdash; no app store, no download, no account',
-      'WiFi name and password one tap away',
-      'Facilities, safety, transport, and dining pages &mdash; GM-editable',
-      'Welcome letter with the manager\'s name and team photo',
+      'QR per room — no app store, no download, no account',
+      'Instant requests: towels, housekeeping, room service, maintenance',
+      'Guest identity saved until checkout — sessions expire clean',
+      'Staff verify guest against PMS with one tap',
+      'Live shuttle ETA and GPS tracker link from the guest app',
       'Review routing to Google, TripAdvisor, and Yelp',
-      'Guest validation tied to checkout date &mdash; sessions expire clean',
     ],
   },
   {
@@ -1355,12 +1440,12 @@ const PLATFORM_AREAS: PlatformArea[] = [
     headline: 'Shuttle ops without the clipboard.',
     sub: 'Routes, time slots, capacity, and ad-hoc rides &mdash; booked by guests, assigned to drivers, priced by the property.',
     features: [
-      'Named routes &mdash; airport, cruise port, or custom',
+      'Named routes — airport, cruise port, or custom',
+      'Live GPS tracking via Bouncie integration',
+      'Real-time shuttle location, speed, and ETA to hotel',
+      'Arrival alerts when shuttle is within 0.5 miles',
       'Time slots with per-day schedules and capacity limits',
       'Guest self-booking with party size and notes',
-      'Ad-hoc ride requests assigned to drivers in real time',
-      'Per-slot price overrides and event labels',
-      'No-show and cancellation tracking per booking',
     ],
   },
 ];
@@ -1368,7 +1453,6 @@ const PLATFORM_AREAS: PlatformArea[] = [
 function PlatformTabs() {
   const [activeArea, setActiveArea] = useState<PlatformAreaKey>('ops');
   const area = PLATFORM_AREAS.find(a => a.key === activeArea)!;
-  const AreaIcon = area.icon;
 
   return (
     <section id="platform" className="py-16 md:py-24 px-5 bg-white">
@@ -1423,28 +1507,18 @@ function PlatformTabs() {
                 ))}
               </ul>
             </div>
-            <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-              <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-                <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${TEAL}15` }}>
-                      <AreaIcon size={14} style={{ color: TEAL }} />
-                    </div>
-                    <span className="text-[12px] font-bold text-gray-700">{area.label}</span>
+            <div className="p-6 md:p-8 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center min-h-[380px]">
+              <div className={activeArea === 'guest' || activeArea === 'partners' ? 'animate-float' : 'animate-float-slow'}>
+                <PhoneFrame width={220} className="mx-auto">
+                  <div className="h-[476px] overflow-hidden">
+                    {activeArea === 'ops' && <RequestsScreenMockup />}
+                    {activeArea === 'revenue' && <AdminDashboardMockup />}
+                    {activeArea === 'labor' && <ScheduleScreenMockup />}
+                    {activeArea === 'guest' && <MessagesScreenMockup />}
+                    {activeArea === 'partners' && <ShuttleScreenMockup />}
+                    {activeArea === 'transport' && <ShuttleScreenMockup />}
                   </div>
-                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: TEAL_BRIGHT }} />
-                </div>
-                <div className="p-5">
-                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-4">What&apos;s included</div>
-                  <ul className="space-y-3">
-                    {area.features.slice(0, 4).map(f => (
-                      <li key={f} className="flex items-start gap-2 text-[12px] text-gray-700 leading-snug">
-                        <Check size={14} className="mt-0.5 shrink-0" style={{ color: TEAL_BRIGHT }} />
-                        <span dangerouslySetInnerHTML={{ __html: f }} />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                </PhoneFrame>
               </div>
             </div>
           </div>
@@ -1470,10 +1544,10 @@ function PlatformTabs() {
 function HeaderMockup() {
   return (
     <div className="relative w-full">
-      {/* soft brand glow behind the device */}
+      {/* brand glow */}
       <div
-        className="pointer-events-none absolute -inset-6 -z-10 rounded-[40px] opacity-60 blur-3xl"
-        style={{ background: 'radial-gradient(circle at 50% 40%, rgba(13,148,136,0.18), transparent 70%)' }}
+        className="pointer-events-none absolute -inset-10 -z-10 opacity-50"
+        style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(13,148,136,0.18) 0%, transparent 70%)' }}
       />
       <div className="animate-float-slow">
         <BrowserFrame url="attenda.app/staff · Your Property">
@@ -1488,7 +1562,7 @@ function HeaderMockup() {
         </BrowserFrame>
       </div>
 
-      {/* floating live-request card — subtle proof the system is live */}
+      {/* floating live-request card — bottom left */}
       <div className="absolute -bottom-5 -left-4 hidden sm:block animate-float">
         <div className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white px-3.5 py-2.5 shadow-xl">
           <span className="relative flex h-2.5 w-2.5">
@@ -1501,96 +1575,113 @@ function HeaderMockup() {
           </div>
         </div>
       </div>
+
+      {/* floating revenue badge — top right */}
+      <div className="absolute -top-4 -right-2 hidden sm:block" style={{ animation: 'float 7s ease-in-out 1s infinite' }}>
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-white px-3.5 py-2.5 shadow-xl">
+          <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
+            <DollarSign size={13} className="text-white" />
+          </div>
+          <div className="leading-tight">
+            <div className="text-[11px] font-black text-gray-900">+$340 today</div>
+            <div className="text-[10px] text-emerald-600 font-semibold">Shuttle + dining</div>
+          </div>
+        </div>
+      </div>
+
+      {/* floating shuttle badge — mid left */}
+      <div className="absolute top-[35%] -left-8 hidden lg:block" style={{ animation: 'float 9s ease-in-out 2s infinite' }}>
+        <div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-white px-3 py-2 shadow-lg">
+          <Bus size={14} style={{ color: '#3B82F6' }} />
+          <div className="leading-tight">
+            <div className="text-[10px] font-black text-gray-900">Shuttle · 3:30 PM</div>
+            <div className="text-[9px] text-gray-500">4 guests confirmed</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
+}
+
+/* ── useCountUp ─────────────────────────────────────────────── */
+function useCountUp(target: number, duration = 1800): [number, React.RefObject<HTMLDivElement>] {
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>;
+  const started = useRef(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && !started.current) {
+        started.current = true;
+        const start = performance.now();
+        const tick = (now: number) => {
+          const p = Math.min((now - start) / duration, 1);
+          const ease = 1 - Math.pow(1 - p, 4);
+          setCount(Math.round(ease * target));
+          if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }
+    }, { threshold: 0.5 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [target, duration]);
+  return [count, ref];
 }
 
 /* ── KPI tile dark (Proven Results strip) ────────────────────── */
 
 function KpiTileDark({ value, label }: { value: string; label: string }) {
+  const numMatch = value.match(/^(\d+)/);
+  const numericTarget = numMatch ? parseInt(numMatch[1]) : 0;
+  const suffix = numMatch ? value.slice(numMatch[0].length) : '';
+  const [count, ref] = useCountUp(numericTarget);
+  const display = numericTarget > 0 ? `${count}${suffix}` : value;
   return (
-    <div className="border border-gray-700 rounded-2xl p-6">
-      <div className="text-[44px] md:text-[56px] font-black leading-none mb-3 tracking-tight" style={{ color: TEAL }}>
-        {value}
-      </div>
+    <div ref={ref} className="border border-gray-700 rounded-2xl p-6">
+      <div
+        className="text-[44px] md:text-[56px] font-black leading-none mb-3 tracking-tight"
+        style={{ color: TEAL }}
+        dangerouslySetInnerHTML={{ __html: display }}
+      />
       <div className="text-[13px] text-gray-300 uppercase tracking-wider font-semibold">{label}</div>
     </div>
   );
 }
 
-/* ── Role-based Mockups ───────────────────────────────────── */
-
-/* PhoneGuestMockup — Phone frame showing the REAL guest app 2x2 grid */
-function PhoneGuestMockup() {
+/* ── Logo / Integration Marquee Strip ──────────────────────── */
+function LogoStrip() {
+  const items = [
+    { name: 'Google Reviews', color: '#4285F4', abbr: 'G' },
+    { name: 'Stripe', color: '#635BFF', abbr: 'S' },
+    { name: 'Best Western', color: '#003087', abbr: 'BW' },
+    { name: 'TripAdvisor', color: '#00AF87', abbr: 'TA' },
+    { name: 'Yelp', color: '#D32323', abbr: 'Y' },
+    { name: 'QR Code', color: '#374151', abbr: 'QR' },
+    { name: 'WhatsApp', color: '#25D366', abbr: 'WA' },
+    { name: 'Airbnb', color: '#FF5A5F', abbr: 'Ab' },
+  ];
+  const doubled = [...items, ...items];
   return (
-    <div className="relative mx-auto w-[210px]">
-      <PhoneFrame width={210} className="mx-auto animate-float">
-        <Image
-          src="/images/guest-app.png"
-          alt="Guest app with 2x2 grid: Welcome, Transport, Facilities, Safety, Nearby, Food, Review, Message Us"
-          width={210}
-          height={454}
-          className="w-full h-auto block"
-        />
-      </PhoneFrame>
-      <div className="text-center mt-4">
-        <div className="text-[9px] uppercase tracking-[0.15em] text-gray-500 font-bold">The actual guest app</div>
+    <div className="overflow-hidden border-y border-gray-100 bg-gray-50 py-5">
+      <div className="flex gap-8 animate-marquee whitespace-nowrap">
+        {doubled.map((item, i) => (
+          <div key={i} className="inline-flex items-center gap-2.5 shrink-0 px-4">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[11px] font-black shadow-sm"
+              style={{ backgroundColor: item.color }}
+            >
+              {item.abbr}
+            </div>
+            <span className="text-[13px] font-semibold text-gray-600">{item.name}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-/* StaffDashboardMockup — Browser frame showing actual staff dashboard */
-function StaffDashboardMockup() {
-  return (
-    <BrowserFrame url="attenda.app/staff" className="w-full max-w-[320px]">
-      <Image
-        src="/images/staff-app.png"
-        alt="Staff dashboard"
-        width={320}
-        height={500}
-        className="w-full h-auto block"
-      />
-    </BrowserFrame>
-  );
-}
-
-/* GmDashboardMockup — Browser frame showing actual GM dashboard */
-function GmDashboardMockup() {
-  return (
-    <BrowserFrame url="gm.attenda.app" className="w-full max-w-[320px]">
-      <Image
-        src="/images/gm-dashboard.png"
-        alt="GM dashboard"
-        width={320}
-        height={480}
-        className="w-full h-auto block"
-      />
-    </BrowserFrame>
-  );
-}
-
-/* PartnerPortalMockup — Real guest ordering screenshot */
-function PartnerPortalMockup() {
-  return (
-    <div className="w-full max-w-[280px] mx-auto">
-      <PhoneFrame width={280} className="mx-auto animate-float">
-        <Image
-          src="/images/guest-food.png"
-          alt="Guest food ordering screen — browse menu, add items, order to room"
-          width={280}
-          height={607}
-          className="w-full h-auto block"
-        />
-      </PhoneFrame>
-      <div className="text-center mt-5">
-        <div className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-bold">Guests order in under 30s</div>
-        <div className="text-sm font-black text-gray-900 mt-1">Scan. Browse. Order. Eat.</div>
-        <div className="text-[10px] text-gray-500 mt-0.5">No app · No download · No account</div>
-      </div>
-    </div>
-  );
-}
 /* ── Enroll Form ────────────────────────────────────────────── */
 function EnrollForm() {
   const [form, setForm] = useState({ propertyName: '', contactName: '', email: '', phone: '', rooms: '', message: '' });

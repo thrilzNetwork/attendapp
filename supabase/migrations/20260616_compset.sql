@@ -8,6 +8,7 @@ create table if not exists compset_hotels (
   hotel_id uuid references hotels(id) on delete cascade not null,
   name text not null,
   phone text default '',
+  room_keys integer default 0, -- total room count at the competitor hotel
   is_active boolean default true,
   sort_order integer default 0,
   created_at timestamptz default now()

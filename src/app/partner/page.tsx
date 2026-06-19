@@ -1,20 +1,27 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Bell, RefreshCw, LogOut, Hotel as HotelIcon, ArrowRight, CheckCircle, XCircle, DollarSign, Truck, CreditCard, Smartphone, Utensils, MapPin, Store } from 'lucide-react';
+import { Bell, RefreshCw, LogOut, Hotel as HotelIcon, ArrowRight, CheckCircle, XCircle, DollarSign, Truck, CreditCard, Smartphone, Utensils, MapPin, Store, ChefHat, Clock, Package } from 'lucide-react';
 import {
-  supabase, subscribeToRequests, updateRequestStatus,
+  supabase, subscribeToRequests, updateVendorStatus,
 } from '@/lib/supabase';
 
-interface Request {
+type VendorStatus = 'new' | 'received' | 'preparing' | 'ready';
+
+interface VendorOrder {
   id: string;
   guest_name: string;
   room: string;
-  type: string;
   details: string;
-  status: 'pending' | 'in-progress' | 'completed';
+  status: string;
+  vendor_status: VendorStatus;
+  total_amount: number;
+  vendor_payout: number;
   created_at: string;
+  delivery_method?: string;
+  uber_status?: string;
+  uber_tracking_url?: string;
 }
 
 const TEAL = '#0D9488';
@@ -485,8 +492,175 @@ function RestaurantLandingPage({ urlType: initialUrlType }: { urlType?: string }
 }
 
 /* ──────────────────────────────────────────────────────────── */
-/*  Existing Partner Dashboard                                  */
+/*  Vendor iPad Dashboard — works for ANY partner type          */
 /* ──────────────────────────────────────────────────────────── */
+
+// Category-aware copy: restaurant, transport, service, attraction, default
+type PartnerCategory = 'restaurant' | 'transport' | 'transportation' | 'service' | 'attraction' | 'experience' | string;
+
+interface CategoryProfile {
+  icon: React.ReactNode;
+  dashboardTitle: string;
+  requestWord: string; // "order" | "ride" | "booking" | "request"
+  steps: Record<VendorStatus, { label: string; action: string }>;
+}
+
+function getCategoryProfile(category: PartnerCategory): CategoryProfile {
+  const c = (category || '').toLowerCase();
+
+  if (c === 'restaurant' || c === 'food' || c === 'catering') return {
+    icon: <Utensils size={36} style={{ color: TEAL }} />,
+    dashboardTitle: 'Kitchen Display',
+    requestWord: 'order',
+    steps: {
+      new:       { label: 'New Order',    action: 'Accept Order'   },
+      received:  { label: 'Accepted',     action: 'Start Cooking'  },
+      preparing: { label: 'Preparing',    action: 'Mark Ready'     },
+      ready:     { label: 'Ready ✓',      action: ''               },
+    },
+  };
+
+  if (c === 'transport' || c === 'transportation' || c === 'shuttle' || c === 'taxi' || c === 'car') return {
+    icon: <Truck size={36} style={{ color: TEAL }} />,
+    dashboardTitle: 'Dispatch Board',
+    requestWord: 'ride',
+    steps: {
+      new:       { label: 'New Request',  action: 'Accept Ride'     },
+      received:  { label: 'Accepted',     action: 'Driver En Route' },
+      preparing: { label: 'En Route',     action: 'Mark Arrived'    },
+      ready:     { label: 'Arrived ✓',    action: ''                },
+    },
+  };
+
+  if (c === 'service' || c === 'spa' || c === 'wellness' || c === 'cleaning' || c === 'maintenance') return {
+    icon: <Smartphone size={36} style={{ color: TEAL }} />,
+    dashboardTitle: 'Service Board',
+    requestWord: 'booking',
+    steps: {
+      new:       { label: 'New Booking',  action: 'Confirm Booking' },
+      received:  { label: 'Confirmed',    action: 'Start Service'   },
+      preparing: { label: 'In Progress',  action: 'Mark Complete'   },
+      ready:     { label: 'Completed ✓',  action: ''                },
+    },
+  };
+
+  if (c === 'attraction' || c === 'experience' || c === 'tour' || c === 'activity') return {
+    icon: <MapPin size={36} style={{ color: TEAL }} />,
+    dashboardTitle: 'Experience Board',
+    requestWord: 'reservation',
+    steps: {
+      new:       { label: 'New Reservation', action: 'Confirm'       },
+      received:  { label: 'Confirmed',        action: 'Guest Arrived' },
+      preparing: { label: 'In Session',       action: 'Mark Done'     },
+      ready:     { label: 'Done ✓',           action: ''              },
+    },
+  };
+
+  // Generic fallback
+  return {
+    icon: <Store size={36} style={{ color: TEAL }} />,
+    dashboardTitle: 'Partner Dashboard',
+    requestWord: 'request',
+    steps: {
+      new:       { label: 'New Request',  action: 'Accept'         },
+      received:  { label: 'Accepted',     action: 'Start'          },
+      preparing: { label: 'In Progress',  action: 'Mark Complete'  },
+      ready:     { label: 'Complete ✓',   action: ''               },
+    },
+  };
+}
+
+const VS_STYLE: Record<VendorStatus, { color: string; bg: string; border: string; btnBg: string; icon: React.ReactNode }> = {
+  new:       { color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-200',     btnBg: 'bg-red-500 hover:bg-red-600',     icon: <Bell size={16} className="text-red-500" /> },
+  received:  { color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-200',   btnBg: 'bg-amber-500 hover:bg-amber-600', icon: <ChefHat size={16} className="text-amber-500" /> },
+  preparing: { color: 'text-blue-600',    bg: 'bg-blue-50',    border: 'border-blue-200',    btnBg: 'bg-blue-500 hover:bg-blue-600',   icon: <Clock size={16} className="text-blue-500" /> },
+  ready:     { color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', btnBg: '',                                icon: <CheckCircle size={16} className="text-emerald-500" /> },
+};
+
+function timeAgo(iso: string) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  return `${Math.floor(diff / 3600)}h ago`;
+}
+
+const VS_NEXT: Record<VendorStatus, VendorStatus | null> = {
+  new: 'received', received: 'preparing', preparing: 'ready', ready: null,
+};
+
+function OrderCard({ order, profile, onAdvance }: { order: VendorOrder; profile: CategoryProfile; onAdvance: (id: string, next: VendorStatus) => void }) {
+  const style = VS_STYLE[order.vendor_status];
+  const step  = profile.steps[order.vendor_status];
+  const next  = VS_NEXT[order.vendor_status];
+  const isNew = order.vendor_status === 'new';
+  return (
+    <div className={`rounded-2xl border-2 ${style.border} ${style.bg} p-5 flex flex-col gap-3 ${isNew ? 'shadow-lg ring-2 ring-red-300' : 'shadow-sm'} transition-all`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {style.icon}
+          <span className={`text-[11px] font-black uppercase tracking-widest ${style.color}`}>{step.label}</span>
+        </div>
+        <span className="text-[11px] text-gray-400">{timeAgo(order.created_at)}</span>
+      </div>
+
+      <div>
+        <p className="text-[20px] font-black text-gray-900 leading-tight">Room {order.room}</p>
+        <p className="text-[14px] text-gray-600 font-medium">{order.guest_name}</p>
+      </div>
+
+      <div className="bg-white/70 rounded-xl p-3">
+        <p className="text-[13px] text-gray-700 leading-relaxed">{order.details}</p>
+      </div>
+
+      {order.total_amount > 0 && (
+        <div className="flex items-center gap-1.5 text-[12px] text-gray-500">
+          <DollarSign size={12} />
+          <span className="font-semibold text-gray-900">${order.total_amount.toFixed(2)}</span>
+          <span className="text-gray-400"> · your payout <span className="font-semibold text-emerald-600">${order.vendor_payout.toFixed(2)}</span></span>
+        </div>
+      )}
+      {order.delivery_method === 'uber_direct' && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-wider bg-gray-900 text-white px-2 py-0.5 rounded-full">
+            Uber Direct
+          </span>
+          {order.uber_status && (
+            <span className="text-[10px] font-bold text-gray-500 capitalize">{order.uber_status.replace(/_/g, ' ')}</span>
+          )}
+          {order.uber_tracking_url && (
+            <a href={order.uber_tracking_url} target="_blank" rel="noopener noreferrer"
+              className="text-[10px] font-bold text-teal-400 underline">Track</a>
+          )}
+        </div>
+      )}
+
+      {order.delivery_method === 'uber_direct' && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-xl border border-blue-100">
+          <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wide">🚗 Uber Direct</span>
+          {order.uber_status && (
+            <span className="text-[11px] text-blue-600 capitalize">· {order.uber_status.replace(/_/g, ' ')}</span>
+          )}
+          {order.uber_tracking_url && (
+            <a href={order.uber_tracking_url} target="_blank" rel="noreferrer"
+              className="ml-auto text-[11px] font-bold text-blue-600 underline">
+              Track
+            </a>
+          )}
+        </div>
+      )}
+
+      {next && step.action && (
+        <button
+          onClick={() => onAdvance(order.id, next)}
+          className={`w-full py-4 rounded-xl font-black text-[15px] text-white transition-all active:scale-95 ${style.btnBg}`}
+        >
+          {step.action}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PartnerContent() {
   const searchParams = useSearchParams();
   const partnerId = searchParams.get('restaurant');
@@ -495,23 +669,39 @@ function PartnerContent() {
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
-  const [partnerName, setPartnerName] = useState('');
+  const [partnerData, setPartnerData] = useState<Record<string, unknown> | null>(null);
+  const [menuItems, setMenuItems] = useState<Array<{ id: string; name: string; description: string; price: number; is_active: boolean }>>([]);
   const [hotelId, setHotelId] = useState<string | null>(null);
-  const [requests, setRequests] = useState<Request[]>([]);
+  const [orders, setOrders] = useState<VendorOrder[]>([]);
+  const [newAlert, setNewAlert] = useState(false);
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'info'>('orders');
+  const prevCountRef = useRef(0);
+
+  const partnerName = (partnerData?.name as string) || '';
+  const partnerCategory = (partnerData?.category as string) || '';
+  const profile = getCategoryProfile(partnerCategory);
 
   const reload = useCallback(async () => {
     if (!partnerId) return;
-    let query = supabase
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const { data } = await supabase
       .from('requests')
-      .select('*')
-      .eq('type', 'Food Order')
+      .select('id,guest_name,room,details,status,vendor_status,total_amount,vendor_payout,created_at,delivery_method,uber_status,uber_tracking_url')
+      .eq('partner_id', partnerId)
+      .gte('created_at', today.toISOString())
       .order('created_at', { ascending: false });
-    if (hotelId) {
-      query = query.eq('hotel_id', hotelId);
+    if (data) {
+      setOrders(data as VendorOrder[]);
+      const incoming = (data as VendorOrder[]).filter(o => o.vendor_status === 'new').length;
+      if (incoming > prevCountRef.current) {
+        setNewAlert(true);
+        setTimeout(() => setNewAlert(false), 3000);
+        try { new Audio('/sounds/ding.mp3').play().catch(() => {}); } catch {}
+      }
+      prevCountRef.current = incoming;
     }
-    const { data } = await query;
-    if (data) setRequests(data);
-  }, [partnerId, hotelId]);
+  }, [partnerId]);
 
   useEffect(() => {
     if (!partnerId || !authenticated) return;
@@ -520,164 +710,225 @@ function PartnerContent() {
     return () => { supabase.removeChannel(ch); };
   }, [partnerId, authenticated, reload, hotelId]);
 
-  const handleLogin = async () => {
+  const handleLogin = async (pinOverride?: string) => {
+    const attemptPin = pinOverride ?? pin;
     setPinError('');
-    const { data } = await supabase
-      .from('partners')
-      .select('*')
-      .eq('id', partnerId!)
-      .single();
-
-    if (!data) {
-      setPinError('Restaurant not found.');
-      return;
-    }
-
-    const restaurantPin = data.pin_code || '';
-    if (pin === restaurantPin) {
-      setPartnerName(data.name);
-      setHotelId(data.hotel_id || null);
+    const { data } = await supabase.from('partners').select('*').eq('id', partnerId!).single();
+    if (!data) { setPinError('Partner not found.'); return; }
+    if (attemptPin === (data.pin_code || '')) {
+      setPartnerData(data as Record<string, unknown>);
+      setHotelId((data.hotel_id as string) || null);
       setAuthenticated(true);
+      // Load menu items
+      const { data: items } = await supabase.from('partner_menu_items').select('*').eq('partner_id', partnerId!).eq('is_active', true).order('name');
+      if (items) setMenuItems(items);
     } else {
       setPinError('Incorrect PIN. Try again.');
       setPin('');
     }
   };
 
-  // No partner ID → show the landing page
+  const handleAdvance = async (id: string, next: VendorStatus) => {
+    await updateVendorStatus(id, next);
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, vendor_status: next } : o));
+  };
+
   if (!partnerId || partnerId === 'login') {
     return <RestaurantLandingPage urlType={urlType || ''} />;
   }
 
   if (!authenticated) {
+    const loginProfile = getCategoryProfile('');
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-5">
-        <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: `${TEAL}18` }}>
-            <HotelIcon size={28} style={{ color: TEAL }} />
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center px-5">
+        <div className="w-full max-w-sm bg-white rounded-3xl p-10 shadow-2xl">
+          <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: `${TEAL}15` }}>
+            {loginProfile.icon}
           </div>
-          <h1 className="text-xl font-bold text-center mb-1">Restaurant Partner</h1>
-          <p className="text-sm text-gray-400 text-center mb-6">Enter your PIN to see orders</p>
-          <input
-            type="password"
-            value={pin}
-            onChange={e => { setPin(e.target.value); setPinError(''); }}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            placeholder="PIN"
-            maxLength={6}
-            className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[15px] border border-gray-100 focus:outline-none text-center tracking-[0.3em] font-mono mb-2"
-          />
-          {pinError && <p className="text-red-500 text-[12px] text-center mb-2">{pinError}</p>}
-          <button
-            onClick={handleLogin}
-            className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px]"
-            style={{ backgroundColor: TEAL }}
-          >
-            VIEW ORDERS
+          <h1 className="text-2xl font-black text-center mb-1">Partner Dashboard</h1>
+          <p className="text-[14px] text-gray-400 text-center mb-8">Enter your 4-digit PIN</p>
+          <div className="grid grid-cols-4 gap-2 mb-6">
+            {pin.split('').concat(Array(4 - pin.length).fill('')).map((ch, i) => (
+              <div key={i} className={`h-14 rounded-xl flex items-center justify-center text-2xl font-black border-2 ${ch ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 bg-gray-50 text-gray-300'}`}>
+                {ch ? '•' : ''}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {['1','2','3','4','5','6','7','8','9','','0','⌫'].map(k => (
+              <button key={k} onClick={() => {
+                if (k === '⌫') setPin(p => p.slice(0, -1));
+                else if (k && pin.length < 4) { const np = pin + k; setPin(np); if (np.length === 4) setTimeout(() => handleLogin(np), 100); }
+              }}
+                className={`h-14 rounded-xl text-xl font-bold transition-all active:scale-95 ${k === '' ? 'invisible' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}
+              >{k}</button>
+            ))}
+          </div>
+          {pinError && <p className="text-red-500 text-[13px] text-center mb-2">{pinError}</p>}
+          <button onClick={() => handleLogin()} className="w-full py-4 rounded-xl text-white font-black text-[15px] mt-2" style={{ backgroundColor: TEAL }}>
+            SIGN IN
           </button>
-          <a href="/partner" className="block text-center text-[12px] text-teal-600 mt-4 underline">
-            ← Back to partner info
-          </a>
         </div>
       </div>
     );
   }
 
-  const active = requests.filter(r => r.status !== 'completed');
-  const completed = requests.filter(r => r.status === 'completed');
+  const newOrders   = orders.filter(o => o.vendor_status === 'new');
+  const received    = orders.filter(o => o.vendor_status === 'received');
+  const preparing   = orders.filter(o => o.vendor_status === 'preparing');
+  const readyOrders = orders.filter(o => o.vendor_status === 'ready');
+  const todayRevenue = orders.reduce((s, o) => s + (o.vendor_payout || 0), 0);
+
+  const kanbanCols = [
+    { status: 'new' as VendorStatus,      emoji: '🔴', items: newOrders },
+    { status: 'received' as VendorStatus,  emoji: '🟡', items: received },
+    { status: 'preparing' as VendorStatus, emoji: '🔵', items: preparing },
+    { status: 'ready' as VendorStatus,     emoji: '🟢', items: readyOrders },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex flex-col">
-      <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-[18px] font-bold text-gray-900">{partnerName || 'Restaurant'}</h1>
-          <p className="text-[12px] text-gray-500">Orders Dashboard</p>
-        </div>
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col select-none">
+      {/* Header */}
+      <header className="shrink-0 bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={reload} className="flex items-center gap-1.5 text-[12px] text-gray-500 hover:text-teal-600 transition-colors">
-            <RefreshCw size={14} /> Refresh
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${TEAL}25` }}>
+            <div className="scale-50 -m-2">{profile.icon}</div>
+          </div>
+          <div>
+            <h1 className="text-[16px] font-black leading-tight">{partnerName}</h1>
+            <p className="text-[11px] text-gray-500 capitalize">{partnerCategory || 'Partner'} · {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          {newAlert && (
+            <div className="flex items-center gap-2 bg-red-500 text-white text-[12px] font-bold px-3 py-1.5 rounded-full animate-bounce">
+              <Bell size={12} /> NEW {profile.requestWord.toUpperCase()}
+            </div>
+          )}
+          <div className="text-right">
+            <p className="text-[11px] text-gray-500">Today&apos;s Payout</p>
+            <p className="text-[16px] font-black text-emerald-400">${todayRevenue.toFixed(2)}</p>
+          </div>
+          <button onClick={reload} className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
+            <RefreshCw size={16} />
           </button>
-          <button
-            onClick={() => { setAuthenticated(false); setPin(''); setHotelId(null); }}
-            className="flex items-center gap-1.5 text-[12px] text-gray-500 hover:text-red-500 transition-colors"
-          >
-            <LogOut size={14} /> Sign Out
+          <button onClick={() => { setAuthenticated(false); setPin(''); setHotelId(null); setPartnerData(null); }} className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-red-400 transition-colors">
+            <LogOut size={16} />
           </button>
         </div>
       </header>
 
-      <div className="shrink-0 px-6 py-4 grid grid-cols-3 gap-3">
-        {[
-          { label: 'Pending', count: requests.filter(r => r.status === 'pending').length, color: 'text-amber-600' },
-          { label: 'Cooking', count: requests.filter(r => r.status === 'in-progress').length, color: 'text-blue-600' },
-          { label: 'Done', count: requests.filter(r => r.status === 'completed').length, color: 'text-emerald-600' },
-        ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm text-center">
-            <p className="text-[11px] text-gray-400 uppercase font-bold mb-1">{s.label}</p>
-            <p className={`text-[24px] font-extrabold ${s.color}`}>{s.count}</p>
-          </div>
+      {/* Tab bar */}
+      <div className="shrink-0 bg-gray-900 border-b border-gray-800 flex items-center px-4">
+        {([
+          { id: 'orders', label: `${profile.requestWord.charAt(0).toUpperCase() + profile.requestWord.slice(1)}s`, badge: newOrders.length },
+          { id: 'menu',   label: 'Menu & Pricing', badge: 0 },
+          { id: 'info',   label: 'Business Info', badge: 0 },
+        ] as { id: 'orders' | 'menu' | 'info'; label: string; badge: number }[]).map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={`relative px-5 py-3 text-[13px] font-bold border-b-2 transition-colors ${activeTab === t.id ? 'border-teal-400 text-teal-300' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>
+            {t.label}
+            {t.badge > 0 && <span className="ml-1.5 bg-red-500 text-white text-[10px] font-black rounded-full px-1.5 py-0.5">{t.badge}</span>}
+          </button>
         ))}
+        {/* Stats in tab bar */}
+        <div className="ml-auto flex items-center gap-5 pr-2">
+          {[
+            { label: 'New', count: newOrders.length, color: newOrders.length > 0 ? 'text-red-400' : 'text-gray-600' },
+            { label: 'Active', count: received.length + preparing.length, color: 'text-amber-400' },
+            { label: 'Done', count: readyOrders.length, color: 'text-emerald-400' },
+          ].map(s => (
+            <div key={s.label} className="flex items-center gap-1.5">
+              <span className={`text-[18px] font-black ${s.color}`}>{s.count}</span>
+              <span className="text-[10px] text-gray-600 uppercase font-bold">{s.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3">
-        <h2 className="text-[14px] font-bold text-gray-500 uppercase tracking-wider mt-2">Active Orders</h2>
-        {active.length === 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 text-center shadow-sm">
-            <Bell size={28} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-[13px] text-gray-500">No active orders right now.</p>
-          </div>
-        )}
-        {active.map(req => (
-          <div key={req.id} className="bg-white rounded-xl border border-gray-200 p-5 flex items-start justify-between gap-4 shadow-sm">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`w-2 h-2 rounded-full ${req.status === 'pending' ? 'bg-amber-400' : req.status === 'in-progress' ? 'bg-blue-400' : 'bg-emerald-400'}`} />
-                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{req.type}</span>
-                <span className="text-[11px] text-gray-400">• {new Date(req.created_at).toLocaleString()}</span>
-              </div>
-              <p className="text-[14px] font-bold text-gray-900 mb-0.5">{req.guest_name} — Room {req.room}</p>
-              <p className="text-[13px] text-gray-600 whitespace-pre-wrap">{req.details}</p>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              {req.status === 'pending' && (
-                <button onClick={() => { updateRequestStatus(req.id, 'in-progress'); reload(); }}
-                  className="px-3 py-1.5 rounded-lg text-[11px] font-bold"
-                  style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
-                  Start Cooking
-                </button>
-              )}
-              {req.status === 'in-progress' && (
-                <button onClick={() => { updateRequestStatus(req.id, 'completed'); reload(); }}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-bold">
-                  Ready for Pickup
-                </button>
-              )}
-              {req.status === 'completed' && (
-                <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-[11px] font-bold">Done</span>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {completed.length > 0 && (
-          <>
-            <h2 className="text-[14px] font-bold text-gray-500 uppercase tracking-wider mt-6">Completed</h2>
-            {completed.slice(0, 10).map(req => (
-              <div key={req.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-start justify-between gap-4 shadow-sm opacity-60">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <span className="text-[11px] text-gray-400">• {new Date(req.created_at).toLocaleString()}</span>
-                  </div>
-                  <p className="text-[13px] font-semibold text-gray-500">{req.guest_name} — Room {req.room}</p>
-                  <p className="text-[12px] text-gray-400 truncate">{req.details}</p>
+      {/* Orders tab — 4-column Kanban */}
+      {activeTab === 'orders' && (
+        <div className="flex-1 overflow-hidden grid grid-cols-4 gap-0 divide-x divide-gray-800">
+          {kanbanCols.map(col => {
+            const colLabel = profile.steps[col.status].label;
+            return (
+              <div key={col.status} className="flex flex-col min-h-0">
+                <div className={`shrink-0 px-4 py-3 border-b border-gray-800 ${col.items.length > 0 && col.status === 'new' ? 'bg-red-950/40' : 'bg-gray-900'}`}>
+                  <h2 className="text-[13px] font-black tracking-wide">{col.emoji} {colLabel}</h2>
+                  <p className="text-[11px] text-gray-500">{col.items.length} {profile.requestWord}{col.items.length !== 1 ? 's' : ''}</p>
                 </div>
-                <span className="text-[11px] text-gray-400 shrink-0">Completed</span>
+                <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-950">
+                  {col.items.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 opacity-30">
+                      <Package size={32} className="mb-2" />
+                      <p className="text-[12px]">Empty</p>
+                    </div>
+                  )}
+                  {col.items.map(order => (
+                    <OrderCard key={order.id} order={order} profile={profile} onAdvance={handleAdvance} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Menu & Pricing tab */}
+      {activeTab === 'menu' && (
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-[18px] font-black mb-1">Menu &amp; Pricing</h2>
+            <p className="text-[13px] text-gray-500 mb-6">Items visible to guests when ordering from you. Managed by hotel admin.</p>
+            {menuItems.length === 0 ? (
+              <div className="bg-gray-900 rounded-2xl p-10 text-center border border-gray-800">
+                <Package size={36} className="text-gray-600 mx-auto mb-3" />
+                <p className="text-gray-400 font-semibold">No menu items yet</p>
+                <p className="text-[12px] text-gray-600 mt-1">Contact the hotel to add your services or menu items.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {menuItems.map(item => (
+                  <div key={item.id} className="bg-gray-900 rounded-2xl border border-gray-800 p-5 flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-bold text-white">{item.name}</p>
+                      {item.description && <p className="text-[12px] text-gray-400 mt-0.5">{item.description}</p>}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-[18px] font-black text-emerald-400">${Number(item.price).toFixed(2)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Business Info tab */}
+      {activeTab === 'info' && (
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-2xl mx-auto space-y-4">
+            <h2 className="text-[18px] font-black mb-1">Business Info</h2>
+            <p className="text-[13px] text-gray-500 mb-6">Your profile as guests see it. Contact hotel admin to update.</p>
+            {([
+              { label: 'Business Name',  value: partnerData?.name as string },
+              { label: 'Category',       value: partnerData?.category as string },
+              { label: 'Phone',          value: partnerData?.phone as string },
+              { label: 'Email',          value: partnerData?.email as string },
+              { label: 'Address',        value: partnerData?.address as string },
+              { label: 'Hours',          value: partnerData?.hours as string },
+              { label: 'Description',    value: partnerData?.description as string },
+              { label: 'Attenda Fee',    value: partnerData?.attenda_fee_percent ? `${partnerData.attenda_fee_percent}%` : '10%' },
+            ] as { label: string; value: string }[]).filter(r => r.value).map(row => (
+              <div key={row.label} className="bg-gray-900 rounded-xl border border-gray-800 px-5 py-4 flex gap-4">
+                <p className="text-[12px] text-gray-500 uppercase font-bold w-32 shrink-0 pt-0.5">{row.label}</p>
+                <p className="text-[14px] text-white font-medium flex-1 capitalize">{row.value}</p>
               </div>
             ))}
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

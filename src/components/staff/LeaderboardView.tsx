@@ -2,7 +2,7 @@
 /* eslint-disable */
 
 import { useState, useEffect } from 'react';
-import { Trophy, Star, Gift, Crown, Plus, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Trophy, Star, Gift, Settings, Crown, Plus, ToggleLeft, ToggleRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 type Period = 'week' | 'month' | 'all';
@@ -32,7 +32,8 @@ function getPeriodStart(period: Period): string | null {
   if (period === 'all') return null;
   const now = new Date();
   if (period === 'week') {
-    const day = now.getDay();
+    // Monday 00:00
+    const day = now.getDay(); // 0=Sun
     const diff = (day === 0 ? -6 : 1 - day);
     const monday = new Date(now);
     monday.setDate(now.getDate() + diff);
@@ -48,6 +49,9 @@ function getPeriodStart(period: Period): string | null {
 function initials(name: string) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
+
+const MEDAL_COLORS = ['#F59E0B', '#9CA3AF', '#B45309'];
+const MEDAL_LABELS = ['Gold', 'Silver', 'Bronze'];
 
 export default function LeaderboardView({
   hotelId,
@@ -97,6 +101,7 @@ export default function LeaderboardView({
     if (periodStart) query = query.gte('created_at', periodStart);
 
     const { data } = await query;
+    // Group by staff_name
     const map = new Map<string, number>();
     for (const row of data || []) {
       map.set(row.staff_name, (map.get(row.staff_name) || 0) + (row.points || 0));
@@ -195,6 +200,7 @@ export default function LeaderboardView({
   const myRank = myEntry ? entries.indexOf(myEntry) + 1 : null;
   const myPoints = myEntry?.total || 0;
 
+  // For "Your Stats" progress bar: find next incentive threshold
   const activeIncentives = incentives.filter(i => i.is_active);
   const nextIncentive = activeIncentives.find(i => i.points_required > myPoints);
   const progressPct = nextIncentive
@@ -202,6 +208,11 @@ export default function LeaderboardView({
     : 100;
 
   const top3 = entries.slice(0, 3);
+  const restEntries = entries.slice(3);
+
+  // Podium order: 2nd, 1st, 3rd
+  const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
+  const podiumSizes = top3[1] ? [80, 100, 80] : [100, 80, 80];
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto">

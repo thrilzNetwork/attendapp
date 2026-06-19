@@ -1,21 +1,20 @@
 'use client';
 /* eslint-disable */
 
-import { useState, useEffect, useMemo } from 'react';
-import { Download, Check, ChevronDown, ChevronUp, Search, Zap, ClipboardList, Star, Users } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Store, Download, Check, ChevronRight, Tag, Users, Sparkles } from 'lucide-react';
+import { authedApiHeaders } from '@/lib/supabase';
 
-const TEAL = '#0D9488';
-
-const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
-  'Operations':     { bg: '#FEF3C7', text: '#92400E' },
-  'Front Desk':     { bg: '#DBEAFE', text: '#1E40AF' },
-  'Housekeeping':   { bg: '#EDE9FE', text: '#5B21B6' },
-  'Food & Beverage':{ bg: '#D1FAE5', text: '#065F46' },
-  'Security':       { bg: '#FEE2E2', text: '#991B1B' },
-};
-
-function categoryStyle(cat: string) {
-  return CATEGORY_COLORS[cat] || { bg: '#F3F4F6', text: '#374151' };
+interface PackItem {
+  name?: string;
+  label?: string;
+  unit?: string;
+  target?: number;
+  frequency?: string;
+  why?: string;
+  category?: string;
+  item_type?: string;
+  required?: boolean;
 }
 
 interface Pack {
@@ -23,334 +22,227 @@ interface Pack {
   name: string;
   description: string;
   category: string;
+  tags: string[];
   author_name: string;
+  items: PackItem[];
   install_count: number;
-  items: any[];
-  department?: string;
-  shift?: string;
-  estimated_minutes?: number;
 }
 
-export default function MarketplaceView({
-  hotelId,
-  isAdmin,
-  staffName,
-}: {
-  hotelId: string;
-  isAdmin: boolean;
-  staffName?: string;
-}) {
+const CATEGORY_COLORS: Record<string, string> = {
+  parking:       'bg-blue-100 text-blue-700',
+  front_desk:    'bg-teal-100 text-teal-700',
+  housekeeping:  'bg-purple-100 text-purple-700',
+  'f&b':         'bg-orange-100 text-orange-700',
+  revenue:       'bg-emerald-100 text-emerald-700',
+  management:    'bg-gray-100 text-gray-700',
+};
+
+const CATEGORY_ICONS: Record<string, string> = {
+  parking:       '🅿️',
+  front_desk:    '🛎️',
+  housekeeping:  '🧹',
+  'f&b':         '🍽️',
+  revenue:       '💰',
+  management:    '📊',
+};
+
+export default function MarketplaceView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
   const [activeTab, setActiveTab] = useState<'kpi' | 'todo'>('kpi');
-  const [packs, setPacks] = useState<Pack[]>([]);
-  const [installedPackIds, setInstalledPackIds] = useState<Set<string>>(new Set());
+  const [kpiPacks, setKpiPacks] = useState<Pack[]>([]);
+  const [todoPacks, setTodoPacks] = useState<Pack[]>([]);
+  const [installedKpi, setInstalledKpi] = useState<Set<string>>(new Set());
+  const [installedTodo, setInstalledTodo] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [installing, setInstalling] = useState<string | null>(null);
-  const [justInstalled, setJustInstalled] = useState<Set<string>>(new Set());
-  const [expandedPacks, setExpandedPacks] = useState<Set<string>>(new Set());
-  const [search, setSearch] = useState('');
-  const [filterCategory, setFilterCategory] = useState('All');
+  const [expandedPack, setExpandedPack] = useState<string | null>(null);
 
-  async function load(tab: 'kpi' | 'todo') {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/marketplace?type=${tab}&hotelId=${hotelId}`);
-      const data = await res.json();
-      if (data.ok) {
-        setPacks(data.packs || []);
-        setInstalledPackIds(new Set(data.installedPackIds || []));
-      }
-    } finally {
-      setLoading(false);
+  const load = async (type: 'kpi' | 'todo') => {
+    if (!hotelId) return;
+    const res = await fetch(`/api/marketplace?type=${type}&hotelId=${hotelId}`);
+    const data = await res.json();
+    if (type === 'kpi') {
+      setKpiPacks(data.packs || []);
+      setInstalledKpi(new Set(data.installedPackIds || []));
+    } else {
+      setTodoPacks(data.packs || []);
+      setInstalledTodo(new Set(data.installedPackIds || []));
     }
-  }
+  };
 
-  useEffect(() => { load(activeTab); }, [activeTab, hotelId]);
+  useEffect(() => {
+    if (!hotelId) return;
+    setLoading(true);
+    Promise.all([load('kpi'), load('todo')]).finally(() => setLoading(false));
+  }, [hotelId]);
 
-  function switchTab(tab: 'kpi' | 'todo') {
-    setActiveTab(tab);
-    setSearch('');
-    setFilterCategory('All');
-    setExpandedPacks(new Set());
-  }
-
-  const categories = useMemo(() => {
-    const cats = Array.from(new Set(packs.map(p => p.category).filter(Boolean)));
-    return ['All', ...cats];
-  }, [packs]);
-
-  const filtered = useMemo(() => {
-    return packs.filter(p => {
-      const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.description?.toLowerCase().includes(search.toLowerCase());
-      const matchCat = filterCategory === 'All' || p.category === filterCategory;
-      return matchSearch && matchCat;
-    });
-  }, [packs, search, filterCategory]);
-
-  async function install(packId: string) {
+  const install = async (packId: string) => {
     if (!isAdmin) return;
     setInstalling(packId);
     try {
-      const action = activeTab === 'kpi' ? 'install_kpi_pack' : 'install_todo_pack';
       const res = await fetch('/api/marketplace', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '',
-        },
-        body: JSON.stringify({ action, packId, hotelId, installedBy: staffName }),
+        headers: await authedApiHeaders(),
+        body: JSON.stringify({
+          action: activeTab === 'kpi' ? 'install_kpi_pack' : 'install_todo_pack',
+          packId,
+          hotelId,
+        }),
       });
       const data = await res.json();
       if (data.ok) {
-        setInstalledPackIds(prev => new Set([...prev, packId]));
-        setJustInstalled(prev => new Set([...prev, packId]));
-        setTimeout(() => setJustInstalled(prev => { const s = new Set(prev); s.delete(packId); return s; }), 3000);
+        if (activeTab === 'kpi') setInstalledKpi(s => new Set([...s, packId]));
+        else setInstalledTodo(s => new Set([...s, packId]));
       }
     } finally {
       setInstalling(null);
     }
-  }
+  };
 
-  function toggleExpand(id: string) {
-    setExpandedPacks(prev => {
-      const s = new Set(prev);
-      s.has(id) ? s.delete(id) : s.add(id);
-      return s;
-    });
-  }
-
-  const isInstalled = (id: string) => installedPackIds.has(id);
+  const packs = activeTab === 'kpi' ? kpiPacks : todoPacks;
+  const installed = activeTab === 'kpi' ? installedKpi : installedTodo;
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', background: '#F9FAFB', minHeight: '100vh', paddingBottom: 80 }}>
+    <div className="p-4 md:p-6">
       {/* Header */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #E5E7EB', padding: '20px 16px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: TEAL, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Zap size={18} color="#fff" />
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 18, color: '#111827' }}>Marketplace</div>
-            <div style={{ fontSize: 12, color: '#6B7280' }}>Community best practices — one tap to install</div>
-          </div>
-        </div>
+      <div className="flex items-center gap-2 mb-1">
+        <Sparkles size={18} className="text-teal-600 shrink-0" />
+        <h1 className="text-[18px] font-extrabold text-gray-900">Marketplace</h1>
+      </div>
+      <p className="text-[12px] text-gray-400 mb-5">Install KPI packs and To-Do checklists from the Attenda community</p>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 0, marginTop: 16 }}>
-          {(['kpi', 'todo'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => switchTab(tab)}
-              style={{
-                flex: 1, padding: '10px 0', fontWeight: 600, fontSize: 14, border: 'none',
-                background: 'none', cursor: 'pointer', borderBottom: activeTab === tab ? `2px solid ${TEAL}` : '2px solid transparent',
-                color: activeTab === tab ? TEAL : '#6B7280', transition: 'all 0.15s',
-              }}
-            >
-              {tab === 'kpi' ? '📊 KPI Packs' : '✅ To-Do Packs'}
-            </button>
-          ))}
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-5 w-fit">
+        {(['kpi', 'todo'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setActiveTab(t)}
+            className={`px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
+              activeTab === t ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t === 'kpi' ? '📊 KPI Packs' : '✅ To-Do Packs'}
+          </button>
+        ))}
       </div>
 
-      <div style={{ padding: '16px' }}>
-        {/* Search */}
-        <div style={{ position: 'relative', marginBottom: 12 }}>
-          <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search packs..."
-            style={{
-              width: '100%', boxSizing: 'border-box', paddingLeft: 36, paddingRight: 12, height: 40,
-              border: '1px solid #E5E7EB', borderRadius: 10, fontSize: 14, background: '#fff', outline: 'none',
-            }}
-          />
+      {loading ? (
+        <div className="text-center py-16 text-gray-400 text-[13px]">Loading marketplace…</div>
+      ) : packs.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <Store size={32} className="mx-auto mb-3 text-gray-300" />
+          <p className="text-[13px]">No packs available yet</p>
         </div>
+      ) : (
+        <div className="space-y-3">
+          {packs.map(pack => {
+            const isInstalled = installed.has(pack.id);
+            const isExpanded = expandedPack === pack.id;
+            const catColor = CATEGORY_COLORS[pack.category] || 'bg-gray-100 text-gray-600';
+            const catIcon = CATEGORY_ICONS[pack.category] || '📦';
 
-        {/* Category chips */}
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, marginBottom: 16 }}>
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setFilterCategory(cat)}
-              style={{
-                whiteSpace: 'nowrap', padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                border: 'none', cursor: 'pointer',
-                background: filterCategory === cat ? TEAL : '#F3F4F6',
-                color: filterCategory === cat ? '#fff' : '#374151',
-              }}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {/* Pack count */}
-        {!loading && (
-          <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
-            {filtered.length} pack{filtered.length !== 1 ? 's' : ''} available
-          </div>
-        )}
-
-        {/* Loading skeletons */}
-        {loading && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {[1,2,3].map(i => (
-              <div key={i} style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E5E7EB' }}>
-                <div style={{ height: 16, background: '#F3F4F6', borderRadius: 8, width: '60%', marginBottom: 8 }} />
-                <div style={{ height: 12, background: '#F3F4F6', borderRadius: 6, width: '40%', marginBottom: 12 }} />
-                <div style={{ height: 12, background: '#F3F4F6', borderRadius: 6, width: '90%', marginBottom: 6 }} />
-                <div style={{ height: 12, background: '#F3F4F6', borderRadius: 6, width: '75%' }} />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Pack cards */}
-        {!loading && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {filtered.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9CA3AF' }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
-                <div style={{ fontWeight: 600 }}>No packs found</div>
-                <div style={{ fontSize: 13 }}>Try a different search or category</div>
-              </div>
-            )}
-            {filtered.map(pack => {
-              const installed = isInstalled(pack.id);
-              const expanded = expandedPacks.has(pack.id);
-              const catStyle = categoryStyle(pack.category);
-              const items: any[] = pack.items || [];
-              const previewItems = expanded ? items : items.slice(0, 3);
-
-              return (
+            return (
+              <div key={pack.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                {/* Card header */}
                 <div
-                  key={pack.id}
-                  style={{
-                    background: '#fff', borderRadius: 16, border: installed ? `1.5px solid ${TEAL}` : '1px solid #E5E7EB',
-                    overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                    transition: 'box-shadow 0.2s',
-                  }}
+                  className="p-4 cursor-pointer"
+                  onClick={() => setExpandedPack(isExpanded ? null : pack.id)}
                 >
-                  <div style={{ padding: '18px 18px 14px' }}>
-                    {/* Pack header */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                          <span style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>{pack.name}</span>
-                          <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: catStyle.bg, color: catStyle.text }}>
-                            {pack.category}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-[15px]">{catIcon}</span>
+                        <h3 className="text-[14px] font-bold text-gray-900">{pack.name}</h3>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${catColor}`}>
+                          {pack.category}
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-gray-500 leading-relaxed">{pack.description}</p>
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                          <Users size={11} /> {pack.install_count || 0} hotels
+                        </span>
+                        <span className="text-[11px] text-gray-400">{pack.items?.length || 0} items</span>
+                        {pack.tags?.slice(0, 2).map(tag => (
+                          <span key={tag} className="flex items-center gap-0.5 text-[10px] text-gray-400">
+                            <Tag size={9} /> {tag}
                           </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: '#6B7280' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <Star size={11} fill="#F59E0B" color="#F59E0B" />
-                            {pack.author_name}
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <Users size={11} />
-                            {pack.install_count || 0} hotel{pack.install_count !== 1 ? 's' : ''}
-                          </span>
-                          {activeTab === 'todo' && pack.estimated_minutes && (
-                            <span>~{pack.estimated_minutes} min</span>
-                          )}
-                        </div>
+                        ))}
                       </div>
                     </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isAdmin && (
+                        <button
+                          onClick={e => { e.stopPropagation(); if (!isInstalled) install(pack.id); }}
+                          disabled={isInstalled || installing === pack.id}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
+                            isInstalled
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-teal-600 hover:bg-teal-700 text-white'
+                          } disabled:opacity-60`}
+                        >
+                          {isInstalled ? (
+                            <><Check size={12} /> Installed</>
+                          ) : installing === pack.id ? (
+                            '…'
+                          ) : (
+                            <><Download size={12} /> Install</>
+                          )}
+                        </button>
+                      )}
+                      {!isAdmin && isInstalled && (
+                        <span className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold">
+                          <Check size={11} /> Installed
+                        </span>
+                      )}
+                      <ChevronRight
+                        size={14}
+                        className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-                    {pack.description && (
-                      <p style={{ fontSize: 13, color: '#4B5563', margin: '0 0 14px', lineHeight: 1.5 }}>
-                        {pack.description}
-                      </p>
-                    )}
-
-                    {/* Items preview */}
-                    <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '10px 12px', marginBottom: 14 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-                        {activeTab === 'kpi' ? 'KPIs included' : 'Checklist items'} · {items.length} total
-                      </div>
-                      {previewItems.map((item: any, idx: number) => (
-                        <div key={idx} style={{ marginBottom: idx < previewItems.length - 1 ? 10 : 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: TEAL, flexShrink: 0 }} />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
-                              {activeTab === 'kpi' ? item.name : item.label}
+                {/* Expanded items */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100 bg-gray-50/50 px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+                      {activeTab === 'kpi' ? 'Included KPIs' : 'Checklist Items'}
+                    </p>
+                    <div className="space-y-2">
+                      {(pack.items || []).map((item, i) => (
+                        <div key={i} className="bg-white border border-gray-100 rounded-lg px-3 py-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[12px] font-semibold text-gray-800">
+                              {item.name || item.label}
                             </span>
-                            {activeTab === 'kpi' && (
-                              <span style={{ fontSize: 11, color: '#6B7280', background: '#E5E7EB', padding: '1px 6px', borderRadius: 10 }}>
-                                {item.unit} · target {item.target}
+                            {activeTab === 'kpi' && item.unit && (
+                              <span className="text-[10px] text-gray-400 shrink-0">
+                                Target: <strong>{item.unit === '$' ? `$${item.target}` : `${item.target}${item.unit}`}</strong> / {item.frequency}
+                              </span>
+                            )}
+                            {activeTab === 'todo' && item.item_type && (
+                              <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">
+                                {item.item_type}
                               </span>
                             )}
                           </div>
                           {item.why && (
-                            <p style={{ margin: '3px 0 0 14px', fontSize: 12, color: '#0D9488', fontStyle: 'italic', lineHeight: 1.4 }}>
-                              {item.why}
-                            </p>
+                            <p className="text-[11px] text-gray-400 mt-1 leading-relaxed italic">{item.why}</p>
                           )}
                         </div>
                       ))}
-                      {items.length > 3 && (
-                        <button
-                          onClick={() => toggleExpand(pack.id)}
-                          style={{
-                            marginTop: 10, background: 'none', border: 'none', cursor: 'pointer',
-                            fontSize: 12, color: TEAL, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, padding: 0,
-                          }}
-                        >
-                          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                          {expanded ? 'Show less' : `Show all ${items.length} items`}
-                        </button>
-                      )}
                     </div>
-
-                    {/* Install button */}
-                    {isAdmin ? (
-                      <button
-                        onClick={() => !installed && install(pack.id)}
-                        disabled={installing === pack.id || installed}
-                        style={{
-                          width: '100%', padding: '11px 0', borderRadius: 10, border: 'none', cursor: installed ? 'default' : 'pointer',
-                          fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                          background: installed ? '#D1FAE5' : TEAL,
-                          color: installed ? '#065F46' : '#fff',
-                          opacity: installing === pack.id ? 0.7 : 1,
-                          transition: 'all 0.2s',
-                        }}
-                      >
-                        {installing === pack.id ? (
-                          <span>Installing…</span>
-                        ) : installed ? (
-                          <><Check size={16} /> {justInstalled.has(pack.id) ? 'Installed!' : 'Installed'}</>
-                        ) : (
-                          <><Download size={16} /> Install Pack</>
-                        )}
-                      </button>
-                    ) : (
-                      <div style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', padding: '8px 0' }}>
-                        Admin access required to install
-                      </div>
-                    )}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-        {/* Community callout */}
-        {!loading && (
-          <div style={{
-            marginTop: 24, background: 'linear-gradient(135deg, #0D9488 0%, #0891B2 100%)',
-            borderRadius: 16, padding: '20px', textAlign: 'center', color: '#fff',
-          }}>
-            <div style={{ fontSize: 24, marginBottom: 8 }}>🌍</div>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Built by the community</div>
-            <div style={{ fontSize: 13, opacity: 0.85 }}>
-              More packs added every week. Install what fits your operation, skip what doesn't.
-            </div>
-          </div>
-        )}
-      </div>
+      {!isAdmin && (
+        <p className="text-center text-[11px] text-gray-400 mt-6">Ask your admin to install packs for your property</p>
+      )}
     </div>
   );
 }

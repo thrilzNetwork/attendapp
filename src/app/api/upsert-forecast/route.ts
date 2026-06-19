@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
-import { getCaller, resolveHotelScope } from '@/lib/supabase-admin';
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bdmmstatrsenidlgjock.supabase.co';
-
-function getServiceClient() {
-  const key = process.env.SUPABASE_SERVICE_KEY;
-  if (!key) throw new Error('SUPABASE_SERVICE_KEY is not configured');
-  return createClient(SUPABASE_URL, key);
-}
+import { getCaller, resolveHotelScope, getSupabaseAdmin } from '@/lib/supabase-admin';
 
 interface ForecastRow {
   hotel_id: string;
@@ -46,36 +37,41 @@ export async function POST(req: NextRequest) {
 
     // Lock every row to the caller's own hotel — never trust client hotel_id.
     const scopedHotelId = resolveHotelScope(caller, forecasts[0]?.hotel_id);
-    if (!scopedHotelId) {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!scopedHotelId || !UUID_RE.test(scopedHotelId)) {
       return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
     }
 
-    const db = getServiceClient();
-    const now = new Date().toISOString();
+    const db = getSupabaseAdmin();
+    const results: { date: string; ok: boolean }[] = [];
 
-    const rows = forecasts.map((f) => ({
-      hotel_id: scopedHotelId,
-      week_start: f.week_start,
-      date: f.date,
-      occupancy_pct: f.occupancy_pct,
-      arrivals: f.arrivals,
-      rooms_occupied: f.rooms_occupied,
-      departures: f.departures,
-      total_rooms: f.total_rooms,
-      prev_night_occ: f.prev_night_occ,
-      updated_at: now,
-    }));
+    for (const f of forecasts) {
+      const { error } = await db
+        .from('weekly_forecasts')
+        .upsert(
+          {
+            hotel_id: scopedHotelId,
+            week_start: f.week_start,
+            date: f.date,
+            occupancy_pct: f.occupancy_pct,
+            arrivals: f.arrivals,
+            rooms_occupied: f.rooms_occupied,
+            departures: f.departures,
+            total_rooms: f.total_rooms,
+            prev_night_occ: f.prev_night_occ,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'hotel_id,date' }
+        );
 
-    const { error } = await db
-      .from('weekly_forecasts')
-      .upsert(rows, { onConflict: 'hotel_id,date' });
-
-    if (error) {
-      console.error('Forecast batch upsert error:', error.message);
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      results.push({ date: f.date, ok: !error });
+      if (error) {
+        console.error(`Forecast upsert error for ${f.date}:`, error.message);
+      }
     }
 
-    return NextResponse.json({ ok: true });
+    const allOk = results.every((r) => r.ok);
+    return NextResponse.json({ ok: allOk, results });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Server error';
     console.error('upsert-forecast error:', msg);

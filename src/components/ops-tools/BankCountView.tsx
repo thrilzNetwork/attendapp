@@ -6,7 +6,7 @@ import { getBankCounts, createBankCount, type BankCount } from '@/lib/supabase';
 const TEAL = '#0D9488';
 
 export default function BankCountView({ hotelId }: { hotelId: string }) {
-  const today = new Date().toISOString().split('T')[0];
+  const _d = new Date(); const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
   const [counts, setCounts] = useState<BankCount[]>([]);
   const [date, setDate] = useState(today);
   const [form, setForm] = useState({ shift: 'AM', counted_by: '', cash_total: 0, card_total: 0, room_charges: 0, discrepancies: '', notes: '' });
