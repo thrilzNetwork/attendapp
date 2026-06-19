@@ -987,91 +987,72 @@ export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [
                 </div>
               </div>
             ) : (
-              <div className="p-5 space-y-5">
-                {/* Arrival / Departure toggle */}
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Trip Type</p>
-                  <div className="flex gap-2 bg-gray-100 p-1 rounded-full">
-                    {(['arrival', 'departure'] as const).map(t => (
-                      <button key={t} onClick={() => { setDispatchType(t); setDispatchForm(f => ({ ...f, pickup_location: '', destination: '' })); }}
-                        className={`flex-1 py-2 rounded-full text-[13px] font-bold transition-all ${dispatchType === t ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                        {t === 'arrival' ? '✈️ Arrival' : '🚗 Departure'}
-                      </button>
-                    ))}
-                  </div>
+              <div className="px-4 py-3 space-y-3">
+                {/* Trip type + Guest on same row feel — type toggle compact */}
+                <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg">
+                  {(['arrival', 'departure'] as const).map(t => (
+                    <button key={t} onClick={() => { setDispatchType(t); setDispatchForm(f => ({ ...f, pickup_location: '', destination: '' })); }}
+                      className={`flex-1 py-1.5 rounded-md text-[12px] font-bold transition-all ${dispatchType === t ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
+                      {t === 'arrival' ? '✈️ Arrival → Hotel' : '🚗 Hotel → Out'}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Guest info */}
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Guest</p>
-                  <div className="flex gap-2">
-                    <input value={dispatchForm.guest_name} onChange={e => setDispatchForm(f => ({ ...f, guest_name: e.target.value }))}
-                      placeholder="Guest name" className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
-                    <input value={dispatchForm.room_number} onChange={e => setDispatchForm(f => ({ ...f, room_number: e.target.value }))}
-                      placeholder="Room #" className="w-24 bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 text-center focus:outline-none focus:border-teal-300" />
-                  </div>
-                </div>
-
-                {/* Party size */}
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Party Size</p>
-                  <div className="flex items-center justify-center gap-5">
+                {/* Guest + Room + Pax in one row */}
+                <div className="flex gap-2">
+                  <input value={dispatchForm.guest_name} onChange={e => setDispatchForm(f => ({ ...f, guest_name: e.target.value }))}
+                    placeholder="Guest name" className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
+                  <input value={dispatchForm.room_number} onChange={e => setDispatchForm(f => ({ ...f, room_number: e.target.value }))}
+                    placeholder="Rm" className="w-16 bg-gray-50 rounded-lg px-2 py-2 text-[13px] border border-gray-100 text-center focus:outline-none focus:border-teal-300" />
+                  <div className="flex items-center gap-1 bg-gray-50 border border-gray-100 rounded-lg px-2">
                     <button onClick={() => setDispatchForm(f => ({ ...f, pax: Math.max(1, f.pax - 1) }))}
-                      className="w-12 h-12 rounded-full bg-gray-100 text-gray-700 text-[22px] font-bold flex items-center justify-center hover:bg-gray-200 active:scale-95 transition-all">−</button>
-                    <span className="text-[32px] font-extrabold text-gray-900 w-12 text-center tabular-nums">{dispatchForm.pax}</span>
+                      className="w-6 h-6 rounded text-gray-500 text-[16px] font-bold flex items-center justify-center hover:bg-gray-200">−</button>
+                    <span className="text-[13px] font-bold text-gray-900 w-5 text-center">{dispatchForm.pax}</span>
                     <button onClick={() => setDispatchForm(f => ({ ...f, pax: f.pax + 1 }))}
-                      className="w-12 h-12 rounded-full flex items-center justify-center text-white text-[22px] font-bold hover:opacity-90 active:scale-95 transition-all" style={{ backgroundColor: TEAL }}>+</button>
+                      className="w-6 h-6 rounded text-white text-[16px] font-bold flex items-center justify-center" style={{ backgroundColor: TEAL }}>+</button>
                   </div>
                 </div>
 
-                {/* Pickup location */}
+                {/* Pickup location chips */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                    {dispatchType === 'arrival' ? 'Pickup Location' : 'Dropoff'}
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                    {dispatchType === 'arrival' ? 'Pickup' : 'Dropoff'}
                   </p>
-                  {dispatchType === 'arrival' ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {ARRIVAL_PICKUPS.map(loc => (
-                        <button key={loc} onClick={() => setDispatchForm(f => ({ ...f, pickup_location: loc }))}
-                          className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all ${dispatchForm.pickup_location === loc ? 'border-teal-500 bg-teal-500 text-white shadow-sm' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(dispatchType === 'arrival' ? ARRIVAL_PICKUPS : DEPARTURE_DROPOFFS).map(loc => {
+                      const active = dispatchType === 'arrival' ? dispatchForm.pickup_location === loc : dispatchForm.destination === loc;
+                      return (
+                        <button key={loc} onClick={() => setDispatchForm(f => dispatchType === 'arrival' ? { ...f, pickup_location: loc } : { ...f, destination: loc })}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${active ? 'border-teal-500 bg-teal-500 text-white' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
                           {loc}
                         </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                      {DEPARTURE_DROPOFFS.map(loc => (
-                        <button key={loc} onClick={() => setDispatchForm(f => ({ ...f, destination: loc }))}
-                          className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all ${dispatchForm.destination === loc ? 'border-teal-500 bg-teal-500 text-white shadow-sm' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
-                          {loc}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                      );
+                    })}
+                  </div>
                 </div>
 
-                {/* Time */}
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Requested Time</p>
-                  <input type="time" value={dispatchForm.time} onChange={e => setDispatchForm(f => ({ ...f, time: e.target.value }))}
-                    className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
+                {/* Time + Notes side by side */}
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Time</p>
+                    <input type="time" value={dispatchForm.time} onChange={e => setDispatchForm(f => ({ ...f, time: e.target.value }))}
+                      className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Flight / Notes</p>
+                    <input value={dispatchForm.notes} onChange={e => setDispatchForm(f => ({ ...f, notes: e.target.value }))}
+                      placeholder="AA123, notes…" className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
+                  </div>
                 </div>
 
-                {/* Flight/notes */}
+                {/* Assign To */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Flight / Notes</p>
-                  <input value={dispatchForm.notes} onChange={e => setDispatchForm(f => ({ ...f, notes: e.target.value }))}
-                    placeholder="e.g. AA123, special needs… (optional)" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
-                </div>
-
-                {/* Assign */}
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Assign To</p>
-                  <div className="flex gap-2 bg-gray-100 p-1 rounded-full mb-3">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Assign To</p>
+                  <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg mb-2">
                     {(['inhouse', 'uber'] as const).map(m => (
                       <button key={m} onClick={() => setAssignMode(m)}
-                        className={`flex-1 py-2 rounded-full text-[13px] font-bold transition-all ${assignMode === m ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                        {m === 'inhouse' ? '👤 In-House' : '🚗 Uber'}
+                        className={`flex-1 py-1.5 rounded-md text-[12px] font-bold transition-all ${assignMode === m ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
+                        {m === 'inhouse' ? '👤 In-House Driver' : '🚗 Send Uber'}
                       </button>
                     ))}
                   </div>
