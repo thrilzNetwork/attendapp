@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
@@ -24,9 +25,8 @@ export async function POST(req: NextRequest) {
   const db = getSupabaseAdmin();
 
   if (event.type === 'payment_intent.succeeded') {
-    const intent = event.data.object as any;
+    const intent = event.data.object as Stripe.PaymentIntent;
     const requestId = intent.metadata?.request_id;
-    const partnerPlatformFee = parseInt(intent.metadata?.platform_fee_cents || '0');
     const vendorPayout = parseInt(intent.metadata?.vendor_payout_cents || '0');
     const partnerId = intent.metadata?.partner_id;
 
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.type === 'payment_intent.payment_failed') {
-    const intent = event.data.object as any;
+    const intent = event.data.object as Stripe.PaymentIntent;
     const requestId = intent.metadata?.request_id;
     if (requestId) {
       await db.from('requests').update({ stripe_payment_status: 'failed' }).eq('stripe_payment_intent_id', intent.id);

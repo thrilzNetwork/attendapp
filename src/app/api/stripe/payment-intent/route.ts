@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAllowedOrigin, originBlocked } from '@/lib/api-auth';
+import Stripe from 'stripe';
 import { getStripe, computeFees } from '@/lib/stripe';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     const stripe = getStripe();
 
-    const intentParams: any = {
+    const intentParams: Stripe.PaymentIntentCreateParams = {
       amount: amountCents,
       currency: 'usd',
       description,

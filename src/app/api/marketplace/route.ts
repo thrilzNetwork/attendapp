@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
         .from(installTable)
         .select('pack_id')
         .eq('hotel_id', hotelId);
-      installedPackIds = (installs || []).map((r: any) => r.pack_id);
+      installedPackIds = (installs || []).map((r: { pack_id: string }) => r.pack_id);
     }
 
     return NextResponse.json({ ok: true, packs: packs || [], installedPackIds });
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
         .single();
       if (packErr || !pack) return NextResponse.json({ ok: false, error: 'Pack not found' }, { status: 404 });
 
-      const items: any[] = Array.isArray(pack.items) ? pack.items : JSON.parse(pack.items || '[]');
+      const items = (Array.isArray(pack.items) ? pack.items : JSON.parse(pack.items || '[]')) as { name?: string; unit?: string; target?: number; frequency?: string; category?: string; why?: string }[];
 
       // Fetch existing KPI definition names to avoid duplicates
       const { data: existing } = await db
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
         .eq('status', 'active');
 
       const existingNames = new Set(
-        (existing || []).map((r: any) => {
+        (existing || []).map((r: { details: unknown }) => {
           const d = typeof r.details === 'string' ? JSON.parse(r.details) : r.details;
           return (d?.kpi_name || '').toLowerCase();
         })
@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (template) {
-          const items: any[] = Array.isArray(pack.items) ? pack.items : JSON.parse(pack.items || '[]');
+          const items = (Array.isArray(pack.items) ? pack.items : JSON.parse(pack.items || '[]')) as { label?: string; item_type?: string; required?: boolean; sort_order?: number; config?: Record<string, unknown> }[];
           for (const item of items) {
             await db.from('position_todo_items').insert({
               template_id: template.id,
