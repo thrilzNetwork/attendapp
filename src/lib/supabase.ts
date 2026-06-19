@@ -1403,7 +1403,7 @@ export async function getStaffSchedulesRange(hotelId: string, from: string, to: 
 
 export async function createStaffSchedule(schedule: {
   hotel_id: string; staff_id?: string; staff_name: string;
-  shift_date: string; start_time: string; end_time: string;
+  shift_date: string; start_time: string; end_time?: string;
   role?: string; notes?: string; created_by?: string;
 }) {
   const res = await fetch('/api/ops-data', {
@@ -1424,6 +1424,16 @@ export async function deleteStaffSchedule(id: string) {
   });
   const json = await res.json();
   if (!json.ok) throw new Error(json.error || 'Failed to delete schedule');
+}
+
+export async function updateStaffSchedule(id: string, patch: { end_time?: string }) {
+  const res = await fetch('/api/ops-data', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'update_schedule', scheduleId: id, patch }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Failed to update schedule');
 }
 
 // ─── Daily Recap ────────────────────────────────────────────

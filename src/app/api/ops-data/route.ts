@@ -160,6 +160,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    if (action === 'update_schedule') {
+      if (!body.scheduleId || !body.patch) {
+        return NextResponse.json({ ok: false, error: 'scheduleId and patch required.' }, { status: 400 });
+      }
+      if (!(await callerOwnsRow(caller, 'staff_schedules', body.scheduleId))) {
+        return NextResponse.json({ ok: false, error: 'Forbidden.' }, { status: 403 });
+      }
+      const allowedKeys = ['end_time'];
+      const safePatch = Object.fromEntries(
+        Object.entries(body.patch as Record<string, unknown>).filter(([k]) => allowedKeys.includes(k))
+      );
+      const { error } = await supabaseAdmin
+        .from('staff_schedules')
+        .update(safePatch)
+        .eq('id', body.scheduleId);
+      if (error) throw new Error(error.message || JSON.stringify(error));
+      return NextResponse.json({ ok: true });
+    }
+
     return NextResponse.json({ ok: false, error: 'Unknown action.' }, { status: 400 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Ops data error';

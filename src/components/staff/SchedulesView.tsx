@@ -5,7 +5,7 @@ import {
   Plus, CalendarDays, X as XIcon, ArrowRight, ArrowLeft, SendHorizontal, CheckCircle2,
 } from 'lucide-react';
 import {
-  getStaffSchedulesRange, createStaffSchedule, deleteStaffSchedule,
+  getStaffSchedulesRange, createStaffSchedule, deleteStaffSchedule, updateStaffSchedule,
   getWeeklyForecasts,
   type StaffSchedule, type WeeklyForecast, type StaffAccount,
 } from '@/lib/supabase';
@@ -81,7 +81,9 @@ export default function SchedulesView({
   const [addForm, setAddForm] = useState({
     staff_id: '', staff_name: '', shift_date: today(),
     start_time: '07:00', end_time: '15:00', role: 'staff', notes: '',
+    end_time_open: false,
   });
+  const [endTimeEdit, setEndTimeEdit] = useState<{ id: string; value: string } | null>(null);
 
   const [reqForm, setReqForm] = useState({
     shift_date: today(),
@@ -116,7 +118,7 @@ export default function SchedulesView({
         staff_id: addForm.staff_id || undefined,
         shift_date: addForm.shift_date,
         start_time: addForm.start_time,
-        end_time: addForm.end_time,
+        end_time: addForm.end_time_open ? undefined : addForm.end_time,
         role: addForm.role,
         notes: addForm.notes || undefined,
       });
@@ -133,7 +135,7 @@ export default function SchedulesView({
         }
       }
       setShowAdd(false);
-      setAddForm({ staff_id: '', staff_name: '', shift_date: today(), start_time: '07:00', end_time: '15:00', role: 'staff', notes: '' });
+      setAddForm({ staff_id: '', staff_name: '', shift_date: today(), start_time: '07:00', end_time: '15:00', role: 'staff', notes: '', end_time_open: false });
       await load();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save shift';
@@ -428,18 +430,45 @@ export default function SchedulesView({
                   dayStaff.filter(s => s.shift).map(({ name, shift }) => {
                     const s = shift!;
                     const dept = staffDept(name) || 'unassigned';
-                    const color = shiftColor(dept);
+                    const isTbd = !s.end_time;
+                    const color = isTbd
+                      ? 'bg-amber-50 border-amber-300 text-amber-900'
+                      : shiftColor(dept);
                     return (
                       <div
                         key={s.id}
                         className={`rounded-lg border px-2 py-1.5 text-[10px] leading-tight mb-1 ${color} ${isAdmin ? 'cursor-pointer hover:opacity-80' : ''}`}
-                        onClick={() => isAdmin && handleDelete(s.id)}
-                        title={isAdmin ? 'Click to remove' : ''}
+                        onClick={() => isAdmin && !isTbd && handleDelete(s.id)}
+                        title={isAdmin && !isTbd ? 'Click to remove' : ''}
                       >
                         <p className="font-bold truncate">{name}</p>
-                        <p className="text-[9px] opacity-80">
-                          {formatTime24to12(s.start_time)}–{formatTime24to12(s.end_time)}
-                        </p>
+                        {isTbd && isAdmin ? (
+                          endTimeEdit?.id === s.id ? (
+                            <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+                              <input type="time" value={endTimeEdit.value}
+                                onChange={e => setEndTimeEdit({ id: s.id, value: e.target.value })}
+                                className="flex-1 bg-white rounded px-1 py-0.5 text-[9px] border border-amber-300 outline-none" />
+                              <button
+                                onClick={async () => {
+                                  if (!endTimeEdit.value) return;
+                                  await updateStaffSchedule(s.id, { end_time: endTimeEdit.value });
+                                  setEndTimeEdit(null);
+                                  await load();
+                                }}
+                                className="bg-amber-500 text-white rounded px-1.5 py-0.5 text-[8px] font-bold">Set</button>
+                              <button onClick={() => setEndTimeEdit(null)} className="text-amber-400 text-[8px]">✕</button>
+                            </div>
+                          ) : (
+                            <p className="text-[9px] text-amber-600 font-semibold mt-0.5"
+                              onClick={e => { e.stopPropagation(); setEndTimeEdit({ id: s.id, value: '' }); }}>
+                              {formatTime24to12(s.start_time)} → <span className="underline decoration-dashed">Set end ▸</span>
+                            </p>
+                          )
+                        ) : (
+                          <p className="text-[9px] opacity-80">
+                            {formatTime24to12(s.start_time)}{s.end_time ? `–${formatTime24to12(s.end_time)}` : ' → TBD'}
+                          </p>
+                        )}
                         {s.notes && (
                           <p className="text-[8px] opacity-60 truncate">{s.notes}</p>
                         )}
@@ -508,8 +537,24 @@ export default function SchedulesView({
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">End</label>
-                  <input type="time" value={addForm.end_time} onChange={e => setAddForm(p => ({ ...p, end_time: e.target.value }))}
-                    className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
+                  {addForm.end_time_open ? (
+                    <div className="mt-1 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-[12px] text-amber-700 font-semibold">TBD — supervisor sets daily</div>
+                  ) : (
+                    <input type="time" value={addForm.end_time} onChange={e => setAddForm(p => ({ ...p, end_time: e.target.value }))}
+                      className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
+                  )}
+                  {(() => {
+                    const dept = staffList.find(s => s.name === addForm.staff_name)?.department;
+                    if (dept !== 'housekeeping') return null;
+                    return (
+                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                        <input type="checkbox" checked={addForm.end_time_open}
+                          onChange={e => setAddForm(p => ({ ...p, end_time_open: e.target.checked }))}
+                          className="accent-amber-500 w-4 h-4" />
+                        <span className="text-[11px] text-amber-700 font-medium">Open end time (supervisor fills daily)</span>
+                      </label>
+                    );
+                  })()}
                 </div>
               </div>
               <div>
