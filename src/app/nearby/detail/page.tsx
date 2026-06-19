@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Minus, Plus, Star, Clock, MapPin, Phone, Navigation, ExternalLink, X, ChevronRight, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Star, Clock, MapPin, Phone, Navigation, ExternalLink, X, ChevronRight, CheckCircle, ShoppingBag } from 'lucide-react';
 import { getPartnerById, getPartnerMenuItems, getHotelConfig, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
 
 function PartnerContent() {
@@ -143,6 +143,20 @@ function PartnerContent() {
           className="absolute top-4 left-4 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
           <ArrowLeft size={18} className="text-white" />
         </button>
+
+        {/* Top-right cart icon with item count badge */}
+        {totalQty > 0 && (
+          <button onClick={() => setCheckoutOpen(true)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform"
+            style={{ backgroundColor: brandColor }}>
+            <ShoppingBag size={17} className="text-white" />
+            <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-white flex items-center justify-center text-[11px] font-extrabold shadow"
+              style={{ color: brandColor }}>
+              {totalQty}
+            </span>
+          </button>
+        )}
+
         <div className="absolute bottom-4 left-5 right-5">
           <h1 className="text-[22px] font-extrabold text-white leading-tight">{partner.name}</h1>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
