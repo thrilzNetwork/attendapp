@@ -634,35 +634,41 @@ export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [
                   const hourReqs = filteredRequests.filter(r => getReqHour(r) === h);
                   const isNow = h === currentHour;
                   return (
-                    <div key={h} className={`flex gap-3 px-4 py-3 border-b border-gray-50 last:border-0 ${isNow ? 'border-l-4 border-l-teal-400 bg-teal-50/30' : 'border-l-4 border-l-transparent'}`}>
-                      <div className={`w-12 shrink-0 pt-0.5 text-[12px] font-bold ${isNow ? 'text-teal-600' : 'text-gray-400'}`}>
+                    <div key={h} className={`flex items-start border-b border-gray-50 last:border-0 ${isNow ? 'bg-teal-50/40' : ''}`}>
+                      {/* Hour label column */}
+                      <div className={`w-14 shrink-0 text-right pr-3 pt-3 pb-3 text-[11px] font-semibold select-none ${isNow ? 'text-teal-600 font-bold' : 'text-gray-300'}`}>
                         {hourLabel(h)}
                       </div>
-                      <div className="flex-1 min-w-0 space-y-2">
+                      {/* Divider */}
+                      <div className={`w-px self-stretch ${isNow ? 'bg-teal-300' : 'bg-gray-100'}`} />
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 px-3 py-2 space-y-2">
                         {hourReqs.length === 0 ? (
-                          <span className="text-[11px] text-gray-300">—</span>
+                          <div className="h-6 flex items-center">
+                            <div className="w-full h-px bg-gray-100" />
+                          </div>
                         ) : (
                           hourReqs.map(r => (
-                            <div key={r.id} className={`rounded-xl border-l-4 bg-white border border-gray-100 px-3 py-2.5 ${statusBorder[r.status] || 'border-l-gray-200'}`}>
+                            <div key={r.id} className={`rounded-2xl border bg-white shadow-sm border-l-4 px-3 py-2.5 ${statusBorder[r.status] || 'border-l-gray-200'} border-gray-100`}>
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="text-[13px] font-bold text-gray-900">{r.guest_name}</p>
+                                    <p className="text-[14px] font-bold text-gray-900 leading-snug">{r.guest_name}</p>
                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${statusColors[r.status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}>
                                       {r.status.replace('_', ' ')}
                                     </span>
-                                    {r.pax > 1 && <span className="text-[11px] text-gray-500">{r.pax} pax</span>}
+                                    {r.pax > 1 && <span className="text-[10px] text-gray-400 font-medium">{r.pax} pax</span>}
                                   </div>
-                                  <p className="text-[11px] text-gray-500 mt-0.5">Rm {r.room_number} · {r.pickup_location || '—'} → {r.destination || '—'}</p>
+                                  <p className="text-[11px] text-gray-400 mt-0.5">Rm {r.room_number} · <span className="text-gray-500">{r.pickup_location || '—'} → {r.destination || '—'}</span></p>
                                   {r.assigned_driver_id && (
-                                    <p className="text-[11px] text-blue-600 font-medium mt-0.5 flex items-center gap-1">
+                                    <p className="text-[11px] text-blue-500 font-medium mt-0.5 flex items-center gap-1">
                                       <User size={10} /> {driverName(r.assigned_driver_id)}
                                     </p>
                                   )}
                                   {r.uber_delivery_id && (
                                     <div className="flex items-center gap-1 mt-0.5">
-                                      <Truck size={10} className="text-gray-500" />
-                                      <span className="text-[11px] text-gray-600 font-medium capitalize">{r.uber_status?.replace(/_/g, ' ') || 'Uber dispatched'}</span>
+                                      <Truck size={10} className="text-gray-400" />
+                                      <span className="text-[11px] text-gray-500 font-medium capitalize">{r.uber_status?.replace(/_/g, ' ') || 'Uber dispatched'}</span>
                                       {r.uber_tracking_url && (
                                         <a href={r.uber_tracking_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-teal-600 flex items-center gap-0.5 ml-1">
                                           Track <ExternalLink size={9} />
@@ -737,18 +743,19 @@ export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [
                 </div>
               ) : (
                 requests.map(r => (
-                  <div key={r.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                  <div key={r.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden border-l-4 ${statusBorder[r.status] || 'border-l-gray-200'}`}>
+                    <div className="p-4">
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="text-[14px] font-bold text-gray-900">{r.guest_name}</p>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColors[r.status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                          <p className="text-[15px] font-bold text-gray-900">{r.guest_name}</p>
+                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border shrink-0 ${statusColors[r.status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}>
                             {r.status.replace('_', ' ')}
                           </span>
                         </div>
-                        <p className="text-[12px] text-gray-500">Room {r.room_number} · {r.pax} pax</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          <MapPin size={11} className="text-gray-400" />
+                        <p className="text-[12px] text-gray-400">Room {r.room_number} · {r.pax} {r.pax === 1 ? 'guest' : 'guests'}</p>
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <MapPin size={11} className="text-gray-300 shrink-0" />
                           <p className="text-[12px] text-gray-700 font-medium">{r.pickup_location || r.destination}</p>
                           {r.pickup_location && r.destination && <span className="text-gray-400 text-[11px]">→ {r.destination}</span>}
                         </div>
@@ -756,7 +763,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [
                           <p className="text-[11px] text-gray-400 mt-0.5">{r.date}{r.time ? ` at ${fmt(r.time)}` : ''}</p>
                         )}
                         {r.assigned_driver_id && (
-                          <p className="text-[11px] text-blue-600 font-medium mt-0.5 flex items-center gap-1">
+                          <p className="text-[11px] text-blue-500 font-medium mt-0.5 flex items-center gap-1">
                             <User size={10} /> {driverName(r.assigned_driver_id)}
                           </p>
                         )}
@@ -807,6 +814,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [
                         </div>
                       )
                     )}
+                    </div>
                   </div>
                 ))
               )}
@@ -969,25 +977,25 @@ export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [
                 <p className="text-[13px] text-gray-500 mb-6">Appears on the timeline above.</p>
                 <div className="flex gap-3">
                   <button onClick={() => { resetDispatch(); }}
-                    className="flex-1 py-3 rounded-xl text-white font-bold text-[14px]" style={{ backgroundColor: TEAL }}>
+                    className="flex-1 py-3 rounded-2xl text-white font-bold text-[14px]" style={{ backgroundColor: TEAL }}>
                     + Another
                   </button>
                   <button onClick={() => { setShowDispatch(false); resetDispatch(); }}
-                    className="flex-1 py-3 rounded-xl bg-gray-100 font-bold text-[14px] text-gray-700">
+                    className="flex-1 py-3 rounded-2xl bg-gray-100 font-bold text-[14px] text-gray-700">
                     Done
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="p-5 space-y-4">
+              <div className="p-5 space-y-5">
                 {/* Arrival / Departure toggle */}
                 <div>
-                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-2">Trip Type</label>
-                  <div className="flex gap-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Trip Type</p>
+                  <div className="flex gap-2 bg-gray-100 p-1 rounded-full">
                     {(['arrival', 'departure'] as const).map(t => (
                       <button key={t} onClick={() => { setDispatchType(t); setDispatchForm(f => ({ ...f, pickup_location: '', destination: '' })); }}
-                        className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold border-2 transition-colors ${dispatchType === t ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 bg-white text-gray-500'}`}>
-                        {t === 'arrival' ? '✈️ Arrival (→ Hotel)' : '🚗 Departure (Hotel →)'}
+                        className={`flex-1 py-2 rounded-full text-[13px] font-bold transition-all ${dispatchType === t ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                        {t === 'arrival' ? '✈️ Arrival' : '🚗 Departure'}
                       </button>
                     ))}
                   </div>
@@ -995,46 +1003,46 @@ export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [
 
                 {/* Guest info */}
                 <div>
-                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-2">Guest</label>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Guest</p>
                   <div className="flex gap-2">
                     <input value={dispatchForm.guest_name} onChange={e => setDispatchForm(f => ({ ...f, guest_name: e.target.value }))}
-                      placeholder="Guest name" className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100" />
+                      placeholder="Guest name" className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
                     <input value={dispatchForm.room_number} onChange={e => setDispatchForm(f => ({ ...f, room_number: e.target.value }))}
-                      placeholder="Room #" className="w-24 bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 text-center" />
+                      placeholder="Room #" className="w-24 bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 text-center focus:outline-none focus:border-teal-300" />
                   </div>
                 </div>
 
                 {/* Party size */}
                 <div>
-                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-2">Party Size</label>
-                  <div className="flex items-center gap-3">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Party Size</p>
+                  <div className="flex items-center justify-center gap-5">
                     <button onClick={() => setDispatchForm(f => ({ ...f, pax: Math.max(1, f.pax - 1) }))}
-                      className="w-10 h-10 rounded-xl bg-gray-100 text-gray-700 text-[18px] font-bold flex items-center justify-center hover:bg-gray-200">−</button>
-                    <span className="text-[20px] font-extrabold text-gray-900 w-8 text-center">{dispatchForm.pax}</span>
+                      className="w-12 h-12 rounded-full bg-gray-100 text-gray-700 text-[22px] font-bold flex items-center justify-center hover:bg-gray-200 active:scale-95 transition-all">−</button>
+                    <span className="text-[32px] font-extrabold text-gray-900 w-12 text-center tabular-nums">{dispatchForm.pax}</span>
                     <button onClick={() => setDispatchForm(f => ({ ...f, pax: f.pax + 1 }))}
-                      className="w-10 h-10 rounded-xl bg-gray-100 text-gray-700 text-[18px] font-bold flex items-center justify-center hover:bg-gray-200">+</button>
+                      className="w-12 h-12 rounded-full flex items-center justify-center text-white text-[22px] font-bold hover:opacity-90 active:scale-95 transition-all" style={{ backgroundColor: TEAL }}>+</button>
                   </div>
                 </div>
 
                 {/* Pickup location */}
                 <div>
-                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
                     {dispatchType === 'arrival' ? 'Pickup Location' : 'Dropoff'}
-                  </label>
+                  </p>
                   {dispatchType === 'arrival' ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {ARRIVAL_PICKUPS.map(loc => (
                         <button key={loc} onClick={() => setDispatchForm(f => ({ ...f, pickup_location: loc }))}
-                          className={`px-3 py-2 rounded-xl text-[12px] font-bold border-2 transition-colors ${dispatchForm.pickup_location === loc ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 bg-white text-gray-500'}`}>
+                          className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all ${dispatchForm.pickup_location === loc ? 'border-teal-500 bg-teal-500 text-white shadow-sm' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
                           {loc}
                         </button>
                       ))}
                     </div>
                   ) : (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {DEPARTURE_DROPOFFS.map(loc => (
                         <button key={loc} onClick={() => setDispatchForm(f => ({ ...f, destination: loc }))}
-                          className={`px-3 py-2 rounded-xl text-[12px] font-bold border-2 transition-colors ${dispatchForm.destination === loc ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 bg-white text-gray-500'}`}>
+                          className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all ${dispatchForm.destination === loc ? 'border-teal-500 bg-teal-500 text-white shadow-sm' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
                           {loc}
                         </button>
                       ))}
@@ -1044,32 +1052,32 @@ export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [
 
                 {/* Time */}
                 <div>
-                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-2">Requested Time</label>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Requested Time</p>
                   <input type="time" value={dispatchForm.time} onChange={e => setDispatchForm(f => ({ ...f, time: e.target.value }))}
-                    className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100" />
+                    className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
                 </div>
 
                 {/* Flight/notes */}
                 <div>
-                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-2">Flight / Notes (optional)</label>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Flight / Notes</p>
                   <input value={dispatchForm.notes} onChange={e => setDispatchForm(f => ({ ...f, notes: e.target.value }))}
-                    placeholder="e.g. AA123, special needs…" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100" />
+                    placeholder="e.g. AA123, special needs… (optional)" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
                 </div>
 
                 {/* Assign */}
                 <div>
-                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-2">Assign To</label>
-                  <div className="flex gap-2 mb-3">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Assign To</p>
+                  <div className="flex gap-2 bg-gray-100 p-1 rounded-full mb-3">
                     {(['inhouse', 'uber'] as const).map(m => (
                       <button key={m} onClick={() => setAssignMode(m)}
-                        className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold border-2 transition-colors ${assignMode === m ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 bg-white text-gray-500'}`}>
-                        {m === 'inhouse' ? '👤 In-House Driver' : '🚗 Send Uber'}
+                        className={`flex-1 py-2 rounded-full text-[13px] font-bold transition-all ${assignMode === m ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                        {m === 'inhouse' ? '👤 In-House' : '🚗 Uber'}
                       </button>
                     ))}
                   </div>
                   {assignMode === 'inhouse' && (
                     <select value={dispatchForm.driver_id} onChange={e => setDispatchForm(f => ({ ...f, driver_id: e.target.value }))}
-                      className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100">
+                      className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300">
                       <option value="">— No driver assigned —</option>
                       {todayDrivers.length > 0 ? (
                         todayDrivers.map(d => (
@@ -1091,8 +1099,8 @@ export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [
 
                 <button onClick={handleDispatchSubmit}
                   disabled={dispatching || !dispatchForm.guest_name.trim() || !dispatchForm.room_number.trim()}
-                  className="w-full py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 transition-colors"
-                  style={{ backgroundColor: TEAL }}>
+                  className="w-full py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 active:scale-[0.98] transition-all"
+                  style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
                   {dispatching ? 'Logging…' : assignMode === 'uber' ? '🚗 Dispatch Uber' : '✅ Log Pickup'}
                 </button>
               </div>
