@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Plus, CalendarDays, X as XIcon, ArrowRight, ArrowLeft, SendHorizontal, CheckCircle2,
+  Copy, BookMarked, Pencil, Trash2, LayoutTemplate,
 } from 'lucide-react';
 import {
   getStaffSchedulesRange, createStaffSchedule, deleteStaffSchedule, updateStaffSchedule,
@@ -16,6 +17,31 @@ import {
 
 const TEAL = '#0D9488';
 
+// ── Template types ──────────────────────────────────────────────────────────
+interface TemplateShift {
+  staff_name: string;
+  day_of_week: number; // 0=Sun…6=Sat
+  start_time: string;
+  end_time?: string;
+  role?: string;
+  notes?: string;
+}
+interface ScheduleTemplate {
+  name: string;
+  createdAt: string;
+  shifts: TemplateShift[];
+}
+
+function loadTemplates(hotelId: string): ScheduleTemplate[] {
+  try {
+    return JSON.parse(localStorage.getItem(`attenda_schedule_templates_${hotelId}`) || '[]');
+  } catch { return []; }
+}
+function saveTemplates(hotelId: string, templates: ScheduleTemplate[]) {
+  localStorage.setItem(`attenda_schedule_templates_${hotelId}`, JSON.stringify(templates));
+}
+
+// ── Date helpers ─────────────────────────────────────────────────────────────
 function getWeekStart(date: string, weekStartsOn?: string): string {
   const d = new Date(date + 'T00:00:00');
   const day = d.getDay();
@@ -25,38 +51,53 @@ function getWeekStart(date: string, weekStartsOn?: string): string {
   } else {
     d.setDate(d.getDate() - day);
   }
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return fmt(d);
 }
-
 function getWeekDates(weekStart: string): string[] {
   return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 }
-
 function addDays(date: string, n: number): string {
   const d = new Date(date + 'T00:00:00');
   d.setDate(d.getDate() + n);
+  return fmt(d);
+}
+function fmt(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-
 function dayName(date: string): string {
   return new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
 }
-
 function formatDateRange(a: string, b: string): string {
   const da = new Date(a + 'T00:00:00');
   const db = new Date(b + 'T00:00:00');
   return `${da.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${db.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 }
-
 function formatTime24to12(t: string): string {
   if (!t) return '';
   const [h, m] = t.split(':').map(Number);
-  if (isNaN(h)) return t.slice(0,5);
+  if (isNaN(h)) return t.slice(0, 5);
   const ampm = h >= 12 ? 'pm' : 'am';
-  const h12 = h % 12 || 12;
-  return `${h12}:${String(m).padStart(2, '0')}${ampm}`;
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')}${ampm}`;
 }
 
+// ── Blank form helpers ───────────────────────────────────────────────────────
+const blankAdd = () => ({
+  staff_id: '', staff_name: '', shift_date: today(),
+  start_time: '07:00', end_time: '15:00', role: '', notes: '',
+  end_time_open: false,
+});
+const blankEdit = (): EditForm => ({
+  id: '', staff_name: '', shift_date: today(),
+  start_time: '07:00', end_time: '15:00', role: '', notes: '',
+  end_time_open: false,
+});
+interface EditForm {
+  id: string; staff_name: string; shift_date: string;
+  start_time: string; end_time: string; role: string; notes: string;
+  end_time_open: boolean;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function SchedulesView({
   hotelId, isAdmin, staffName, staffList, weekStartsOn, hotelName,
 }: {
@@ -75,23 +116,32 @@ export default function SchedulesView({
   const [submitting, setSubmitting] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deptFilter, setDeptFilter] = useState<string>('all');
-
-  const [addForm, setAddForm] = useState({
-    staff_id: '', staff_name: '', shift_date: today(),
-    start_time: '07:00', end_time: '15:00', role: 'staff', notes: '',
-    end_time_open: false,
-  });
   const [endTimeEdit, setEndTimeEdit] = useState<{ id: string; value: string } | null>(null);
 
-  const [reqForm, setReqForm] = useState({
-    shift_date: today(),
-    is_pto: true,
-    details: '',
-  });
+  // Edit modal
+  const [editForm, setEditForm] = useState<EditForm>(blankEdit());
+  const [showEdit, setShowEdit] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
-  const load = async () => {
+  // Templates
+  const [templates, setTemplates] = useState<ScheduleTemplate[]>([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templateNameInput, setTemplateNameInput] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
+
+  const [addForm, setAddForm] = useState(blankAdd());
+  const [reqForm, setReqForm] = useState({ shift_date: today(), is_pto: true, details: '' });
+
+  useEffect(() => {
+    setTemplates(loadTemplates(hotelId));
+  }, [hotelId]);
+
+  const load = useCallback(async () => {
     const weekEnd = addDays(weekStart, 6);
     try {
       const [s, f] = await Promise.all([
@@ -104,126 +154,214 @@ export default function SchedulesView({
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load schedule.');
     }
-  };
-  useEffect(() => { load(); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelId, weekStart]);
 
+  useEffect(() => { load(); }, [load]);
+
+  // ── Staff lookup helpers ──────────────────────────────────────────────────
+  const staffDept = (name: string) => staffList.find(s => s.name === name)?.department || '';
+  const staffRole = (name: string) => staffList.find(s => s.name === name)?.role || '';
+
+  // ── Add shift ────────────────────────────────────────────────────────────
   const handleAdd = async () => {
     if (!addForm.staff_name.trim() || !addForm.shift_date) return;
     setSubmitting(true); setError(null);
     try {
-      const data = await createStaffSchedule({
+      await createStaffSchedule({
         hotel_id: hotelId,
         staff_name: addForm.staff_name.trim(),
         staff_id: addForm.staff_id || undefined,
         shift_date: addForm.shift_date,
         start_time: addForm.start_time,
         end_time: addForm.end_time_open ? undefined : addForm.end_time,
-        role: addForm.role,
+        role: addForm.role || undefined,
         notes: addForm.notes || undefined,
       });
-      if (data) {
-        const m = staffList.find(s => s.name === addForm.staff_name.trim()) as StaffAccount | undefined;
-        if (m?.email) {
-          fetch('/api/email', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-            body: JSON.stringify({
-              type: 'schedule_posted',
-              data: { staffEmail: m.email, staffName: addForm.staff_name.trim(), hotelName: hotelName || '', shiftDate: addForm.shift_date, startTime: addForm.start_time, endTime: addForm.end_time, role: addForm.role },
-            }),
-          }).catch(() => {});
-        }
+      const m = staffList.find(s => s.name === addForm.staff_name.trim()) as StaffAccount | undefined;
+      if (m?.email) {
+        fetch('/api/email', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+          body: JSON.stringify({ type: 'schedule_posted', data: { staffEmail: m.email, staffName: addForm.staff_name.trim(), hotelName: hotelName || '', shiftDate: addForm.shift_date, startTime: addForm.start_time, endTime: addForm.end_time, role: addForm.role } }),
+        }).catch(() => {});
       }
       setShowAdd(false);
-      setAddForm({ staff_id: '', staff_name: '', shift_date: today(), start_time: '07:00', end_time: '15:00', role: 'staff', notes: '', end_time_open: false });
+      setAddForm(blankAdd());
       await load();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save shift';
-      setError(msg);
+      setError(err instanceof Error ? err.message : 'Failed to save shift');
     }
     setSubmitting(false);
   };
 
+  // ── Open edit modal ───────────────────────────────────────────────────────
+  const openEdit = (s: StaffSchedule) => {
+    setEditForm({
+      id: s.id,
+      staff_name: s.staff_name,
+      shift_date: s.shift_date,
+      start_time: s.start_time || '07:00',
+      end_time: s.end_time || '',
+      role: s.role || '',
+      notes: s.notes || '',
+      end_time_open: !s.end_time,
+    });
+    setShowEdit(true);
+  };
+
+  // ── Save edit ─────────────────────────────────────────────────────────────
+  const handleSaveEdit = async () => {
+    setEditSubmitting(true); setError(null);
+    try {
+      await updateStaffSchedule(editForm.id, {
+        shift_date: editForm.shift_date,
+        start_time: editForm.start_time,
+        end_time: editForm.end_time_open ? undefined : editForm.end_time || undefined,
+        role: editForm.role || undefined,
+        notes: editForm.notes || undefined,
+      });
+      setShowEdit(false);
+      await load();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save changes');
+    }
+    setEditSubmitting(false);
+  };
+
+  // ── Delete shift ──────────────────────────────────────────────────────────
   const handleDelete = async (id: string) => {
     if (!confirm('Remove this shift?')) return;
     setError(null);
     try {
       await deleteStaffSchedule(id);
+      setShowEdit(false);
       await load();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to remove shift';
-      setError(msg);
+      setError(err instanceof Error ? err.message : 'Failed to remove shift');
     }
   };
 
-  // ── Publish Schedule ──
+  // ── Copy week to next ─────────────────────────────────────────────────────
+  const handleCopyWeek = async () => {
+    const weekEnd = addDays(weekStart, 6);
+    const nextWeekStart = addDays(weekStart, 7);
+    setCopying(true); setError(null);
+    try {
+      const shifts = await getStaffSchedulesRange(hotelId, weekStart, weekEnd);
+      if (!shifts?.length) { setError('No shifts this week to copy.'); setCopying(false); return; }
+      const nextShifts = await getStaffSchedulesRange(hotelId, nextWeekStart, addDays(nextWeekStart, 6));
+      if (nextShifts?.length && !confirm(`Next week already has ${nextShifts.length} shift(s). Add these on top?`)) {
+        setCopying(false); return;
+      }
+      await Promise.all(shifts.map(s => createStaffSchedule({
+        hotel_id: hotelId,
+        staff_name: s.staff_name,
+        staff_id: s.staff_id,
+        shift_date: addDays(s.shift_date, 7),
+        start_time: s.start_time,
+        end_time: s.end_time || undefined,
+        role: s.role || undefined,
+        notes: s.notes || undefined,
+      })));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+      setWeekStart(nextWeekStart);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Copy failed');
+    }
+    setCopying(false);
+  };
+
+  // ── Save current week as template ─────────────────────────────────────────
+  const handleSaveTemplate = async () => {
+    if (!templateNameInput.trim()) return;
+    setSavingTemplate(true);
+    const weekEnd = addDays(weekStart, 6);
+    const shifts = await getStaffSchedulesRange(hotelId, weekStart, weekEnd);
+    const tShifts: TemplateShift[] = (shifts || []).map(s => ({
+      staff_name: s.staff_name,
+      day_of_week: new Date(s.shift_date + 'T00:00:00').getDay(),
+      start_time: s.start_time,
+      end_time: s.end_time || undefined,
+      role: s.role || undefined,
+      notes: s.notes || undefined,
+    }));
+    const updated = [{ name: templateNameInput.trim(), createdAt: new Date().toISOString(), shifts: tShifts }, ...templates];
+    saveTemplates(hotelId, updated);
+    setTemplates(updated);
+    setTemplateNameInput('');
+    setSavingTemplate(false);
+  };
+
+  // ── Load a template into current week ────────────────────────────────────
+  const handleLoadTemplate = async (tpl: ScheduleTemplate) => {
+    if (!tpl.shifts.length) return;
+    setLoadingTemplate(true);
+    const existing = await getStaffSchedulesRange(hotelId, weekStart, addDays(weekStart, 6));
+    if (existing?.length && !confirm(`This week has ${existing.length} existing shift(s). Add template on top?`)) {
+      setLoadingTemplate(false); return;
+    }
+    const weekDay0 = new Date(weekStart + 'T00:00:00').getDay(); // day-of-week of weekStart
+    await Promise.all(tpl.shifts.map(s => {
+      let offset = s.day_of_week - weekDay0;
+      if (offset < 0) offset += 7;
+      return createStaffSchedule({
+        hotel_id: hotelId,
+        staff_name: s.staff_name,
+        shift_date: addDays(weekStart, offset),
+        start_time: s.start_time,
+        end_time: s.end_time,
+        role: s.role,
+        notes: s.notes,
+      });
+    }));
+    setShowTemplates(false);
+    await load();
+    setLoadingTemplate(false);
+  };
+
+  // ── Delete template ───────────────────────────────────────────────────────
+  const handleDeleteTemplate = (idx: number) => {
+    const updated = templates.filter((_, i) => i !== idx);
+    saveTemplates(hotelId, updated);
+    setTemplates(updated);
+  };
+
+  // ── Publish ───────────────────────────────────────────────────────────────
   const handlePublish = async () => {
     if (!confirm('Send this week\'s schedule to all staff via email?')) return;
     setPublishing(true); setError(null);
     try {
       const weekEnd = addDays(weekStart, 6);
-      const [s] = await Promise.all([
-        getStaffSchedulesRange(hotelId, weekStart, weekEnd),
-      ]);
-      const weekSchedules = s || [];
-
-      // Group shifts by staff member
+      const weekSchedules = await getStaffSchedulesRange(hotelId, weekStart, weekEnd) || [];
       const staffShifts: Record<string, { name: string; email: string; shifts: StaffSchedule[] }> = {};
       weekSchedules.forEach(shift => {
-        const name = shift.staff_name;
-        if (!staffShifts[name]) {
-          const sInfo = staffList.find(x => x.name === name);
-          staffShifts[name] = { name, email: sInfo?.email || '', shifts: [] };
+        if (!staffShifts[shift.staff_name]) {
+          const info = staffList.find(x => x.name === shift.staff_name);
+          staffShifts[shift.staff_name] = { name: shift.staff_name, email: info?.email || '', shifts: [] };
         }
-        staffShifts[name].shifts.push(shift);
+        staffShifts[shift.staff_name].shifts.push(shift);
       });
-
-      // Add staff with no shifts but who have emails
       staffList.forEach(s => {
-        if (s.email && !staffShifts[s.name]) {
-          staffShifts[s.name] = { name: s.name, email: s.email, shifts: [] };
-        }
+        if (s.email && !staffShifts[s.name]) staffShifts[s.name] = { name: s.name, email: s.email, shifts: [] };
       });
-
-      // Send one email per staff member
       const results = await Promise.allSettled(
-        Object.values(staffShifts)
-          .filter(s => s.email)
-          .map(s => {
-            const days = s.shifts.map(sh => ({
-              date: sh.shift_date,
-              time: `${formatTime24to12(sh.start_time || '')}–${formatTime24to12(sh.end_time || '')}`,
-              role: sh.role || 'staff',
-              notes: sh.notes || '',
-            }));
-            return fetch('/api/email', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-              body: JSON.stringify({
-                type: 'schedule_published',
-                data: {
-                  staffEmail: s.email,
-                  staffName: s.name,
-                  hotelName: hotelName || 'Hotel',
-                  weekStart,
-                  weekEnd,
-                  days,
-                },
-              }),
-            });
+        Object.values(staffShifts).filter(s => s.email).map(s =>
+          fetch('/api/email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+            body: JSON.stringify({
+              type: 'schedule_published',
+              data: { staffEmail: s.email, staffName: s.name, hotelName: hotelName || 'Hotel', weekStart, weekEnd,
+                days: s.shifts.map(sh => ({ date: sh.shift_date, time: `${formatTime24to12(sh.start_time || '')}–${formatTime24to12(sh.end_time || '')}`, role: sh.role || 'staff', notes: sh.notes || '' })) },
+            }),
           })
+        )
       );
-
-      const sent = results.filter(r => r.status === 'fulfilled').length;
       const failed = results.filter(r => r.status === 'rejected').length;
-      setPublished(true);
-      setTimeout(() => setPublished(false), 4000);
-      if (failed > 0) {
-        setError(`Published — ${sent} sent, ${failed} failed`);
-      }
+      setPublished(true); setTimeout(() => setPublished(false), 4000);
+      if (failed > 0) setError(`Published — ${results.length - failed} sent, ${failed} failed`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Publish failed';
-      setError(msg);
+      setError(err instanceof Error ? err.message : 'Publish failed');
     }
     setPublishing(false);
   };
@@ -250,12 +388,6 @@ export default function SchedulesView({
   const weekDates = getWeekDates(weekStart);
   const weekEnd = weekDates[6];
 
-  // Staff dept lookup
-  const staffDept = (name: string): string => {
-    const m = staffList.find(s => s.name === name);
-    return m?.department || '';
-  };
-
   const shiftColors: Record<string, string> = {
     management: 'bg-purple-100 border-purple-200 text-purple-900',
     front_desk: 'bg-blue-100 border-blue-200 text-blue-900',
@@ -268,31 +400,44 @@ export default function SchedulesView({
 
   const getStaff = (date: string) => {
     const dayShifts = schedules.filter(s => s.shift_date === date);
-
-    const result: { name: string; shift: StaffSchedule | null }[] = [];
-
-    dayShifts.forEach(s => {
-      if (!result.find(r => r.name === s.staff_name)) {
-        result.push({ name: s.staff_name, shift: s });
-      }
-    });
-
-    // Filter by department if set
-    let filtered = result;
-    if (deptFilter !== 'all') {
-      filtered = result.filter(r => staffDept(r.name) === deptFilter);
-    }
-
+    const result: { name: string; shift: StaffSchedule }[] = [];
+    dayShifts.forEach(s => { if (!result.find(r => r.name === s.staff_name)) result.push({ name: s.staff_name, shift: s }); });
+    const filtered = deptFilter === 'all' ? result : result.filter(r => staffDept(r.name) === deptFilter);
     return filtered.sort((a, b) => {
-      const deptA = staffDept(a.name);
-      const deptB = staffDept(b.name);
-      if (deptA !== deptB) return deptA.localeCompare(deptB);
-      return a.name.localeCompare(b.name);
+      const dA = staffDept(a.name), dB = staffDept(b.name);
+      return dA !== dB ? dA.localeCompare(dB) : a.name.localeCompare(b.name);
     });
+  };
+
+  // ── Shared form fields ────────────────────────────────────────────────────
+  const EndTimeField = ({ value, open, onChange, onOpenChange, forStaff }: {
+    value: string; open: boolean;
+    onChange: (v: string) => void; onOpenChange: (v: boolean) => void;
+    forStaff: string;
+  }) => {
+    const dept = staffList.find(s => s.name === forStaff)?.department;
+    return (
+      <div>
+        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">End</label>
+        {open ? (
+          <div className="mt-1 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-[12px] text-amber-700 font-semibold">TBD — supervisor sets daily</div>
+        ) : (
+          <input type="time" value={value} onChange={e => onChange(e.target.value)}
+            className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
+        )}
+        {dept === 'housekeeping' && (
+          <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+            <input type="checkbox" checked={open} onChange={e => onOpenChange(e.target.checked)} className="accent-amber-500 w-4 h-4" />
+            <span className="text-[11px] text-amber-700 font-medium">Open end time (supervisor fills daily)</span>
+          </label>
+        )}
+      </div>
+    );
   };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900 flex items-center gap-2">
@@ -301,33 +446,34 @@ export default function SchedulesView({
           </h1>
           <p className="text-[13px] text-gray-500">{formatDateRange(weekStart, weekEnd)}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {isAdmin && (
             <>
               <button onClick={() => setShowAdd(true)}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-[12px] font-bold transition-all active:scale-95"
                 style={{ backgroundColor: TEAL }}>
-                <Plus size={14} />
-                Add Shift
+                <Plus size={14} /> Add Shift
               </button>
-              <button
-                onClick={handlePublish}
-                disabled={publishing}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold transition-all active:scale-95 ${
-                  published
-                    ? 'bg-green-100 text-green-700 border border-green-300'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {published ? (
-                  <><CheckCircle2 size={14} /> Published</>
-                ) : publishing ? (
-                  <><SendHorizontal size={14} className="animate-pulse" /> Publishing…</>
-                ) : (
-                  <><SendHorizontal size={14} /> Publish</>
-                )}
+              <button onClick={handleCopyWeek} disabled={copying || copied}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold border transition-all active:scale-95 ${copied ? 'bg-green-50 border-green-300 text-green-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                {copied ? <><CheckCircle2 size={14} /> Copied!</> : copying ? <><Copy size={14} className="animate-pulse" /> Copying…</> : <><Copy size={14} /> Copy Week</>}
+              </button>
+              <button onClick={() => setShowTemplates(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold border bg-white border-gray-300 text-gray-700 hover:bg-gray-50 transition-all active:scale-95">
+                <LayoutTemplate size={14} /> Templates
+              </button>
+              <button onClick={handlePublish} disabled={publishing}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold border transition-all active:scale-95 ${published ? 'bg-green-100 text-green-700 border-green-300' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}>
+                {published ? <><CheckCircle2 size={14} /> Published</> : publishing ? <><SendHorizontal size={14} className="animate-pulse" /> Publishing…</> : <><SendHorizontal size={14} /> Publish</>}
               </button>
             </>
+          )}
+          {!isAdmin && (
+            <button onClick={() => setShowRequest(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-[12px] font-bold"
+              style={{ backgroundColor: TEAL }}>
+              Request Day Off
+            </button>
           )}
         </div>
       </div>
@@ -339,49 +485,31 @@ export default function SchedulesView({
         </div>
       )}
 
+      {/* Week nav */}
       <div className="flex items-center gap-2 mb-3">
-        <button onClick={() => setWeekStart(addDays(weekStart, -7))}
-          className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white border border-gray-200 text-[11px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
+        <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white border border-gray-200 text-[11px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
           <ArrowLeft size={14} /> Prev
         </button>
-        <button onClick={() => setWeekStart(getWeekStart(today(), weekStartsOn))}
-          className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[11px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
+        <button onClick={() => setWeekStart(getWeekStart(today(), weekStartsOn))} className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[11px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
           This week
         </button>
-        <button onClick={() => setWeekStart(addDays(weekStart, 7))}
-          className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white border border-gray-200 text-[11px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
+        <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white border border-gray-200 text-[11px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
           Next <ArrowRight size={14} />
         </button>
       </div>
 
       {/* Department filter */}
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
-        <button
-          onClick={() => setDeptFilter('all')}
-          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
-            deptFilter === 'all'
-              ? 'bg-teal-50 border-teal-300 text-teal-700'
-              : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-          }`}
-        >
-          All
-        </button>
+        <button onClick={() => setDeptFilter('all')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${deptFilter === 'all' ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}>All</button>
         {DEPARTMENTS.map(d => (
-          <button
-            key={d.key}
-            onClick={() => setDeptFilter(deptFilter === d.key ? 'all' : d.key)}
-            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
-              deptFilter === d.key
-                ? 'bg-teal-50 border-teal-300 text-teal-700'
-                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-            }`}
-          >
+          <button key={d.key} onClick={() => setDeptFilter(deptFilter === d.key ? 'all' : d.key)}
+            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${deptFilter === d.key ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
             {d.icon} {d.label}
           </button>
         ))}
       </div>
 
-      {/* Mobile: horizontal scroll with snap — Desktop: 7-column grid */}
+      {/* Schedule grid */}
       <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 md:grid md:grid-cols-7 md:gap-2 md:overflow-visible md:pb-0 scrollbar-thin">
         {weekDates.map(date => {
           const dayStaff = getStaff(date);
@@ -398,24 +526,12 @@ export default function SchedulesView({
                     <div className="flex items-center gap-1">
                       <div className="w-1.5 h-1.5 rounded-full bg-teal-500" />
                       <span className="text-[9px] font-bold text-teal-700">
-                        {(() => {
-                          const p = forecast.rooms_occupied;
-                          const t = forecast.total_rooms || 54;
-                          const pct = t > 0 ? Math.round((p / t) * 100) : 0;
-                          return `${pct}%`;
-                        })()}
+                        {Math.round((forecast.rooms_occupied / (forecast.total_rooms || 54)) * 100)}%
                       </span>
                     </div>
-                    <div className="text-right">
-                      <span className="text-[9px] font-bold text-teal-700">
-                        {(() => {
-                          if (forecast.arrivals !== undefined && forecast.arrivals > 0) return `+${forecast.arrivals}`;
-                          if (forecast.departures !== undefined && forecast.departures > 0) return `-${forecast.departures}`;
-                          return `${forecast.rooms_occupied}/${forecast.total_rooms || 54}`;
-                        })()}
-                      </span>
-                      <span className="text-[7px] text-gray-400 uppercase">out</span>
-                    </div>
+                    <span className="text-[9px] font-bold text-teal-700">
+                      {forecast.arrivals && forecast.arrivals > 0 ? `+${forecast.arrivals}` : forecast.departures && forecast.departures > 0 ? `-${forecast.departures}` : `${forecast.rooms_occupied}/${forecast.total_rooms || 54}`}
+                    </span>
                   </div>
                 </div>
               ) : (
@@ -423,55 +539,48 @@ export default function SchedulesView({
                   <span className="text-[9px] text-gray-300">No forecast</span>
                 </div>
               )}
-              <div className="px-2 py-1.5 space-y-1.5 min-h-[80px] max-h-[240px] overflow-y-auto">
+              <div className="px-2 py-1.5 space-y-1 min-h-[80px] max-h-[240px] overflow-y-auto">
                 {dayStaff.length === 0 ? (
                   <p className="text-[10px] text-gray-300 text-center py-4">—</p>
                 ) : (
-                  dayStaff.filter(s => s.shift).map(({ name, shift }) => {
-                    const s = shift!;
-                    const dept = staffDept(name) || 'unassigned';
+                  dayStaff.map(({ name, shift: s }) => {
                     const isTbd = !s.end_time;
-                    const color = isTbd
-                      ? 'bg-amber-50 border-amber-300 text-amber-900'
-                      : shiftColor(dept);
+                    const color = isTbd ? 'bg-amber-50 border-amber-300 text-amber-900' : shiftColor(staffDept(name));
                     return (
-                      <div
-                        key={s.id}
-                        className={`rounded-lg border px-2 py-1.5 text-[10px] leading-tight mb-1 ${color} ${isAdmin ? 'cursor-pointer hover:opacity-80' : ''}`}
-                        onClick={() => isAdmin && !isTbd && handleDelete(s.id)}
-                        title={isAdmin && !isTbd ? 'Click to remove' : ''}
-                      >
-                        <p className="font-bold truncate">{name}</p>
-                        {isTbd && isAdmin ? (
-                          endTimeEdit?.id === s.id ? (
-                            <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
-                              <input type="time" value={endTimeEdit.value}
-                                onChange={e => setEndTimeEdit({ id: s.id, value: e.target.value })}
-                                className="flex-1 bg-white rounded px-1 py-0.5 text-[9px] border border-amber-300 outline-none" />
-                              <button
-                                onClick={async () => {
-                                  if (!endTimeEdit.value) return;
-                                  await updateStaffSchedule(s.id, { end_time: endTimeEdit.value });
-                                  setEndTimeEdit(null);
-                                  await load();
-                                }}
-                                className="bg-amber-500 text-white rounded px-1.5 py-0.5 text-[8px] font-bold">Set</button>
-                              <button onClick={() => setEndTimeEdit(null)} className="text-amber-400 text-[8px]">✕</button>
-                            </div>
+                      <div key={s.id}>
+                        <div
+                          className={`rounded-lg border px-2 py-1.5 text-[10px] leading-tight ${color}`}
+                        >
+                          <div className="flex items-start justify-between gap-1">
+                            <p className="font-bold truncate flex-1">{name}</p>
+                            {isAdmin && (
+                              <button onClick={() => openEdit(s)} className="opacity-50 hover:opacity-100 flex-shrink-0 mt-0.5" title="Edit shift">
+                                <Pencil size={9} />
+                              </button>
+                            )}
+                          </div>
+                          {isTbd && isAdmin ? (
+                            endTimeEdit?.id === s.id ? (
+                              <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+                                <input type="time" value={endTimeEdit.value}
+                                  onChange={e => setEndTimeEdit({ id: s.id, value: e.target.value })}
+                                  className="flex-1 bg-white rounded px-1 py-0.5 text-[9px] border border-amber-300 outline-none" />
+                                <button onClick={async () => { if (!endTimeEdit.value) return; await updateStaffSchedule(s.id, { end_time: endTimeEdit.value }); setEndTimeEdit(null); await load(); }} className="bg-amber-500 text-white rounded px-1.5 py-0.5 text-[8px] font-bold">Set</button>
+                                <button onClick={() => setEndTimeEdit(null)} className="text-amber-400 text-[8px]">✕</button>
+                              </div>
+                            ) : (
+                              <p className="text-[9px] text-amber-600 font-semibold mt-0.5 cursor-pointer" onClick={() => setEndTimeEdit({ id: s.id, value: '' })}>
+                                {formatTime24to12(s.start_time)} → <span className="underline decoration-dashed">Set end ▸</span>
+                              </p>
+                            )
                           ) : (
-                            <p className="text-[9px] text-amber-600 font-semibold mt-0.5"
-                              onClick={e => { e.stopPropagation(); setEndTimeEdit({ id: s.id, value: '' }); }}>
-                              {formatTime24to12(s.start_time)} → <span className="underline decoration-dashed">Set end ▸</span>
+                            <p className="text-[9px] opacity-80">
+                              {formatTime24to12(s.start_time)}{s.end_time ? `–${formatTime24to12(s.end_time)}` : ' → TBD'}
                             </p>
-                          )
-                        ) : (
-                          <p className="text-[9px] opacity-80">
-                            {formatTime24to12(s.start_time)}{s.end_time ? `–${formatTime24to12(s.end_time)}` : ' → TBD'}
-                          </p>
-                        )}
-                        {s.notes && (
-                          <p className="text-[8px] opacity-60 truncate">{s.notes}</p>
-                        )}
+                          )}
+                          {s.role && s.role !== 'staff' && <p className="text-[8px] opacity-60 truncate">{s.role}</p>}
+                          {s.notes && <p className="text-[8px] opacity-60 truncate">{s.notes}</p>}
+                        </div>
                       </div>
                     );
                   })
@@ -487,16 +596,16 @@ export default function SchedulesView({
         })}
       </div>
 
+      {/* Legend */}
       <div className="mt-4 p-3 border border-gray-200 rounded-xl bg-white flex flex-wrap items-center gap-3 text-[10px]">
         <span className="font-bold text-gray-500 uppercase">Dept:</span>
         {DEPARTMENTS.map(d => (
-          <span key={d.key} className={`px-2 py-0.5 rounded-lg border ${shiftColor(d.key)} flex items-center gap-1`}>
-            {d.icon} {d.label}
-          </span>
+          <span key={d.key} className={`px-2 py-0.5 rounded-lg border ${shiftColor(d.key)} flex items-center gap-1`}>{d.icon} {d.label}</span>
         ))}
-        {isAdmin && <span className="ml-auto text-gray-400">Click a shift to remove</span>}
+        {isAdmin && <span className="ml-auto text-gray-400 flex items-center gap-1"><Pencil size={9} /> Click pencil to edit</span>}
       </div>
 
+      {/* ── Add Shift Modal ── */}
       {showAdd && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowAdd(false)}>
           <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
@@ -507,17 +616,15 @@ export default function SchedulesView({
             <div className="space-y-3">
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Staff Member</label>
-                <div className="flex gap-2 mt-1">
-                  <input value={addForm.staff_name} onChange={e => {
-                    setAddForm(p => ({ ...p, staff_name: e.target.value }));
-                    const match = staffList.find(s => s.name.toLowerCase() === e.target.value.toLowerCase());
-                    if (match) setAddForm(prev => ({ ...prev, staff_id: match.id || '' }));
-                  }} list="schedule-staff-list" placeholder="Name"
-                    className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
-                  <datalist id="schedule-staff-list">
-                    {staffList.map(s => <option key={s.id || s.name} value={s.name} />)}
-                  </datalist>
-                </div>
+                <input value={addForm.staff_name} onChange={e => {
+                  const v = e.target.value;
+                  const match = staffList.find(s => s.name.toLowerCase() === v.toLowerCase());
+                  setAddForm(p => ({ ...p, staff_name: v, staff_id: match?.id || p.staff_id, role: match ? (match.role || '') : p.role }));
+                }} list="schedule-staff-list" placeholder="Name"
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
+                <datalist id="schedule-staff-list">
+                  {staffList.map(s => <option key={s.id || s.name} value={s.name} />)}
+                </datalist>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -526,8 +633,8 @@ export default function SchedulesView({
                     className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Role</label>
-                  <input value={addForm.role} onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))} placeholder="Front Desk"
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Position</label>
+                  <input value={addForm.role} onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))} placeholder={staffRole(addForm.staff_name) || 'e.g. Front Desk'}
                     className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
                 </div>
                 <div>
@@ -535,27 +642,10 @@ export default function SchedulesView({
                   <input type="time" value={addForm.start_time} onChange={e => setAddForm(p => ({ ...p, start_time: e.target.value }))}
                     className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">End</label>
-                  {addForm.end_time_open ? (
-                    <div className="mt-1 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-[12px] text-amber-700 font-semibold">TBD — supervisor sets daily</div>
-                  ) : (
-                    <input type="time" value={addForm.end_time} onChange={e => setAddForm(p => ({ ...p, end_time: e.target.value }))}
-                      className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
-                  )}
-                  {(() => {
-                    const dept = staffList.find(s => s.name === addForm.staff_name)?.department;
-                    if (dept !== 'housekeeping') return null;
-                    return (
-                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
-                        <input type="checkbox" checked={addForm.end_time_open}
-                          onChange={e => setAddForm(p => ({ ...p, end_time_open: e.target.checked }))}
-                          className="accent-amber-500 w-4 h-4" />
-                        <span className="text-[11px] text-amber-700 font-medium">Open end time (supervisor fills daily)</span>
-                      </label>
-                    );
-                  })()}
-                </div>
+                <EndTimeField value={addForm.end_time} open={addForm.end_time_open}
+                  onChange={v => setAddForm(p => ({ ...p, end_time: v }))}
+                  onOpenChange={v => setAddForm(p => ({ ...p, end_time_open: v }))}
+                  forStaff={addForm.staff_name} />
               </div>
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Notes (optional)</label>
@@ -574,6 +664,108 @@ export default function SchedulesView({
         </div>
       )}
 
+      {/* ── Edit Shift Modal ── */}
+      {showEdit && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowEdit(false)}>
+          <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[15px] font-bold">Edit Shift — {editForm.staff_name}</h2>
+              <button onClick={() => setShowEdit(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
+            </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Date</label>
+                  <input type="date" value={editForm.shift_date} onChange={e => setEditForm(p => ({ ...p, shift_date: e.target.value }))}
+                    className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Position</label>
+                  <input value={editForm.role} onChange={e => setEditForm(p => ({ ...p, role: e.target.value }))} placeholder={staffRole(editForm.staff_name) || 'e.g. Front Desk'}
+                    className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Start</label>
+                  <input type="time" value={editForm.start_time} onChange={e => setEditForm(p => ({ ...p, start_time: e.target.value }))}
+                    className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
+                </div>
+                <EndTimeField value={editForm.end_time} open={editForm.end_time_open}
+                  onChange={v => setEditForm(p => ({ ...p, end_time: v }))}
+                  onOpenChange={v => setEditForm(p => ({ ...p, end_time_open: v }))}
+                  forStaff={editForm.staff_name} />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Notes</label>
+                <input value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} placeholder="Optional notes"
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={handleSaveEdit} disabled={editSubmitting}
+                  className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                  {editSubmitting ? 'Saving…' : 'Save Changes'}
+                </button>
+                <button onClick={() => handleDelete(editForm.id)}
+                  className="px-4 py-3 rounded-xl bg-red-50 text-red-600 border border-red-200 font-bold text-[13px] flex items-center gap-1 hover:bg-red-100">
+                  <Trash2 size={14} /> Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Templates Modal ── */}
+      {showTemplates && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowTemplates(false)}>
+          <div className="w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[15px] font-bold flex items-center gap-2"><BookMarked size={16} className="text-teal-600" /> Schedule Templates</h2>
+              <button onClick={() => setShowTemplates(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
+            </div>
+
+            {/* Save current week */}
+            <div className="bg-gray-50 rounded-xl p-4 mb-4 border border-gray-200">
+              <p className="text-[11px] font-bold text-gray-600 mb-2">Save current week as template</p>
+              <div className="flex gap-2">
+                <input value={templateNameInput} onChange={e => setTemplateNameInput(e.target.value)}
+                  placeholder="Template name (e.g. Standard Week)" onKeyDown={e => e.key === 'Enter' && handleSaveTemplate()}
+                  className="flex-1 bg-white rounded-xl px-3 py-2 text-[13px] border border-gray-200 outline-none" />
+                <button onClick={handleSaveTemplate} disabled={!templateNameInput.trim() || savingTemplate}
+                  className="px-4 py-2 rounded-xl text-white text-[12px] font-bold disabled:opacity-50 flex items-center gap-1" style={{ backgroundColor: TEAL }}>
+                  {savingTemplate ? '…' : <><BookMarked size={12} /> Save</>}
+                </button>
+              </div>
+            </div>
+
+            {/* Template list */}
+            {templates.length === 0 ? (
+              <p className="text-[12px] text-gray-400 text-center py-6">No templates yet. Schedule a week and save it above.</p>
+            ) : (
+              <div className="space-y-2">
+                {templates.map((tpl, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50">
+                    <div>
+                      <p className="text-[13px] font-bold text-gray-800">{tpl.name}</p>
+                      <p className="text-[10px] text-gray-400">{tpl.shifts.length} shifts · saved {new Date(tpl.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleLoadTemplate(tpl)} disabled={loadingTemplate}
+                        className="px-3 py-1.5 rounded-lg text-white text-[11px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                        {loadingTemplate ? '…' : 'Load'}
+                      </button>
+                      <button onClick={() => handleDeleteTemplate(idx)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Request Day Off Modal ── */}
       {showRequest && !isAdmin && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowRequest(false)}>
           <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
@@ -581,34 +773,24 @@ export default function SchedulesView({
               <h2 className="text-[15px] font-bold">Request Day Off</h2>
               <button onClick={() => setShowRequest(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
             </div>
-            <p className="text-[12px] text-gray-500 mb-4">
-              {staffName ? `Requesting as ${staffName}.` : 'Your manager will review this request.'}
-            </p>
-
+            <p className="text-[12px] text-gray-500 mb-4">{staffName ? `Requesting as ${staffName}.` : 'Your manager will review this request.'}</p>
             {(() => {
               const staffMember = staffName ? staffList.find(s => s.name.toLowerCase() === staffName.toLowerCase()) : undefined;
-              if (staffMember?.hire_date) {
-                const hd = new Date(staffMember.hire_date + 'T00:00:00');
-                const months = Math.floor((Date.now() - hd.getTime()) / (1000*60*60*24*30.44));
-                const ptoAccrued = Math.floor(months * 1.25);
-                return (
-                  <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 mb-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-[11px] font-bold text-teal-800">PTO Balance</p>
-                      <p className="text-[10px] text-teal-600">
-                        Hired {new Date(staffMember.hire_date+'T00:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[20px] font-extrabold text-teal-700">{ptoAccrued}</p>
-                      <p className="text-[9px] text-teal-500">days accrued</p>
-                    </div>
+              if (!staffMember?.hire_date) return null;
+              const months = Math.floor((Date.now() - new Date(staffMember.hire_date + 'T00:00:00').getTime()) / (1000*60*60*24*30.44));
+              return (
+                <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold text-teal-800">PTO Balance</p>
+                    <p className="text-[10px] text-teal-600">Hired {new Date(staffMember.hire_date+'T00:00:00').toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'})}</p>
                   </div>
-                );
-              }
-              return null;
+                  <div className="text-right">
+                    <p className="text-[20px] font-extrabold text-teal-700">{Math.floor(months * 1.25)}</p>
+                    <p className="text-[9px] text-teal-500">days accrued</p>
+                  </div>
+                </div>
+              );
             })()}
-
             <div className="space-y-4">
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Date</label>
@@ -618,20 +800,13 @@ export default function SchedulesView({
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Type</label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => setReqForm(p => ({ ...p, is_pto: true }))}
-                    className={`py-3 rounded-xl text-[13px] font-bold border transition-all ${reqForm.is_pto ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-500'}`}>
-                    PTO (Paid)
-                  </button>
-                  <button onClick={() => setReqForm(p => ({ ...p, is_pto: false }))}
-                    className={`py-3 rounded-xl text-[13px] font-bold border transition-all ${!reqForm.is_pto ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-white border-gray-200 text-gray-500'}`}>
-                    Unpaid
-                  </button>
+                  <button onClick={() => setReqForm(p => ({ ...p, is_pto: true }))} className={`py-3 rounded-xl text-[13px] font-bold border transition-all ${reqForm.is_pto ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-500'}`}>PTO (Paid)</button>
+                  <button onClick={() => setReqForm(p => ({ ...p, is_pto: false }))} className={`py-3 rounded-xl text-[13px] font-bold border transition-all ${!reqForm.is_pto ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-white border-gray-200 text-gray-500'}`}>Unpaid</button>
                 </div>
               </div>
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Reason</label>
-                <textarea value={reqForm.details} onChange={e => setReqForm(p => ({ ...p, details: e.target.value }))}
-                  rows={3} placeholder="Tell your manager why..."
+                <textarea value={reqForm.details} onChange={e => setReqForm(p => ({ ...p, details: e.target.value }))} rows={3} placeholder="Tell your manager why..."
                   className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none" />
               </div>
               <div className="flex gap-2 pt-1">

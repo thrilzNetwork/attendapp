@@ -1426,7 +1426,7 @@ export async function deleteStaffSchedule(id: string) {
   if (!json.ok) throw new Error(json.error || 'Failed to delete schedule');
 }
 
-export async function updateStaffSchedule(id: string, patch: { end_time?: string }) {
+export async function updateStaffSchedule(id: string, patch: { end_time?: string; start_time?: string; shift_date?: string; role?: string; notes?: string }) {
   const res = await fetch('/api/ops-data', {
     method: 'POST',
     headers: await authedApiHeaders(),

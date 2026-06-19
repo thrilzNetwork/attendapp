@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
       if (!(await callerOwnsRow(caller, 'staff_schedules', body.scheduleId))) {
         return NextResponse.json({ ok: false, error: 'Forbidden.' }, { status: 403 });
       }
-      const allowedKeys = ['end_time'];
+      const allowedKeys = ['end_time', 'start_time', 'shift_date', 'role', 'notes'];
       const safePatch = Object.fromEntries(
         Object.entries(body.patch as Record<string, unknown>).filter(([k]) => allowedKeys.includes(k))
       );
