@@ -139,30 +139,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Send notification email to Alejandro (non-blocking)
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://attendaapp.com'}/api/email`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '',
-      },
-      body: JSON.stringify({
-        type: 'enrollment_inquiry',
-        data: {
-          contactName,
-          contactEmail: email,
-          contactPhone: phone || '',
-          propertyName,
-          propertyType: 'Hotel',
-          rooms: rooms || 'Not specified',
-          city: '',
-          message: message || '',
-        },
-      }),
-    }).catch(() => {
-      // Non-blocking — don't fail the onboard if email fails
-    });
-
+    // 4. Done — return setup URL so the client redirects
     return NextResponse.json({
       ok: true,
       hotel: { id: hotel.id, slug, name: hotel.name },
