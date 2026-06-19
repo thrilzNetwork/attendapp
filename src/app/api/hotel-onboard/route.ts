@@ -22,6 +22,15 @@ function slugify(name: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    // Fast-fail: service key must be available for auth.admin.createUser
+    if (!process.env.SUPABASE_SERVICE_KEY) {
+      console.error('hotel-onboard: SUPABASE_SERVICE_KEY not configured');
+      return NextResponse.json(
+        { ok: false, error: 'Onboarding is not configured. Please contact support.' },
+        { status: 503 },
+      );
+    }
+
     const origin = req.headers.get('origin');
     const referer = req.headers.get('referer');
     if (!isAllowedOrigin(origin, referer)) {
