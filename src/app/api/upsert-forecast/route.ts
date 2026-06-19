@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 import { getCaller, resolveHotelScope, getSupabaseAdmin } from '@/lib/supabase-admin';
 
+// Handle CORS preflight — required because the client sends x-superadmin-key header
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, x-superadmin-key, Authorization',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
+
 interface ForecastRow {
   hotel_id: string;
   week_start: string;

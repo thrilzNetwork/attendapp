@@ -961,12 +961,12 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
       {/* ── Dispatch Bottom Sheet ── */}
       {showDispatch && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <div className="bg-white rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white px-5 pt-5 pb-3 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-[17px] font-extrabold text-gray-900">New Pickup</h2>
+          <div className="bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white py-3 px-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-[15px] font-extrabold text-gray-900">New Pickup</h2>
               <button onClick={() => { setShowDispatch(false); resetDispatch(); }}
-                className="p-2 rounded-xl hover:bg-gray-100 text-gray-400">
-                <X size={18} />
+                className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400">
+                <X size={16} />
               </button>
             </div>
 
@@ -987,8 +987,8 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                 </div>
               </div>
             ) : (
-              <div className="px-4 py-3 space-y-3">
-                {/* Trip type + Guest on same row feel — type toggle compact */}
+              <div className="px-4 py-2 space-y-2.5">
+                {/* Trip type toggle */}
                 <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg">
                   {(['arrival', 'departure'] as const).map(t => (
                     <button key={t} onClick={() => { setDispatchType(t); setDispatchForm(f => ({ ...f, pickup_location: '', destination: '' })); }}
@@ -999,31 +999,31 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                 </div>
 
                 {/* Guest + Room + Pax in one row */}
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <input value={dispatchForm.guest_name} onChange={e => setDispatchForm(f => ({ ...f, guest_name: e.target.value }))}
                     placeholder="Guest name" className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
                   <input value={dispatchForm.room_number} onChange={e => setDispatchForm(f => ({ ...f, room_number: e.target.value }))}
-                    placeholder="Rm" className="w-16 bg-gray-50 rounded-lg px-2 py-2 text-[13px] border border-gray-100 text-center focus:outline-none focus:border-teal-300" />
-                  <div className="flex items-center gap-1 bg-gray-50 border border-gray-100 rounded-lg px-2">
+                    placeholder="Rm" className="w-14 bg-gray-50 rounded-lg px-2 py-2 text-[13px] border border-gray-100 text-center focus:outline-none focus:border-teal-300" />
+                  <div className="flex items-center gap-0.5 bg-gray-50 border border-gray-100 rounded-lg px-1.5">
                     <button onClick={() => setDispatchForm(f => ({ ...f, pax: Math.max(1, f.pax - 1) }))}
-                      className="w-6 h-6 rounded text-gray-500 text-[16px] font-bold flex items-center justify-center hover:bg-gray-200">−</button>
-                    <span className="text-[13px] font-bold text-gray-900 w-5 text-center">{dispatchForm.pax}</span>
+                      className="w-5 h-5 rounded text-gray-500 text-[14px] font-bold flex items-center justify-center hover:bg-gray-200">−</button>
+                    <span className="text-[12px] font-bold text-gray-900 w-4 text-center">{dispatchForm.pax}</span>
                     <button onClick={() => setDispatchForm(f => ({ ...f, pax: f.pax + 1 }))}
-                      className="w-6 h-6 rounded text-white text-[16px] font-bold flex items-center justify-center" style={{ backgroundColor: TEAL }}>+</button>
+                      className="w-5 h-5 rounded text-white text-[14px] font-bold flex items-center justify-center" style={{ backgroundColor: TEAL }}>+</button>
                   </div>
                 </div>
 
                 {/* Pickup location chips */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
                     {dispatchType === 'arrival' ? 'Pickup' : 'Dropoff'}
                   </p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1">
                     {(dispatchType === 'arrival' ? ARRIVAL_PICKUPS : DEPARTURE_DROPOFFS).map(loc => {
                       const active = dispatchType === 'arrival' ? dispatchForm.pickup_location === loc : dispatchForm.destination === loc;
                       return (
                         <button key={loc} onClick={() => setDispatchForm(f => dispatchType === 'arrival' ? { ...f, pickup_location: loc } : { ...f, destination: loc })}
-                          className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${active ? 'border-teal-500 bg-teal-500 text-white' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
+                          className={`px-2 py-1 rounded-full text-[11px] font-semibold border transition-all ${active ? 'border-teal-500 bg-teal-500 text-white' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
                           {loc}
                         </button>
                       );
@@ -1047,8 +1047,8 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
 
                 {/* Assign To */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Assign To</p>
-                  <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg mb-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Assign To</p>
+                  <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg mb-1.5">
                     {(['inhouse', 'uber'] as const).map(m => (
                       <button key={m} onClick={() => setAssignMode(m)}
                         className={`flex-1 py-1.5 rounded-md text-[12px] font-bold transition-all ${assignMode === m ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
@@ -1058,7 +1058,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                   </div>
                   {assignMode === 'inhouse' && (
                     <select value={dispatchForm.driver_id} onChange={e => setDispatchForm(f => ({ ...f, driver_id: e.target.value }))}
-                      className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300">
+                      className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300">
                       <option value="">— No driver assigned —</option>
                       {todayDrivers.length > 0 ? (
                         todayDrivers.map(d => (
@@ -1072,7 +1072,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                     </select>
                   )}
                   {assignMode === 'uber' && (
-                    <p className="text-[12px] text-gray-500 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100">
+                    <p className="text-[12px] text-gray-500 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
                       Uber will be dispatched immediately on submit.
                     </p>
                   )}
@@ -1080,7 +1080,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
 
                 <button onClick={handleDispatchSubmit}
                   disabled={dispatching || !dispatchForm.guest_name.trim() || !dispatchForm.room_number.trim()}
-                  className="w-full py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 active:scale-[0.98] transition-all"
+                  className="w-full py-3 rounded-2xl text-white font-bold text-[14px] disabled:opacity-50 active:scale-[0.98] transition-all"
                   style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
                   {dispatching ? 'Logging…' : assignMode === 'uber' ? '🚗 Dispatch Uber' : '✅ Log Pickup'}
                 </button>
