@@ -415,7 +415,8 @@ export default function SchedulesView({
     onChange: (v: string) => void; onOpenChange: (v: boolean) => void;
     forStaff: string;
   }) => {
-    const dept = staffList.find(s => s.name === forStaff)?.department;
+    const dept = staffList.find(s => s.name === forStaff)?.department?.toLowerCase();
+    const isHousekeeping = dept === 'housekeeping' || dept === 'housekeepers';
     return (
       <div>
         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">End</label>
@@ -425,12 +426,12 @@ export default function SchedulesView({
           <input type="time" value={value} onChange={e => onChange(e.target.value)}
             className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
         )}
-        {dept === 'housekeeping' && (
-          <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
-            <input type="checkbox" checked={open} onChange={e => onOpenChange(e.target.checked)} className="accent-amber-500 w-4 h-4" />
-            <span className="text-[11px] text-amber-700 font-medium">Open end time (supervisor fills daily)</span>
-          </label>
-        )}
+        <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+          <input type="checkbox" checked={open} onChange={e => onOpenChange(e.target.checked)} className="accent-amber-500 w-4 h-4" />
+          <span className={`text-[11px] font-medium ${isHousekeeping ? 'text-amber-700' : 'text-gray-500'}`}>
+            Open end time (supervisor fills daily)
+          </span>
+        </label>
       </div>
     );
   };
