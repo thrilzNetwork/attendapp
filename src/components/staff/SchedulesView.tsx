@@ -562,17 +562,30 @@ export default function SchedulesView({
                           </div>
                           {isTbd && isAdmin ? (
                             endTimeEdit?.id === s.id ? (
-                              <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+                              <div className="flex items-center gap-1 mt-1 w-full" onClick={e => e.stopPropagation()}>
                                 <input type="time" value={endTimeEdit.value}
                                   onChange={e => setEndTimeEdit({ id: s.id, value: e.target.value })}
-                                  className="flex-1 bg-white rounded px-1 py-0.5 text-[9px] border border-amber-300 outline-none" />
-                                <button onClick={async () => { if (!endTimeEdit.value) return; await updateStaffSchedule(s.id, { end_time: endTimeEdit.value }); setEndTimeEdit(null); await load(); }} className="bg-amber-500 text-white rounded px-1.5 py-0.5 text-[8px] font-bold">Set</button>
-                                <button onClick={() => setEndTimeEdit(null)} className="text-amber-400 text-[8px]">✕</button>
+                                  autoFocus
+                                  className="flex-1 bg-white rounded-md px-1.5 py-1 text-[11px] border border-amber-400 outline-none min-w-0" />
+                                <button onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (!endTimeEdit.value) return;
+                                  setSchedules(prev => prev.map(sc => sc.id === s.id ? { ...sc, end_time: endTimeEdit.value } : sc));
+                                  setEndTimeEdit(null);
+                                  try {
+                                    await updateStaffSchedule(s.id, { end_time: endTimeEdit.value });
+                                  } catch {
+                                    await load();
+                                  }
+                                }} className="bg-amber-500 text-white rounded-md px-2 py-1 text-[10px] font-bold whitespace-nowrap shrink-0">Set</button>
+                                <button onClick={(e) => { e.stopPropagation(); setEndTimeEdit(null); }} className="text-amber-400 hover:text-amber-600 shrink-0 text-[11px]">✕</button>
                               </div>
                             ) : (
-                              <p className="text-[9px] text-amber-600 font-semibold mt-0.5 cursor-pointer" onClick={() => setEndTimeEdit({ id: s.id, value: '' })}>
-                                {formatTime24to12(s.start_time)} → <span className="underline decoration-dashed">Set end ▸</span>
-                              </p>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEndTimeEdit({ id: s.id, value: '' }); }}
+                                className="mt-1 w-full text-left px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-[10px] font-bold text-amber-700 hover:bg-amber-200 transition-colors">
+                                ⏱ Set end time
+                              </button>
                             )
                           ) : (
                             <p className="text-[9px] opacity-80">

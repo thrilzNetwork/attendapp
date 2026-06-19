@@ -70,7 +70,7 @@ const ALL_WIDGETS: WidgetDef[] = [
   { id: 'cruise',       label: 'Cruise Ships',      description: 'Upcoming cruise ship arrivals',         icon: '🚢' },
 ];
 
-const DEFAULT_WIDGETS: WidgetId[] = ['gm_notes', 'quick_stats', 'kpis', 'activity', 'checklists', 'forecast_14', 'shuttle', 'cruise'];
+const DEFAULT_WIDGETS: WidgetId[] = ['gm_notes', 'quick_stats', 'kpis', 'forecast_14', 'shuttle', 'cruise'];
 
 function loadWidgetPrefs(hotelId: string): WidgetId[] {
   try {

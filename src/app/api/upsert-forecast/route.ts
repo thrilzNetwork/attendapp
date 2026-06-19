@@ -71,7 +71,8 @@ export async function POST(req: NextRequest) {
     }
 
     const allOk = results.every((r) => r.ok);
-    return NextResponse.json({ ok: allOk, results });
+    const failed = results.filter(r => !r.ok).map(r => r.date);
+    return NextResponse.json({ ok: allOk, results, ...(failed.length ? { error: `Failed to save dates: ${failed.join(', ')}` } : {}) });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Server error';
     console.error('upsert-forecast error:', msg);
