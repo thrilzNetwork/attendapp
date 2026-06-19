@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase, subscribeToRequests, updateVendorStatus, getPartnerById } from '@/lib/supabase';
-import { ShoppingBag, Clock, CheckCircle, Bell, RefreshCw } from 'lucide-react';
+import { ShoppingBag, Clock, CheckCircle, Bell, RefreshCw, Truck, ExternalLink } from 'lucide-react';
 
 interface VendorOrder {
   id: string;
@@ -15,6 +15,9 @@ interface VendorOrder {
   total_amount: number | null;
   created_at: string;
   hotel_id: string;
+  uber_delivery_id: string | null;
+  uber_tracking_url: string | null;
+  uber_status: string | null;
 }
 
 const VENDOR_STEPS: { key: VendorOrder['vendor_status']; label: string; color: string }[] = [
@@ -50,7 +53,7 @@ function VendorDashboard() {
     if (!partnerId) return;
     const { data } = await supabase
       .from('requests')
-      .select('id, guest_name, room, details, status, vendor_status, total_amount, created_at, hotel_id')
+      .select('id, guest_name, room, details, status, vendor_status, total_amount, created_at, hotel_id, uber_delivery_id, uber_tracking_url, uber_status')
       .eq('partner_id', partnerId)
       .neq('status', 'closed')
       .order('created_at', { ascending: false });
@@ -73,6 +76,27 @@ function VendorDashboard() {
     const ch = subscribeToRequests(hotelId, () => load());
     return () => { supabase.removeChannel(ch); };
   }, [hotelId, load]);
+
+  const [dispatching, setDispatching] = useState<string | null>(null);
+  const [dispatchError, setDispatchError] = useState<string | null>(null);
+
+  const dispatchUber = async (order: VendorOrder) => {
+    setDispatching(order.id);
+    setDispatchError(null);
+    try {
+      const res = await fetch('/api/uber-direct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'dispatch', requestId: order.id }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Dispatch failed');
+      await load();
+    } catch (e) {
+      setDispatchError(e instanceof Error ? e.message : 'Dispatch failed');
+    }
+    setDispatching(null);
+  };
 
   const advance = async (order: VendorOrder) => {
     const idx = VENDOR_STEPS.findIndex(s => s.key === order.vendor_status);
@@ -132,6 +156,12 @@ function VendorDashboard() {
           </div>
         )}
 
+        {dispatchError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-[13px] text-red-700 font-medium">
+            ⚠️ {dispatchError}
+          </div>
+        )}
+
         {/* Active orders */}
         {active.map(order => {
           const stepIdx = VENDOR_STEPS.findIndex(s => s.key === order.vendor_status);
@@ -166,7 +196,7 @@ function VendorDashboard() {
                 ))}
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {next && (
                   <button onClick={() => advance(order)}
                     className="flex-1 py-2.5 rounded-xl text-white font-bold text-[13px] bg-teal-600 hover:bg-teal-700 active:scale-95 transition-transform">
@@ -178,6 +208,28 @@ function VendorDashboard() {
                   Done ✓
                 </button>
               </div>
+
+              {/* Uber Direct dispatch */}
+              {!order.uber_delivery_id ? (
+                <button
+                  onClick={() => dispatchUber(order)}
+                  disabled={dispatching === order.id}
+                  className="mt-2 w-full py-2.5 rounded-xl font-bold text-[13px] bg-black text-white flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform">
+                  <Truck size={14} />
+                  {dispatching === order.id ? 'Dispatching…' : 'Send via Uber Direct'}
+                </button>
+              ) : (
+                <div className="mt-2 flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                  <Truck size={14} className="text-black shrink-0" />
+                  <span className="text-[12px] font-bold text-gray-700 capitalize">{order.uber_status?.replace(/_/g, ' ') || 'Dispatched'}</span>
+                  {order.uber_tracking_url && (
+                    <a href={order.uber_tracking_url} target="_blank" rel="noopener noreferrer"
+                      className="ml-auto text-[11px] font-bold text-teal-600 flex items-center gap-1">
+                      Track <ExternalLink size={10} />
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
