@@ -474,7 +474,13 @@ export async function getPartners(hotelId: string): Promise<Partner[]> {
 }
 
 export async function getPartnerById(id: string): Promise<Partner | null> {
-  const { data } = await supabase.from('partners').select('*').eq('id', id).single();
+  // Explicit public column list — never select financial/secret columns
+  // (stripe_account_id, payout_email, clover_*, fee margins) on the anon client.
+  const { data } = await supabase
+    .from('partners')
+    .select('id, hotel_id, name, category, description, image_url, phone, address, hours, distance, rating, has_ordering, is_active, email, google_place_id, delivery_providers')
+    .eq('id', id)
+    .single();
   return data || null;
 }
 
