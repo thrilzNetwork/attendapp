@@ -382,16 +382,15 @@ export default function Dashboard() {
       return;
     }
 
-    const [req, msg] = await Promise.all([
+    const isManager = role === 'admin' || role === 'superadmin' || role === 'manager';
+    const [req, msg, staffRows] = await Promise.all([
       supabase.from('requests').select('*').eq('hotel_id', hotelId).neq('room', 'STAFF').order('created_at', { ascending: false }),
       supabase.from('messages').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
+      isManager ? getStaffAccountsForHotel(hotelId!) : Promise.resolve(null),
     ]);
     if (req.data) setRequests(req.data);
     if (msg.data) setMessages(msg.data);
-
-    if (role === 'admin' || role === 'superadmin' || role === 'manager') {
-      setStaff(await getStaffAccountsForHotel(hotelId!));
-    }
+    if (staffRows) setStaff(staffRows);
   }, []);
 
   useEffect(() => {

@@ -87,19 +87,13 @@ function PartnerContent() {
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
-    Promise.all([getPartnerById(id), getPartnerMenuItems(id)]).then(([p, m]) => {
+    Promise.all([getPartnerById(id), getPartnerMenuItems(id), getHotelConfig()]).then(([p, m, cfg]) => {
       setPartner(p);
       setMenuItems(m);
+      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
       setLoading(false);
     });
   }, [id]);
-
-  useEffect(() => {
-    (async () => {
-      const cfg = await getHotelConfig();
-      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
-    })();
-  }, []);
 
   // Pre-fill from session
   useEffect(() => {

@@ -515,13 +515,13 @@ export async function deletePartner(id: string): Promise<void> {
 }
 
 export async function getPartnerMenuItems(partnerId: string): Promise<PartnerMenuItem[]> {
-  const res = await fetch('/api/partners', {
-    method: 'POST',
-    headers: await authedApiHeaders(),
-    body: JSON.stringify({ action: 'get_menu_items', data: { partner_id: partnerId } }),
-  });
-  const json = await res.json();
-  return json.data || [];
+  const { data } = await supabase
+    .from('partner_menu_items')
+    .select('*')
+    .eq('partner_id', partnerId)
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  return data || [];
 }
 
 export async function createPartnerMenuItem(item: { partner_id: string; name: string; description: string; price: number; image_url?: string; category?: string; sort_order?: number }): Promise<void> {
