@@ -520,21 +520,25 @@ export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900 flex items-center gap-2">
-            <Bus size={22} style={{ color: TEAL }} /> Shuttle
+            <Bus size={20} style={{ color: TEAL }} /> Shuttle
           </h1>
-          <p className="text-[13px] text-gray-500">
-            {DAYS_FULL[todayDow()]}, {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-            {pendingReqs.length > 0 && <span className="ml-2 text-amber-600 font-semibold">{pendingReqs.length} active</span>}
-          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-[12px] text-gray-400">
+              {DAYS_FULL[todayDow()]}, {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+            </p>
+            {pendingReqs.length > 0 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200">
+                {pendingReqs.length} active
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={load} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
-            <RefreshCw size={16} />
-          </button>
-        </div>
+        <button onClick={load} className="p-2 rounded-xl hover:bg-gray-100 text-gray-300 hover:text-gray-500 transition-colors" title="Refresh">
+          <RefreshCw size={15} />
+        </button>
       </div>
 
       {error && (
@@ -545,9 +549,9 @@ export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [
 
       {/* Quick Dispatch Bar */}
       <button onClick={() => { resetDispatch(); setShowDispatch(true); }}
-        className="w-full mb-5 py-3.5 rounded-2xl text-white font-bold text-[14px] flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform"
-        style={{ backgroundColor: TEAL }}>
-        <Plus size={18} /> New Pickup
+        className="w-full mb-5 py-3.5 rounded-2xl text-white font-bold text-[14px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+        style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.35)' }}>
+        <Plus size={17} strokeWidth={2.5} /> New Pickup
       </button>
 
       {/* Tab bar */}
@@ -605,19 +609,19 @@ export default function ShuttleView({ hotelId, isAdmin, staffName, staffList = [
               )}
 
               {/* Filters */}
-              <div className="flex gap-2 flex-wrap">
-                <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+              <div className="flex gap-2 flex-wrap items-center">
+                <div className="flex gap-0.5 bg-gray-100 p-0.5 rounded-full">
                   {(['all', 'pending', 'in_progress', 'completed'] as const).map(s => (
                     <button key={s} onClick={() => setFilterStatus(s)}
-                      className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-colors ${filterStatus === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+                      className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${filterStatus === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                       {s === 'all' ? 'All' : s === 'in_progress' ? 'En Route' : s.charAt(0).toUpperCase() + s.slice(1)}
                     </button>
                   ))}
                 </div>
-                <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+                <div className="flex gap-0.5 bg-gray-100 p-0.5 rounded-full">
                   {(['all', 'arrival', 'departure'] as const).map(d => (
                     <button key={d} onClick={() => setFilterDir(d)}
-                      className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-colors ${filterDir === d ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+                      className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${filterDir === d ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                       {d === 'all' ? 'All' : d.charAt(0).toUpperCase() + d.slice(1)}
                     </button>
                   ))}
