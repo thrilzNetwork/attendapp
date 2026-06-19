@@ -961,7 +961,7 @@ export async function cancelShuttleBooking(id: string) {
 export async function createShuttleRequest(req: {
   hotel_id: string; guest_name: string; room_number: string;
   destination: string; pickup_location?: string; date?: string; time?: string;
-  pax?: number; notes?: string;
+  pax?: number; notes?: string; status?: string; assigned_driver_id?: string;
 }) {
   const { data } = await supabase.from('shuttle_requests').insert({
     ...req, pickup_location: req.pickup_location || 'Hotel Lobby',

@@ -824,7 +824,7 @@ export default function Dashboard() {
           <MessagesView messages={messages} hotelId={config?.id || ''} />
         )}
         {tabPanel('shuttle', true,
-          <ShuttleViewComponent hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} />
+          <ShuttleViewComponent hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} staffList={staff} />
         )}
         {tabPanel('shuttle_schedule', true,
           <ShuttleScheduleView hotelId={config?.id || ''} isAdmin={isAdmin} />
