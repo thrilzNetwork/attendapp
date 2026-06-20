@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { calculateETA, getActiveBouncieToken, listBouncieVehicles } from '@/lib/bouncie';
+import { calculateETA, getActiveBouncieToken, listBouncieVehicles, normalizeBouncieVehicle } from '@/lib/bouncie';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -22,20 +22,16 @@ export async function GET(req: NextRequest) {
   try {
     const accessToken = await getActiveBouncieToken(hotelId);
     const liveVehicles = await listBouncieVehicles(accessToken);
-    for (const v of liveVehicles) {
-      if (!v.deviceId) continue;
+    for (const raw of liveVehicles) {
+      const v = normalizeBouncieVehicle(raw);
+      if (!v) continue;
       await db.from('bouncie_devices').upsert(
-        { hotel_id: hotelId, device_id: v.deviceId, vehicle_name: v.name || v.vin || v.imei || v.deviceId, is_active: true, is_shuttle: true, updated_at: new Date().toISOString() },
+        { hotel_id: hotelId, device_id: v.deviceId, vehicle_name: v.name, is_active: true, is_shuttle: true, updated_at: new Date().toISOString() },
         { onConflict: 'hotel_id,device_id' }
       );
-      // Try multiple GPS field paths — Bouncie firmware versions vary
-      type GpsShape = { lat?: number; lng?: number; speed?: number; heading?: number; accuracy?: number; dt?: string };
-      const statsAny = v.stats as Record<string, unknown> | undefined;
-      const gps: GpsShape | null = v.stats?.gps ?? (statsAny?.lastLocation as GpsShape) ?? null;
-      if (gps?.lat !== undefined && gps?.lng !== undefined) {
-        const recordedAt = gps.dt ?? new Date().toISOString();
+      if (v.gps) {
         await db.from('bouncie_locations').upsert(
-          { device_id: v.deviceId, hotel_id: hotelId, lat: gps.lat, lng: gps.lng, speed_mph: gps.speed ?? 0, heading: gps.heading ?? 0, accuracy: gps.accuracy ?? 0, recorded_at: recordedAt, received_at: new Date().toISOString() },
+          { device_id: v.deviceId, hotel_id: hotelId, lat: v.gps.lat, lng: v.gps.lng, speed_mph: v.gps.speed, heading: v.gps.heading, accuracy: v.gps.accuracy, recorded_at: v.gps.recordedAt, received_at: new Date().toISOString() },
           { onConflict: 'device_id' }
         );
       }
