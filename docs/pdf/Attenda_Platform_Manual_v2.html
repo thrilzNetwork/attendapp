@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/>
+<style>@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+
+@page {
+  size: A4;
+  margin: 20mm 18mm 25mm 18mm;
+  @bottom-center {
+    content: "ATTENDA  ·  Confidential  ·  Do Not Distribute  ·  " counter(page);
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 8pt;
+    color: #9b6070;
+    letter-spacing: 0.08em;
+  }
+}
+
+@page :first {
+  @bottom-center { content: ""; }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.5pt;
+  color: #1a1a2e;
+  line-height: 1.6;
+  background: white;
+}
+
+/* ── COVER ── */
+.cover {
+  page: cover;
+  min-height: 260mm;
+  background: linear-gradient(160deg, #7B1C3E 0%, #3d0e1f 55%, #1a0810 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60pt 50pt;
+  border-radius: 4pt;
+}
+
+@page cover { margin: 0; @bottom-center { content: ""; } }
+
+.cover-logo {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 11pt;
+  letter-spacing: 0.5em;
+  color: #e8c0cd;
+  text-transform: uppercase;
+  margin-bottom: 28pt;
+}
+
+.cover h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 30pt;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  margin-bottom: 10pt;
+}
+
+.cover .subtitle {
+  font-size: 10pt;
+  letter-spacing: 0.35em;
+  color: #f0b8cb;
+  text-transform: uppercase;
+  margin-bottom: 30pt;
+}
+
+.cover .role-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.12);
+  border: 1pt solid rgba(255,255,255,0.3);
+  border-radius: 20pt;
+  padding: 6pt 20pt;
+  font-size: 9.5pt;
+  color: #fce8ef;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 50pt;
+}
+
+.cover .divider {
+  width: 60pt;
+  height: 1pt;
+  background: rgba(255,255,255,0.3);
+  margin: 0 auto 30pt;
+}
+
+.cover .meta {
+  font-size: 8.5pt;
+  color: #c49aaa;
+  line-height: 1.8;
+  letter-spacing: 0.05em;
+}
+
+/* ── QUICK REF BOX ── */
+.quick-ref {
+  background: #fdf0f4;
+  border-left: 4pt solid #7B1C3E;
+  border-radius: 3pt;
+  padding: 14pt 18pt;
+  margin: 16pt 0 22pt;
+}
+
+.quick-ref-title {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #7B1C3E;
+  margin-bottom: 10pt;
+}
+
+/* ── SECTION HEADER ── */
+h1.section {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 16pt;
+  font-weight: 700;
+  color: #7B1C3E;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 28pt 0 4pt;
+  padding-bottom: 6pt;
+  border-bottom: 2pt solid #7B1C3E;
+  page-break-after: avoid;
+}
+
+h2.sub {
+  font-family: 'Source Sans Pro', sans-serif;
+  font-size: 11.5pt;
+  font-weight: 700;
+  color: #3d0e1f;
+  margin: 16pt 0 6pt;
+  page-break-after: avoid;
+}
+
+h3.sub2 {
+  font-size: 10pt;
+  font-weight: 700;
+  color: #5a1028;
+  margin: 12pt 0 4pt;
+  page-break-after: avoid;
+}
+
+/* ── TABLES ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10pt 0 16pt;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+thead tr {
+  background: #7B1C3E;
+  color: white;
+}
+
+thead th {
+  padding: 7pt 10pt;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 9pt;
+}
+
+tbody tr:nth-child(odd)  { background: #ffffff; }
+tbody tr:nth-child(even) { background: #fdf0f4; }
+
+tbody td {
+  padding: 6pt 10pt;
+  border-bottom: 0.5pt solid #e8d0d8;
+  vertical-align: top;
+}
+
+/* ── CODE / EXAMPLE BLOCKS ── */
+pre, code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 8.5pt;
+}
+
+pre {
+  background: #1a1a2e;
+  color: #e8f4f8;
+  padding: 12pt 14pt;
+  border-radius: 4pt;
+  margin: 10pt 0 16pt;
+  white-space: pre-wrap;
+  page-break-inside: avoid;
+}
+
+/* ── CALLOUT / TIP ── */
+blockquote {
+  background: #fff8e7;
+  border-left: 3pt solid #d4a017;
+  padding: 8pt 14pt;
+  margin: 8pt 0 14pt;
+  font-size: 9.5pt;
+  color: #5a4010;
+  border-radius: 0 3pt 3pt 0;
+}
+
+blockquote strong {
+  color: #7a5500;
+}
+
+/* WARNING */
+blockquote.warn {
+  background: #fff0f0;
+  border-left-color: #c0392b;
+  color: #6a1010;
+}
+
+/* ── STEPS ── */
+ol {
+  padding-left: 18pt;
+  margin: 6pt 0 12pt;
+}
+
+ol li {
+  margin-bottom: 5pt;
+  padding-left: 4pt;
+}
+
+ul {
+  padding-left: 16pt;
+  margin: 4pt 0 10pt;
+  list-style: none;
+}
+
+ul li::before {
+  content: "•";
+  color: #7B1C3E;
+  font-weight: bold;
+  margin-right: 6pt;
+}
+
+ul li {
+  margin-bottom: 3pt;
+  padding-left: 4pt;
+}
+
+/* ── HORIZONTAL RULE ── */
+hr {
+  border: none;
+  border-top: 1pt solid #e0c0cc;
+  margin: 14pt 0;
+}
+
+/* ── STATUS PILLS ── */
+.pill {
+  display: inline-block;
+  padding: 2pt 8pt;
+  border-radius: 10pt;
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pill-amber { background: #fff3cd; color: #856404; }
+.pill-blue  { background: #d0e8ff; color: #0a3a6e; }
+.pill-teal  { background: #d0f0ee; color: #0a4a46; }
+.pill-green { background: #d0f0dc; color: #0a4020; }
+.pill-gray  { background: #e8e8e8; color: #555;    }
+
+/* ── TOC ── */
+.toc-row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 0.5pt dotted #c0a0aa;
+  padding: 3pt 0;
+  font-size: 10pt;
+}
+
+.toc-row .toc-num { color: #7B1C3E; font-weight: 700; min-width: 22pt; }
+.toc-row .toc-pg  { color: #9b6070; font-size: 9pt; }
+
+/* ── MISC ── */
+p { margin-bottom: 8pt; }
+
+strong { color: #3d0e1f; }
+
+.page-break { page-break-before: always; }
+
+.label-new {
+  display: inline-block;
+  background: #7B1C3E;
+  color: white;
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 1pt 5pt;
+  border-radius: 3pt;
+  text-transform: uppercase;
+  vertical-align: middle;
+  margin-left: 4pt;
+}
+
+.sop-num {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #9b6070;
+  text-transform: uppercase;
+  margin-bottom: 2pt;
+}
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-logo">✦ Quantum Hospitality Solutions ✦</div>
+  <h1>Attenda Platform Manual</h1>
+  <div class="subtitle">Version 2.0 &nbsp;·&nbsp; Reference Manual · Version 2.0</div>
+  <div class="role-badge">All Staff & Administrators</div>
+  <div class="divider"></div>
+  <div class="meta">
+    Attenda Platform &nbsp;·&nbsp; Confidential &nbsp;·&nbsp; Do Not Distribute<br/>
+    Issued June 2026 &nbsp;·&nbsp; Quantum Hospitality Solutions
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<h1 class="section">Table of Contents</h1>
+<div style="margin-top:10pt;">
+{''.join(f'<div class="toc-row"><span><span class="toc-num">§{n}</span> {t}</span><span class="toc-pg">{p}</span></div>'
+  for n,t,p in [
+    (1,"Introduction & Platform Overview",4),
+    (2,"Architecture & Multi-Tenancy",7),
+    (3,"User Roles & Permissions",10),
+    (4,"Daily Brief Dashboard",13),
+    (5,"Revenue Dashboard",17),
+    (6,"Guest Requests & Food Orders",20),
+    (7,"Front Desk Operations",25),
+    (8,"Shuttle & Transport",29),
+    (9,"Staff Schedules",35),
+    (10,"Staff Callouts & Coverage",41),
+    (11,"Culture Hub",44),
+    (12,"KPIs & Marketplace",47),
+    (13,"Partner Network & Vendor Onboarding",52),
+    (14,"Vendor Portal",56),
+    (15,"Right Answers Knowledge Base",60),
+    (16,"Learning & HR",63),
+    (17,"Compset & Competitive Intelligence",66),
+    (18,"Forecast & Staffing",68),
+    (19,"Position To-Dos",71),
+    (20,"Superadmin & Platform Operations",74),
+  ]
+)}
+</div>
+
+<div class="page-break"></div>
+<h1 class="section">§1 — Introduction & Platform Overview</h1>
+<h2 class="sub">What Is Attenda?</h2>
+<p>Attenda is an all-in-one hospitality operations platform built by <strong>Quantum Hospitality Solutions (QHS)</strong> — a company founded on 15+ years of hands-on hotel management. It replaces the fragmented patchwork of spreadsheets, group chats, and single-purpose tools that most independent hotels still rely on, and consolidates them into a single, role-aware system accessible from any device.</p>
+<p>Attenda is not a property management system (PMS). It does not handle room inventory or reservations. Instead, it operates in the operational layer that sits <em>above</em> the PMS — coordinating staff, serving guests, managing vendor relationships, and giving general managers real-time insight into the health of their property.</p>
+
+<h2 class="sub">What's New in v2</h2>
+<table>
+<thead><tr><th>Area</th><th>v1</th><th>v2</th></tr></thead>
+<tbody>
+<tr><td>Shuttle dispatch</td><td>Slot-management view</td><td>Quick Dispatch bar + hourly timeline + Bouncie GPS</td></tr>
+<tr><td>Staff schedules</td><td>Basic add/delete</td><td>Edit modal, templates, copy-week, auto-role, TBD shifts</td></tr>
+<tr><td>Knowledge base</td><td>Keyword matching</td><td>AI-powered suggestions via Claude API</td></tr>
+<tr><td>Vendor onboarding</td><td>Manual (admin only)</td><td>Self-service /apply page + inbox</td></tr>
+<tr><td>Guest food orders</td><td>Order + static confirmation</td><td>Live order tracking page (/track)</td></tr>
+<tr><td>Revenue tracking</td><td>None</td><td>Revenue Dashboard with partner breakdown</td></tr>
+<tr><td>Team culture</td><td>None</td><td>Culture Hub: leaderboard, rewards, birthdays, events</td></tr>
+<tr><td>Front desk tools</td><td>Call Around, Logs</td><td>+ Bank Count (cash drawer denominations)</td></tr>
+<tr><td>Payments</td><td>Cash only</td><td>Stripe card payment integration</td></tr>
+<tr><td>Callouts</td><td>Basic list</td><td>Full workflow: report → approve → find cover</td></tr>
+</tbody>
+</table>
+
+<h2 class="sub">Platform URL Structure</h2>
+<pre>https://attendaapp.com/          → Guest-facing hotel page
+https://attendaapp.com/staff     → Staff dashboard (login required)
+https://attendaapp.com/vendor    → Vendor portal (vendor login required)
+https://attendaapp.com/apply     → Partner self-onboarding (public)
+https://attendaapp.com/track     → Order tracking (public, orderId param)
+https://attendaapp.com/nearby    → Guest food &amp; services ordering (public)
+https://attendaapp.com/superadmin → Platform administration</pre>
+
+<div class="page-break"></div>
+<h1 class="section">§2 — Architecture & Multi-Tenancy</h1>
+<h2 class="sub">Technology Stack</h2>
+<table>
+<thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+<tbody>
+<tr><td>Frontend</td><td>Next.js 14.2 (App Router, React Server Components)</td></tr>
+<tr><td>Styling</td><td>Tailwind CSS 3.4</td></tr>
+<tr><td>Database</td><td>Supabase (PostgreSQL 15, Row-Level Security)</td></tr>
+<tr><td>Auth</td><td>Supabase Auth + custom session metadata</td></tr>
+<tr><td>Email</td><td>Resend</td></tr>
+<tr><td>Payments</td><td>Stripe</td></tr>
+<tr><td>GPS Tracking</td><td>Bouncie API</td></tr>
+<tr><td>Ride Dispatch</td><td>Uber Direct API</td></tr>
+<tr><td>AI</td><td>Anthropic Claude API (claude-haiku-4-5-20251001)</td></tr>
+<tr><td>Hosting</td><td>Vercel (Edge Functions, ISR)</td></tr>
+</tbody>
+</table>
+
+<h2 class="sub">Multi-Tenant Architecture</h2>
+<p>Every record in the database carries a <code>hotel_id</code> UUID column. Supabase Row-Level Security (RLS) policies enforce that authenticated sessions can only read or write records matching the <code>hotel_id</code> embedded in their JWT claims.</p>
+<pre>-- Example RLS policy (enforced at DB layer)
+CREATE POLICY "hotel_isolation" ON requests
+  USING (hotel_id = (current_setting('request.jwt.claims')::json->>'hotel_id')::uuid);</pre>
+
+<h2 class="sub">Session Architecture</h2>
+<p><strong>Staff Sessions:</strong> Staff log in via <code>/staff</code> with email + password. The JWT contains hotel_id, role, vendor_type, and name. The frontend reads these claims to control which tabs are visible.</p>
+<p><strong>Guest Sessions:</strong> Guests do not create accounts. A lightweight check-in (name + room number) creates a <code>guestSession</code> in localStorage. No server-side session is created for guests.</p>
+<p><strong>Vendor Sessions:</strong> Vendors log in via <code>/vendor</code>. Vendor accounts are scoped to a single property and vendor_type.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§3 — User Roles & Permissions</h1>
+<h2 class="sub">Role Hierarchy</h2>
+<pre>SuperAdmin
+    └── Admin (General Manager)
+            └── Manager (Supervisor)
+                    └── Staff (Front-line)
+                            └── Vendor (Partners)</pre>
+
+<h2 class="sub">Permission Matrix</h2>
+<table>
+<thead><tr><th>Feature</th><th>SuperAdmin</th><th>Admin</th><th>Manager</th><th>Staff</th><th>Vendor</th></tr></thead>
+<tbody>
+<tr><td>Revenue Dashboard</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Staff Management</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Property Settings</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Schedules (edit)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+<tr><td>Schedules (view)</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+<tr><td>Callouts (approve)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+<tr><td>Callouts (submit)</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+<tr><td>KPI submit</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+<tr><td>Vendor applications</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Order status update</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+<tr><td>Culture Hub</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+<tr><td>Learning & HR</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+</tbody>
+</table>
+
+<div class="page-break"></div>
+<h1 class="section">§4 — Daily Brief Dashboard</h1>
+<p>The Daily Brief is the first screen staff see after logging in — a snapshot of the day ahead in under 60 seconds. It is refreshed in real time and designed for the daily standup or pre-shift meeting.</p>
+
+<h2 class="sub">Dashboard Sections (8 Configurable)</h2>
+<table>
+<thead><tr><th>#</th><th>Section</th><th>Contents</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>GM Notes</td><td>Manager bulletin board, free text, timestamped entries</td></tr>
+<tr><td>2</td><td>Quick Stats</td><td>Occupancy / Arrivals / Departures / Pending Requests tiles</td></tr>
+<tr><td>3</td><td>Activity Feed</td><td>Real-time stream of all module activity</td></tr>
+<tr><td>4</td><td>Crew Briefing</td><td>Shift handoff announcements from admin</td></tr>
+<tr><td>5</td><td>KPIs Summary</td><td>Today's KPI submission status across all categories</td></tr>
+<tr><td>6</td><td>Pending Requests</td><td>Most recent unresolved guest requests</td></tr>
+<tr><td>7</td><td>Shuttle Times</td><td>Today's scheduled shuttle departures</td></tr>
+<tr><td>8</td><td>Forecast Summary</td><td>Today's occupancy forecast in single-row view</td></tr>
+</tbody>
+</table>
+
+<h2 class="sub">Widget Customizer (v2)</h2>
+<p>Each staff member can personalize their Daily Brief. Click the ⚙ gear icon (top-right of Dashboard) to toggle any of the 8 sections on or off. Preferences persist in localStorage per device.</p>
+
+<h2 class="sub">Print Brief</h2>
+<p>Admins can print the current brief via the printer icon button. The browser print dialog opens with a clean, sidebar-free layout hiding all interactive elements.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§5 — Revenue Dashboard <span class="label-new">v2 new</span></h1>
+<p>The Revenue Dashboard gives General Managers a consolidated view of all revenue flowing through Attenda. Access: Admin section only.</p>
+
+<h2 class="sub">Business Model</h2>
+<table>
+<thead><tr><th>Party</th><th>Share</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Vendor / Partner</td><td>90%</td><td>Transferred to partner after transaction</td></tr>
+<tr><td>Hotel (Attenda commission)</td><td>10%</td><td>Retained by property</td></tr>
+<tr><td>Card processing fee</td><td>3%</td><td>Applies to all Stripe transactions</td></tr>
+</tbody>
+</table>
+
+<h2 class="sub">KPI Cards</h2>
+<table>
+<thead><tr><th>Card</th><th>Calculation</th></tr></thead>
+<tbody>
+<tr><td>Total Revenue</td><td>Sum of all order gross amounts in period</td></tr>
+<tr><td>Hotel Commission</td><td>10% of Total Revenue</td></tr>
+<tr><td>Transactions</td><td>Count of completed orders</td></tr>
+</tbody>
+</table>
+
+<h2 class="sub">Partner Breakdown Table</h2>
+<p>Shows per-partner: Partner name | Orders | Gross Revenue | Hotel Commission | Avg. Order | Status. Clicking a row drills into that partner's individual order history.</p>
+
+<h2 class="sub">Data Sources</h2>
+<table>
+<thead><tr><th>Revenue Type</th><th>Source Table</th><th>Key Fields</th></tr></thead>
+<tbody>
+<tr><td>Food orders</td><td>requests</td><td>type='food_order', total_amount, vendor_payout</td></tr>
+<tr><td>Shuttle bookings</td><td>shuttle_bookings</td><td>price_per_person, pax</td></tr>
+<tr><td>Transport requests</td><td>requests</td><td>type='transport_request'</td></tr>
+</tbody>
+</table>
+
+<div class="page-break"></div>
+<h1 class="section">§6 — Guest Requests & Food Orders</h1>
+<h2 class="sub">Guest Ordering Experience</h2>
+<p>Guests access ordering via QR code in their room → <code>attendaapp.com/nearby?hotel={slug}</code>. No app download required. After a lightweight check-in (name + room), guests browse partner menus, add to cart, and checkout.</p>
+
+<h2 class="sub">Cart & Checkout (v2)</h2>
+<p><strong>Cart Badge:</strong> A persistent cart icon in the menu header shows current item count. <strong>Stripe Payments:</strong> Card payments processed via Stripe — 3% fee displayed before confirmation. <strong>Room Charge:</strong> Alternative payment option charged to the folio.</p>
+
+<h2 class="sub">Order Tracking (v2)</h2>
+<p>After placing an order, guests receive a <strong>Track Order</strong> link: <code>attendaapp.com/track?orderId={uuid}</code>. The page is public (no login), updates in real time via Supabase Realtime, and shows:</p>
+<pre>● Placed  →  ● Received  →  ● Preparing  →  ● Ready  →  ◯ Delivered</pre>
+
+<h2 class="sub">Request Types</h2>
+<table>
+<thead><tr><th>Type</th><th>Display Name</th><th>Routed To</th></tr></thead>
+<tbody>
+<tr><td>food_order</td><td>Food Order</td><td>Vendor + Staff inbox</td></tr>
+<tr><td>transport_request</td><td>Transport</td><td>Staff inbox</td></tr>
+<tr><td>housekeeping</td><td>Housekeeping</td><td>Staff inbox</td></tr>
+<tr><td>maintenance</td><td>Maintenance</td><td>Staff inbox</td></tr>
+<tr><td>message</td><td>Guest Message</td><td>Staff inbox</td></tr>
+<tr><td>amenity_request</td><td>Amenity Request</td><td>Staff inbox</td></tr>
+</tbody>
+</table>
+
+<div class="page-break"></div>
+<h1 class="section">§7 — Front Desk Operations</h1>
+<p>The Front Desk Operations module consolidates daily logging tasks into a structured, searchable, auditable digital record. Accessible via sub-tabs in Daily Ops.</p>
+
+<h2 class="sub">Sub-Modules</h2>
+<table>
+<thead><tr><th>Sub-tab</th><th>Purpose</th><th>Key Fields</th></tr></thead>
+<tbody>
+<tr><td>Call Around</td><td>Log outbound calls to guests</td><td>Guest, room, call type, outcome, notes</td></tr>
+<tr><td>Daily Logs</td><td>Incident &amp; event log (Manager's Log)</td><td>Category, description, action taken</td></tr>
+<tr><td>No Shows</td><td>Track guests who didn't arrive</td><td>Guest, reservation, attempts, notes</td></tr>
+<tr><td>Room Moves</td><td>Log guest room changes</td><td>From room, to room, reason, authorized by</td></tr>
+<tr><td>Bank Count</td><td>Cash drawer denomination tracking</td><td>All denominations, paid outs, petty cash</td></tr>
+</tbody>
+</table>
+
+<h2 class="sub">Bank Count (v2)</h2>
+<p>Digitizes the cash drawer count replacing paper bank count sheets. Denominations: $100, $50, $20, $10, $5, $1 bills; half-dollars, quarters, dimes, nickels, pennies. Auto-calculates: Drawer Total, Paid Outs, Petty Cash, Net Drawer. Done at shift start and end.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§8 — Shuttle & Transport</h1>
+<p>Completely redesigned in v2 as a real-time dispatch tool. A new booking can be logged in under 30 seconds. Three tabs: <strong>Today</strong> (hourly timeline), <strong>Requests</strong> (history), <strong>Setup</strong> (admin config).</p>
+
+<h2 class="sub">Quick Dispatch Bar (v2)</h2>
+<p>The <strong>+ New Pickup</strong> button opens a bottom-sheet form with: Trip Type (Arrival/Departure), Guest Name, Room #, Party Size (stepper), Pickup Location, Drop-Off, Requested Time, Notes, and Assignment (In-House Driver or Send Uber).</p>
+
+<h2 class="sub">Hourly Timeline (v2)</h2>
+<p>The Today tab shows all shuttles organized by hour. Each card shows: guest name, room, pax, pickup → dropoff, assigned driver or Uber badge.</p>
+<table>
+<thead><tr><th>Status</th><th>Visual</th></tr></thead>
+<tbody>
+<tr><td>pending</td><td>Amber border + amber background</td></tr>
+<tr><td>assigned</td><td>Blue border</td></tr>
+<tr><td>in_progress</td><td>Teal border + teal background</td></tr>
+<tr><td>completed</td><td>Green muted, slightly faded</td></tr>
+<tr><td>cancelled</td><td>Gray, strikethrough text</td></tr>
+</tbody>
+</table>
+
+<h2 class="sub">Bouncie GPS Integration (v2)</h2>
+<p>For hotels with Bouncie GPS trackers: a live map above the timeline shows vehicle location in real time. Configure via Admin → Property Settings → Bouncie credentials.</p>
+
+<h2 class="sub">Uber Direct Integration</h2>
+<p>Selecting "Send Uber" in dispatch calls the Uber Direct API to request a driver. The response includes estimated pickup time and a tracking URL stored on the card.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§9 — Staff Schedules</h1>
+<h2 class="sub">Schedule Grid</h2>
+<p>A week-at-a-glance grid: columns = Mon–Sun, rows = staff members, cells = shift cards. Amber cards with "→ TBD" indicate housekeeping open-ended shifts.</p>
+
+<h2 class="sub">Adding a Shift</h2>
+<p>Click <strong>+ Add Shift</strong>. Role auto-fills from the selected staff member's profile (v2). For housekeeping, check "Open end time" — shift stored with NULL end_time and shown as → TBD in amber.</p>
+
+<h2 class="sub">Editing a Shift (v2)</h2>
+<p>Clicking a shift card now opens an <strong>Edit modal</strong> (v1 deleted immediately — redesigned in v2). Modal actions: <strong>Save Changes</strong> (blue) or <strong>Delete Shift</strong> (red, deliberate).</p>
+
+<h2 class="sub">Copy to Next Week (v2)</h2>
+<p>The <strong>Copy to Next Week</strong> button duplicates all current week's shifts +7 days. Confirmation shown if next week already has shifts.</p>
+
+<h2 class="sub">Schedule Templates (v2)</h2>
+<table>
+<thead><tr><th>Action</th><th>Button</th><th>What It Does</th></tr></thead>
+<tbody>
+<tr><td>Save Template</td><td>Bookmark icon</td><td>Saves current week as a named template in localStorage</td></tr>
+<tr><td>Load Template</td><td>Folder icon</td><td>Applies a saved template to the current week, maps by day-of-week</td></tr>
+</tbody>
+</table>
+
+<h2 class="sub">TBD Shift End-Time (v2)</h2>
+<p>Supervisors tap the amber "→ TBD" badge to set the actual end time via inline popover. Updates immediately.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§10 — Staff Callouts & Coverage</h1>
+<h2 class="sub">Staff: Reporting a Callout</h2>
+<p>Any staff member clicks <strong>Callouts → Report Callout</strong> and fills in: Shift Date, Reason (Sick/Personal/Family Emergency/Other), Notes. Managers see it immediately with a badge count on the Callouts tab.</p>
+
+<h2 class="sub">Manager: Actions</h2>
+<table>
+<thead><tr><th>Action</th><th>When</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>Approve</td><td>No coverage needed</td><td>Closes callout, removes from pending count</td></tr>
+<tr><td>Find Cover</td><td>Shift must be filled</td><td>Opens Schedules filtered to callout date</td></tr>
+</tbody>
+</table>
+<p>A <strong>red dot</strong> on the Schedules tab date header indicates a callout exists for that day.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§11 — Culture Hub <span class="label-new">v2 new</span></h1>
+<p>A team engagement layer that increases retention and morale through recognition, milestones, and community.</p>
+
+<h2 class="sub">Leaderboard</h2>
+<p>Monthly points ranking across all staff. Gold 🥇 / Silver 🥈 / Bronze 🥉 for top 3. Points earned via KPI submissions, training completions, guest commendations, attendance. Resets monthly.</p>
+
+<h2 class="sub">Rewards Catalog</h2>
+<p>Admins configure redeemable rewards (preferred parking, gift cards, paid meals). Staff redeem points; admins approve from a pending queue.</p>
+
+<h2 class="sub">Birthday Tracking</h2>
+<p>Upcoming birthdays in the next 30 days shown in Culture Hub. Birthday notification appears in Daily Brief on the staff member's day.</p>
+
+<h2 class="sub">Team Events</h2>
+<p>Managers post upcoming team events (meetings, outings, celebrations) with date, location, description, and optional RSVP.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§12 — KPIs & Marketplace</h1>
+<h2 class="sub">KPI Categories</h2>
+<table>
+<thead><tr><th>Category</th><th>Example Metrics</th></tr></thead>
+<tbody>
+<tr><td>Revenue</td><td>ADR, RevPAR, Ancillary Revenue</td></tr>
+<tr><td>Operations</td><td>Maintenance Resolution Time, Room Turnaround</td></tr>
+<tr><td>Guest Experience</td><td>NPS, Complaint Rate</td></tr>
+<tr><td>Quality</td><td>Inspection Score, Defect Rate</td></tr>
+<tr><td>Housekeeping</td><td>Rooms Cleaned, CPOR</td></tr>
+<tr><td>Front Desk</td><td>Check-In Wait Time, Upsell Conversion</td></tr>
+</tbody>
+</table>
+
+<h2 class="sub">Marketplace (v2)</h2>
+<p>Community library of pre-built KPI packs and To-Do packs. Each pack shows name, category, install count, and star rating. Click <strong>Install</strong> — definitions are added to the hotel's active configuration immediately.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§13 — Partner Network & Vendor Onboarding</h1>
+<h2 class="sub">Partner Categories</h2>
+<table>
+<thead><tr><th>Category</th><th>Examples</th></tr></thead>
+<tbody>
+<tr><td>Restaurant</td><td>Local restaurants, cafes, room service</td></tr>
+<tr><td>Transport</td><td>Car services, tours, charter boats</td></tr>
+<tr><td>Service</td><td>Spa, laundry, pet care</td></tr>
+<tr><td>Experience</td><td>Tours, shows, sporting events</td></tr>
+</tbody>
+</table>
+
+<h2 class="sub">Vendor Self-Onboarding (v2)</h2>
+<p>Public apply page at <code>attendaapp.com/apply?hotel={slug}</code>. No login required. Form: Business Name, Contact, Phone, Email, Business Type, Description. On submit → stored in partner_applications → staff notified → approve or reject in Partners inbox.</p>
+<p><strong>Share Apply Link:</strong> In the Partners tab, click <strong>Share Apply Link</strong> — copies the full URL to clipboard for distribution.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§14 — Vendor Portal</h1>
+<h2 class="sub">Login (v2 enhanced)</h2>
+<p>Vendors log in at <code>attendaapp.com/vendor</code> with tenant-scoped email + password. Sessions are scoped to a single hotel_id + vendor_type.</p>
+
+<h2 class="sub">Order Board — Status Workflow</h2>
+<table>
+<thead><tr><th>Button</th><th>Transition</th><th>Guest Sees</th></tr></thead>
+<tbody>
+<tr><td>Accept Order</td><td>New → Received</td><td>Order Received</td></tr>
+<tr><td>Start Preparing</td><td>Received → Preparing</td><td>Preparing Your Order</td></tr>
+<tr><td>Mark Ready</td><td>Preparing → Ready</td><td>Order Ready</td></tr>
+<tr><td>Mark Delivered</td><td>Ready → Delivered</td><td>Delivered ✓</td></tr>
+</tbody>
+</table>
+<p>Each status change updates the guest's /track page in real time via Supabase Realtime. An audio notification sounds on new order arrival.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§15 — Right Answers Knowledge Base</h1>
+<h2 class="sub">AI Suggestion Engine (v2)</h2>
+<p>When no KB entry matches, staff click <strong>Get AI Suggestion</strong>. The request goes to <code>/api/ai-suggest</code> → Claude API → professional hotel response in 2–5 seconds. AI suggestions are not automatically added to the KB — managers review and approve.</p>
+
+<h2 class="sub">KB Contribution Workflow</h2>
+<p>Staff submit suggestions → stored as kb_suggestion records → Manager/Admin reviews in the <strong>Pending</strong> tab → Approve (adds to live KB) or Reject (with feedback).</p>
+
+<div class="page-break"></div>
+<h1 class="section">§16 — Learning & HR</h1>
+<h2 class="sub">Course Structure</h2>
+<p>Courses contain Modules (text/video/PDF) and Quizzes (multiple choice, 80% to pass). Staff see progress bars per course; completion earns a Certificate. Admins see a training matrix showing all staff × all courses.</p>
+
+<h2 class="sub">HR Document Library</h2>
+<p>PDFs uploaded by admins in categories: Employee Handbook, Benefits, Safety, Policies, Position Guidelines. Documents marked <strong>Requires Acknowledgement</strong> track per-staff confirmation.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§17 — Compset & Competitive Intelligence</h1>
+<p>Track competitor hotel rates via structured call-around logs. Each call records: date, staff member, quoted rates per room category, promotions, restrictions, availability notes.</p>
+<p>The <strong>Rate Position</strong> dashboard shows your rates vs. market average — green (below market) or red (above market) indicator. Historical rate trend per competitor available for the last 30 calls.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§18 — Forecast & Staffing</h1>
+<p>Managers submit daily forecasts (Occupancy, Arrivals, Departures, Group Blocks, VIP Arrivals, Notes). The <strong>Generate Shifts</strong> button suggests staffing based on occupancy ratios configured in Property Settings. Monthly Forecast Calendar shows color-coded occupancy levels (green / amber / red) per day.</p>
+
+<div class="page-break"></div>
+<h1 class="section">§19 — Position To-Dos</h1>
+<p>Role-specific daily checklists tied to positions (e.g., "Front Desk AM", "Night Audit"). Staff check off items with timestamps. Managers see the <strong>Completion Board</strong> — all positions × completion % for today. <strong>Marketplace To-Do Packs</strong> provide curated checklists (Front Desk Opening, Night Audit, Room Inspection, etc.).</p>
+
+<div class="page-break"></div>
+<h1 class="section">§20 — Superadmin & Platform Operations</h1>
+<h2 class="sub">All Properties View</h2>
+<p>Lists all hotel tenants with: name, slug, hotel ID, status, staff count, last activity, and actions (Switch / Settings / Health Check). Clicking Switch loads that hotel's context.</p>
+
+<h2 class="sub">Environment Variables</h2>
+<table>
+<thead><tr><th>Variable</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>NEXT_PUBLIC_SUPABASE_URL</td><td>Supabase project URL</td></tr>
+<tr><td>SUPABASE_SERVICE_ROLE_KEY</td><td>Service-role key (server only)</td></tr>
+<tr><td>RESEND_API_KEY</td><td>Email service</td></tr>
+<tr><td>STRIPE_SECRET_KEY</td><td>Stripe payments</td></tr>
+<tr><td>ANTHROPIC_API_KEY</td><td>Claude AI (Right Answers)</td></tr>
+<tr><td>BOUNCIE_CLIENT_ID / SECRET</td><td>GPS tracking</td></tr>
+<tr><td>UBER_CLIENT_ID / SECRET</td><td>Ride dispatch</td></tr>
+</tbody>
+</table>
+
+<h2 class="sub">Test Tenant</h2>
+<pre>Slug:     test
+Hotel ID: 466654c8-66db-4c08-9bf7-4b6326dbf3b8
+Status:   Development only — no real guests</pre>
+
+</body></html>

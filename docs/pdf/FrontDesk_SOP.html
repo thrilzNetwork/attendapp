@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/>
+<style>@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+
+@page {
+  size: A4;
+  margin: 20mm 18mm 25mm 18mm;
+  @bottom-center {
+    content: "ATTENDA  ·  Confidential  ·  Do Not Distribute  ·  " counter(page);
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 8pt;
+    color: #9b6070;
+    letter-spacing: 0.08em;
+  }
+}
+
+@page :first {
+  @bottom-center { content: ""; }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.5pt;
+  color: #1a1a2e;
+  line-height: 1.6;
+  background: white;
+}
+
+/* ── COVER ── */
+.cover {
+  page: cover;
+  min-height: 260mm;
+  background: linear-gradient(160deg, #7B1C3E 0%, #3d0e1f 55%, #1a0810 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60pt 50pt;
+  border-radius: 4pt;
+}
+
+@page cover { margin: 0; @bottom-center { content: ""; } }
+
+.cover-logo {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 11pt;
+  letter-spacing: 0.5em;
+  color: #e8c0cd;
+  text-transform: uppercase;
+  margin-bottom: 28pt;
+}
+
+.cover h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 30pt;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  margin-bottom: 10pt;
+}
+
+.cover .subtitle {
+  font-size: 10pt;
+  letter-spacing: 0.35em;
+  color: #f0b8cb;
+  text-transform: uppercase;
+  margin-bottom: 30pt;
+}
+
+.cover .role-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.12);
+  border: 1pt solid rgba(255,255,255,0.3);
+  border-radius: 20pt;
+  padding: 6pt 20pt;
+  font-size: 9.5pt;
+  color: #fce8ef;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 50pt;
+}
+
+.cover .divider {
+  width: 60pt;
+  height: 1pt;
+  background: rgba(255,255,255,0.3);
+  margin: 0 auto 30pt;
+}
+
+.cover .meta {
+  font-size: 8.5pt;
+  color: #c49aaa;
+  line-height: 1.8;
+  letter-spacing: 0.05em;
+}
+
+/* ── QUICK REF BOX ── */
+.quick-ref {
+  background: #fdf0f4;
+  border-left: 4pt solid #7B1C3E;
+  border-radius: 3pt;
+  padding: 14pt 18pt;
+  margin: 16pt 0 22pt;
+}
+
+.quick-ref-title {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #7B1C3E;
+  margin-bottom: 10pt;
+}
+
+/* ── SECTION HEADER ── */
+h1.section {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 16pt;
+  font-weight: 700;
+  color: #7B1C3E;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 28pt 0 4pt;
+  padding-bottom: 6pt;
+  border-bottom: 2pt solid #7B1C3E;
+  page-break-after: avoid;
+}
+
+h2.sub {
+  font-family: 'Source Sans Pro', sans-serif;
+  font-size: 11.5pt;
+  font-weight: 700;
+  color: #3d0e1f;
+  margin: 16pt 0 6pt;
+  page-break-after: avoid;
+}
+
+h3.sub2 {
+  font-size: 10pt;
+  font-weight: 700;
+  color: #5a1028;
+  margin: 12pt 0 4pt;
+  page-break-after: avoid;
+}
+
+/* ── TABLES ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10pt 0 16pt;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+thead tr {
+  background: #7B1C3E;
+  color: white;
+}
+
+thead th {
+  padding: 7pt 10pt;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 9pt;
+}
+
+tbody tr:nth-child(odd)  { background: #ffffff; }
+tbody tr:nth-child(even) { background: #fdf0f4; }
+
+tbody td {
+  padding: 6pt 10pt;
+  border-bottom: 0.5pt solid #e8d0d8;
+  vertical-align: top;
+}
+
+/* ── CODE / EXAMPLE BLOCKS ── */
+pre, code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 8.5pt;
+}
+
+pre {
+  background: #1a1a2e;
+  color: #e8f4f8;
+  padding: 12pt 14pt;
+  border-radius: 4pt;
+  margin: 10pt 0 16pt;
+  white-space: pre-wrap;
+  page-break-inside: avoid;
+}
+
+/* ── CALLOUT / TIP ── */
+blockquote {
+  background: #fff8e7;
+  border-left: 3pt solid #d4a017;
+  padding: 8pt 14pt;
+  margin: 8pt 0 14pt;
+  font-size: 9.5pt;
+  color: #5a4010;
+  border-radius: 0 3pt 3pt 0;
+}
+
+blockquote strong {
+  color: #7a5500;
+}
+
+/* WARNING */
+blockquote.warn {
+  background: #fff0f0;
+  border-left-color: #c0392b;
+  color: #6a1010;
+}
+
+/* ── STEPS ── */
+ol {
+  padding-left: 18pt;
+  margin: 6pt 0 12pt;
+}
+
+ol li {
+  margin-bottom: 5pt;
+  padding-left: 4pt;
+}
+
+ul {
+  padding-left: 16pt;
+  margin: 4pt 0 10pt;
+  list-style: none;
+}
+
+ul li::before {
+  content: "•";
+  color: #7B1C3E;
+  font-weight: bold;
+  margin-right: 6pt;
+}
+
+ul li {
+  margin-bottom: 3pt;
+  padding-left: 4pt;
+}
+
+/* ── HORIZONTAL RULE ── */
+hr {
+  border: none;
+  border-top: 1pt solid #e0c0cc;
+  margin: 14pt 0;
+}
+
+/* ── STATUS PILLS ── */
+.pill {
+  display: inline-block;
+  padding: 2pt 8pt;
+  border-radius: 10pt;
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pill-amber { background: #fff3cd; color: #856404; }
+.pill-blue  { background: #d0e8ff; color: #0a3a6e; }
+.pill-teal  { background: #d0f0ee; color: #0a4a46; }
+.pill-green { background: #d0f0dc; color: #0a4020; }
+.pill-gray  { background: #e8e8e8; color: #555;    }
+
+/* ── TOC ── */
+.toc-row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 0.5pt dotted #c0a0aa;
+  padding: 3pt 0;
+  font-size: 10pt;
+}
+
+.toc-row .toc-num { color: #7B1C3E; font-weight: 700; min-width: 22pt; }
+.toc-row .toc-pg  { color: #9b6070; font-size: 9pt; }
+
+/* ── MISC ── */
+p { margin-bottom: 8pt; }
+
+strong { color: #3d0e1f; }
+
+.page-break { page-break-before: always; }
+
+.label-new {
+  display: inline-block;
+  background: #7B1C3E;
+  color: white;
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 1pt 5pt;
+  border-radius: 3pt;
+  text-transform: uppercase;
+  vertical-align: middle;
+  margin-left: 4pt;
+}
+
+.sop-num {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #9b6070;
+  text-transform: uppercase;
+  margin-bottom: 2pt;
+}
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-logo">✦ Quantum Hospitality Solutions ✦</div>
+  <h1>Front Desk SOP</h1>
+  <div class="subtitle">Version 2.0 &nbsp;·&nbsp; Standard Operating Procedures · v2.0</div>
+  <div class="role-badge">Role: Front Desk Agent</div>
+  <div class="divider"></div>
+  <div class="meta">
+    Attenda Platform &nbsp;·&nbsp; Confidential &nbsp;·&nbsp; Do Not Distribute<br/>
+    Issued June 2026 &nbsp;·&nbsp; Quantum Hospitality Solutions
+  </div>
+</div>
+
+<div class="page-break"></div>
+<div class="quick-ref">
+<div class="quick-ref-title">Quick Reference — Front Desk Daily Tasks</div>
+<table style="margin:0;">
+<thead><tr><th>Task</th><th>Where</th><th>Time</th></tr></thead>
+<tbody>
+<tr><td>Dispatch a shuttle</td><td>Shuttle → + New Pickup</td><td>30 sec</td></tr>
+<tr><td>Handle a guest request</td><td>Requests tab</td><td>20 sec</td></tr>
+<tr><td>Log a call-around</td><td>Daily Ops → Call Around</td><td>15 sec</td></tr>
+<tr><td>Complete bank count</td><td>Daily Ops → Bank Count</td><td>3 min</td></tr>
+<tr><td>Log an incident</td><td>Daily Ops → Daily Logs</td><td>1 min</td></tr>
+<tr><td>Submit KPIs</td><td>KPIs tab</td><td>2 min</td></tr>
+<tr><td>Report a callout</td><td>Callouts tab</td><td>1 min</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-FD-01</div>
+<h1 class="section">Logging In</h1>
+<ol>
+<li>Open a browser and go to <code>attendaapp.com/staff</code>.</li>
+<li>Enter your <strong>email address</strong> and <strong>password</strong>.</li>
+<li>Click <strong>Sign In</strong>. The Dashboard loads.</li>
+</ol>
+<blockquote><strong>Can't log in?</strong> Contact your manager — they will reset your password from the Staff Management panel.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-FD-02</div>
+<h1 class="section">Shuttle Dispatch</h1>
+<p><strong>Access:</strong> Operations → Shuttle → Today tab</p>
+<h2 class="sub">Dispatching a New Pickup</h2>
+<ol>
+<li>Click <strong>Shuttle</strong> in the Operations section.</li>
+<li>Click <strong>+ New Pickup</strong> (always visible at the top).</li>
+<li>Fill in the dispatch form:</li>
+</ol>
+<table>
+<thead><tr><th>Field</th><th>What to Enter</th></tr></thead>
+<tbody>
+<tr><td><strong>Type</strong></td><td>Arrival (guest coming to hotel) or Departure (guest going to airport)</td></tr>
+<tr><td><strong>Guest Name</strong></td><td>Guest's full name</td></tr>
+<tr><td><strong>Room #</strong></td><td>Guest's room number</td></tr>
+<tr><td><strong>Party Size</strong></td><td>Use − and + to set number of people</td></tr>
+<tr><td><strong>Pickup Location</strong></td><td>Arrival: select terminal. Departure: "Hotel Lobby" auto-fills</td></tr>
+<tr><td><strong>Drop-Off</strong></td><td>Arrival: "Hotel" auto-fills. Departure: MIA / FLL / Port / Other</td></tr>
+<tr><td><strong>Requested Time</strong></td><td>Time guest needs pickup (defaults to next hour slot)</td></tr>
+<tr><td><strong>Notes</strong></td><td>Flight number, cruise ship, special instructions</td></tr>
+<tr><td><strong>Assign To</strong></td><td>In-House Driver (dropdown) or Send Uber</td></tr>
+</tbody>
+</table>
+<ol start="4">
+<li>Click <strong>Submit</strong> — pickup appears instantly in the hourly timeline.</li>
+</ol>
+
+<h2 class="sub">Timeline Status Colors</h2>
+<table>
+<thead><tr><th>Color</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td><span class="pill pill-amber">Amber</span></td><td>Pending — not yet assigned</td></tr>
+<tr><td><span class="pill pill-blue">Blue</span></td><td>Assigned to driver</td></tr>
+<tr><td><span class="pill pill-teal">Teal</span></td><td>En route / in progress</td></tr>
+<tr><td><span class="pill pill-green">Green</span></td><td>Completed</td></tr>
+<tr><td><span class="pill pill-gray">Gray strikethrough</span></td><td>Cancelled</td></tr>
+</tbody>
+</table>
+
+<h2 class="sub">Updating Shuttle Status</h2>
+<ol>
+<li>Find the shuttle card in the timeline.</li>
+<li>Click <strong>Mark En Route</strong> when driver departs → card turns teal.</li>
+<li>Click <strong>Complete</strong> when run finishes → card turns green.</li>
+</ol>
+<blockquote><strong>Uber rides:</strong> Status updates automatically. No manual update needed. Share the Uber tracking link on the card with the guest if requested.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-FD-03</div>
+<h1 class="section">Handling Guest Requests</h1>
+<p><strong>Access:</strong> Today → Requests tab</p>
+<ol>
+<li>Click <strong>Requests</strong> — new requests appear in amber at the top.</li>
+<li>Click a request card to open it.</li>
+<li>Click <strong>Acknowledge</strong> — confirms you've seen it (card turns blue).</li>
+<li>Click <strong>Assign</strong> and select the responsible staff member if needed.</li>
+<li>After fulfillment, click <strong>Complete</strong> — card turns green, timestamped.</li>
+<li>To message the guest: click <strong>Message</strong> → type reply → Send.</li>
+</ol>
+<table>
+<thead><tr><th>Icon</th><th>Request Type</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td>🍽</td><td>Food Order</td><td>Confirm with vendor if needed</td></tr>
+<tr><td>🔧</td><td>Maintenance</td><td>Assign to maintenance staff</td></tr>
+<tr><td>🛏</td><td>Housekeeping</td><td>Assign to housekeeping</td></tr>
+<tr><td>🚗</td><td>Transport</td><td>Handle via Shuttle tab</td></tr>
+<tr><td>💬</td><td>Guest Message</td><td>Reply via message thread</td></tr>
+</tbody>
+</table>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-FD-04</div>
+<h1 class="section">Bank Count</h1>
+<p><strong>Access:</strong> Daily Ops → Bank Count &nbsp;|&nbsp; <strong>When:</strong> Shift start AND shift end</p>
+<ol>
+<li>Click <strong>Daily Ops</strong> → <strong>Bank Count</strong> sub-tab.</li>
+<li>Count each denomination and enter the quantity:</li>
+</ol>
+<table>
+<thead><tr><th>Denomination</th><th>Enter Qty</th></tr></thead>
+<tbody>
+<tr><td>$100 Bills</td><td>[qty]</td></tr>
+<tr><td>$50 Bills</td><td>[qty]</td></tr>
+<tr><td>$20 Bills</td><td>[qty]</td></tr>
+<tr><td>$10 Bills</td><td>[qty]</td></tr>
+<tr><td>$5 Bills</td><td>[qty]</td></tr>
+<tr><td>$1 Bills</td><td>[qty]</td></tr>
+<tr><td>Half-Dollars ($.50)</td><td>[qty]</td></tr>
+<tr><td>Quarters ($.25)</td><td>[qty]</td></tr>
+<tr><td>Dimes ($.10)</td><td>[qty]</td></tr>
+<tr><td>Nickels ($.05)</td><td>[qty]</td></tr>
+<tr><td>Pennies ($.01)</td><td>[qty]</td></tr>
+</tbody>
+</table>
+<ol start="3">
+<li>Enter <strong>Paid Outs</strong> (cash paid out of drawer during shift).</li>
+<li>Enter <strong>Petty Cash</strong> (float amount set aside).</li>
+<li>Review auto-calculated: Drawer Total, Net Drawer.</li>
+<li>Click <strong>Submit Count</strong> — logged with your name and timestamp.</li>
+</ol>
+<blockquote><strong>Required:</strong> Two submissions per shift — Shift Start count + Shift End count. Discrepancies are flagged for manager review.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-FD-05</div>
+<h1 class="section">Call Around Log</h1>
+<p><strong>Access:</strong> Daily Ops → Call Around</p>
+<ol>
+<li>Click <strong>Daily Ops</strong> → <strong>Call Around</strong> → <strong>+ Log Call</strong>.</li>
+<li>Fill in: Guest Name, Room, Call Type, Time, Outcome, Notes.</li>
+<li>Click <strong>Save</strong>.</li>
+</ol>
+<table>
+<thead><tr><th>Call Type</th><th>Outcome Options</th></tr></thead>
+<tbody>
+<tr><td>Wake-Up / Confirmation / Follow-Up / Other</td><td>Answered / No Answer / Left Message</td></tr>
+</tbody>
+</table>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-FD-06</div>
+<h1 class="section">Daily Incident Log</h1>
+<p><strong>Access:</strong> Daily Ops → Daily Logs</p>
+<ol>
+<li>Click <strong>Daily Ops</strong> → <strong>Daily Logs</strong> → <strong>+ New Entry</strong>.</li>
+<li>Select Category: Guest Incident / Maintenance / Safety / Lost &amp; Found / VIP / Other.</li>
+<li>Write a clear <strong>Description</strong> of what happened.</li>
+<li>Note the <strong>Action Taken</strong>.</li>
+<li>Click <strong>Save</strong> — timestamped with your name.</li>
+</ol>
+<blockquote><strong>Best practice:</strong> Log everything, even minor incidents. The GM reviews daily logs each morning.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-FD-07</div>
+<h1 class="section">No Show Log</h1>
+<p><strong>Access:</strong> Daily Ops → No Shows</p>
+<ol>
+<li>Click <strong>Daily Ops</strong> → <strong>No Shows</strong> → <strong>+ Log No Show</strong>.</li>
+<li>Fill in: Guest Name, Reservation reference, Date, Contact attempts made, Notes.</li>
+<li>Click <strong>Save</strong>.</li>
+</ol>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-FD-08</div>
+<h1 class="section">Room Move Log</h1>
+<p><strong>Access:</strong> Daily Ops → Room Moves</p>
+<ol>
+<li>Click <strong>Daily Ops</strong> → <strong>Room Moves</strong> → <strong>+ Log Room Move</strong>.</li>
+<li>Fill in: Guest Name, Original Room, New Room, Reason (Maintenance / Upgrade / Guest Request / Other), Notes.</li>
+<li>Click <strong>Save</strong>.</li>
+</ol>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-FD-09</div>
+<h1 class="section">Submitting KPIs</h1>
+<p><strong>Access:</strong> Operations → KPIs → Front Desk</p>
+<ol>
+<li>Click <strong>KPIs</strong> → select the <strong>Front Desk</strong> category tab.</li>
+<li>Enter values for each metric (Check-In Wait Time, Upsell Conversions, etc.).</li>
+<li>Click <strong>Submit</strong> — green checkmark confirms saved.</li>
+</ol>
+<blockquote><strong>When:</strong> Submit KPIs at the end of your shift or when directed by your manager.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-FD-10</div>
+<h1 class="section">Reporting a Callout</h1>
+<p><strong>Access:</strong> Callouts tab</p>
+<ol>
+<li>Click <strong>Callouts</strong> in the left navigation.</li>
+<li>Click <strong>Report Callout</strong>.</li>
+<li>Fill in: Shift Date, Reason, Notes.</li>
+<li>Click <strong>Submit</strong> — your manager is notified immediately.</li>
+</ol>
+<blockquote class="warn">⚠ <strong>This does not replace calling your manager.</strong> Always also call or text your direct supervisor per hotel policy. Attenda creates the official record; the phone call is the notification.</blockquote>
+
+</body></html>

@@ -1,0 +1,310 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+
+@page {
+  size: A4;
+  margin: 20mm 18mm 25mm 18mm;
+  @bottom-center {
+    content: "ATTENDA  ·  Confidential  ·  Do Not Distribute  ·  " counter(page);
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 8pt;
+    color: #9b6070;
+    letter-spacing: 0.08em;
+  }
+}
+
+@page :first {
+  @bottom-center { content: ""; }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.5pt;
+  color: #1a1a2e;
+  line-height: 1.6;
+  background: white;
+}
+
+/* ── COVER ── */
+.cover {
+  page: cover;
+  min-height: 260mm;
+  background: linear-gradient(160deg, #7B1C3E 0%, #3d0e1f 55%, #1a0810 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60pt 50pt;
+  border-radius: 4pt;
+}
+
+@page cover { margin: 0; @bottom-center { content: ""; } }
+
+.cover-logo {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 11pt;
+  letter-spacing: 0.5em;
+  color: #e8c0cd;
+  text-transform: uppercase;
+  margin-bottom: 28pt;
+}
+
+.cover h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 30pt;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  margin-bottom: 10pt;
+}
+
+.cover .subtitle {
+  font-size: 10pt;
+  letter-spacing: 0.35em;
+  color: #f0b8cb;
+  text-transform: uppercase;
+  margin-bottom: 30pt;
+}
+
+.cover .role-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.12);
+  border: 1pt solid rgba(255,255,255,0.3);
+  border-radius: 20pt;
+  padding: 6pt 20pt;
+  font-size: 9.5pt;
+  color: #fce8ef;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 50pt;
+}
+
+.cover .divider {
+  width: 60pt;
+  height: 1pt;
+  background: rgba(255,255,255,0.3);
+  margin: 0 auto 30pt;
+}
+
+.cover .meta {
+  font-size: 8.5pt;
+  color: #c49aaa;
+  line-height: 1.8;
+  letter-spacing: 0.05em;
+}
+
+/* ── QUICK REF BOX ── */
+.quick-ref {
+  background: #fdf0f4;
+  border-left: 4pt solid #7B1C3E;
+  border-radius: 3pt;
+  padding: 14pt 18pt;
+  margin: 16pt 0 22pt;
+}
+
+.quick-ref-title {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #7B1C3E;
+  margin-bottom: 10pt;
+}
+
+/* ── SECTION HEADER ── */
+h1.section {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 16pt;
+  font-weight: 700;
+  color: #7B1C3E;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 28pt 0 4pt;
+  padding-bottom: 6pt;
+  border-bottom: 2pt solid #7B1C3E;
+  page-break-after: avoid;
+}
+
+h2.sub {
+  font-family: 'Source Sans Pro', sans-serif;
+  font-size: 11.5pt;
+  font-weight: 700;
+  color: #3d0e1f;
+  margin: 16pt 0 6pt;
+  page-break-after: avoid;
+}
+
+h3.sub2 {
+  font-size: 10pt;
+  font-weight: 700;
+  color: #5a1028;
+  margin: 12pt 0 4pt;
+  page-break-after: avoid;
+}
+
+/* ── TABLES ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10pt 0 16pt;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+thead tr {
+  background: #7B1C3E;
+  color: white;
+}
+
+thead th {
+  padding: 7pt 10pt;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 9pt;
+}
+
+tbody tr:nth-child(odd)  { background: #ffffff; }
+tbody tr:nth-child(even) { background: #fdf0f4; }
+
+tbody td {
+  padding: 6pt 10pt;
+  border-bottom: 0.5pt solid #e8d0d8;
+  vertical-align: top;
+}
+
+/* ── CODE / EXAMPLE BLOCKS ── */
+pre, code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 8.5pt;
+}
+
+pre {
+  background: #1a1a2e;
+  color: #e8f4f8;
+  padding: 12pt 14pt;
+  border-radius: 4pt;
+  margin: 10pt 0 16pt;
+  white-space: pre-wrap;
+  page-break-inside: avoid;
+}
+
+/* ── CALLOUT / TIP ── */
+blockquote {
+  background: #fff8e7;
+  border-left: 3pt solid #d4a017;
+  padding: 8pt 14pt;
+  margin: 8pt 0 14pt;
+  font-size: 9.5pt;
+  color: #5a4010;
+  border-radius: 0 3pt 3pt 0;
+}
+
+blockquote strong {
+  color: #7a5500;
+}
+
+/* WARNING */
+blockquote.warn {
+  background: #fff0f0;
+  border-left-color: #c0392b;
+  color: #6a1010;
+}
+
+/* ── STEPS ── */
+ol {
+  padding-left: 18pt;
+  margin: 6pt 0 12pt;
+}
+
+ol li {
+  margin-bottom: 5pt;
+  padding-left: 4pt;
+}
+
+ul {
+  padding-left: 16pt;
+  margin: 4pt 0 10pt;
+  list-style: none;
+}
+
+ul li::before {
+  content: "•";
+  color: #7B1C3E;
+  font-weight: bold;
+  margin-right: 6pt;
+}
+
+ul li {
+  margin-bottom: 3pt;
+  padding-left: 4pt;
+}
+
+/* ── HORIZONTAL RULE ── */
+hr {
+  border: none;
+  border-top: 1pt solid #e0c0cc;
+  margin: 14pt 0;
+}
+
+/* ── STATUS PILLS ── */
+.pill {
+  display: inline-block;
+  padding: 2pt 8pt;
+  border-radius: 10pt;
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pill-amber { background: #fff3cd; color: #856404; }
+.pill-blue  { background: #d0e8ff; color: #0a3a6e; }
+.pill-teal  { background: #d0f0ee; color: #0a4a46; }
+.pill-green { background: #d0f0dc; color: #0a4020; }
+.pill-gray  { background: #e8e8e8; color: #555;    }
+
+/* ── TOC ── */
+.toc-row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 0.5pt dotted #c0a0aa;
+  padding: 3pt 0;
+  font-size: 10pt;
+}
+
+.toc-row .toc-num { color: #7B1C3E; font-weight: 700; min-width: 22pt; }
+.toc-row .toc-pg  { color: #9b6070; font-size: 9pt; }
+
+/* ── MISC ── */
+p { margin-bottom: 8pt; }
+
+strong { color: #3d0e1f; }
+
+.page-break { page-break-before: always; }
+
+.label-new {
+  display: inline-block;
+  background: #7B1C3E;
+  color: white;
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 1pt 5pt;
+  border-radius: 3pt;
+  text-transform: uppercase;
+  vertical-align: middle;
+  margin-left: 4pt;
+}
+
+.sop-num {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #9b6070;
+  text-transform: uppercase;
+  margin-bottom: 2pt;
+}
