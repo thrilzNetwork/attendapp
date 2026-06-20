@@ -31,7 +31,7 @@ import {
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
-  BarChart3, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign, ShieldCheck, MapPin, PhoneCall, Trophy, Heart,
+  BarChart3, BarChart2, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign, ShieldCheck, MapPin, PhoneCall, Trophy, Heart,
 } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
@@ -83,6 +83,7 @@ const CultureView = dynamic(() => import('@/components/staff/CultureView'), { ss
 const SuperAdminView = dynamic(() => import('@/components/staff/SuperAdminView'), { ssr: false });
 const MarketplaceView = dynamic(() => import('@/components/staff/MarketplaceView'), { ssr: false });
 const RevenueView = dynamic(() => import('@/components/staff/RevenueView'), { ssr: false });
+const ReportsView = dynamic(() => import('@/components/staff/ReportsView'), { ssr: false });
 const CalloutsView = dynamic(() => import('@/components/staff/CalloutsView'), { ssr: false });
 import {
   listOps, createOps, updateOps, deleteOps,
@@ -123,7 +124,7 @@ type NavTab =
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
   | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture'
-  | 'revenue';
+  | 'revenue' | 'reports';
 
 interface Request {
   id: string;
@@ -198,6 +199,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
 
   // ── ADMIN — settings & management ──
   { tab: 'revenue',         label: 'Revenue',             icon: DollarSign,      roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Admin' },
+  { tab: 'reports',         label: 'Reports',             icon: BarChart2,       roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'callouts',        label: 'Staff Callouts',      icon: ClipboardList,   roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'], section: 'Admin' },
   { tab: 'staff_mgmt',      label: 'Staff Management',    icon: Users,           roles: ['admin', 'superadmin'], section: 'Admin' },
@@ -926,6 +928,9 @@ function DashboardInner() {
         )}
         {tabPanel('revenue', isAdmin,
           <RevenueView hotelId={config?.id || ''} isAdmin={isAdmin} />
+        )}
+        {tabPanel('reports', isAdmin,
+          <ReportsView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
         {tabPanel('callouts', isAdmin || s.role === 'staff',
           <CalloutsView hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} />
