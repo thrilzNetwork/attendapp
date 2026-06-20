@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import {
-  X, Send, CheckCircle, Wifi, Check, Coffee, Dumbbell, Printer,
+  X, CheckCircle, Wifi, Check, Coffee, Dumbbell, Printer,
   WashingMachine, IceCream, Car, Bus, Flame, AlertTriangle,
   AlarmSmoke, Crosshair, ShieldCheck, Phone, Star, ExternalLink,
   Plane, UserCheck, MapPin, Utensils, ShoppingBag, Bell, Globe,
@@ -13,8 +13,8 @@ import {
   supabase, getHotelConfig, HotelConfig,
   FacilitiesAmenity,
   getAllShuttleSlotsForHotel, bookShuttleSlot, createShuttleRequest,
-  getShuttleRoutes, getCruiseSchedules,
-  ShuttleSlot, ShuttleRoute, CruiseSchedule,
+  getCruiseSchedules,
+  ShuttleSlot, CruiseSchedule,
 
 } from '@/lib/supabase';
 
@@ -370,88 +370,354 @@ function ShuttleScheduleInner() {
   );
 }
 
-function OnDemandInner() {
-  const [direction, setDirection] = useState<'arrival' | 'departure'>('departure');
-  const [form, setForm] = useState({ guestName: '', room: '', date: '', time: '', airline: '', flight: '', destination: '', pax: 1, notes: '' });
+interface PlaceResult {
+  display_name: string;
+  short_name: string;
+  lat: number;
+  lng: number;
+}
+
+interface UberTransportQuote {
+  feeCents: number;
+  fee_display: string;
+  eta_minutes: number;
+}
+
+export function TransportBooker({ brandColor = BURGUNDY }: { brandColor?: string }) {
+  const [screen, setScreen] = useState<'mode' | 'address' | 'confirm' | 'done'>('mode');
+  const [mode, setMode] = useState<'shuttle' | 'uber'>('uber');
   const [config, setConfig] = useState<HotelConfig | null>(null);
-  const [routes, setRoutes] = useState<ShuttleRoute[]>([]);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState('');
+
+  // FROM field
+  const [fromText, setFromText] = useState('');
+  const [fromPlace, setFromPlace] = useState<PlaceResult | null>(null);
+
+  // TO field
+  const [toText, setToText] = useState('');
+  const [toPlace, setToPlace] = useState<PlaceResult | null>(null);
+  const [toSuggestions, setToSuggestions] = useState<PlaceResult[]>([]);
+  const [toLoading, setToLoading] = useState(false);
+
+  // Quote
+  const [quote, setQuote] = useState<UberTransportQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+
+  // Booking details
+  const [guestName, setGuestName] = useState('');
+  const [room, setRoom] = useState('');
+  const [pax, setPax] = useState(1);
+  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [trackingUrl, setTrackingUrl] = useState('');
+
+  const debounceRef = { current: undefined as ReturnType<typeof setTimeout> | undefined };
 
   useEffect(() => {
-    getHotelConfig().then(async h => {
+    getHotelConfig().then(h => {
       setConfig(h);
-      if (h?.id) { const r = await getShuttleRoutes(h.id); setRoutes(r); if (r.length > 0) setForm(f => ({ ...f, destination: r[0].name })); }
+      if (h?.name) setFromText(h.name);
     });
     try {
       const gs = localStorage.getItem('guestSession');
-      if (gs) { const s = JSON.parse(gs); setForm(f => ({ ...f, guestName: s.name || '', room: s.room || '' })); }
+      if (gs) { const s = JSON.parse(gs); setGuestName(s.name || ''); setRoom(s.room || ''); }
     } catch {}
   }, []);
 
-  const handleSubmit = async () => {
-    if (!form.guestName || !form.room) { setError('Name and room number are required.'); return; }
+  // Autocomplete for TO field
+  useEffect(() => {
+    if (toText.length < 2) { setToSuggestions([]); return; }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setToLoading(true);
+      try {
+        const res = await fetch(`/api/places-autocomplete?q=${encodeURIComponent(toText)}`);
+        const data = await res.json();
+        setToSuggestions(data);
+      } catch { setToSuggestions([]); }
+      finally { setToLoading(false); }
+    }, 300);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toText]);
+
+  // Fetch Uber quote when both places are selected and mode is uber
+  useEffect(() => {
+    if (mode !== 'uber' || !fromPlace || !toPlace) return;
+    let cancelled = false;
+    setQuoteLoading(true);
+    const params = new URLSearchParams({
+      fromAddress: fromPlace.display_name,
+      toAddress: toPlace.display_name,
+      fromLat: String(fromPlace.lat),
+      fromLng: String(fromPlace.lng),
+      toLat: String(toPlace.lat),
+      toLng: String(toPlace.lng),
+    });
+    fetch(`/api/uber-direct/transport-quote?${params}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled && d.ok) setQuote({ feeCents: d.feeCents, fee_display: d.fee_display, eta_minutes: d.eta_minutes }); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setQuoteLoading(false); });
+    return () => { cancelled = true; };
+  }, [fromPlace, toPlace, mode]);
+
+  const handleBook = async () => {
+    if (!guestName || !room) { setError('Name and room number are required.'); return; }
+    if (!toPlace) { setError('Please select a destination.'); return; }
     setSubmitting(true); setError('');
     try {
-      const hotel = await getHotelConfig();
-      await createShuttleRequest({ hotel_id: hotel?.id || '', guest_name: form.guestName, room_number: form.room, pickup_location: direction === 'departure' ? 'Hotel Lobby' : form.destination, destination: direction === 'arrival' ? 'Hotel' : form.destination, date: form.date || undefined, time: form.time || undefined, pax: form.pax, notes: [form.airline ? `Airline: ${form.airline}${form.flight ? ` ${form.flight}` : ''}` : '', form.notes].filter(Boolean).join('. ') });
-      setSent(true);
-    } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Failed to submit.'); }
+      const shuttleReq = await createShuttleRequest({
+        hotel_id: config?.id || '',
+        guest_name: guestName,
+        room_number: room,
+        pickup_location: fromPlace?.display_name || fromText || 'Hotel',
+        destination: toPlace.display_name,
+        pax,
+        notes: notes || undefined,
+        status: mode === 'uber' ? 'pending_uber' : 'pending',
+      });
+
+      if (mode === 'uber' && shuttleReq?.id) {
+        try {
+          const res = await fetch('/api/uber-direct', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'dispatch', requestId: shuttleReq.id, mode: 'transport' }),
+          });
+          const data = await res.json();
+          if (data.trackingUrl) setTrackingUrl(data.trackingUrl);
+        } catch {}
+      }
+      setScreen('done');
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Failed to book.'); }
     finally { setSubmitting(false); }
   };
 
-  if (sent) return (
-    <div className="bg-gray-50 rounded-2xl p-6 text-center">
-      <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3"><Send size={20} className="text-green-600" /></div>
-      <h2 className="text-[16px] font-bold text-black mb-1">Request Sent!</h2>
-      <p className="text-[13px] text-gray-500">Our team will confirm your transport shortly.</p>
-      <button onClick={() => setSent(false)} className="mt-4 text-[13px] font-semibold" style={{ color: BURGUNDY }}>New Request</button>
+  const hasFreeShuttle = config?.hasFreeShuttle !== false;
+
+  // Screen: mode selection
+  if (screen === 'mode') return (
+    <div className="space-y-3">
+      <p className="text-[13px] text-gray-500 text-center">How would you like to travel?</p>
+      {hasFreeShuttle && (
+        <button
+          onClick={() => { setMode('shuttle'); setScreen('address'); }}
+          className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left"
+        >
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+            <Bus size={22} className="text-emerald-600" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[15px] font-bold text-gray-900">Hotel Shuttle</span>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">FREE</span>
+            </div>
+            <p className="text-[12px] text-gray-400 mt-0.5">Our team confirms availability</p>
+          </div>
+        </button>
+      )}
+      <button
+        onClick={() => { setMode('uber'); setScreen('address'); }}
+        className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left"
+      >
+        <div className="w-12 h-12 rounded-xl bg-black flex items-center justify-center shrink-0">
+          <Car size={22} className="text-white" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[15px] font-bold text-gray-900">Book a Ride</span>
+            <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">Uber Direct</span>
+          </div>
+          <p className="text-[12px] text-gray-400 mt-0.5">Real-time price · GPS tracking</p>
+        </div>
+      </button>
     </div>
   );
 
-  return (
+  // Screen: address picker
+  if (screen === 'address') return (
     <div className="space-y-3">
-      <div className="bg-gray-100 rounded-2xl p-1 flex">
-        <button onClick={() => setDirection('arrival')} className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-1.5 ${direction === 'arrival' ? 'text-white' : 'text-gray-500'}`} style={direction === 'arrival' ? { backgroundColor: BURGUNDY } : undefined}><Plane size={13} /> Arrival</button>
-        <button onClick={() => setDirection('departure')} className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-1.5 ${direction === 'departure' ? 'text-white' : 'text-gray-500'}`} style={direction === 'departure' ? { backgroundColor: BURGUNDY } : undefined}>Departure <Plane size={13} /></button>
-      </div>
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
-        <div className="flex gap-2">
-          <div className="flex-1"><label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Guest Name</label><input placeholder="Your name" value={form.guestName} onChange={e => setForm(f => ({ ...f, guestName: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" /></div>
-          <div className="w-24"><label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Room</label><input placeholder="201" value={form.room} onChange={e => setForm(f => ({ ...f, room: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" /></div>
-        </div>
-        <div className="flex gap-2">
-          <div className="flex-1"><label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Date</label><input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" /></div>
-          <div className="flex-1"><label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Time</label><input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" /></div>
-        </div>
-        {direction === 'arrival' && (
-          <div className="flex gap-2">
-            <input placeholder="Airline / Cruise line" value={form.airline} onChange={e => setForm(f => ({ ...f, airline: e.target.value }))} className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-            <input placeholder="Flight #" value={form.flight} onChange={e => setForm(f => ({ ...f, flight: e.target.value }))} className="w-24 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-          </div>
-        )}
-        {routes.length > 0 ? (
-          <select value={form.destination} onChange={e => setForm(f => ({ ...f, destination: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
-            {routes.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-          </select>
-        ) : (
-          <input placeholder="Destination (Airport, Downtown, etc.)" value={form.destination} onChange={e => setForm(f => ({ ...f, destination: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-        )}
-        <div className="flex gap-2 items-end">
-          <div className="w-20"><label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Pax</label><input type="number" min={1} max={20} value={form.pax} onChange={e => setForm(f => ({ ...f, pax: parseInt(e.target.value) || 1 }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none text-center" /></div>
-          <div className="flex-1"><textarea placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none resize-none h-[42px]" /></div>
-        </div>
-      </div>
-      {error && <p className="text-[12px] text-red-600 bg-red-50 rounded-xl px-4 py-2.5 text-center">{error}</p>}
-      <button onClick={handleSubmit} disabled={submitting} className="w-full py-3.5 rounded-xl text-white font-bold text-[14px] flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundColor: BURGUNDY }}>
-        {submitting ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting…</> : 'Submit Request'}
+      <button onClick={() => setScreen('mode')} className="text-[12px] font-semibold flex items-center gap-1" style={{ color: brandColor }}>
+        ← Back
       </button>
-      <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-        <p className="text-[11px] text-amber-700">{config?.transportContent?.pickup_note || 'Pickup requests are confirmed by staff. Contact front desk at ext. 0 for immediate needs.'}</p>
+
+      {/* FROM field */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+        <div>
+          <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin size={10} /> From</label>
+          <input
+            value={fromText}
+            onChange={e => { setFromText(e.target.value); setFromPlace(null); }}
+            placeholder="Pickup location"
+            className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none text-gray-800"
+          />
+        </div>
+
+        {/* TO field */}
+        <div className="relative">
+          <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin size={10} className="text-red-400" /> To</label>
+          <input
+            value={toText}
+            onChange={e => { setToText(e.target.value); setToPlace(null); setQuote(null); }}
+            placeholder="Where are you going?"
+            className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none text-gray-800"
+            autoFocus
+          />
+          {toLoading && (
+            <div className="absolute right-3 top-8">
+              <span className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin inline-block" />
+            </div>
+          )}
+          {toSuggestions.length > 0 && !toPlace && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-10 overflow-hidden">
+              {toSuggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setToPlace(s); setToText(s.short_name); setToSuggestions([]); }}
+                  className="w-full px-4 py-3 text-left border-b border-gray-50 last:border-0 active:bg-gray-50 hover:bg-gray-50"
+                >
+                  <p className="text-[13px] font-semibold text-gray-900">{s.short_name}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">{s.display_name}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {toPlace && (
+        <button
+          onClick={() => setScreen('confirm')}
+          className="w-full py-3.5 rounded-xl text-white font-bold text-[14px]"
+          style={{ backgroundColor: brandColor }}
+        >
+          Continue →
+        </button>
+      )}
     </div>
   );
+
+  // Screen: confirm booking
+  if (screen === 'confirm') return (
+    <div className="space-y-3">
+      <button onClick={() => setScreen('address')} className="text-[12px] font-semibold flex items-center gap-1" style={{ color: brandColor }}>
+        ← Back
+      </button>
+
+      {/* Route card */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        <div className="flex items-start gap-3">
+          <div className="flex flex-col items-center gap-1 pt-0.5">
+            <MapPin size={14} className="text-emerald-500" />
+            <div className="w-0.5 h-5 bg-gray-200" />
+            <MapPin size={14} className="text-red-500" />
+          </div>
+          <div className="flex-1 space-y-2">
+            <p className="text-[12px] font-semibold text-gray-800">{fromPlace?.short_name || fromText}</p>
+            <p className="text-[12px] font-semibold text-gray-800">{toPlace?.short_name || toText}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Price row */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        {mode === 'shuttle' ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bus size={16} className="text-emerald-600" />
+              <span className="text-[13px] font-bold text-gray-800">Hotel Shuttle</span>
+            </div>
+            <span className="text-[13px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Free</span>
+          </div>
+        ) : quoteLoading ? (
+          <div className="flex items-center gap-2 text-gray-400 text-[13px]">
+            <span className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+            Getting price…
+          </div>
+        ) : quote ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Car size={16} className="text-gray-700" />
+              <div>
+                <span className="text-[13px] font-bold text-gray-800">Uber Direct</span>
+                <p className="text-[11px] text-gray-400">~{quote.eta_minutes} min estimated</p>
+              </div>
+            </div>
+            <span className="text-[15px] font-extrabold text-gray-900">{quote.fee_display}</span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Car size={16} className="text-gray-700" />
+              <span className="text-[13px] font-bold text-gray-800">Uber Direct</span>
+            </div>
+            <span className="text-[12px] text-gray-400">Price unavailable</span>
+          </div>
+        )}
+      </div>
+
+      {/* Guest details */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Name</label>
+            <input value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="Your name" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+          </div>
+          <div className="w-24">
+            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Room</label>
+            <input value={room} onChange={e => setRoom(e.target.value)} placeholder="201" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="text-[12px] font-bold text-gray-600">Party size</label>
+          <div className="flex items-center gap-2 ml-auto">
+            <button onClick={() => setPax(Math.max(1, pax - 1))} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-bold text-[16px]">−</button>
+            <span className="w-6 text-center text-[14px] font-bold">{pax}</span>
+            <button onClick={() => setPax(Math.min(20, pax + 1))} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-bold text-[16px]">+</button>
+          </div>
+        </div>
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (optional)" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none resize-none h-14" />
+      </div>
+
+      {error && <p className="text-[12px] text-red-600 bg-red-50 rounded-xl px-4 py-2.5 text-center">{error}</p>}
+
+      <button onClick={handleBook} disabled={submitting} className="w-full py-3.5 rounded-xl text-white font-bold text-[14px] flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundColor: brandColor }}>
+        {submitting ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Booking…</> : 'Book Now'}
+      </button>
+    </div>
+  );
+
+  // Screen: done
+  return (
+    <div className="bg-gray-50 rounded-2xl p-6 text-center space-y-3">
+      <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+        <CheckCircle size={24} className="text-green-600" />
+      </div>
+      <h2 className="text-[17px] font-extrabold text-black">Your ride is booked!</h2>
+      {trackingUrl ? (
+        <>
+          <p className="text-[13px] text-gray-500">Your Uber driver is on the way.</p>
+          <a href={trackingUrl} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white font-bold text-[13px]"
+            style={{ backgroundColor: brandColor }}>
+            <ExternalLink size={14} /> Track Your Ride
+          </a>
+        </>
+      ) : (
+        <p className="text-[13px] text-gray-500">
+          {mode === 'shuttle' ? 'Our team will confirm your shuttle shortly.' : 'Staff will coordinate your transport.'}
+        </p>
+      )}
+      <button onClick={() => { setScreen('mode'); setToText(''); setToPlace(null); setFromPlace(null); setQuote(null); setTrackingUrl(''); setError(''); }}
+        className="text-[13px] font-semibold" style={{ color: brandColor }}>
+        New Booking
+      </button>
+    </div>
+  );
+}
+
+function OnDemandInner() {
+  return <TransportBooker brandColor={BURGUNDY} />;
 }
 
 /* ── Facilities ────────────────────────────────────────────── */

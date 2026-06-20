@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Plane, Bus, Ship, Car, UserCheck, X } from 'lucide-react';
-import { getHotelConfig, HotelConfig, getAllShuttleSlotsForHotel, bookShuttleSlot, createShuttleRequest, getCruiseSchedules, ShuttleSlot, CruiseSchedule } from '@/lib/supabase';
+import { ArrowLeft, Plane, Bus, Ship, Car, UserCheck, X } from 'lucide-react';
+import { getHotelConfig, HotelConfig, getAllShuttleSlotsForHotel, bookShuttleSlot, getCruiseSchedules, ShuttleSlot, CruiseSchedule } from '@/lib/supabase';
+import { TransportBooker } from '@/components/GuestSheets';
 import { goBackToHotel } from '@/lib/guest-context';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -479,115 +480,5 @@ function CruisePort({ brandColor, config }: { brandColor: string; config: HotelC
 
 /* ── Private Transport / Vendor ─────────────── */
 function PrivateTransport({ brandColor }: { brandColor: string }) {
-  const [form, setForm] = useState({ guestName: '', room: '', date: '', time: '', destination: '', pax: 1, notes: '' });
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async () => {
-    if (!form.guestName || !form.room) { setError('Name and room are required.'); return; }
-    setSubmitting(true); setError('');
-    try {
-      const hotel = await getHotelConfig();
-      await createShuttleRequest({
-        hotel_id: hotel?.id || '',
-        guest_name: form.guestName,
-        room_number: form.room,
-        pickup_location: 'Hotel Lobby',
-        destination: form.destination,
-        date: form.date || undefined,
-        time: form.time || undefined,
-        pax: form.pax,
-        notes: form.notes,
-      });
-      setSent(true);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to submit request.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (sent) {
-    return (
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
-        <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-          <Send size={20} className="text-green-600" />
-        </div>
-        <h2 className="text-lg font-bold text-black mb-1">Request Sent!</h2>
-        <p className="text-[13px] text-gray-500">A driver will be assigned shortly. You&apos;ll hear from front desk.</p>
-        <button onClick={() => setSent(false)} className="mt-4 text-[13px] font-semibold" style={{ color: brandColor }}>New Request</button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="bg-amber-50 rounded-2xl p-3 border border-amber-200 flex items-start gap-2.5">
-        <Car size={18} className="text-amber-600" />
-        <div>
-          <p className="text-[12px] font-bold text-amber-800 mb-0.5">On-Demand Private Transport</p>
-          <p className="text-[11px] text-amber-700">Need a ride somewhere else? We&apos;ll connect you with a local driver.</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <label className="text-[11px] text-gray-400 block mb-1 font-semibold uppercase tracking-wider">Name</label>
-            <input placeholder="Your name" value={form.guestName} onChange={e => setForm({ ...form, guestName: e.target.value })}
-              className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" />
-          </div>
-          <div className="w-24">
-            <label className="text-[11px] text-gray-400 block mb-1 font-semibold uppercase tracking-wider">Room</label>
-            <input placeholder="201" value={form.room} onChange={e => setForm({ ...form, room: e.target.value })}
-              className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" />
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <label className="text-[11px] text-gray-400 block mb-1 font-semibold uppercase tracking-wider">Date</label>
-            <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
-              className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" />
-          </div>
-          <div className="flex-1">
-            <label className="text-[11px] text-gray-400 block mb-1 font-semibold uppercase tracking-wider">Time</label>
-            <input type="time" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })}
-              className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" />
-          </div>
-        </div>
-
-        <div>
-          <label className="text-[11px] text-gray-400 block mb-1 font-semibold uppercase tracking-wider">Destination</label>
-          <input placeholder="e.g. Downtown Miami, Bayside Market" value={form.destination} onChange={e => setForm({ ...form, destination: e.target.value })}
-            className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" />
-        </div>
-
-        <div className="flex gap-2 items-end">
-          <div className="w-20">
-            <label className="text-[11px] text-gray-400 block mb-1 font-semibold uppercase tracking-wider">Pax</label>
-            <input type="number" min={1} max={20} value={form.pax} onChange={e => setForm({ ...form, pax: parseInt(e.target.value) || 1 })}
-              className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" />
-          </div>
-          <div className="flex-1">
-            <textarea placeholder="Notes (optional)" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
-              className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none resize-none h-[42px]" />
-          </div>
-        </div>
-      </div>
-
-      {error && <p className="text-[12px] text-red-600 bg-red-50 rounded-xl px-4 py-2.5 text-center">{error}</p>}
-
-      <button onClick={handleSubmit} disabled={submitting}
-        className="w-full py-3.5 rounded-xl text-white font-bold text-[14px] active:scale-[0.98] shadow-sm disabled:opacity-60"
-        style={{ backgroundColor: brandColor }}>
-        {submitting ? 'Submitting…' : 'Request Ride'}
-      </button>
-
-      <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-        <p className="text-[11px] text-amber-700">Private transport is arranged with local vendors. Pricing is per trip. Front desk will confirm availability.</p>
-      </div>
-    </div>
-  );
+  return <TransportBooker brandColor={brandColor} />;
 }
