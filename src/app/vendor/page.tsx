@@ -261,6 +261,7 @@ function VendorDashboard() {
               {/* Image thumbnail or placeholder */}
               <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center border border-gray-200">
                 {item.image_url
+                  // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                   : <ImageIcon size={22} className="text-gray-300" />}
               </div>

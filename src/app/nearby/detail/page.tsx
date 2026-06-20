@@ -122,6 +122,23 @@ function PartnerContent() {
     } catch { /* ignore */ }
   }, []);
 
+  // Fetch Uber quote when cart has items and partner uses uber_direct
+  useEffect(() => {
+    const totalQty = Object.values(cart).reduce((s, q) => s + q, 0);
+    if (!partner || totalQty === 0) { setUberQuote(null); return; }
+    if (!partner.delivery_providers?.some(d => d.name.toLowerCase().includes('uber'))) return;
+    let cancelled = false;
+    fetch(`/api/uber-direct/quote?partnerId=${partner.id}&hotelId=${partner.hotel_id}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!cancelled && d.ok && d.quote) {
+          setUberQuote({ fee_display: d.quote.fee_display || `$${(d.quote.fee?.total / 100).toFixed(2)}`, feeCents: d.quote.fee?.total || 0 });
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [partner, cart]);
+
   if (loading) return (
     <div className="h-screen flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: `${brandColor} transparent transparent transparent` }} />
@@ -141,22 +158,6 @@ function PartnerContent() {
   const serviceFee = +(subtotal * 0.10).toFixed(2);
   const deliveryFee = uberQuote ? uberQuote.feeCents / 100 : 0;
   const total = +(subtotal + serviceFee + deliveryFee).toFixed(2);
-
-  // Fetch Uber quote when cart has items and partner uses uber_direct
-  useEffect(() => {
-    if (!partner || totalQty === 0) { setUberQuote(null); return; }
-    if (!partner.delivery_providers?.some(d => d.name.toLowerCase().includes('uber'))) return;
-    let cancelled = false;
-    fetch(`/api/uber-direct/quote?partnerId=${partner.id}&hotelId=${partner.hotel_id}`)
-      .then(r => r.json())
-      .then(d => {
-        if (!cancelled && d.ok && d.quote) {
-          setUberQuote({ fee_display: d.quote.fee_display || `$${(d.quote.fee?.total / 100).toFixed(2)}`, feeCents: d.quote.fee?.total || 0 });
-        }
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [partner, totalQty]);
 
   // Group menu items by category
   const categories = Array.from(new Set(menuItems.map(i => i.category || 'Menu'))).filter(Boolean);
