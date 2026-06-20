@@ -97,7 +97,7 @@ export default function ReportsView({ hotelId, isAdmin }: { hotelId: string; isA
       const parseSub = (row: Record<string, unknown>): OpRecord & { details: KpiSubmission } => {
         let d = row.details;
         if (typeof d === 'string') { try { d = JSON.parse(d); } catch { d = {}; } }
-        return { ...row, details: d };
+        return { ...(row as unknown as OpRecord), details: d as KpiSubmission };
       };
 
       setData({
