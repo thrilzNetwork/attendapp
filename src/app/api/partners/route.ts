@@ -100,6 +100,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      case 'update_menu_item': {
+        const { id: itemId, ...patch } = data as { id: string; [k: string]: unknown };
+        const { error } = await db.from('partner_menu_items').update(patch).eq('id', itemId);
+        if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ ok: true });
+      }
+
       case 'upload_image': {
         const { base64, filename, folder } = data as { base64: string; filename: string; folder: string };
         const match = (base64 as string).match(/^data:(.+?);base64,(.+)$/);

@@ -24,8 +24,17 @@ export async function POST(req: NextRequest) {
     if (!caller) {
       return NextResponse.json({ ok: false, error: 'Authentication required.' }, { status: 401 });
     }
-    if (caller.role !== 'admin' && caller.role !== 'manager') {
-      return NextResponse.json({ ok: false, error: 'Admin or manager required.' }, { status: 403 });
+    if (!caller.isSuper) {
+      const adminClient = getServiceClient();
+      const { data: account } = await adminClient
+        .from('staff_accounts')
+        .select('role')
+        .ilike('email', caller.email || '')
+        .limit(1)
+        .maybeSingle();
+      if (account?.role !== 'admin' && account?.role !== 'manager') {
+        return NextResponse.json({ ok: false, error: 'Admin or manager required.' }, { status: 403 });
+      }
     }
 
     const { base64, filename, hotelId } = await req.json() as {
