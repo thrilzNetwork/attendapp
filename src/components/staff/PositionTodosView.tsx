@@ -203,6 +203,18 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [renamingTemplate, setRenamingTemplate] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [previewInstance, setPreviewInstance] = useState<PositionTodoInstance | null>(null);
+  const [deptNames, setDeptNames] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem(`attenda_dept_names_${hotelId}`) || '{}'); } catch { return {}; }
+  });
+  const [renamingDept, setRenamingDept] = useState<string | null>(null);
+  const [deptRenameValue, setDeptRenameValue] = useState('');
+
+  const saveDeptName = (key: string, name: string) => {
+    const next = { ...deptNames, [key]: name.trim() };
+    setDeptNames(next);
+    localStorage.setItem(`attenda_dept_names_${hotelId}`, JSON.stringify(next));
+    setRenamingDept(null);
+  };
 
   // New template form
   const [newName, setNewName] = useState('');
@@ -812,30 +824,53 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                     const deptTpls = templates.filter(t => t.department === dept.key);
                     if (deptTpls.length === 0) return null;
                     const open = openDept === dept.key;
+                    const deptLabel = deptNames[dept.key] || dept.label;
                     return (
                       <div key={dept.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                         <div className="flex items-center px-4 py-3 hover:bg-gray-50">
-                          <button onClick={() => setOpenDept(open ? null : dept.key)} className="flex-1 flex items-center gap-2 text-left">
-                            <span className="text-[20px]">{dept.icon}</span>
-                            <div>
-                              <p className="text-[14px] font-bold text-gray-900">{dept.label}</p>
-                              <p className="text-[11px] text-gray-500">{deptTpls.length} checklist{deptTpls.length !== 1 ? 's' : ''}</p>
+                          {renamingDept === dept.key ? (
+                            <div className="flex-1 flex items-center gap-1.5">
+                              <span className="text-[20px]">{dept.icon}</span>
+                              <input
+                                autoFocus
+                                value={deptRenameValue}
+                                onChange={e => setDeptRenameValue(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') saveDeptName(dept.key, deptRenameValue); if (e.key === 'Escape') setRenamingDept(null); }}
+                                className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] font-bold"
+                              />
+                              <button onClick={() => saveDeptName(dept.key, deptRenameValue)} className="p-1.5 rounded-lg text-white" style={{ backgroundColor: TEAL }}><Save size={13} /></button>
+                              <button onClick={() => setRenamingDept(null)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={13} /></button>
                             </div>
-                          </button>
-                          {isAdmin && (
-                            <div className="flex items-center gap-1 shrink-0 ml-2">
-                              <button
-                                onClick={async () => {
-                                  if (!confirm(`Delete ALL ${deptTpls.length} checklist${deptTpls.length !== 1 ? 's' : ''} in ${dept.label}? This cannot be undone.`)) return;
-                                  for (const tpl of deptTpls) await deletePositionTodoTemplate(tpl.id);
-                                  await loadAll();
-                                }}
-                                title={`Delete all ${dept.label} checklists`}
-                                className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
-                              ><Trash2 size={13} /></button>
-                            </div>
+                          ) : (
+                            <>
+                              <button onClick={() => setOpenDept(open ? null : dept.key)} className="flex-1 flex items-center gap-2 text-left">
+                                <span className="text-[20px]">{dept.icon}</span>
+                                <div>
+                                  <p className="text-[14px] font-bold text-gray-900">{deptLabel}</p>
+                                  <p className="text-[11px] text-gray-500">{deptTpls.length} checklist{deptTpls.length !== 1 ? 's' : ''}</p>
+                                </div>
+                              </button>
+                              {isAdmin && (
+                                <div className="flex items-center gap-1 shrink-0 ml-2">
+                                  <button
+                                    onClick={() => { setRenamingDept(dept.key); setDeptRenameValue(deptLabel); }}
+                                    title="Rename category"
+                                    className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100 transition-colors"
+                                  ><Edit3 size={13} /></button>
+                                  <button
+                                    onClick={async () => {
+                                      if (!confirm(`Delete ALL ${deptTpls.length} checklist${deptTpls.length !== 1 ? 's' : ''} in ${deptLabel}? This cannot be undone.`)) return;
+                                      for (const tpl of deptTpls) await deletePositionTodoTemplate(tpl.id);
+                                      await loadAll();
+                                    }}
+                                    title="Delete all checklists in this category"
+                                    className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
+                                  ><Trash2 size={13} /></button>
+                                </div>
+                              )}
+                              <ChevronDown size={18} className={`text-gray-400 transition-transform ml-2 ${open ? 'rotate-180' : ''}`} onClick={() => setOpenDept(open ? null : dept.key)} />
+                            </>
                           )}
-                          <ChevronDown size={18} className={`text-gray-400 transition-transform ml-2 ${open ? 'rotate-180' : ''}`} onClick={() => setOpenDept(open ? null : dept.key)} />
                         </div>
 
                         {open && (
