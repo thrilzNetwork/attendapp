@@ -202,6 +202,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [installedId, setInstalledId] = useState<string | null>(null);
   const [renamingTemplate, setRenamingTemplate] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [previewInstance, setPreviewInstance] = useState<PositionTodoInstance | null>(null);
 
   // New template form
   const [newName, setNewName] = useState('');
@@ -742,10 +743,10 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                       return (
                         <div key={inst.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3">
                           <div className="flex items-center justify-between gap-3 mb-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[13px] font-bold text-gray-900 truncate">{tpl?.name || 'Checklist'}</p>
-                              <p className="text-[11px] text-gray-500">{inst.staff_name} · {inst.shift || 'AM'} shift</p>
-                            </div>
+                            <button className="flex-1 min-w-0 text-left" onClick={() => setPreviewInstance(inst)}>
+                              <p className="text-[13px] font-bold text-gray-900 truncate hover:underline">{tpl?.name || 'Checklist'}</p>
+                              <p className="text-[11px] text-gray-500">{inst.staff_name} · {inst.shift || 'AM'} shift · <span className="text-teal-600 font-semibold">View →</span></p>
+                            </button>
                             <div className="flex items-center gap-2 shrink-0">
                               {inst.status === 'completed' ? (
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✅ Done</span>
@@ -1089,6 +1090,81 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
           )}
         </>
       )}
+
+      {/* ── Instance Preview Modal ── */}
+      {previewInstance && (() => {
+        const inst = previewInstance;
+        const tpl = templates.find(t => t.id === inst.template_id);
+        const items = (itemsByTemplate[inst.template_id] || []).slice().sort((a, b) => a.sort_order - b.sort_order);
+        const resps = responsesByInstance[inst.id] || [];
+        const getR = (itemId: string) => resps.find(r => r.item_id === itemId);
+        const checkedCount = resps.filter(r => r.checked).length;
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center" onClick={() => setPreviewInstance(null)}>
+            <div className="w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-gray-100 shrink-0">
+                <div>
+                  <p className="text-[16px] font-extrabold text-gray-900">{tpl?.name || 'Checklist'}</p>
+                  <p className="text-[12px] text-gray-500 mt-0.5">{inst.staff_name} · {inst.shift || 'AM'} shift · {inst.shift_date}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    {inst.status === 'completed'
+                      ? <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">✅ Completed {inst.completed_at ? new Date(inst.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                      : <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">⏳ In Progress — {checkedCount}/{items.length} items done</span>
+                    }
+                  </div>
+                </div>
+                <button onClick={() => setPreviewInstance(null)} className="p-1.5 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
+              </div>
+
+              {/* Items */}
+              <div className="overflow-y-auto px-5 py-4 space-y-3 flex-1">
+                {items.length === 0 && <p className="text-[13px] text-gray-400 text-center py-6">No items in this checklist.</p>}
+                {items.map((item, idx) => {
+                  const resp = getR(item.id);
+                  const done = resp?.checked;
+                  return (
+                    <div key={item.id} className={`flex items-start gap-3 p-3 rounded-xl border ${done ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-100'}`}>
+                      <span className={`mt-0.5 text-[16px] shrink-0`}>{done ? '✅' : '⬜'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold text-gray-800">{idx + 1}. {item.label}</p>
+                        {/* Show the actual entered value */}
+                        {resp?.text_value && (
+                          <p className="text-[12px] text-gray-600 mt-0.5 bg-white rounded-lg px-2 py-1 border border-gray-200">{resp.text_value}</p>
+                        )}
+                        {resp?.number_value !== undefined && resp?.number_value !== null && (
+                          <p className="text-[13px] font-bold mt-0.5" style={{ color: TEAL }}>{resp.number_value} {item.config?.unit || ''}</p>
+                        )}
+                        {!done && !resp?.text_value && resp?.number_value === null && (
+                          <p className="text-[11px] text-gray-400 mt-0.5 italic">Not completed</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Footer actions */}
+              <div className="px-5 py-4 border-t border-gray-100 flex gap-2 shrink-0">
+                {inst.status !== 'completed' && (
+                  <button
+                    onClick={async () => { await completeInstance(inst.id); await loadAll(); setPreviewInstance(null); }}
+                    disabled={submitting}
+                    className="flex-1 py-2.5 rounded-xl text-white font-bold text-[13px] disabled:opacity-50"
+                    style={{ backgroundColor: TEAL }}
+                  >Mark Complete</button>
+                )}
+                <button
+                  onClick={async () => { if (!confirm(`Delete this checklist instance?`)) return; await deleteInstance(inst.id); await loadAll(); setPreviewInstance(null); }}
+                  disabled={submitting}
+                  className="px-4 py-2.5 rounded-xl bg-red-50 text-red-500 font-bold text-[13px] hover:bg-red-100 transition-colors"
+                >Delete</button>
+                <button onClick={() => setPreviewInstance(null)} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* New template modal */}
       {showNew && isAdmin && (
