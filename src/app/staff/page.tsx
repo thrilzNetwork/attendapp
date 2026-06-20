@@ -2,7 +2,8 @@
 // deploy-2026-06-05-001 - force chunk hash change
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, Fragment, Component } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Fragment, Component, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 class ErrorBoundary extends Component<{children: React.ReactNode, fallback?: React.ReactNode}, {hasError: boolean, error: Error | null}> {
   constructor(props: {children: React.ReactNode, fallback?: React.ReactNode}) {
@@ -113,7 +114,7 @@ import {
 } from '@/lib/opsStore';
 
 /* ── Types ─────────────────────────────────────────────── */
-type Role = 'admin' | 'staff' | 'superadmin' | 'vendor' | 'manager';
+type Role = 'admin' | 'staff' | 'superadmin' | 'vendor' | 'manager' | 'supervisor';
 type NavTab =
   | 'orders' | 'messages' | 'shuttle'
   | 'hotel' | 'staff_mgmt'
@@ -150,6 +151,7 @@ interface Session {
   role: Role;
   vendorType?: string;
   department?: string;
+  permissions?: string[];
 }
 
 /* ── Constants ─────────────────────────────────────────── */
@@ -166,27 +168,37 @@ const DEPARTMENTS = [
 ] as const;
 type DepartmentKey = typeof DEPARTMENTS[number]['key'];
 
+// Tabs that require a specific permission for staff/supervisor (admin always bypasses)
+const TAB_PERMS: Partial<Record<NavTab, string>> = {
+  orders:      'orders',
+  messages:    'messages',
+  shuttle:     'shuttle',
+  knowledge:   'knowledge',
+  compset:     'compset',
+  marketplace: 'marketplace',
+};
+
 const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; section?: string }[] = [
   // ── TODAY — what staff needs to do right now ──
-  { tab: 'dailybrief',      label: 'Dashboard',          icon: BarChart3,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'orders',          label: 'Requests',            icon: Bell,            roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'todos',           label: 'To-Dos',              icon: ClipboardList,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'kpis',            label: 'KPIs',                icon: TrendingUp,      roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'schedules',       label: 'Schedules',           icon: CalendarDays,    roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'dailybrief',      label: 'Dashboard',          icon: BarChart3,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'orders',          label: 'Requests',            icon: Bell,            roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'todos',           label: 'To-Dos',              icon: ClipboardList,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'kpis',            label: 'KPIs',                icon: TrendingUp,      roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'schedules',       label: 'Schedules',           icon: CalendarDays,    roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
 
   // ── OPERATIONS — property tools & planning ──
-  { tab: 'shuttle',         label: 'Shuttle',             icon: Bus,             roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'compset',         label: 'Compset',             icon: PhoneCall,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'forecast',        label: 'Forecast',            icon: BarChart3,       roles: ['admin', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'culture',         label: 'Culture',             icon: Heart,           roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'knowledge',       label: 'Right Answers',       icon: BookOpen,        roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'learning_hr',     label: 'Learning & HR',       icon: GraduationCap,   roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'marketplace',     label: 'Marketplace',         icon: Store,           roles: ['admin', 'manager', 'superadmin'], section: 'Operations' },
-  { tab: 'property_info',   label: 'Property Info',       icon: HotelIcon,       roles: ['admin', 'staff', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'shuttle',         label: 'Shuttle',             icon: Bus,             roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'compset',         label: 'Compset',             icon: PhoneCall,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'forecast',        label: 'Forecast',            icon: BarChart3,       roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'culture',         label: 'Culture',             icon: Heart,           roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'knowledge',       label: 'Right Answers',       icon: BookOpen,        roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'learning_hr',     label: 'Learning & HR',       icon: GraduationCap,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'marketplace',     label: 'Marketplace',         icon: Store,           roles: ['admin', 'supervisor', 'manager', 'superadmin'], section: 'Operations' },
+  { tab: 'property_info',   label: 'Property Info',       icon: HotelIcon,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
 
   // ── ADMIN — settings & management ──
-  { tab: 'revenue',         label: 'Revenue',             icon: DollarSign,      roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
-  { tab: 'callouts',        label: 'Staff Callouts',      icon: ClipboardList,   roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
+  { tab: 'revenue',         label: 'Revenue',             icon: DollarSign,      roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Admin' },
+  { tab: 'callouts',        label: 'Staff Callouts',      icon: ClipboardList,   roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'], section: 'Admin' },
   { tab: 'staff_mgmt',      label: 'Staff Management',    icon: Users,           roles: ['admin', 'superadmin'], section: 'Admin' },
   { tab: 'partners',        label: 'Partners & Menu',     icon: Store,           roles: ['admin', 'superadmin'], section: 'Admin' },
@@ -201,9 +213,11 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
 ];
 
 /* ── Main Component ───────────────────────────────────── */
-export default function Dashboard() {
+function DashboardInner() {
+  const searchParams = useSearchParams();
   const [session, setSession] = useState<Session | null>(null);
   const [tab, setTab] = useState<NavTab>('dailybrief');
+  const [showWelcome, setShowWelcome] = useState(false);
   // Auth state
   const [authMode, setAuthMode] = useState<'email' | 'authenticated'>('email');
   const [email, setEmail] = useState('');
@@ -266,8 +280,8 @@ export default function Dashboard() {
         }
         getStaffAccountByEmail(email).then(staff => {
           if (staff) {
-            const role: Role = staff.role === 'manager' || staff.role === 'admin' ? 'admin' : staff.role === 'vendor' ? 'vendor' : 'staff';
-            setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined });
+            const role: Role = staff.role === 'manager' || staff.role === 'admin' ? 'admin' : staff.role === 'supervisor' ? 'supervisor' : staff.role === 'vendor' ? 'vendor' : 'staff';
+            setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined, permissions: staff.permissions ?? [] });
             setAuthMode('authenticated');
             // Save hotel slug to localStorage so config queries work
             if (staff.hotel_id) {
@@ -321,8 +335,13 @@ export default function Dashboard() {
         await supabase.auth.refreshSession();
       }
 
-      setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined });
+      setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined, permissions: staff.permissions ?? [] });
       setAuthMode('authenticated');
+      // Show welcome modal for first-time logins (redirected from setup with ?welcome=1)
+      if (searchParams.get('welcome') === '1' && !localStorage.getItem('attenda_welcomed')) {
+        setShowWelcome(true);
+        localStorage.setItem('attenda_welcomed', '1');
+      }
       // Save hotel slug to localStorage so config queries work
       if (staff.hotel_id) {
         const { data: hotelData } = await supabase.from('hotels').select('slug').eq('id', staff.hotel_id).single();
@@ -540,7 +559,7 @@ export default function Dashboard() {
                     <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 ${
                       st.role === 'admin' || st.role === 'manager' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'
                     }`}>
-                      {st.role === 'admin' || st.role === 'manager' ? 'Admin' : 'Staff'}
+                      {st.role === 'admin' || st.role === 'manager' ? 'Admin' : st.role === 'supervisor' ? 'Supervisor' : 'Staff'}
                     </span>
                   </div>
                   <Eye size={16} className="text-gray-400" />
@@ -561,8 +580,18 @@ export default function Dashboard() {
   const s = session!;
   // Impersonation override — superadmin can view as staff
   const effectiveRole: Role = impersonatingUser?.role || s.role;
-  const visibleNav = NAV.filter(n => n.roles.includes(effectiveRole));
+  const sessionPerms = s.permissions ?? [];
+  const visibleNav = NAV.filter(n => {
+    if (!n.roles.includes(effectiveRole)) return false;
+    // For staff and supervisor, also check per-tab permission if one exists
+    if (effectiveRole === 'staff' || effectiveRole === 'supervisor') {
+      const requiredPerm = TAB_PERMS[n.tab];
+      if (requiredPerm && !sessionPerms.includes(requiredPerm)) return false;
+    }
+    return true;
+  });
   const isAdmin = s.role === 'admin' || s.role === 'superadmin';
+  const isSupervisor = s.role === 'supervisor';
   // Vendors land on their manifest tab
   const effectiveTab = (effectiveRole === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab;
 
@@ -575,6 +604,34 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row">
+
+      {/* ── Welcome modal (first login after setup) ── */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-[999] bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center">
+            <div className="text-4xl mb-4">👋</div>
+            <h2 className="text-[22px] font-extrabold text-gray-900 mb-1">Welcome to Attenda, {s.name.split(' ')[0]}!</h2>
+            <p className="text-[13px] text-gray-500 mb-2">
+              You&apos;re logged in as <span className="font-bold text-teal-600">{s.role === 'supervisor' ? 'Supervisor' : 'Staff'}</span>
+            </p>
+            <p className="text-[13px] text-gray-400 mb-6">Here&apos;s what you have access to today:</p>
+            <div className="text-left bg-gray-50 rounded-2xl p-4 mb-6 space-y-2">
+              {visibleNav.slice(0, 6).map(n => (
+                <div key={n.tab} className="flex items-center gap-2 text-[13px] text-gray-700">
+                  <n.icon size={14} className="text-teal-500 shrink-0" />
+                  <span>{n.label}</span>
+                </div>
+              ))}
+              {visibleNav.length > 6 && <p className="text-[11px] text-gray-400 pl-5">+ {visibleNav.length - 6} more</p>}
+            </div>
+            <button onClick={() => setShowWelcome(false)}
+              className="w-full py-3.5 rounded-2xl text-white font-extrabold text-[15px]"
+              style={{ backgroundColor: TEAL }}>
+              Get Started →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Mobile top bar ──────────────────────────── */}
       <header className="md:hidden sticky top-0 z-20 bg-white border-b border-gray-200">
@@ -666,7 +723,7 @@ export default function Dashboard() {
               s.role === 'admin' ? 'bg-teal-100 text-teal-700' :
               s.role === 'vendor' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
             }`}>
-              {s.role === 'superadmin' ? 'Super Admin' : s.role === 'admin' ? 'Admin' : s.role === 'vendor' ? `Vendor · ${s.vendorType || ''}` : 'Staff'}
+              {s.role === 'superadmin' ? 'Super Admin' : s.role === 'admin' ? 'Admin' : s.role === 'supervisor' ? 'Supervisor' : s.role === 'vendor' ? `Vendor · ${s.vendorType || ''}` : 'Staff'}
             </span>
           )}
           {s.role === 'superadmin' && !impersonatingUser && (
@@ -2006,7 +2063,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   const [saveError, setSaveError] = useState('');
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resentId, setResentId] = useState<string | null>(null);
-  const ALL_PERMS = ['orders', 'messages', 'shuttle', 'hotel', 'staff_mgmt', 'partners', 'qrcodes'];
+  const ALL_PERMS = ['orders', 'messages', 'shuttle', 'knowledge', 'compset', 'marketplace', 'hotel', 'staff_mgmt', 'partners', 'qrcodes'];
 
   const handleResendInvite = async (s: StaffAccount) => {
     if (!s.email) return;
@@ -2147,7 +2204,8 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   };
 
   const permLabels: Record<string, string> = {
-    orders: 'Live Orders', messages: 'Guest Messages', shuttle: 'Shuttle Ops',
+    orders: 'Live Orders', messages: 'Guest Messages', shuttle: 'Shuttle',
+    knowledge: 'Right Answers', compset: 'Compset', marketplace: 'Marketplace',
     hotel: 'Hotel Settings', staff_mgmt: 'Staff Mgmt', partners: 'Partners', qrcodes: 'QR Codes',
   };
 
@@ -2169,7 +2227,8 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                 <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
                   className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
                   <option value="staff">Staff</option>
-                  <option value="manager">Manager</option>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="manager">Admin / Manager</option>
                   <option value="vendor">Vendor (external)</option>
                 </select>
               </div>
@@ -4522,3 +4581,15 @@ const Phone = ({ size, style }: { size: number; style?: React.CSSProperties }) =
     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
   </svg>
 );
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <DashboardInner />
+    </Suspense>
+  );
+}
