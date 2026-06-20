@@ -73,9 +73,12 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
   const [trips, setTrips] = useState<BouncieTrip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [syncError, setSyncError] = useState('');
   const [connected, setConnected] = useState<boolean | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isManual = false) => {
+    if (isManual) setRefreshing(true);
     try {
       const [vehRes, tripsRes] = await Promise.all([
         fetch(`/api/bouncie/vehicles?hotelId=${encodeURIComponent(hotelId)}`).then(r => r.json()),
@@ -83,20 +86,21 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
       ]);
       setDevices(vehRes.devices || []);
       setTrips(tripsRes.trips || []);
-      // Use explicit connected flag — true means OAuth token exists, regardless of device count
       setConnected(vehRes.connected === true);
+      setSyncError(vehRes.syncError || '');
       setError('');
     } catch {
-      setError('Failed to load shuttle location');
+      setError('Failed to load shuttle location. Check your network connection.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [hotelId]);
 
   useEffect(() => {
     if (!hotelId) return;
-    load();
-    const id = setInterval(load, 30000);
+    load(false);
+    const id = setInterval(() => load(false), 30000);
     return () => clearInterval(id);
   }, [hotelId, load]);
 
@@ -142,22 +146,40 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
 
   if (error) {
     return (
-      <div className="bg-red-50 rounded-2xl border border-red-100 p-4 mb-4">
-        <p className="text-[12px] text-red-600">{error}</p>
+      <div className="bg-red-50 rounded-2xl border border-red-100 p-4 mb-4 space-y-2">
+        <p className="text-[12px] text-red-600 font-semibold">{error}</p>
+        <button onClick={() => load(true)} className="text-[12px] text-red-500 underline">Retry</button>
       </div>
     );
   }
 
-  // Connected but no devices discovered yet — show waiting state
+  // Connected but no devices discovered yet — show waiting state with sync error if any
   if (devices.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Bus size={16} className="text-teal-600" />
-          <span className="font-bold text-[14px] text-gray-900">Live Shuttle</span>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✓ Bouncie Connected</span>
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bus size={16} className="text-teal-600" />
+            <span className="font-bold text-[14px] text-gray-900">Live Shuttle</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✓ Bouncie Connected</span>
+          </div>
+          <button
+            onClick={() => load(true)}
+            disabled={refreshing}
+            className="text-[11px] font-bold text-teal-600 bg-teal-50 px-3 py-1 rounded-full disabled:opacity-50"
+          >
+            {refreshing ? 'Refreshing…' : '↻ Refresh'}
+          </button>
         </div>
-        <p className="text-[12px] text-gray-500">Waiting for GPS tracker to come online. Start a trip and it will appear here automatically.</p>
+        {syncError ? (
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+            <p className="text-[11px] font-bold text-amber-700 mb-0.5">GPS sync error</p>
+            <p className="text-[11px] text-amber-600 font-mono break-all">{syncError}</p>
+            <p className="text-[11px] text-amber-500 mt-1">Check that your Bouncie account is active and the device has signal.</p>
+          </div>
+        ) : (
+          <p className="text-[12px] text-gray-500">Waiting for GPS tracker to come online. Start a trip and it will appear here automatically.</p>
+        )}
       </div>
     );
   }
@@ -184,11 +206,22 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
             <p className="text-[11px] text-gray-500">{shuttle?.vehicle_name || shuttle?.device_id || 'Shuttle'} · Bouncie GPS</p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className={`w-2 h-2 rounded-full ${currentTrip ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
-          <span className="text-[10px] font-bold text-gray-600">{currentTrip ? 'On Trip' : 'Idle'}</span>
+        <div className="flex items-center gap-2">
+          <button onClick={() => load(true)} disabled={refreshing} className="text-[10px] text-teal-600 font-bold disabled:opacity-40">
+            {refreshing ? '…' : '↻'}
+          </button>
+          <div className="flex items-center gap-1.5">
+            <div className={`w-2 h-2 rounded-full ${currentTrip ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
+            <span className="text-[10px] font-bold text-gray-600">{currentTrip ? 'On Trip' : 'Idle'}</span>
+          </div>
         </div>
       </div>
+
+      {syncError && (
+        <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+          <p className="text-[11px] text-amber-700 font-semibold">GPS sync issue: <span className="font-normal font-mono">{syncError}</span></p>
+        </div>
+      )}
 
       {/* Live location */}
       {loc ? (
