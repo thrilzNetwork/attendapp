@@ -835,32 +835,48 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
 
                               return (
                                 <div key={tpl.id} className="px-4 py-3">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div className="flex-1 min-w-0 mr-2">
-                                      <p className="text-[14px] font-semibold text-gray-900">{tpl.name}</p>
-                                      <p className="text-[11px] text-gray-500">
-                                        {tpl.description && `${tpl.description} · `}
-                                        {items.length} item{items.length !== 1 ? 's' : ''}
-                                        {tpl.assigned_position && ` · ${POSITIONS.find(p => p.key === tpl.assigned_position)?.label || tpl.assigned_position}`}
-                                        {isAdmin && allInsts.length > 0 && ` · ${allInsts.filter(i => i.status === 'completed').length}/${allInsts.length} staff done`}
-                                      </p>
+                                  <div className="flex items-center justify-between mb-2 gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      {renamingTemplate === tpl.id ? (
+                                        <div className="flex items-center gap-1.5">
+                                          <input
+                                            autoFocus
+                                            value={renameValue}
+                                            onChange={e => setRenameValue(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') confirmRenameTpl(tpl.id); if (e.key === 'Escape') setRenamingTemplate(null); }}
+                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] font-semibold"
+                                          />
+                                          <button onClick={() => confirmRenameTpl(tpl.id)} disabled={submitting} className="p-1.5 rounded-lg text-white text-[11px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}><Save size={13} /></button>
+                                          <button onClick={() => setRenamingTemplate(null)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={13} /></button>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <p className="text-[14px] font-semibold text-gray-900">{tpl.name}</p>
+                                          <p className="text-[11px] text-gray-500">
+                                            {tpl.description && `${tpl.description} · `}
+                                            {items.length} item{items.length !== 1 ? 's' : ''}
+                                            {tpl.assigned_position && ` · ${POSITIONS.find(p => p.key === tpl.assigned_position)?.label || tpl.assigned_position}`}
+                                            {isAdmin && allInsts.length > 0 && ` · ${allInsts.filter(i => i.status === 'completed').length}/${allInsts.length} staff done`}
+                                          </p>
+                                        </>
+                                      )}
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
-                                      {isAdmin && (
+                                      {isAdmin && renamingTemplate !== tpl.id && (
                                         <>
                                           <button
-                                            onClick={() => { setRenamingTemplate(tpl.id); setRenameValue(tpl.name); setViewMode('builder'); setBuilderTab('my-templates'); setOpenDept(tpl.department); setEditingTemplate(tpl.id); }}
-                                            title="Edit template"
+                                            onClick={() => startRenameTpl(tpl)}
+                                            title="Rename"
                                             className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100 transition-colors"
                                           ><Edit3 size={13} /></button>
                                           <button
                                             onClick={() => deleteTpl(tpl.id)}
-                                            title="Delete template"
+                                            title="Delete checklist"
                                             className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
                                           ><Trash2 size={13} /></button>
                                         </>
                                       )}
-                                      {completedInst ? (
+                                      {renamingTemplate !== tpl.id && (completedInst ? (
                                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✅ Done</span>
                                       ) : myInst ? (
                                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ In Progress</span>
@@ -868,7 +884,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                                         <button onClick={() => startInstance(tpl.id)} disabled={submitting} className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: TEAL }}>
                                           Start
                                         </button>
-                                      ) : null}
+                                      ) : null)}
                                     </div>
                                   </div>
 
