@@ -21,29 +21,41 @@ export async function POST(req: NextRequest) {
       return originBlocked();
     }
 
-    const caller = await getCaller(req);
-    if (!caller) {
-      return NextResponse.json({ ok: false, error: 'Authentication required.' }, { status: 401 });
-    }
-
     const body = await req.json();
     const { action, data } = body as { action: string; data: Record<string, unknown> };
 
     const db = getServiceClient();
 
-    switch (action) {
-      case 'get_partners': {
-        const { data: rows, error } = await db
-          .from('partners')
-          .select('*')
-          .eq('hotel_id', data.hotel_id)
-          .eq('is_active', true)
-          .order('category')
-          .order('name');
-        if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-        return NextResponse.json({ ok: true, data: rows });
-      }
+    // Public read-only actions — no auth required (guest-facing)
+    if (action === 'get_partners') {
+      const { data: rows, error } = await db
+        .from('partners')
+        .select('id, hotel_id, name, category, description, image_url, phone, address, hours, distance, rating, has_ordering, is_active, delivery_providers')
+        .eq('hotel_id', data.hotel_id)
+        .eq('is_active', true)
+        .order('category')
+        .order('name');
+      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, data: rows });
+    }
 
+    if (action === 'get_menu_items') {
+      const { data: rows, error } = await db
+        .from('partner_menu_items')
+        .select('id, partner_id, name, description, price, image_url, category, is_active, sort_order')
+        .eq('partner_id', data.partner_id)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, data: rows });
+    }
+
+    const caller = await getCaller(req);
+    if (!caller) {
+      return NextResponse.json({ ok: false, error: 'Authentication required.' }, { status: 401 });
+    }
+
+    switch (action) {
       case 'create_partner': {
         const { data: row, error } = await db
           .from('partners')
@@ -70,17 +82,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      case 'get_menu_items': {
-        const { data: rows, error } = await db
-          .from('partner_menu_items')
-          .select('*')
-          .eq('partner_id', data.partner_id)
-          .eq('is_active', true)
-          .order('sort_order', { ascending: true });
-        if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-        return NextResponse.json({ ok: true, data: rows });
-      }
-
       case 'create_menu_item': {
         const { data: row, error } = await db
           .from('partner_menu_items')
@@ -96,6 +97,13 @@ export async function POST(req: NextRequest) {
           .from('partner_menu_items')
           .update({ is_active: false })
           .eq('id', data.id);
+        if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'update_menu_item': {
+        const { id: itemId, ...patch } = data as { id: string; [k: string]: unknown };
+        const { error } = await db.from('partner_menu_items').update(patch).eq('id', itemId);
         if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
         return NextResponse.json({ ok: true });
       }

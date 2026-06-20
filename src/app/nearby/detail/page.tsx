@@ -72,6 +72,7 @@ function PartnerContent() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [brandColor, setBrandColor] = useState('#6B1D3C');
+  const [hotelAddress, setHotelAddress] = useState('');
 
   // Checkout sheet state
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -85,12 +86,21 @@ function PartnerContent() {
   const sheetRef = useRef<HTMLDivElement>(null);
   const stripeEnabled = !!stripePromise;
 
+  // Uber delivery quote
+  const [uberQuote, setUberQuote] = useState<{ fee_display: string; feeCents: number } | null>(null);
+
   useEffect(() => {
     if (!id) { setLoading(false); return; }
-    Promise.all([getPartnerById(id), getPartnerMenuItems(id), getHotelConfig()]).then(([p, m, cfg]) => {
+    Promise.all([getPartnerById(id), getPartnerMenuItems(id), getHotelConfig()]).then(async ([p, m, cfg]) => {
       setPartner(p);
       setMenuItems(m);
       if (cfg?.brandColor) setBrandColor(cfg.brandColor);
+      // Fetch hotel address for Uber route display
+      if (p?.hotel_id) {
+        const { data: hotel } = await (await import('@/lib/supabase')).supabase
+          .from('hotels').select('address').eq('id', p.hotel_id).maybeSingle();
+        if (hotel?.address) setHotelAddress(hotel.address);
+      }
       setLoading(false);
     });
   }, [id]);
@@ -121,7 +131,26 @@ function PartnerContent() {
     .filter(i => (cart[i.id] || 0) > 0)
     .map(i => ({ ...i, qty: cart[i.id] }));
   const totalQty = cartItems.reduce((s, i) => s + i.qty, 0);
-  const total = cartItems.reduce((s, i) => s + Number(i.price) * i.qty, 0);
+  const subtotal = cartItems.reduce((s, i) => s + Number(i.price) * i.qty, 0);
+  const serviceFee = +(subtotal * 0.10).toFixed(2);
+  const deliveryFee = uberQuote ? uberQuote.feeCents / 100 : 0;
+  const total = +(subtotal + serviceFee + deliveryFee).toFixed(2);
+
+  // Fetch Uber quote when cart has items and partner uses uber_direct
+  useEffect(() => {
+    if (!partner || totalQty === 0) { setUberQuote(null); return; }
+    if (!partner.delivery_providers?.some(d => d.name.toLowerCase().includes('uber'))) return;
+    let cancelled = false;
+    fetch(`/api/uber-direct/quote?partnerId=${partner.id}&hotelId=${partner.hotel_id}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!cancelled && d.ok && d.quote) {
+          setUberQuote({ fee_display: d.quote.fee_display || `$${(d.quote.fee?.total / 100).toFixed(2)}`, feeCents: d.quote.fee?.total || 0 });
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [partner, totalQty]);
 
   // Group menu items by category
   const categories = Array.from(new Set(menuItems.map(i => i.category || 'Menu'))).filter(Boolean);
@@ -149,7 +178,8 @@ function PartnerContent() {
         partner_id: partner.id,
         vendor_status: 'new',
         total_amount: total,
-        vendor_payout: +(total * 0.9).toFixed(2),
+        vendor_payout: +subtotal.toFixed(2),
+        uber_fee_cents: uberQuote ? Math.round(uberQuote.feeCents) : 0,
         stripe_payment_status: stripeEnabled ? 'pending' : 'room_charge',
       }).select('id').single();
       if (error) throw error;
@@ -503,10 +533,33 @@ function PartnerContent() {
                   ))}
                 </div>
 
-                {/* Total */}
-                <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-                  <p className="text-[15px] font-bold text-gray-700">Total</p>
-                  <p className="text-[18px] font-extrabold" style={{ color: brandColor }}>${total.toFixed(2)}</p>
+                {/* Fee breakdown */}
+                <div className="border-t border-gray-100 pt-3 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[13px] text-gray-500">Subtotal</p>
+                    <p className="text-[13px] text-gray-600">${subtotal.toFixed(2)}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[13px] text-gray-500">Service fee (10%)</p>
+                    <p className="text-[13px] text-gray-600">${serviceFee.toFixed(2)}</p>
+                  </div>
+                  {uberQuote && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-gray-500">Delivery fee</p>
+                        <p className="text-[13px] text-gray-600">{uberQuote.fee_display}</p>
+                      </div>
+                      {partner?.address && hotelAddress && (
+                        <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                          🚗 {partner.address} → {hotelAddress}
+                        </p>
+                      )}
+                    </>
+                  )}
+                  <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
+                    <p className="text-[15px] font-bold text-gray-700">Total</p>
+                    <p className="text-[18px] font-extrabold" style={{ color: brandColor }}>${total.toFixed(2)}</p>
+                  </div>
                 </div>
 
                 {/* Divider */}

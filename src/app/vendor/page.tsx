@@ -1,9 +1,9 @@
 'use client';
 
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { supabase, subscribeToRequests, updateVendorStatus, getPartnerById } from '@/lib/supabase';
-import { ShoppingBag, Clock, CheckCircle, Bell, RefreshCw, Truck, ExternalLink } from 'lucide-react';
+import { supabase, subscribeToRequests, updateVendorStatus, getPartnerById, PartnerMenuItem } from '@/lib/supabase';
+import { ShoppingBag, Clock, CheckCircle, Bell, RefreshCw, Truck, ExternalLink, UtensilsCrossed, Upload, ImageIcon } from 'lucide-react';
 
 interface VendorOrder {
   id: string;
@@ -102,6 +102,68 @@ function VendorDashboard() {
     return () => { supabase.removeChannel(ch); };
   }, [hotelId, load]);
 
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu'>('orders');
+  const [menuItems, setMenuItems] = useState<PartnerMenuItem[]>([]);
+  const [menuLoading, setMenuLoading] = useState(false);
+  const [imgUploading, setImgUploading] = useState<Record<string, boolean>>({});
+  const [imgError, setImgError] = useState<Record<string, string>>({});
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const loadMenu = useCallback(async () => {
+    if (!partnerId) return;
+    setMenuLoading(true);
+    const res = await fetch('/api/partners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+      body: JSON.stringify({ action: 'get_menu_items', partner_id: partnerId }),
+    });
+    const data = await res.json();
+    if (data.ok) setMenuItems(data.data || []);
+    setMenuLoading(false);
+  }, [partnerId]);
+
+  useEffect(() => {
+    if (activeTab === 'menu' && partnerId) loadMenu();
+  }, [activeTab, partnerId, loadMenu]);
+
+  const uploadMenuImage = async (item: PartnerMenuItem, file: File) => {
+    setImgUploading(p => ({ ...p, [item.id]: true }));
+    setImgError(p => ({ ...p, [item.id]: '' }));
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = ev => resolve(ev.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const uploadRes = await fetch('/api/partners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        body: JSON.stringify({ action: 'upload_image', base64, filename: file.name, folder: 'menu-items' }),
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadData.ok) throw new Error(uploadData.error || 'Upload failed');
+      await fetch('/api/partners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        body: JSON.stringify({ action: 'update_menu_item', id: item.id, image_url: uploadData.url }),
+      });
+      setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, image_url: uploadData.url } : i));
+    } catch (e) {
+      setImgError(p => ({ ...p, [item.id]: e instanceof Error ? e.message : 'Upload failed' }));
+    }
+    setImgUploading(p => ({ ...p, [item.id]: false }));
+  };
+
+  const removeMenuImage = async (item: PartnerMenuItem) => {
+    await fetch('/api/partners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+      body: JSON.stringify({ action: 'update_menu_item', id: item.id, image_url: null }),
+    });
+    setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, image_url: undefined } : i));
+  };
+
   const [dispatching, setDispatching] = useState<string | null>(null);
   const [dispatchError, setDispatchError] = useState<string | null>(null);
 
@@ -172,7 +234,63 @@ function VendorDashboard() {
         </div>
       </div>
 
-      <div className="p-4 space-y-3 max-w-lg mx-auto">
+      {/* Tab bar */}
+      <div className="bg-white border-b border-gray-200 px-4 flex gap-1 sticky top-[73px] z-10">
+        {(['orders', 'menu'] as const).map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`px-4 py-3 text-[13px] font-bold capitalize border-b-2 transition-colors ${activeTab === tab ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-400'}`}>
+            {tab === 'orders' ? <span className="flex items-center gap-1.5"><ShoppingBag size={13} /> Orders {active.length > 0 && <span className="bg-orange-500 text-white rounded-full text-[10px] font-bold px-1.5">{active.length}</span>}</span> : <span className="flex items-center gap-1.5"><UtensilsCrossed size={13} /> Menu</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* Menu tab */}
+      {activeTab === 'menu' && (
+        <div className="p-4 space-y-3 max-w-lg mx-auto">
+          <p className="text-[12px] text-gray-400">Add photos to your menu items so guests can see what they&apos;re ordering.</p>
+          {menuLoading ? (
+            <div className="flex justify-center py-10"><div className="w-7 h-7 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>
+          ) : menuItems.length === 0 ? (
+            <div className="text-center py-16">
+              <UtensilsCrossed size={36} className="mx-auto text-gray-300 mb-3" />
+              <p className="text-[14px] font-semibold text-gray-500">No menu items yet</p>
+              <p className="text-[12px] text-gray-400 mt-1">Ask your hotel admin to add items to your menu.</p>
+            </div>
+          ) : menuItems.map(item => (
+            <div key={item.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex items-center gap-4">
+              {/* Image thumbnail or placeholder */}
+              <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center border border-gray-200">
+                {item.image_url
+                  ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                  : <ImageIcon size={22} className="text-gray-300" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900 text-[14px] truncate">{item.name}</p>
+                <p className="text-[12px] text-gray-400">${Number(item.price).toFixed(2)}{item.category ? ` · ${item.category}` : ''}</p>
+                {imgError[item.id] && <p className="text-[11px] text-red-500 mt-0.5">{imgError[item.id]}</p>}
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <input
+                  ref={el => { fileRefs.current[item.id] = el; }}
+                  type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadMenuImage(item, f); e.target.value = ''; }}
+                />
+                <button
+                  onClick={() => fileRefs.current[item.id]?.click()}
+                  disabled={imgUploading[item.id]}
+                  className="flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 disabled:opacity-50">
+                  <Upload size={11} /> {imgUploading[item.id] ? 'Uploading…' : item.image_url ? 'Replace' : 'Add Photo'}
+                </button>
+                {item.image_url && (
+                  <button onClick={() => removeMenuImage(item)} className="text-[10px] text-red-400 hover:text-red-600 font-semibold">Remove</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'orders' && <div className="p-4 space-y-3 max-w-lg mx-auto">
         {active.length === 0 && done.length === 0 && (
           <div className="text-center py-20">
             <ShoppingBag size={40} className="mx-auto text-gray-300 mb-3" />
@@ -278,7 +396,7 @@ function VendorDashboard() {
             </div>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

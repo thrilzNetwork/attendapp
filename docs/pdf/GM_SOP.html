@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/>
+<style>@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+
+@page {
+  size: A4;
+  margin: 20mm 18mm 25mm 18mm;
+  @bottom-center {
+    content: "ATTENDA  ·  Confidential  ·  Do Not Distribute  ·  " counter(page);
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 8pt;
+    color: #9b6070;
+    letter-spacing: 0.08em;
+  }
+}
+
+@page :first {
+  @bottom-center { content: ""; }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.5pt;
+  color: #1a1a2e;
+  line-height: 1.6;
+  background: white;
+}
+
+/* ── COVER ── */
+.cover {
+  page: cover;
+  min-height: 260mm;
+  background: linear-gradient(160deg, #7B1C3E 0%, #3d0e1f 55%, #1a0810 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60pt 50pt;
+  border-radius: 4pt;
+}
+
+@page cover { margin: 0; @bottom-center { content: ""; } }
+
+.cover-logo {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 11pt;
+  letter-spacing: 0.5em;
+  color: #e8c0cd;
+  text-transform: uppercase;
+  margin-bottom: 28pt;
+}
+
+.cover h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 30pt;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  margin-bottom: 10pt;
+}
+
+.cover .subtitle {
+  font-size: 10pt;
+  letter-spacing: 0.35em;
+  color: #f0b8cb;
+  text-transform: uppercase;
+  margin-bottom: 30pt;
+}
+
+.cover .role-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.12);
+  border: 1pt solid rgba(255,255,255,0.3);
+  border-radius: 20pt;
+  padding: 6pt 20pt;
+  font-size: 9.5pt;
+  color: #fce8ef;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 50pt;
+}
+
+.cover .divider {
+  width: 60pt;
+  height: 1pt;
+  background: rgba(255,255,255,0.3);
+  margin: 0 auto 30pt;
+}
+
+.cover .meta {
+  font-size: 8.5pt;
+  color: #c49aaa;
+  line-height: 1.8;
+  letter-spacing: 0.05em;
+}
+
+/* ── QUICK REF BOX ── */
+.quick-ref {
+  background: #fdf0f4;
+  border-left: 4pt solid #7B1C3E;
+  border-radius: 3pt;
+  padding: 14pt 18pt;
+  margin: 16pt 0 22pt;
+}
+
+.quick-ref-title {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #7B1C3E;
+  margin-bottom: 10pt;
+}
+
+/* ── SECTION HEADER ── */
+h1.section {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 16pt;
+  font-weight: 700;
+  color: #7B1C3E;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 28pt 0 4pt;
+  padding-bottom: 6pt;
+  border-bottom: 2pt solid #7B1C3E;
+  page-break-after: avoid;
+}
+
+h2.sub {
+  font-family: 'Source Sans Pro', sans-serif;
+  font-size: 11.5pt;
+  font-weight: 700;
+  color: #3d0e1f;
+  margin: 16pt 0 6pt;
+  page-break-after: avoid;
+}
+
+h3.sub2 {
+  font-size: 10pt;
+  font-weight: 700;
+  color: #5a1028;
+  margin: 12pt 0 4pt;
+  page-break-after: avoid;
+}
+
+/* ── TABLES ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10pt 0 16pt;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+thead tr {
+  background: #7B1C3E;
+  color: white;
+}
+
+thead th {
+  padding: 7pt 10pt;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 9pt;
+}
+
+tbody tr:nth-child(odd)  { background: #ffffff; }
+tbody tr:nth-child(even) { background: #fdf0f4; }
+
+tbody td {
+  padding: 6pt 10pt;
+  border-bottom: 0.5pt solid #e8d0d8;
+  vertical-align: top;
+}
+
+/* ── CODE / EXAMPLE BLOCKS ── */
+pre, code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 8.5pt;
+}
+
+pre {
+  background: #1a1a2e;
+  color: #e8f4f8;
+  padding: 12pt 14pt;
+  border-radius: 4pt;
+  margin: 10pt 0 16pt;
+  white-space: pre-wrap;
+  page-break-inside: avoid;
+}
+
+/* ── CALLOUT / TIP ── */
+blockquote {
+  background: #fff8e7;
+  border-left: 3pt solid #d4a017;
+  padding: 8pt 14pt;
+  margin: 8pt 0 14pt;
+  font-size: 9.5pt;
+  color: #5a4010;
+  border-radius: 0 3pt 3pt 0;
+}
+
+blockquote strong {
+  color: #7a5500;
+}
+
+/* WARNING */
+blockquote.warn {
+  background: #fff0f0;
+  border-left-color: #c0392b;
+  color: #6a1010;
+}
+
+/* ── STEPS ── */
+ol {
+  padding-left: 18pt;
+  margin: 6pt 0 12pt;
+}
+
+ol li {
+  margin-bottom: 5pt;
+  padding-left: 4pt;
+}
+
+ul {
+  padding-left: 16pt;
+  margin: 4pt 0 10pt;
+  list-style: none;
+}
+
+ul li::before {
+  content: "•";
+  color: #7B1C3E;
+  font-weight: bold;
+  margin-right: 6pt;
+}
+
+ul li {
+  margin-bottom: 3pt;
+  padding-left: 4pt;
+}
+
+/* ── HORIZONTAL RULE ── */
+hr {
+  border: none;
+  border-top: 1pt solid #e0c0cc;
+  margin: 14pt 0;
+}
+
+/* ── STATUS PILLS ── */
+.pill {
+  display: inline-block;
+  padding: 2pt 8pt;
+  border-radius: 10pt;
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pill-amber { background: #fff3cd; color: #856404; }
+.pill-blue  { background: #d0e8ff; color: #0a3a6e; }
+.pill-teal  { background: #d0f0ee; color: #0a4a46; }
+.pill-green { background: #d0f0dc; color: #0a4020; }
+.pill-gray  { background: #e8e8e8; color: #555;    }
+
+/* ── TOC ── */
+.toc-row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 0.5pt dotted #c0a0aa;
+  padding: 3pt 0;
+  font-size: 10pt;
+}
+
+.toc-row .toc-num { color: #7B1C3E; font-weight: 700; min-width: 22pt; }
+.toc-row .toc-pg  { color: #9b6070; font-size: 9pt; }
+
+/* ── MISC ── */
+p { margin-bottom: 8pt; }
+
+strong { color: #3d0e1f; }
+
+.page-break { page-break-before: always; }
+
+.label-new {
+  display: inline-block;
+  background: #7B1C3E;
+  color: white;
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 1pt 5pt;
+  border-radius: 3pt;
+  text-transform: uppercase;
+  vertical-align: middle;
+  margin-left: 4pt;
+}
+
+.sop-num {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #9b6070;
+  text-transform: uppercase;
+  margin-bottom: 2pt;
+}
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-logo">✦ Quantum Hospitality Solutions ✦</div>
+  <h1>General Manager SOP</h1>
+  <div class="subtitle">Version 2.0 &nbsp;·&nbsp; Standard Operating Procedures · v2.0</div>
+  <div class="role-badge">Role: Admin / General Manager</div>
+  <div class="divider"></div>
+  <div class="meta">
+    Attenda Platform &nbsp;·&nbsp; Confidential &nbsp;·&nbsp; Do Not Distribute<br/>
+    Issued June 2026 &nbsp;·&nbsp; Quantum Hospitality Solutions
+  </div>
+</div>
+
+<div class="page-break"></div>
+<div class="quick-ref">
+<div class="quick-ref-title">Quick Reference — GM Daily Tasks</div>
+<table style="margin:0;">
+<thead><tr><th>Task</th><th>Where</th><th>Time</th></tr></thead>
+<tbody>
+<tr><td>Morning brief review</td><td>Dashboard tab</td><td>2 min</td></tr>
+<tr><td>Review revenue</td><td>Admin → Revenue</td><td>2 min</td></tr>
+<tr><td>Approve callout</td><td>Admin → Callouts</td><td>30 sec</td></tr>
+<tr><td>Add/edit staff shift</td><td>Operations → Schedules</td><td>1 min</td></tr>
+<tr><td>Approve vendor application</td><td>Admin → Partners → Applications</td><td>45 sec</td></tr>
+<tr><td>Post GM Note</td><td>Dashboard → GM Notes</td><td>30 sec</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-01</div>
+<h1 class="section">Morning Brief Review</h1>
+<p><strong>When:</strong> Daily, at the start of the GM's shift or first thing each morning.</p>
+<ol>
+<li>Log in at <code>attendaapp.com/staff</code> with your Admin credentials.</li>
+<li>The <strong>Dashboard</strong> tab loads automatically.</li>
+<li>Review <strong>GM Notes</strong> — check if the previous manager left any carryover items.</li>
+<li>Read the <strong>Quick Stats</strong> tiles: Occupancy / Arrivals / Departures / Pending Requests.</li>
+<li>Scroll to <strong>Pending Requests</strong> — address any items open for more than 30 minutes.</li>
+<li>Check <strong>Shuttle Times</strong> — confirm today's runs match expected guest demand.</li>
+<li>Review the <strong>Forecast Summary</strong> — compare forecast arrivals to current occupancy.</li>
+<li>Post your own <strong>GM Note</strong> if there are important items for the team.</li>
+</ol>
+<blockquote><strong>Tip:</strong> Use the ⚙ Widget Customizer (gear icon, top right) to show only the sections that matter to your morning routine.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-02</div>
+<h1 class="section">Posting a GM Note</h1>
+<ol>
+<li>Navigate to the <strong>Dashboard</strong> tab.</li>
+<li>Click <strong>Edit / + New Note</strong> in the GM Notes section.</li>
+<li>Type your message.</li>
+<li>Click <strong>Post</strong> — immediately visible to all logged-in staff.</li>
+</ol>
+<blockquote><strong>Examples:</strong> "Pool maintenance until 2pm." · "VIP group Rooms 201–210 arriving at 3pm." · "Fire alarm test 10am — notify guests."</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-03</div>
+<h1 class="section">Revenue Dashboard</h1>
+<p><strong>Access:</strong> Admin section → Revenue</p>
+<ol>
+<li>Click <strong>Revenue</strong> in the Admin section.</li>
+<li>Select a time period: <strong>This Week</strong> / <strong>This Month</strong> / <strong>All Time</strong>.</li>
+<li>Review the three KPI cards: Total Revenue · Hotel Commission · Transactions.</li>
+<li>Review the <strong>Partner Breakdown Table</strong> — per-partner orders, gross, commission.</li>
+<li>Check the <strong>Shuttle Revenue</strong> row beneath the table.</li>
+<li>Review the <strong>Daily Bar Chart</strong> — identify high-revenue days and patterns.</li>
+</ol>
+<blockquote><strong>Action trigger:</strong> If a partner's commission shows $0, verify they have active menu items and are receiving orders in their Vendor Portal.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-04</div>
+<h1 class="section">Managing Staff Callouts</h1>
+<p><strong>Access:</strong> Admin section → Callouts (badge shows pending count)</p>
+<h2 class="sub">Reviewing Callouts</h2>
+<ol>
+<li>Click <strong>Callouts</strong> — badge shows unresolved count.</li>
+<li>Each card shows: staff name, callout date, reason, affected shift.</li>
+</ol>
+<table>
+<thead><tr><th>Action</th><th>When to Use</th><th>What It Does</th></tr></thead>
+<tbody>
+<tr><td><strong>Approve</strong></td><td>Shift can absorb the absence</td><td>Closes callout, removes from pending</td></tr>
+<tr><td><strong>Find Cover</strong></td><td>Shift must be filled</td><td>Opens Schedules for that date</td></tr>
+</tbody>
+</table>
+<h2 class="sub">Finding Coverage</h2>
+<ol>
+<li>Click <strong>Find Cover</strong> → Schedules opens for the callout date.</li>
+<li>Identify available staff — not already scheduled that day.</li>
+<li>Click <strong>+ Add Shift</strong> and schedule the covering staff member.</li>
+<li>Return to Callouts → click <strong>Approve</strong> to close.</li>
+</ol>
+<blockquote><strong>Note:</strong> A red dot on the Schedules tab date header marks dates with open callouts.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-05</div>
+<h1 class="section">Staff Schedule Management</h1>
+<p><strong>Access:</strong> Operations → Schedules</p>
+<h2 class="sub">Adding a Shift</h2>
+<ol>
+<li>Click <strong>+ Add Shift</strong> in the header.</li>
+<li>Select the <strong>Staff Member</strong> — Role auto-fills from their profile.</li>
+<li>Set <strong>Date</strong>, <strong>Start Time</strong>, <strong>End Time</strong>.</li>
+<li>For housekeeping: check <strong>"Open end time"</strong> if end time is unknown.</li>
+<li>Add optional <strong>Notes</strong>. Click <strong>Save Shift</strong>.</li>
+</ol>
+<h2 class="sub">Editing a Shift</h2>
+<ol>
+<li>Click any existing shift card on the grid.</li>
+<li>The <strong>Edit Shift modal</strong> opens with all fields pre-filled.</li>
+<li>Modify fields → click <strong>Save Changes</strong> or <strong>Delete Shift</strong> (red).</li>
+</ol>
+<h2 class="sub">Copy to Next Week</h2>
+<ol>
+<li>Navigate to the week to copy from.</li>
+<li>Click <strong>Copy to Next Week</strong>. Confirm if prompted.</li>
+<li>All shifts are duplicated 7 days forward. Review before publishing.</li>
+</ol>
+<h2 class="sub">Schedule Templates</h2>
+<ol>
+<li><strong>Save:</strong> Click bookmark icon → name the template → Save.</li>
+<li><strong>Load:</strong> Navigate to target week → folder icon → select template → Apply.</li>
+</ol>
+<h2 class="sub">Publishing</h2>
+<ol>
+<li>Review the week's shifts.</li>
+<li>Click <strong>Publish</strong> — staff can now see their schedule.</li>
+</ol>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-06</div>
+<h1 class="section">Partner & Vendor Management</h1>
+<p><strong>Access:</strong> Admin → Partners</p>
+<h2 class="sub">Reviewing Applications</h2>
+<ol>
+<li>Click <strong>Partners</strong> → <strong>Applications</strong> sub-tab.</li>
+<li>Review: business name, type, contact, description.</li>
+<li>Click <strong>Approve</strong> (creates vendor account, notifies applicant) or <strong>Reject</strong>.</li>
+</ol>
+<h2 class="sub">Sharing the Apply Link</h2>
+<ol>
+<li>In the Partners tab, click <strong>Share Apply Link</strong>.</li>
+<li>URL is copied to clipboard: <code>attendaapp.com/apply?hotel={slug}</code></li>
+<li>Share via email, WhatsApp, or printed materials.</li>
+</ol>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-07</div>
+<h1 class="section">Staff Account Management</h1>
+<p><strong>Access:</strong> Admin → Staff</p>
+<h2 class="sub">Adding a Staff Member</h2>
+<ol>
+<li>Click <strong>Staff</strong> → <strong>Add Staff Member</strong>.</li>
+<li>Enter Name, Email, Password, Role, and Department.</li>
+<li>Click <strong>Create</strong> — account is immediately active.</li>
+</ol>
+<table>
+<thead><tr><th>Role</th><th>Access Level</th></tr></thead>
+<tbody>
+<tr><td>admin</td><td>Full access including Revenue, Staff Mgmt, Property Settings</td></tr>
+<tr><td>manager</td><td>Schedules, Callouts, Forecast, Right Answers approval</td></tr>
+<tr><td>staff</td><td>KPIs, To-Dos, Requests, Schedule view, Callout reporting</td></tr>
+<tr><td>vendor</td><td>Vendor Portal only</td></tr>
+</tbody>
+</table>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-08</div>
+<h1 class="section">Property Settings</h1>
+<p><strong>Access:</strong> Admin → Property Settings</p>
+<table>
+<thead><tr><th>Setting</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td>Hotel Name</td><td>Display name shown to guests</td></tr>
+<tr><td>Brand Color</td><td>Hex code for accent color in guest app</td></tr>
+<tr><td>Shuttle Days / Hours</td><td>When shuttle service operates</td></tr>
+<tr><td>Shuttle Capacity</td><td>Max passengers per run</td></tr>
+<tr><td>Pickup Locations</td><td>Comma-separated terminal/location list</td></tr>
+<tr><td>Staffing Ratios</td><td>Rooms per housekeeper, guests per front desk agent</td></tr>
+</tbody>
+</table>
+<p>Modify any field → click <strong>Save</strong> — changes apply immediately across all modules.</p>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-09</div>
+<h1 class="section">KPI Review & Management</h1>
+<p><strong>Access:</strong> Operations → KPIs</p>
+<ol>
+<li>Click <strong>KPIs</strong> → select a category tab.</li>
+<li>Green checkmarks = submitted; amber = pending submission.</li>
+<li>Click any metric to see submission history and trend.</li>
+<li>To manage definitions: click <strong>Manage KPIs</strong> → Add / deactivate metrics.</li>
+<li>To install a KPI pack: navigate to <strong>Marketplace</strong> → find a pack → click <strong>Install</strong>.</li>
+</ol>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-10</div>
+<h1 class="section">Forecast Submission</h1>
+<p><strong>Access:</strong> Operations → Forecast</p>
+<ol>
+<li>Click <strong>Forecast</strong> → click a date on the monthly calendar.</li>
+<li>Enter: Expected Occupancy, Arrivals, Departures, Group Blocks, VIP Arrivals, Notes.</li>
+<li>Click <strong>Submit Forecast</strong>.</li>
+<li>Optional: click <strong>Generate Shifts</strong> to auto-suggest staffing. Review before accepting.</li>
+</ol>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-11</div>
+<h1 class="section">Compset Rate Monitoring</h1>
+<p><strong>Access:</strong> Operations → Compset</p>
+<ol>
+<li>Click <strong>Compset</strong> → select a competitor property.</li>
+<li>Click <strong>Log Call</strong>.</li>
+<li>Enter today's quoted rates per room category.</li>
+<li>Add notes (promotions, restrictions, availability).</li>
+<li>Click <strong>Save</strong> — logged with your name and timestamp.</li>
+</ol>
+<p>The <strong>Rate Position</strong> dashboard shows your rates vs. market: green = below average, red = above average.</p>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-12</div>
+<h1 class="section">Culture Hub Management</h1>
+<p><strong>Access:</strong> Operations → Culture Hub</p>
+<h2 class="sub">Awarding Points</h2>
+<ol>
+<li>Click <strong>Culture Hub</strong> → <strong>Leaderboard</strong> tab.</li>
+<li>Click a staff member's name → <strong>Award Points</strong>.</li>
+<li>Enter amount and reason → click <strong>Award</strong>.</li>
+</ol>
+<h2 class="sub">Managing Rewards</h2>
+<ol>
+<li>In Culture Hub → <strong>Rewards</strong> tab → click <strong>Add Reward</strong>.</li>
+<li>Enter name, point cost, description, and quantity → Save.</li>
+<li>In <strong>Pending Redemptions</strong>: Approve or Reject staff requests.</li>
+</ol>
+<h2 class="sub">Posting Team Events</h2>
+<ol>
+<li>In Culture Hub → <strong>Events</strong> tab → click <strong>New Event</strong>.</li>
+<li>Enter title, date/time, location, description → click <strong>Post</strong>.</li>
+</ol>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-GM-13</div>
+<h1 class="section">Right Answers Knowledge Base</h1>
+<p><strong>Access:</strong> Operations → Right Answers</p>
+<h2 class="sub">Approving Staff Submissions</h2>
+<ol>
+<li>Click <strong>Right Answers</strong> → <strong>Pending</strong> tab.</li>
+<li>Review each submission. Edit if needed.</li>
+<li>Click <strong>Approve</strong> (adds to live KB) or <strong>Reject</strong> (with optional feedback).</li>
+</ol>
+<h2 class="sub">Adding a KB Item Directly</h2>
+<ol>
+<li>Click <strong>+ Add Item</strong> (Admin only).</li>
+<li>Select category, enter situation + approved response → click <strong>Save</strong>.</li>
+</ol>
+
+</body></html>

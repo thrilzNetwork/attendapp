@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/>
+<style>@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+
+@page {
+  size: A4;
+  margin: 20mm 18mm 25mm 18mm;
+  @bottom-center {
+    content: "ATTENDA  ·  Confidential  ·  Do Not Distribute  ·  " counter(page);
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 8pt;
+    color: #9b6070;
+    letter-spacing: 0.08em;
+  }
+}
+
+@page :first {
+  @bottom-center { content: ""; }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.5pt;
+  color: #1a1a2e;
+  line-height: 1.6;
+  background: white;
+}
+
+/* ── COVER ── */
+.cover {
+  page: cover;
+  min-height: 260mm;
+  background: linear-gradient(160deg, #7B1C3E 0%, #3d0e1f 55%, #1a0810 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60pt 50pt;
+  border-radius: 4pt;
+}
+
+@page cover { margin: 0; @bottom-center { content: ""; } }
+
+.cover-logo {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 11pt;
+  letter-spacing: 0.5em;
+  color: #e8c0cd;
+  text-transform: uppercase;
+  margin-bottom: 28pt;
+}
+
+.cover h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 30pt;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  margin-bottom: 10pt;
+}
+
+.cover .subtitle {
+  font-size: 10pt;
+  letter-spacing: 0.35em;
+  color: #f0b8cb;
+  text-transform: uppercase;
+  margin-bottom: 30pt;
+}
+
+.cover .role-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.12);
+  border: 1pt solid rgba(255,255,255,0.3);
+  border-radius: 20pt;
+  padding: 6pt 20pt;
+  font-size: 9.5pt;
+  color: #fce8ef;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 50pt;
+}
+
+.cover .divider {
+  width: 60pt;
+  height: 1pt;
+  background: rgba(255,255,255,0.3);
+  margin: 0 auto 30pt;
+}
+
+.cover .meta {
+  font-size: 8.5pt;
+  color: #c49aaa;
+  line-height: 1.8;
+  letter-spacing: 0.05em;
+}
+
+/* ── QUICK REF BOX ── */
+.quick-ref {
+  background: #fdf0f4;
+  border-left: 4pt solid #7B1C3E;
+  border-radius: 3pt;
+  padding: 14pt 18pt;
+  margin: 16pt 0 22pt;
+}
+
+.quick-ref-title {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #7B1C3E;
+  margin-bottom: 10pt;
+}
+
+/* ── SECTION HEADER ── */
+h1.section {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 16pt;
+  font-weight: 700;
+  color: #7B1C3E;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 28pt 0 4pt;
+  padding-bottom: 6pt;
+  border-bottom: 2pt solid #7B1C3E;
+  page-break-after: avoid;
+}
+
+h2.sub {
+  font-family: 'Source Sans Pro', sans-serif;
+  font-size: 11.5pt;
+  font-weight: 700;
+  color: #3d0e1f;
+  margin: 16pt 0 6pt;
+  page-break-after: avoid;
+}
+
+h3.sub2 {
+  font-size: 10pt;
+  font-weight: 700;
+  color: #5a1028;
+  margin: 12pt 0 4pt;
+  page-break-after: avoid;
+}
+
+/* ── TABLES ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10pt 0 16pt;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+thead tr {
+  background: #7B1C3E;
+  color: white;
+}
+
+thead th {
+  padding: 7pt 10pt;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 9pt;
+}
+
+tbody tr:nth-child(odd)  { background: #ffffff; }
+tbody tr:nth-child(even) { background: #fdf0f4; }
+
+tbody td {
+  padding: 6pt 10pt;
+  border-bottom: 0.5pt solid #e8d0d8;
+  vertical-align: top;
+}
+
+/* ── CODE / EXAMPLE BLOCKS ── */
+pre, code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 8.5pt;
+}
+
+pre {
+  background: #1a1a2e;
+  color: #e8f4f8;
+  padding: 12pt 14pt;
+  border-radius: 4pt;
+  margin: 10pt 0 16pt;
+  white-space: pre-wrap;
+  page-break-inside: avoid;
+}
+
+/* ── CALLOUT / TIP ── */
+blockquote {
+  background: #fff8e7;
+  border-left: 3pt solid #d4a017;
+  padding: 8pt 14pt;
+  margin: 8pt 0 14pt;
+  font-size: 9.5pt;
+  color: #5a4010;
+  border-radius: 0 3pt 3pt 0;
+}
+
+blockquote strong {
+  color: #7a5500;
+}
+
+/* WARNING */
+blockquote.warn {
+  background: #fff0f0;
+  border-left-color: #c0392b;
+  color: #6a1010;
+}
+
+/* ── STEPS ── */
+ol {
+  padding-left: 18pt;
+  margin: 6pt 0 12pt;
+}
+
+ol li {
+  margin-bottom: 5pt;
+  padding-left: 4pt;
+}
+
+ul {
+  padding-left: 16pt;
+  margin: 4pt 0 10pt;
+  list-style: none;
+}
+
+ul li::before {
+  content: "•";
+  color: #7B1C3E;
+  font-weight: bold;
+  margin-right: 6pt;
+}
+
+ul li {
+  margin-bottom: 3pt;
+  padding-left: 4pt;
+}
+
+/* ── HORIZONTAL RULE ── */
+hr {
+  border: none;
+  border-top: 1pt solid #e0c0cc;
+  margin: 14pt 0;
+}
+
+/* ── STATUS PILLS ── */
+.pill {
+  display: inline-block;
+  padding: 2pt 8pt;
+  border-radius: 10pt;
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pill-amber { background: #fff3cd; color: #856404; }
+.pill-blue  { background: #d0e8ff; color: #0a3a6e; }
+.pill-teal  { background: #d0f0ee; color: #0a4a46; }
+.pill-green { background: #d0f0dc; color: #0a4020; }
+.pill-gray  { background: #e8e8e8; color: #555;    }
+
+/* ── TOC ── */
+.toc-row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 0.5pt dotted #c0a0aa;
+  padding: 3pt 0;
+  font-size: 10pt;
+}
+
+.toc-row .toc-num { color: #7B1C3E; font-weight: 700; min-width: 22pt; }
+.toc-row .toc-pg  { color: #9b6070; font-size: 9pt; }
+
+/* ── MISC ── */
+p { margin-bottom: 8pt; }
+
+strong { color: #3d0e1f; }
+
+.page-break { page-break-before: always; }
+
+.label-new {
+  display: inline-block;
+  background: #7B1C3E;
+  color: white;
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 1pt 5pt;
+  border-radius: 3pt;
+  text-transform: uppercase;
+  vertical-align: middle;
+  margin-left: 4pt;
+}
+
+.sop-num {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #9b6070;
+  text-transform: uppercase;
+  margin-bottom: 2pt;
+}
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-logo">✦ Quantum Hospitality Solutions ✦</div>
+  <h1>Vendor / Partner SOP</h1>
+  <div class="subtitle">Version 2.0 &nbsp;·&nbsp; Standard Operating Procedures · v2.0</div>
+  <div class="role-badge">Role: Restaurant / Transport / Service Partner</div>
+  <div class="divider"></div>
+  <div class="meta">
+    Attenda Platform &nbsp;·&nbsp; Confidential &nbsp;·&nbsp; Do Not Distribute<br/>
+    Issued June 2026 &nbsp;·&nbsp; Quantum Hospitality Solutions
+  </div>
+</div>
+
+<div class="page-break"></div>
+<div class="quick-ref">
+<div class="quick-ref-title">Quick Reference — Vendor Daily Tasks</div>
+<table style="margin:0;">
+<thead><tr><th>Task</th><th>Where</th><th>Time</th></tr></thead>
+<tbody>
+<tr><td>Log in to Vendor Portal</td><td>attendaapp.com/vendor</td><td>15 sec</td></tr>
+<tr><td>Accept a new order</td><td>Order Board — New column</td><td>10 sec</td></tr>
+<tr><td>Update order to Preparing</td><td>Order Board card</td><td>5 sec</td></tr>
+<tr><td>Mark order Ready</td><td>Order Board card</td><td>5 sec</td></tr>
+<tr><td>Mark order Delivered</td><td>Order Board card</td><td>5 sec</td></tr>
+<tr><td>Add a menu item</td><td>Menu tab</td><td>2 min</td></tr>
+<tr><td>View daily manifest</td><td>Manifest tab</td><td>30 sec</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-VD-01</div>
+<h1 class="section">Logging In to the Vendor Portal</h1>
+<p><strong>URL:</strong> <code>attendaapp.com/vendor</code></p>
+<ol>
+<li>Open a browser on any device → go to <code>attendaapp.com/vendor</code>.</li>
+<li>Enter the <strong>email address</strong> and <strong>password</strong> provided by the hotel.</li>
+<li>Click <strong>Sign In</strong> — the Order Board loads.</li>
+</ol>
+<blockquote><strong>First time logging in?</strong> The hotel admin sent your credentials via email. If you did not receive them, contact the hotel's front desk or admin.<br/><strong>Your login shows only YOUR orders</strong> — scoped to your business only.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-VD-02</div>
+<h1 class="section">Managing Incoming Orders</h1>
+<p><strong>Access:</strong> Order Board (main screen after login)</p>
+<h2 class="sub">Understanding the Order Board</h2>
+<p>A Kanban board with four columns: <strong>New → Received → Preparing → Ready</strong>. A fifth column <strong>Delivered</strong> holds completed orders. New orders appear in the New column with an audio notification.</p>
+
+<h2 class="sub">Processing an Order — Step by Step</h2>
+<h3 class="sub2">Step 1: Accept the Order</h3>
+<ol>
+<li>Find the order in the <strong>New</strong> column.</li>
+<li>Review: guest name, room, items, special instructions, total.</li>
+<li>Click <strong>Accept Order</strong> → card moves to <strong>Received</strong>.</li>
+</ol>
+<blockquote>Accept as soon as you see the order. Guests track status in real time — a fast acceptance builds confidence.</blockquote>
+
+<h3 class="sub2">Step 2: Begin Preparation</h3>
+<ol>
+<li>Start preparing the order.</li>
+<li>Click <strong>Start Preparing</strong> → card moves to <strong>Preparing</strong>.</li>
+</ol>
+
+<h3 class="sub2">Step 3: Mark as Ready</h3>
+<ol>
+<li>When order is packaged and ready for pickup/delivery:</li>
+<li>Click <strong>Mark Ready</strong> → card moves to <strong>Ready</strong>.</li>
+<li>Hotel staff and guest are notified automatically.</li>
+</ol>
+
+<h3 class="sub2">Step 4: Mark as Delivered</h3>
+<ol>
+<li>When the order has reached the guest:</li>
+<li>Click <strong>Mark Delivered</strong> → card moves to <strong>Delivered</strong>.</li>
+</ol>
+
+<h2 class="sub">Status Summary</h2>
+<table>
+<thead><tr><th>Button</th><th>Transition</th><th>Guest Sees on /track</th></tr></thead>
+<tbody>
+<tr><td>Accept Order</td><td>New → Received</td><td>Order Received</td></tr>
+<tr><td>Start Preparing</td><td>Received → Preparing</td><td>Preparing Your Order</td></tr>
+<tr><td>Mark Ready</td><td>Preparing → Ready</td><td>Your Order is Ready</td></tr>
+<tr><td>Mark Delivered</td><td>Ready → Delivered</td><td>Delivered ✓</td></tr>
+</tbody>
+</table>
+<blockquote><strong>Real-time:</strong> Every status change updates the guest's /track page instantly via Supabase Realtime. Keep status accurate and current.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-VD-03</div>
+<h1 class="section">Order Manifest</h1>
+<p><strong>Access:</strong> Manifest tab</p>
+<ol>
+<li>Click the <strong>Manifest</strong> tab in the Vendor Portal.</li>
+<li>Today's orders appear in a flat list sorted by time.</li>
+<li>Filter by Status (All / Active / Completed) or Time (Last hour / Today).</li>
+<li>Use for end-of-day reconciliation or prep volume planning.</li>
+</ol>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-VD-04</div>
+<h1 class="section">Managing Your Menu</h1>
+<p><strong>Access:</strong> Menu tab in Vendor Portal</p>
+<h2 class="sub">Adding a New Menu Item</h2>
+<ol>
+<li>Click the <strong>Menu</strong> tab → <strong>+ Add Item</strong>.</li>
+<li>Fill in:</li>
+</ol>
+<table>
+<thead><tr><th>Field</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td>Item Name</td><td>The dish or product name</td></tr>
+<tr><td>Description</td><td>Short description (ingredients, style)</td></tr>
+<tr><td>Price</td><td>Price in dollars (e.g., 14.99)</td></tr>
+<tr><td>Category</td><td>Appetizer / Main / Dessert / Drink / Other</td></tr>
+<tr><td>Photo</td><td>High-quality image (JPEG or PNG, min 800px wide)</td></tr>
+<tr><td>Active</td><td>Toggle ON to make visible to guests</td></tr>
+</tbody>
+</table>
+<ol start="3">
+<li>Click <strong>Save</strong> — item appears in the guest ordering app immediately.</li>
+</ol>
+
+<h2 class="sub">Editing a Menu Item</h2>
+<ol>
+<li>In the Menu tab, click the item to open the edit drawer.</li>
+<li>Modify any field → click <strong>Save</strong>. Changes are live immediately.</li>
+</ol>
+
+<h2 class="sub">Temporarily Hiding an Item (86'd / Sold Out)</h2>
+<ol>
+<li>Open the item in the edit drawer.</li>
+<li>Toggle <strong>Active</strong> to <strong>OFF</strong> → click <strong>Save</strong>.</li>
+<li>Item disappears from the guest app immediately.</li>
+<li>Re-enable the same way when available again.</li>
+</ol>
+<blockquote><strong>Tip:</strong> Use Active toggle instead of deleting items you may bring back. Deletion is permanent.</blockquote>
+
+<h2 class="sub">Deleting a Menu Item</h2>
+<ol>
+<li>Open the item in the edit drawer.</li>
+<li>Click <strong>Delete Item</strong> (red button at the bottom) → confirm deletion.</li>
+</ol>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-VD-05</div>
+<h1 class="section">Applying as a New Partner</h1>
+<p><em>For businesses not yet onboarded. Skip if already active in the Vendor Portal.</em></p>
+<p><strong>URL:</strong> <code>attendaapp.com/apply?hotel={hotel-slug}</code> (provided by the hotel)</p>
+<ol>
+<li>Visit the apply link provided by the hotel.</li>
+<li>Fill in the application form:</li>
+</ol>
+<table>
+<thead><tr><th>Field</th><th>Required</th></tr></thead>
+<tbody>
+<tr><td>Business / Restaurant Name</td><td>✓</td></tr>
+<tr><td>Contact Name</td><td>✓</td></tr>
+<tr><td>Phone Number</td><td>✓</td></tr>
+<tr><td>Email Address</td><td>✓</td></tr>
+<tr><td>Business Type</td><td>✓ (Restaurant / Transport / Service / Experience)</td></tr>
+<tr><td>Description</td><td>Optional</td></tr>
+</tbody>
+</table>
+<ol start="3">
+<li>Click <strong>Submit Application</strong>.</li>
+<li>Success message: <em>"Application received! We'll be in touch within 24 hours."</em></li>
+</ol>
+<blockquote><strong>After submission:</strong> The hotel admin reviews your application. If approved, you receive an email with your Vendor Portal login credentials.</blockquote>
+
+</body></html>

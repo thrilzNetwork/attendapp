@@ -156,7 +156,7 @@ export interface RequestItem {
 export async function getHotelConfig(slug?: string): Promise<HotelConfig | null> {
   const hotelSlug = slug
     || (typeof window !== 'undefined' ? localStorage.getItem('attenda_hotel_slug') : null)
-    || 'miami-airport';
+    || 'fort-lauderdale-airport-cruise-port';
   const { data, error } = await supabase
     .from('hotels')
     .select('*')
@@ -212,7 +212,7 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
   const { data, error } = await supabase
     .from('hotels')
     .upsert({
-      slug: config.slug || 'miami-airport',
+      slug: config.slug || 'fort-lauderdale-airport-cruise-port',
       name: config.name,
       address: config.address,
       wifi_name: config.wifiName,

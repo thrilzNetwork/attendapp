@@ -46,7 +46,7 @@ function SetupContent() {
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
       if (signInErr) throw signInErr;
 
-      router.push(`/staff?hotel=${hotel}`);
+      router.push(`/staff?hotel=${hotel}&welcome=1`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Setup failed.';
       setError(msg);
