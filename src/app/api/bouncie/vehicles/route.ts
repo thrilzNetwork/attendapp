@@ -55,7 +55,6 @@ export async function GET(req: NextRequest) {
     .select('lat,lng,name,address,shuttle_dest_name,shuttle_dest_address,shuttle_dest_lat,shuttle_dest_lng')
     .eq('id', hotelId)
     .maybeSingle();
-
   if (hotel && (hotel.lat == null || hotel.lng == null) && hotel.address) {
     const geo = await geocodeAddress(`${hotel.name || ''}, ${hotel.address}`.trim().replace(/^,\s*/, ''))
       || await geocodeAddress(hotel.address);
@@ -64,6 +63,7 @@ export async function GET(req: NextRequest) {
       hotel = { ...hotel, lat: geo.lat, lng: geo.lng };
     }
   }
+<<<<<<< HEAD
 
   // Auto-geocode destination if address is set but coords are missing
   if (hotel && hotel.shuttle_dest_address && (hotel.shuttle_dest_lat == null || hotel.shuttle_dest_lng == null)) {
