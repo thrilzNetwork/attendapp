@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import {
   X, CheckCircle, Wifi, Check, Coffee, Dumbbell, Printer,
@@ -377,11 +377,7 @@ interface PlaceResult {
   lng: number;
 }
 
-interface UberTransportQuote {
-  feeCents: number;
-  fee_display: string;
-  eta_minutes: number;
-}
+
 
 export function TransportBooker({
   brandColor = BURGUNDY,
@@ -395,11 +391,11 @@ export function TransportBooker({
   skipModeScreen?: boolean;
 }) {
   const [screen, setScreen] = useState<'mode' | 'address' | 'confirm' | 'done'>(skipModeScreen ? 'address' : 'mode');
-  const [mode, setMode] = useState<'shuttle' | 'uber'>('uber');
   const [config, setConfig] = useState<HotelConfig | null>(null);
 
-  // FROM field
+  // FROM field — fromTouched prevents autocomplete firing on pre-filled default
   const [fromText, setFromText] = useState(defaultFromText);
+  const [fromTouched, setFromTouched] = useState(false);
   const [fromPlace, setFromPlace] = useState<PlaceResult | null>(null);
   const [fromSuggestions, setFromSuggestions] = useState<PlaceResult[]>([]);
   const [fromLoading, setFromLoading] = useState(false);
@@ -410,10 +406,6 @@ export function TransportBooker({
   const [toSuggestions, setToSuggestions] = useState<PlaceResult[]>([]);
   const [toLoading, setToLoading] = useState(false);
 
-  // Quote
-  const [quote, setQuote] = useState<UberTransportQuote | null>(null);
-  const [quoteLoading, setQuoteLoading] = useState(false);
-
   // Booking details
   const [guestName, setGuestName] = useState('');
   const [room, setRoom] = useState('');
@@ -421,10 +413,10 @@ export function TransportBooker({
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [trackingUrl, setTrackingUrl] = useState('');
 
-  const debounceFrom = { current: undefined as ReturnType<typeof setTimeout> | undefined };
-  const debounceTo = { current: undefined as ReturnType<typeof setTimeout> | undefined };
+  // Properly persisted debounce timers across renders
+  const debounceFrom = useRef<ReturnType<typeof setTimeout>>();
+  const debounceTo = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     getHotelConfig().then(h => {
@@ -439,9 +431,9 @@ export function TransportBooker({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Autocomplete for FROM field
+  // Autocomplete for FROM — only fires after user has touched the field
   useEffect(() => {
-    if (fromText.length < 2 || fromPlace) { setFromSuggestions([]); return; }
+    if (!fromTouched || fromText.length < 2 || fromPlace) { setFromSuggestions([]); return; }
     clearTimeout(debounceFrom.current);
     debounceFrom.current = setTimeout(async () => {
       setFromLoading(true);
@@ -452,9 +444,9 @@ export function TransportBooker({
       finally { setFromLoading(false); }
     }, 300);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromText, fromPlace]);
+  }, [fromText, fromPlace, fromTouched]);
 
-  // Autocomplete for TO field
+  // Autocomplete for TO
   useEffect(() => {
     if (toText.length < 2 || toPlace) { setToSuggestions([]); return; }
     clearTimeout(debounceTo.current);
@@ -469,57 +461,27 @@ export function TransportBooker({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toText, toPlace]);
 
-  // Fetch Uber quote when we have both addresses and mode is uber
-  useEffect(() => {
-    const resolvedFrom = fromPlace?.display_name || fromText;
-    const resolvedTo = toPlace?.display_name || toText;
-    if (mode !== 'uber' || resolvedFrom.length < 3 || resolvedTo.length < 3) return;
-    let cancelled = false;
-    setQuoteLoading(true);
-    const params = new URLSearchParams({ fromAddress: resolvedFrom, toAddress: resolvedTo });
-    if (fromPlace) { params.set('fromLat', String(fromPlace.lat)); params.set('fromLng', String(fromPlace.lng)); }
-    if (toPlace) { params.set('toLat', String(toPlace.lat)); params.set('toLng', String(toPlace.lng)); }
-    fetch(`/api/uber-direct/transport-quote?${params}`)
-      .then(r => r.json())
-      .then(d => { if (!cancelled && d.ok) setQuote({ feeCents: d.feeCents, fee_display: d.fee_display, eta_minutes: d.eta_minutes }); })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setQuoteLoading(false); });
-    return () => { cancelled = true; };
-  }, [fromPlace, toPlace, mode]);
-
   const handleBook = async () => {
     if (!guestName || !room) { setError('Name and room number are required.'); return; }
+    if (fromText.length < 3) { setError('Please enter a pickup location.'); return; }
     if (!toPlace && toText.length < 3) { setError('Please enter a destination.'); return; }
     setSubmitting(true); setError('');
     try {
-      const shuttleReq = await createShuttleRequest({
+      await createShuttleRequest({
         hotel_id: config?.id || '',
         guest_name: guestName,
         room_number: room,
-        pickup_location: fromPlace?.display_name || fromText || 'Hotel',
+        pickup_location: fromPlace?.display_name || fromText,
         destination: toPlace?.display_name || toText,
         pax,
         notes: notes || undefined,
-        status: mode === 'uber' ? 'pending_uber' : 'pending',
+        status: 'pending',
       });
-
-      if (mode === 'uber' && shuttleReq?.id) {
-        try {
-          const res = await fetch('/api/uber-direct', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'dispatch', requestId: shuttleReq.id, mode: 'transport' }),
-          });
-          const data = await res.json();
-          if (data.trackingUrl) setTrackingUrl(data.trackingUrl);
-        } catch {}
-      }
       setScreen('done');
     } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Failed to book.'); }
     finally { setSubmitting(false); }
   };
 
-  const hasFreeShuttle = config?.hasFreeShuttle !== false;
   const thirdParty = config?.transportContent?.third_party_name && config?.transportContent?.third_party_url
     ? { name: config.transportContent.third_party_name, url: config.transportContent.third_party_url, description: config.transportContent.third_party_description || '' }
     : null;
@@ -528,36 +490,19 @@ export function TransportBooker({
   if (screen === 'mode') return (
     <div className="space-y-3">
       <p className="text-[13px] text-gray-500 text-center">How would you like to travel?</p>
-      {hasFreeShuttle && (
-        <button
-          onClick={() => { setMode('shuttle'); setScreen('address'); }}
-          className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left"
-        >
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-            <Bus size={22} className="text-emerald-600" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[15px] font-bold text-gray-900">Hotel Transportation</span>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">FREE</span>
-            </div>
-            <p className="text-[12px] text-gray-400 mt-0.5">Our team confirms availability</p>
-          </div>
-        </button>
-      )}
       <button
-        onClick={() => { setMode('uber'); setScreen('address'); }}
+        onClick={() => setScreen('address')}
         className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left"
       >
-        <div className="w-12 h-12 rounded-xl bg-black flex items-center justify-center shrink-0">
-          <Car size={22} className="text-white" />
+        <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+          <Bus size={22} className="text-emerald-600" />
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-[15px] font-bold text-gray-900">Book a Ride</span>
-            <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">Uber Direct</span>
+            <span className="text-[15px] font-bold text-gray-900">Hotel Transportation</span>
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">FREE</span>
           </div>
-          <p className="text-[12px] text-gray-400 mt-0.5">Real-time price · GPS tracking</p>
+          <p className="text-[12px] text-gray-400 mt-0.5">Our team confirms availability</p>
         </div>
       </button>
       {thirdParty && (
@@ -603,7 +548,7 @@ export function TransportBooker({
           <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin size={10} className="text-emerald-500" /> From</label>
           <input
             value={fromText}
-            onChange={e => { setFromText(e.target.value); setFromPlace(null); setQuote(null); }}
+            onChange={e => { setFromText(e.target.value); setFromTouched(true); setFromPlace(null); }}
             placeholder="Pickup address"
             className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none text-gray-800"
           />
@@ -628,7 +573,7 @@ export function TransportBooker({
           )}
         </div>
 
-        {/* Divider with swap feel */}
+        {/* Divider */}
         <div className="flex items-center gap-2">
           <div className="flex-1 h-px bg-gray-100" />
           <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
@@ -642,7 +587,7 @@ export function TransportBooker({
           <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin size={10} className="text-red-400" /> To</label>
           <input
             value={toText}
-            onChange={e => { setToText(e.target.value); setToPlace(null); setQuote(null); }}
+            onChange={e => { setToText(e.target.value); setToPlace(null); }}
             placeholder="Where are you going?"
             className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none text-gray-800"
           />
@@ -668,7 +613,7 @@ export function TransportBooker({
         </div>
       </div>
 
-      {(toPlace || toText.length > 3) && (fromPlace || fromText.length > 3) && (
+      {(toPlace || toText.length > 3) && fromText.length > 3 && (
         <button
           onClick={() => setScreen('confirm')}
           className="w-full py-3.5 rounded-xl text-white font-bold text-[14px]"
@@ -702,41 +647,16 @@ export function TransportBooker({
         </div>
       </div>
 
-      {/* Price row */}
+      {/* Service row */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        {mode === 'shuttle' ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bus size={16} className="text-emerald-600" />
-              <span className="text-[13px] font-bold text-gray-800">Hotel Transportation</span>
-            </div>
-            <span className="text-[13px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Free</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bus size={16} className="text-emerald-600" />
+            <span className="text-[13px] font-bold text-gray-800">Hotel Transportation</span>
           </div>
-        ) : quoteLoading ? (
-          <div className="flex items-center gap-2 text-gray-400 text-[13px]">
-            <span className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
-            Getting price…
-          </div>
-        ) : quote ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Car size={16} className="text-gray-700" />
-              <div>
-                <span className="text-[13px] font-bold text-gray-800">Uber Direct</span>
-                <p className="text-[11px] text-gray-400">~{quote.eta_minutes} min estimated</p>
-              </div>
-            </div>
-            <span className="text-[15px] font-extrabold text-gray-900">{quote.fee_display}</span>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Car size={16} className="text-gray-700" />
-              <span className="text-[13px] font-bold text-gray-800">Uber Direct</span>
-            </div>
-            <span className="text-[12px] text-gray-400">Price unavailable</span>
-          </div>
-        )}
+          <span className="text-[13px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Staff arranges</span>
+        </div>
+        <p className="text-[11px] text-gray-400 mt-2">Our team will confirm your ride and reach out with details.</p>
       </div>
 
       {/* Guest details */}
@@ -759,13 +679,13 @@ export function TransportBooker({
             <button onClick={() => setPax(Math.min(20, pax + 1))} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-bold text-[16px]">+</button>
           </div>
         </div>
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (optional)" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none resize-none h-14" />
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes — flight number, special needs, etc." className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none resize-none h-14" />
       </div>
 
       {error && <p className="text-[12px] text-red-600 bg-red-50 rounded-xl px-4 py-2.5 text-center">{error}</p>}
 
       <button onClick={handleBook} disabled={submitting} className="w-full py-3.5 rounded-xl text-white font-bold text-[14px] flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundColor: brandColor }}>
-        {submitting ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Booking…</> : 'Book Now'}
+        {submitting ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting…</> : 'Submit Request'}
       </button>
     </div>
   );
@@ -776,24 +696,11 @@ export function TransportBooker({
       <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto">
         <CheckCircle size={24} className="text-green-600" />
       </div>
-      <h2 className="text-[17px] font-extrabold text-black">Your ride is booked!</h2>
-      {trackingUrl ? (
-        <>
-          <p className="text-[13px] text-gray-500">Your Uber driver is on the way.</p>
-          <a href={trackingUrl} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white font-bold text-[13px]"
-            style={{ backgroundColor: brandColor }}>
-            <ExternalLink size={14} /> Track Your Ride
-          </a>
-        </>
-      ) : (
-        <p className="text-[13px] text-gray-500">
-          {mode === 'shuttle' ? 'Our team will confirm your shuttle shortly.' : 'Staff will coordinate your transport.'}
-        </p>
-      )}
-      <button onClick={() => { setScreen('mode'); setToText(''); setToPlace(null); setFromPlace(null); setQuote(null); setTrackingUrl(''); setError(''); }}
+      <h2 className="text-[17px] font-extrabold text-black">Request submitted!</h2>
+      <p className="text-[13px] text-gray-500">Our team will confirm your transportation and reach out with details. Contact the front desk for immediate assistance.</p>
+      <button onClick={() => { setScreen(skipModeScreen ? 'address' : 'mode'); setToText(''); setToPlace(null); setFromPlace(null); setFromTouched(false); setFromText(defaultFromText); setError(''); }}
         className="text-[13px] font-semibold" style={{ color: brandColor }}>
-        New Booking
+        New Request
       </button>
     </div>
   );

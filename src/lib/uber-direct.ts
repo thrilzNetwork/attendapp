@@ -156,7 +156,7 @@ export async function getUberToken(): Promise<string> {
 
 // Uber requires E.164 phone format (+1XXXXXXXXXX). Normalize loose US numbers.
 export function toE164(phone: string | null | undefined): string {
-  const fallback = '+19544627005';
+  const fallback = '+10000000000'; // non-dialable placeholder — replace with real hotel phone
   if (!phone) return fallback;
   const digits = phone.replace(/\D/g, '');
   if (!digits) return fallback;

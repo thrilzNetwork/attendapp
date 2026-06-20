@@ -64,13 +64,13 @@ export default function TransportPage() {
 
           {tab === 'airport' && (
             <div className="space-y-4">
-              <TransportBooker brandColor={brandColor} defaultFromText="Fort Lauderdale Airport (FLL)" skipModeScreen={false} />
+              <TransportBooker brandColor={brandColor} defaultFromText="Fort Lauderdale Airport (FLL)" skipModeScreen={true} />
               <AirportSchedule brandColor={brandColor} config={config} />
             </div>
           )}
           {tab === 'cruise' && (
             <div className="space-y-4">
-              <TransportBooker brandColor={brandColor} defaultFromText="Port Everglades, Fort Lauderdale" skipModeScreen={false} />
+              <TransportBooker brandColor={brandColor} defaultFromText="Port Everglades, Fort Lauderdale" skipModeScreen={true} />
               <CruiseScheduleSection brandColor={brandColor} config={config} />
             </div>
           )}

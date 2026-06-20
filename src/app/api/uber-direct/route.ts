@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
       const when = [trip.date, trip.time ? `at ${trip.time}` : ''].filter(Boolean).join(' ');
       const delivery = await createUberDelivery({
-        pickupAddress: `${hotel.address}, Fort Lauderdale, FL`,
+        pickupAddress: trip.pickup_location || hotel.address,
         pickupName: hotel.name,
         pickupPhone: toE164(hotel.front_desk_phone),
         dropoffAddress: trip.destination,
