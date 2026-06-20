@@ -814,16 +814,29 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                     const open = openDept === dept.key;
                     return (
                       <div key={dept.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                        <button onClick={() => setOpenDept(open ? null : dept.key)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center px-4 py-3 hover:bg-gray-50">
+                          <button onClick={() => setOpenDept(open ? null : dept.key)} className="flex-1 flex items-center gap-2 text-left">
                             <span className="text-[20px]">{dept.icon}</span>
-                            <div className="text-left">
+                            <div>
                               <p className="text-[14px] font-bold text-gray-900">{dept.label}</p>
                               <p className="text-[11px] text-gray-500">{deptTpls.length} checklist{deptTpls.length !== 1 ? 's' : ''}</p>
                             </div>
-                          </div>
-                          <ChevronDown size={18} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-                        </button>
+                          </button>
+                          {isAdmin && (
+                            <div className="flex items-center gap-1 shrink-0 ml-2">
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Delete ALL ${deptTpls.length} checklist${deptTpls.length !== 1 ? 's' : ''} in ${dept.label}? This cannot be undone.`)) return;
+                                  for (const tpl of deptTpls) await deletePositionTodoTemplate(tpl.id);
+                                  await loadAll();
+                                }}
+                                title={`Delete all ${dept.label} checklists`}
+                                className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
+                              ><Trash2 size={13} /></button>
+                            </div>
+                          )}
+                          <ChevronDown size={18} className={`text-gray-400 transition-transform ml-2 ${open ? 'rotate-180' : ''}`} onClick={() => setOpenDept(open ? null : dept.key)} />
+                        </div>
 
                         {open && (
                           <div className="border-t border-gray-100 divide-y divide-gray-100">
