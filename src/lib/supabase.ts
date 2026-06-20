@@ -35,6 +35,9 @@ export interface SafetyContent {
 
 export interface TransportContent {
   pickup_note?: string;
+  third_party_name?: string;
+  third_party_url?: string;
+  third_party_description?: string;
 }
 
 export interface FoodContent {

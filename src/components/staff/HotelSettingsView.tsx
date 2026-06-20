@@ -650,6 +650,13 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
         <Section title="Guest Content — Transport" Icon={Bus}>
           <p className="text-[11px] text-gray-400 -mt-1">Custom message shown on the Transport page.</p>
           <Field label="Pickup Note" value={form.transportContent?.pickup_note || ''} onChange={v => setForm({ ...form, transportContent: { ...(form.transportContent || {}), pickup_note: v } })} placeholder="Pickup requests are confirmed by staff. Contact front desk for immediate needs." />
+          <div className="mt-3 border-t border-gray-100 pt-3 space-y-2">
+            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Third-Party Transport Partner</p>
+            <p className="text-[11px] text-gray-400">If your hotel works with an external transport company, guests will see their booking link as an option alongside shuttle and Uber.</p>
+            <Field label="Company Name" value={form.transportContent?.third_party_name || ''} onChange={v => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_name: v } })} placeholder="e.g. CruisePort Transportation" />
+            <Field label="Booking URL" value={form.transportContent?.third_party_url || ''} onChange={v => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_url: v } })} placeholder="https://example.com/book" />
+            <Field label="Description (shown to guests)" value={form.transportContent?.third_party_description || ''} onChange={v => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_description: v } })} placeholder="e.g. Scheduled airport & cruise port transfers" />
+          </div>
         </Section>
 
         <Section title="Guest Content — Food" Icon={UtensilsCrossed}>

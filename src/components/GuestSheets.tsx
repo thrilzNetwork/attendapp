@@ -494,6 +494,9 @@ export function TransportBooker({ brandColor = BURGUNDY }: { brandColor?: string
   };
 
   const hasFreeShuttle = config?.hasFreeShuttle !== false;
+  const thirdParty = config?.transportContent?.third_party_name && config?.transportContent?.third_party_url
+    ? { name: config.transportContent.third_party_name, url: config.transportContent.third_party_url, description: config.transportContent.third_party_description || '' }
+    : null;
 
   // Screen: mode selection
   if (screen === 'mode') return (
@@ -531,6 +534,31 @@ export function TransportBooker({ brandColor = BURGUNDY }: { brandColor?: string
           <p className="text-[12px] text-gray-400 mt-0.5">Real-time price · GPS tracking</p>
         </div>
       </button>
+      {thirdParty && (
+        <div className="space-y-2">
+          <a
+            href={thirdParty.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left block"
+          >
+            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+              <ExternalLink size={22} className="text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[15px] font-bold text-gray-900">{thirdParty.name}</span>
+                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">External</span>
+              </div>
+              <p className="text-[12px] text-gray-400 mt-0.5">{thirdParty.description || 'Third-party transport partner'}</p>
+            </div>
+            <ExternalLink size={14} className="text-gray-300 shrink-0" />
+          </a>
+          <p className="text-[10px] text-gray-400 text-center px-4">
+            ⚠️ {thirdParty.name} is an independent company — booking is managed outside Attenda and subject to their own terms.
+          </p>
+        </div>
+      )}
     </div>
   );
 
