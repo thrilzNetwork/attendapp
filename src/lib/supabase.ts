@@ -2094,6 +2094,20 @@ export async function completeInstance(id: string) {
   if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
+export async function deleteInstance(id: string) {
+  await supabase.from('position_todo_responses').delete().eq('instance_id', id);
+  const { error } = await supabase.from('position_todo_instances').delete().eq('id', id);
+  if (error) throw new Error(error.message || JSON.stringify(error));
+}
+
+export async function resetInstance(id: string) {
+  await supabase.from('position_todo_responses').delete().eq('instance_id', id);
+  const { error } = await supabase.from('position_todo_instances').update({
+    status: 'in_progress', completed_at: null,
+  }).eq('id', id);
+  if (error) throw new Error(error.message || JSON.stringify(error));
+}
+
 // Responses
 export async function getInstanceResponses(instanceId: string): Promise<PositionTodoResponse[]> {
   const { data } = await supabase.from('position_todo_responses').select('*').eq('instance_id', instanceId);

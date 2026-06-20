@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   getPositionTodoTemplates, createPositionTodoTemplate, updatePositionTodoTemplate, deletePositionTodoTemplate,
   getTemplateItems, createTemplateItem, deleteTemplateItem,
-  getTodayInstances, createInstance, completeInstance,
+  getTodayInstances, createInstance, completeInstance, deleteInstance, resetInstance,
   getInstanceResponses, upsertResponse,
   createRoomMove, createNoShow, createBankCount,
   type PositionTodoTemplate, type PositionTodoItem,
@@ -231,7 +231,8 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       }
       setItemsByTemplate(itemsMap);
 
-      const insts = await getTodayInstances(hotelId, staffId);
+      // Admin loads all staff instances; staff loads only their own
+      const insts = await getTodayInstances(hotelId, isAdmin ? undefined : staffId);
       setInstances(insts);
 
       const respMap: Record<string, PositionTodoResponse[]> = {};
@@ -476,9 +477,12 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const getResp = (instId: string, itemId: string): PositionTodoResponse | undefined =>
     (responsesByInstance[instId] || []).find(r => r.item_id === itemId);
 
-  const myInstances = instances.filter(i => i.staff_name === staffName);
+  const myInstances = instances.filter(i => i.staff_id === staffId || i.staff_name === staffName);
   const completedCount = myInstances.filter(i => i.status === 'completed').length;
   const totalCount = myInstances.length;
+  // Admin-only: all staff instances count
+  const allCompleted = instances.filter(i => i.status === 'completed').length;
+  const allTotal = instances.length;
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
@@ -487,7 +491,9 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900">To-Dos</h1>
           <p className="text-[13px] text-gray-500">
-            {isAdmin ? staffName || 'Admin' : staffName || 'Staff'} · {totalCount > 0 ? `${completedCount}/${totalCount} done today` : 'Start your shift tasks'}
+            {isAdmin
+              ? allTotal > 0 ? `${allCompleted}/${allTotal} checklists completed today across all staff` : 'No checklists started yet today'
+              : totalCount > 0 ? `${completedCount}/${totalCount} done today` : 'Start your shift tasks'}
           </p>
         </div>
         {isAdmin && (
@@ -722,6 +728,68 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
           {/* ── STAFF VIEW ── */}
           {viewMode === 'staff' && (
             <>
+              {/* ── ADMIN: All-Staff Progress Overview ── */}
+              {isAdmin && instances.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Today&apos;s Progress — All Staff</p>
+                  <div className="space-y-2">
+                    {instances.map(inst => {
+                      const tpl = templates.find(t => t.id === inst.template_id);
+                      const items = itemsByTemplate[inst.template_id] || [];
+                      const resps = responsesByInstance[inst.id] || [];
+                      const checkedCount = resps.filter(r => r.checked).length;
+                      const pct = items.length > 0 ? Math.round((checkedCount / items.length) * 100) : 0;
+                      return (
+                        <div key={inst.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3">
+                          <div className="flex items-center justify-between gap-3 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-bold text-gray-900 truncate">{tpl?.name || 'Checklist'}</p>
+                              <p className="text-[11px] text-gray-500">{inst.staff_name} · {inst.shift || 'AM'} shift</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {inst.status === 'completed' ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✅ Done</span>
+                              ) : (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ {checkedCount}/{items.length}</span>
+                              )}
+                              <button
+                                onClick={async () => { await completeInstance(inst.id); await loadAll(); }}
+                                disabled={inst.status === 'completed' || submitting}
+                                title="Mark complete"
+                                className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-30 transition-colors"
+                              >
+                                <Save size={13} />
+                              </button>
+                              <button
+                                onClick={async () => { if (!confirm(`Reset ${inst.staff_name}'s checklist?`)) return; await resetInstance(inst.id); await loadAll(); }}
+                                disabled={submitting}
+                                title="Reset checklist"
+                                className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100 transition-colors"
+                              >
+                                <Edit3 size={13} />
+                              </button>
+                              <button
+                                onClick={async () => { if (!confirm(`Delete ${inst.staff_name}'s checklist instance?`)) return; await deleteInstance(inst.id); await loadAll(); }}
+                                disabled={submitting}
+                                title="Delete"
+                                className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                          {items.length > 0 && (
+                            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: inst.status === 'completed' ? '#10b981' : TEAL }} />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {templates.length === 0 && (
                 <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
                   <ClipboardList size={48} className="mx-auto text-gray-300 mb-3" />
@@ -760,29 +828,48 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                           <div className="border-t border-gray-100 divide-y divide-gray-100">
                             {deptTpls.map(tpl => {
                               const items = itemsByTemplate[tpl.id] || [];
-                              const myInst = instances.find(i => i.template_id === tpl.id && i.staff_name === staffName && i.status !== 'completed');
-                              const completedInst = instances.find(i => i.template_id === tpl.id && i.status === 'completed' && i.staff_name === staffName);
+                              const myInst = instances.find(i => i.template_id === tpl.id && (i.staff_id === staffId || i.staff_name === staffName) && i.status !== 'completed');
+                              const completedInst = instances.find(i => i.template_id === tpl.id && i.status === 'completed' && (i.staff_id === staffId || i.staff_name === staffName));
+                              // All instances for this template (admin view)
+                              const allInsts = isAdmin ? instances.filter(i => i.template_id === tpl.id) : [];
 
                               return (
                                 <div key={tpl.id} className="px-4 py-3">
                                   <div className="flex items-center justify-between mb-2">
-                                    <div>
+                                    <div className="flex-1 min-w-0 mr-2">
                                       <p className="text-[14px] font-semibold text-gray-900">{tpl.name}</p>
                                       <p className="text-[11px] text-gray-500">
                                         {tpl.description && `${tpl.description} · `}
                                         {items.length} item{items.length !== 1 ? 's' : ''}
                                         {tpl.assigned_position && ` · ${POSITIONS.find(p => p.key === tpl.assigned_position)?.label || tpl.assigned_position}`}
+                                        {isAdmin && allInsts.length > 0 && ` · ${allInsts.filter(i => i.status === 'completed').length}/${allInsts.length} staff done`}
                                       </p>
                                     </div>
-                                    {completedInst ? (
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✅ Done</span>
-                                    ) : myInst ? (
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ In Progress</span>
-                                    ) : staffName ? (
-                                      <button onClick={() => startInstance(tpl.id)} disabled={submitting} className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                                        Start
-                                      </button>
-                                    ) : null}
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      {isAdmin && (
+                                        <>
+                                          <button
+                                            onClick={() => { setRenamingTemplate(tpl.id); setRenameValue(tpl.name); setViewMode('builder'); setBuilderTab('my-templates'); setOpenDept(tpl.department); setEditingTemplate(tpl.id); }}
+                                            title="Edit template"
+                                            className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100 transition-colors"
+                                          ><Edit3 size={13} /></button>
+                                          <button
+                                            onClick={() => deleteTpl(tpl.id)}
+                                            title="Delete template"
+                                            className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
+                                          ><Trash2 size={13} /></button>
+                                        </>
+                                      )}
+                                      {completedInst ? (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✅ Done</span>
+                                      ) : myInst ? (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ In Progress</span>
+                                      ) : staffName ? (
+                                        <button onClick={() => startInstance(tpl.id)} disabled={submitting} className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                                          Start
+                                        </button>
+                                      ) : null}
+                                    </div>
                                   </div>
 
                                   {myInst && items.length > 0 && (
