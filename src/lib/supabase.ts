@@ -583,6 +583,7 @@ export interface CompsetEntry {
 }
 
 export async function getCompsetHotels(hotelId: string): Promise<CompsetHotel[]> {
+  if (!isUuid(hotelId)) return [];
   const { data, error } = await supabase
     .from('compset_hotels').select('*')
     .eq('hotel_id', hotelId).eq('is_active', true)
@@ -608,6 +609,7 @@ export async function deleteCompsetHotel(id: string): Promise<void> {
 }
 
 export async function getCompsetCallTimes(hotelId: string): Promise<CompsetCallTime[]> {
+  if (!isUuid(hotelId)) return [];
   const { data, error } = await supabase
     .from('compset_call_times').select('*')
     .eq('hotel_id', hotelId)
@@ -632,6 +634,7 @@ export async function deleteCompsetCallTime(id: string): Promise<void> {
 }
 
 export async function getCompsetEntries(hotelId: string, date: string): Promise<CompsetEntry[]> {
+  if (!isUuid(hotelId)) return [];
   const { data, error } = await supabase
     .from('compset_entries').select('*')
     .eq('hotel_id', hotelId).eq('call_date', date);
@@ -640,6 +643,7 @@ export async function getCompsetEntries(hotelId: string, date: string): Promise<
 }
 
 export async function getCompsetEntriesRange(hotelId: string, startDate: string, endDate: string): Promise<CompsetEntry[]> {
+  if (!isUuid(hotelId)) return [];
   const { data, error } = await supabase
     .from('compset_entries').select('*')
     .eq('hotel_id', hotelId).gte('call_date', startDate).lte('call_date', endDate)

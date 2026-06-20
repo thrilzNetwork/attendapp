@@ -549,7 +549,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
           {/* ── TODAY — Hourly Timeline ── */}
           {tab === 'today' && (
             <div className="space-y-4">
-              <BouncieLiveShuttle hotelId={hotelId} />
+              <BouncieLiveShuttle hotelId={hotelId} isAdmin={isAdmin} />
 
               {/* Trip estimator */}
               {shuttlePos && routes.filter(r => r.destination_lat && r.destination_lng).length > 0 && (

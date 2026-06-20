@@ -229,3 +229,29 @@ export function calculateETA(
 }
 
 export const HOTEL_ARRIVAL_RADIUS_MILES = 0.5;
+
+// Returns compass bearing (0–360°) from point A to point B
+export function bearingBetween(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const toDeg = (r: number) => (r * 180) / Math.PI;
+  const dLng = toRad(lng2 - lng1);
+  const la1 = toRad(lat1);
+  const la2 = toRad(lat2);
+  const y = Math.sin(dLng) * Math.cos(la2);
+  const x = Math.cos(la1) * Math.sin(la2) - Math.sin(la1) * Math.cos(la2) * Math.cos(dLng);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+// Detect whether the shuttle is heading toward the destination or back to hotel.
+// Uses proximity as the primary signal (which endpoint is it closer to?).
+export function detectShuttleDirection(
+  shuttleLat: number, shuttleLng: number,
+  hotelLat: number, hotelLng: number,
+  destLat: number, destLng: number,
+): 'to_dest' | 'to_hotel' | 'at_hotel' | 'at_dest' {
+  const dHotel = haversineDistanceMiles(shuttleLat, shuttleLng, hotelLat, hotelLng);
+  const dDest  = haversineDistanceMiles(shuttleLat, shuttleLng, destLat, destLng);
+  if (dHotel <= HOTEL_ARRIVAL_RADIUS_MILES) return 'at_hotel';
+  if (dDest  <= HOTEL_ARRIVAL_RADIUS_MILES) return 'at_dest';
+  return dDest < dHotel ? 'to_dest' : 'to_hotel';
+}
