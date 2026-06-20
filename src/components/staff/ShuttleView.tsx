@@ -12,7 +12,7 @@ import {
   getStaffSchedulesRange,
   type ShuttleRoute, type ShuttleSlot, type ShuttleBooking, type ShuttleRequest, type Partner, type StaffAccount,
 } from '@/lib/supabase';
-import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, Truck, ExternalLink, User } from 'lucide-react';
+import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, User } from 'lucide-react';
 
 function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 3958.8;
@@ -29,7 +29,6 @@ const DAYS_FULL  = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Fri
 
 type Tab = 'today' | 'requests' | 'setup';
 type DispatchType = 'arrival' | 'departure';
-type AssignMode = 'inhouse' | 'uber';
 
 interface Props { hotelId: string; isAdmin: boolean; staffName?: string; staffList?: StaffAccount[]; }
 
@@ -333,7 +332,6 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   // Dispatch sheet state
   const [showDispatch, setShowDispatch] = useState(false);
   const [dispatchType, setDispatchType] = useState<DispatchType>('arrival');
-  const [assignMode, setAssignMode] = useState<AssignMode>('inhouse');
   const [dispatchForm, setDispatchForm] = useState({
     guest_name: '', room_number: '', pax: 1, pickup_location: '', destination: '',
     time: nextAvailableHour(), notes: '', driver_id: '',
@@ -353,9 +351,6 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   });
   const [setupSaving, setSetupSaving] = useState(false);
   const [setupMsg,    setSetupMsg]    = useState<string | null>(null);
-
-  const [uberDispatching, setUberDispatching] = useState<string | null>(null);
-  const [uberError, setUberError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!hotelId) return;
@@ -413,7 +408,6 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   const resetDispatch = () => {
     setDispatchForm({ guest_name: '', room_number: '', pax: 1, pickup_location: '', destination: '', time: nextAvailableHour(), notes: '', driver_id: '' });
     setDispatchType('arrival');
-    setAssignMode('inhouse');
     setDispatchDone(false);
   };
 
@@ -424,7 +418,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
     try {
       const pickup = dispatchType === 'arrival' ? pickup_location : 'Hotel Lobby';
       const dest   = dispatchType === 'departure' ? destination : 'Hotel';
-      const req = await createShuttleRequest({
+      await createShuttleRequest({
         hotel_id: hotelId,
         guest_name: guest_name.trim(),
         room_number: room_number.trim(),
@@ -434,16 +428,9 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
         time: time || undefined,
         pax,
         notes: notes.trim(),
-        status: assignMode === 'inhouse' && driver_id ? 'assigned' : 'pending',
-        assigned_driver_id: assignMode === 'inhouse' && driver_id ? driver_id : undefined,
+        status: driver_id ? 'assigned' : 'pending',
+        assigned_driver_id: driver_id || undefined,
       });
-      if (assignMode === 'uber' && req) {
-        await fetch('/api/uber-direct', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'dispatch', requestId: req.id, mode: 'transport' }),
-        });
-      }
       setDispatchDone(true);
       await load();
     } catch (e) {
@@ -455,21 +442,6 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   const handleUpdateRequest = async (id: string, status: string) => {
     await updateShuttleRequest(id, { status: status as ShuttleRequest['status'] });
     await load();
-  };
-
-  const handleUberDispatch = async (r: ShuttleRequest) => {
-    setUberDispatching(r.id); setUberError(null);
-    try {
-      const res = await fetch('/api/uber-direct', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'dispatch', requestId: r.id, mode: 'transport' }),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'Dispatch failed');
-      await load();
-    } catch (e) { setUberError(e instanceof Error ? e.message : 'Uber dispatch failed'); }
-    setUberDispatching(null);
   };
 
   const handleGenerateSchedule = async () => {
@@ -665,17 +637,6 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                                       <User size={10} /> {driverName(r.assigned_driver_id)}
                                     </p>
                                   )}
-                                  {r.uber_delivery_id && (
-                                    <div className="flex items-center gap-1 mt-0.5">
-                                      <Truck size={10} className="text-gray-400" />
-                                      <span className="text-[11px] text-gray-500 font-medium capitalize">{r.uber_status?.replace(/_/g, ' ') || 'Uber dispatched'}</span>
-                                      {r.uber_tracking_url && (
-                                        <a href={r.uber_tracking_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-teal-600 flex items-center gap-0.5 ml-1">
-                                          Track <ExternalLink size={9} />
-                                        </a>
-                                      )}
-                                    </div>
-                                  )}
                                   {r.notes && <p className="text-[11px] text-gray-400 italic mt-0.5">{r.notes}</p>}
                                 </div>
                               </div>
@@ -695,12 +656,6 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                                     className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-gray-50 text-gray-400 hover:bg-gray-100">
                                     Cancel
                                   </button>
-                                  {!r.uber_delivery_id && !r.assigned_driver_id && (
-                                    <button onClick={() => handleUberDispatch(r)} disabled={uberDispatching === r.id}
-                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-black text-white flex items-center gap-1 disabled:opacity-50">
-                                      <Truck size={10} /> {uberDispatching === r.id ? '…' : 'Uber'}
-                                    </button>
-                                  )}
                                 </div>
                               )}
                             </div>
@@ -724,18 +679,12 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                 </div>
               )}
 
-              {uberError && (
-                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-[13px] text-red-700">⚠️ {uberError}</div>
-              )}
             </div>
           )}
 
           {/* ── REQUESTS ── */}
           {tab === 'requests' && (
             <div className="space-y-3">
-              {uberError && (
-                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-[13px] text-red-700 font-medium">⚠️ {uberError}</div>
-              )}
               {requests.length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
                   <AlertCircle size={40} className="mx-auto text-gray-300 mb-3" />
@@ -793,26 +742,6 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                           Cancel
                         </button>
                       </div>
-                    )}
-                    {r.status !== 'completed' && r.status !== 'cancelled' && (
-                      !r.uber_delivery_id ? (
-                        <button onClick={() => handleUberDispatch(r)} disabled={uberDispatching === r.id}
-                          className="mt-2 w-full py-2 rounded-xl text-white font-bold text-[12px] bg-black flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform">
-                          <Truck size={13} />
-                          {uberDispatching === r.id ? 'Dispatching…' : 'Send Uber Driver'}
-                        </button>
-                      ) : (
-                        <div className="mt-2 flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-                          <Truck size={13} className="text-black shrink-0" />
-                          <span className="text-[12px] font-bold text-gray-700 capitalize">{r.uber_status?.replace(/_/g, ' ') || 'Dispatched'}</span>
-                          {r.uber_tracking_url && (
-                            <a href={r.uber_tracking_url} target="_blank" rel="noopener noreferrer"
-                              className="ml-auto text-[11px] font-bold text-teal-600 flex items-center gap-1">
-                              Track <ExternalLink size={10} />
-                            </a>
-                          )}
-                        </div>
-                      )
                     )}
                     </div>
                   </div>
@@ -1045,44 +974,29 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                   </div>
                 </div>
 
-                {/* Assign To */}
+                {/* Assign Driver */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Assign To</p>
-                  <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg mb-1.5">
-                    {(['inhouse', 'uber'] as const).map(m => (
-                      <button key={m} onClick={() => setAssignMode(m)}
-                        className={`flex-1 py-1.5 rounded-md text-[12px] font-bold transition-all ${assignMode === m ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
-                        {m === 'inhouse' ? '👤 In-House Driver' : '🚗 Send Uber'}
-                      </button>
-                    ))}
-                  </div>
-                  {assignMode === 'inhouse' && (
-                    <select value={dispatchForm.driver_id} onChange={e => setDispatchForm(f => ({ ...f, driver_id: e.target.value }))}
-                      className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300">
-                      <option value="">— No driver assigned —</option>
-                      {todayDrivers.length > 0 ? (
-                        todayDrivers.map(d => (
-                          <option key={d.id} value={d.id}>
-                            {d.name} · {fmt(d.start_time)}{d.end_time ? `–${fmt(d.end_time)}` : ''}
-                          </option>
-                        ))
-                      ) : (
-                        <option disabled value="">No drivers scheduled today</option>
-                      )}
-                    </select>
-                  )}
-                  {assignMode === 'uber' && (
-                    <p className="text-[12px] text-gray-500 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
-                      Uber will be dispatched immediately on submit.
-                    </p>
-                  )}
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Assign Driver</p>
+                  <select value={dispatchForm.driver_id} onChange={e => setDispatchForm(f => ({ ...f, driver_id: e.target.value }))}
+                    className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300">
+                    <option value="">— No driver assigned —</option>
+                    {todayDrivers.length > 0 ? (
+                      todayDrivers.map(d => (
+                        <option key={d.id} value={d.id}>
+                          {d.name} · {fmt(d.start_time)}{d.end_time ? `–${fmt(d.end_time)}` : ''}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled value="">No drivers scheduled today</option>
+                    )}
+                  </select>
                 </div>
 
                 <button onClick={handleDispatchSubmit}
                   disabled={dispatching || !dispatchForm.guest_name.trim() || !dispatchForm.room_number.trim()}
                   className="w-full py-3 rounded-2xl text-white font-bold text-[14px] disabled:opacity-50 active:scale-[0.98] transition-all"
                   style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
-                  {dispatching ? 'Logging…' : assignMode === 'uber' ? '🚗 Dispatch Uber' : '✅ Log Pickup'}
+                  {dispatching ? 'Logging…' : '✅ Log Pickup'}
                 </button>
               </div>
             )}
