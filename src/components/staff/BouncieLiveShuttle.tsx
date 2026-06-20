@@ -309,14 +309,25 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
       </div>
 
       {loc && (
-        <a
-          href={`https://www.google.com/maps?q=${loc.lat},${loc.lng}`}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-teal-50 text-[12px] font-bold text-teal-700 hover:bg-teal-100 transition-colors"
-        >
-          <MapPin size={13} /> Track on Google Maps <ExternalLink size={11} />
-        </a>
+        <div className="rounded-xl overflow-hidden border border-gray-200">
+          <iframe
+            title="Live shuttle location"
+            className="w-full h-44 block"
+            loading="lazy"
+            src={`https://www.openstreetmap.org/export/embed.html?bbox=${loc.lng - 0.008}%2C${loc.lat - 0.005}%2C${loc.lng + 0.008}%2C${loc.lat + 0.005}&layer=mapnik&marker=${loc.lat}%2C${loc.lng}`}
+          />
+          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 text-[11px]">
+            <span className="text-gray-500 flex items-center gap-1"><MapPin size={11} className="text-teal-600" /> Live · updated {formatTimeAgo(loc.recorded_at)}</span>
+            <a
+              href={`https://www.openstreetmap.org/?mlat=${loc.lat}&mlon=${loc.lng}#map=16/${loc.lat}/${loc.lng}`}
+              target="_blank"
+              rel="noreferrer"
+              className="font-bold text-teal-700 flex items-center gap-1"
+            >
+              Open full map <ExternalLink size={10} />
+            </a>
+          </div>
+        </div>
       )}
     </div>
   );

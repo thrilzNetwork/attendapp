@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { calculateETA, getActiveBouncieToken, listBouncieVehicles, normalizeBouncieVehicle } from '@/lib/bouncie';
+import { geocodeAddress } from '@/lib/geocode';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -47,8 +48,17 @@ export async function GET(req: NextRequest) {
     db.from('bouncie_locations').select('*').eq('hotel_id', hotelId),
   ]);
 
-  // Fetch hotel lat/lng for ETA calculation
-  const { data: hotel } = await db.from('hotels').select('lat,lng').eq('id', hotelId).maybeSingle();
+  // Fetch hotel coordinates for ETA. If not set yet, auto-geocode the hotel's
+  // address (staff never enter coordinates) and persist it for next time.
+  let { data: hotel } = await db.from('hotels').select('lat,lng,name,address').eq('id', hotelId).maybeSingle();
+  if (hotel && (hotel.lat == null || hotel.lng == null) && hotel.address) {
+    const geo = await geocodeAddress(`${hotel.name || ''}, ${hotel.address}`.trim().replace(/^,\s*/, ''))
+      || await geocodeAddress(hotel.address);
+    if (geo) {
+      await db.from('hotels').update({ lat: geo.lat, lng: geo.lng }).eq('id', hotelId);
+      hotel = { ...hotel, lat: geo.lat, lng: geo.lng };
+    }
+  }
 
   const locationByDevice = new Map((freshLocations || []).map(l => [l.device_id, l]));
   const merged = (freshDevices || []).map(d => {
