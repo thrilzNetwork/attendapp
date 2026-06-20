@@ -63,7 +63,6 @@ export async function GET(req: NextRequest) {
       hotel = { ...hotel, lat: geo.lat, lng: geo.lng };
     }
   }
-<<<<<<< HEAD
 
   // Auto-geocode destination if address is set but coords are missing
   if (hotel && hotel.shuttle_dest_address && (hotel.shuttle_dest_lat == null || hotel.shuttle_dest_lng == null)) {
