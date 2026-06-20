@@ -91,18 +91,24 @@ function PartnerContent() {
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
-    Promise.all([getPartnerById(id), getPartnerMenuItems(id), getHotelConfig()]).then(async ([p, m, cfg]) => {
-      setPartner(p);
-      setMenuItems(m);
-      if (cfg?.brandColor) setBrandColor(cfg.brandColor);
-      // Fetch hotel address for Uber route display
-      if (p?.hotel_id) {
-        const { data: hotel } = await (await import('@/lib/supabase')).supabase
-          .from('hotels').select('address').eq('id', p.hotel_id).maybeSingle();
-        if (hotel?.address) setHotelAddress(hotel.address);
+    (async () => {
+      try {
+        const [p, m, cfg] = await Promise.all([getPartnerById(id), getPartnerMenuItems(id), getHotelConfig()]);
+        setPartner(p);
+        setMenuItems(m);
+        if (cfg?.brandColor) setBrandColor(cfg.brandColor);
+        if (p?.hotel_id) {
+          try {
+            const { data: hotel } = await supabase.from('hotels').select('address').eq('id', p.hotel_id).maybeSingle();
+            if (hotel?.address) setHotelAddress(hotel.address);
+          } catch { /* hotel address is optional */ }
+        }
+      } catch (e) {
+        console.error('Failed to load partner data:', e);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    })();
   }, [id]);
 
   // Pre-fill from session
