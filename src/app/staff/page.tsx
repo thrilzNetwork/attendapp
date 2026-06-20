@@ -188,7 +188,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'schedules',       label: 'Schedules',           icon: CalendarDays,    roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
 
   // ── OPERATIONS — property tools & planning ──
-  { tab: 'shuttle',         label: 'Shuttle',             icon: Bus,             roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'shuttle',         label: 'Transportation',      icon: Bus,             roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'compset',         label: 'Compset',             icon: PhoneCall,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'forecast',        label: 'Forecast',            icon: BarChart3,       roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'culture',         label: 'Culture',             icon: Heart,           roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
@@ -2209,7 +2209,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   };
 
   const permLabels: Record<string, string> = {
-    orders: 'Live Orders', messages: 'Guest Messages', shuttle: 'Shuttle',
+    orders: 'Live Orders', messages: 'Guest Messages', shuttle: 'Transportation',
     knowledge: 'Right Answers', compset: 'Compset', marketplace: 'Marketplace',
     hotel: 'Hotel Settings', staff_mgmt: 'Staff Mgmt', partners: 'Partners', qrcodes: 'QR Codes',
   };

@@ -62,8 +62,18 @@ export default function TransportPage() {
             ))}
           </div>
 
-          {tab === 'airport' && <AirportShuttle brandColor={brandColor} config={config} />}
-          {tab === 'cruise' && <CruisePort brandColor={brandColor} config={config} />}
+          {tab === 'airport' && (
+            <div className="space-y-4">
+              <TransportBooker brandColor={brandColor} defaultFromText="Fort Lauderdale Airport (FLL)" skipModeScreen={false} />
+              <AirportSchedule brandColor={brandColor} config={config} />
+            </div>
+          )}
+          {tab === 'cruise' && (
+            <div className="space-y-4">
+              <TransportBooker brandColor={brandColor} defaultFromText="Port Everglades, Fort Lauderdale" skipModeScreen={false} />
+              <CruiseScheduleSection brandColor={brandColor} config={config} />
+            </div>
+          )}
           {tab === 'private' && <PrivateTransport brandColor={brandColor} />}
         </div>
       </div>
@@ -72,7 +82,7 @@ export default function TransportPage() {
 }
 
 /* ── Airport Shuttle ───────────────────────── */
-function AirportShuttle({ brandColor, config }: { brandColor: string; config: HotelConfig | null }) {
+function AirportSchedule({ brandColor, config }: { brandColor: string; config: HotelConfig | null }) {
   const [slots, setSlots] = useState<ShuttleSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingForm, setBookingForm] = useState<{ slot_id: string; show: boolean; name: string; room: string; pax: number; notes: string; charge_accepted: boolean }>({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false });
@@ -287,7 +297,7 @@ function AirportShuttle({ brandColor, config }: { brandColor: string; config: Ho
 }
 
 /* ── Cruise Port ───────────────────────────── */
-function CruisePort({ brandColor, config }: { brandColor: string; config: HotelConfig | null }) {
+function CruiseScheduleSection({ brandColor, config }: { brandColor: string; config: HotelConfig | null }) {
   const [cruises, setCruises] = useState<CruiseSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingForm, setBookingForm] = useState<{ slot_id: string; show: boolean; name: string; room: string; pax: number; notes: string; charge_accepted: boolean }>({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false });

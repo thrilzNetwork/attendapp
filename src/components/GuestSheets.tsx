@@ -222,8 +222,8 @@ export function TransportSheetContent() {
     <div className="overflow-y-auto flex-1">
       <div className="px-5 pt-2 pb-6">
         <div className="bg-gray-100 rounded-2xl p-1 flex mb-4">
-          <button onClick={() => setView('request')} className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${view === 'request' ? 'text-white' : 'text-gray-500'}`} style={view === 'request' ? { backgroundColor: BURGUNDY } : undefined}>Request Pickup</button>
-          <button onClick={() => setView('schedule')} className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${view === 'schedule' ? 'text-white' : 'text-gray-500'}`} style={view === 'schedule' ? { backgroundColor: BURGUNDY } : undefined}>Airport & Cruise</button>
+          <button onClick={() => setView('request')} className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${view === 'request' ? 'text-white' : 'text-gray-500'}`} style={view === 'request' ? { backgroundColor: BURGUNDY } : undefined}>Book Transport</button>
+          <button onClick={() => setView('schedule')} className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${view === 'schedule' ? 'text-white' : 'text-gray-500'}`} style={view === 'schedule' ? { backgroundColor: BURGUNDY } : undefined}>Schedules</button>
         </div>
         {view === 'schedule' ? <ShuttleScheduleInner /> : <OnDemandInner />}
       </div>
@@ -383,17 +383,29 @@ interface UberTransportQuote {
   eta_minutes: number;
 }
 
-export function TransportBooker({ brandColor = BURGUNDY }: { brandColor?: string }) {
-  const [screen, setScreen] = useState<'mode' | 'address' | 'confirm' | 'done'>('mode');
+export function TransportBooker({
+  brandColor = BURGUNDY,
+  defaultFromText = '',
+  defaultToText = '',
+  skipModeScreen = false,
+}: {
+  brandColor?: string;
+  defaultFromText?: string;
+  defaultToText?: string;
+  skipModeScreen?: boolean;
+}) {
+  const [screen, setScreen] = useState<'mode' | 'address' | 'confirm' | 'done'>(skipModeScreen ? 'address' : 'mode');
   const [mode, setMode] = useState<'shuttle' | 'uber'>('uber');
   const [config, setConfig] = useState<HotelConfig | null>(null);
 
   // FROM field
-  const [fromText, setFromText] = useState('');
+  const [fromText, setFromText] = useState(defaultFromText);
   const [fromPlace, setFromPlace] = useState<PlaceResult | null>(null);
+  const [fromSuggestions, setFromSuggestions] = useState<PlaceResult[]>([]);
+  const [fromLoading, setFromLoading] = useState(false);
 
   // TO field
-  const [toText, setToText] = useState('');
+  const [toText, setToText] = useState(defaultToText);
   const [toPlace, setToPlace] = useState<PlaceResult | null>(null);
   const [toSuggestions, setToSuggestions] = useState<PlaceResult[]>([]);
   const [toLoading, setToLoading] = useState(false);
@@ -411,48 +423,62 @@ export function TransportBooker({ brandColor = BURGUNDY }: { brandColor?: string
   const [error, setError] = useState('');
   const [trackingUrl, setTrackingUrl] = useState('');
 
-  const debounceRef = { current: undefined as ReturnType<typeof setTimeout> | undefined };
+  const debounceFrom = { current: undefined as ReturnType<typeof setTimeout> | undefined };
+  const debounceTo = { current: undefined as ReturnType<typeof setTimeout> | undefined };
 
   useEffect(() => {
     getHotelConfig().then(h => {
       setConfig(h);
-      if (h?.name) setFromText(h.name);
+      // Only pre-fill hotel name if no defaultFromText was provided
+      if (!defaultFromText && h?.name) setFromText(h.name);
     });
     try {
       const gs = localStorage.getItem('guestSession');
       if (gs) { const s = JSON.parse(gs); setGuestName(s.name || ''); setRoom(s.room || ''); }
     } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Autocomplete for FROM field
+  useEffect(() => {
+    if (fromText.length < 2 || fromPlace) { setFromSuggestions([]); return; }
+    clearTimeout(debounceFrom.current);
+    debounceFrom.current = setTimeout(async () => {
+      setFromLoading(true);
+      try {
+        const res = await fetch(`/api/places-autocomplete?q=${encodeURIComponent(fromText)}`);
+        setFromSuggestions(await res.json());
+      } catch { setFromSuggestions([]); }
+      finally { setFromLoading(false); }
+    }, 300);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromText, fromPlace]);
 
   // Autocomplete for TO field
   useEffect(() => {
-    if (toText.length < 2) { setToSuggestions([]); return; }
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
+    if (toText.length < 2 || toPlace) { setToSuggestions([]); return; }
+    clearTimeout(debounceTo.current);
+    debounceTo.current = setTimeout(async () => {
       setToLoading(true);
       try {
         const res = await fetch(`/api/places-autocomplete?q=${encodeURIComponent(toText)}`);
-        const data = await res.json();
-        setToSuggestions(data);
+        setToSuggestions(await res.json());
       } catch { setToSuggestions([]); }
       finally { setToLoading(false); }
     }, 300);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toText]);
+  }, [toText, toPlace]);
 
-  // Fetch Uber quote when both places are selected and mode is uber
+  // Fetch Uber quote when we have both addresses and mode is uber
   useEffect(() => {
-    if (mode !== 'uber' || !fromPlace || !toPlace) return;
+    const resolvedFrom = fromPlace?.display_name || fromText;
+    const resolvedTo = toPlace?.display_name || toText;
+    if (mode !== 'uber' || resolvedFrom.length < 3 || resolvedTo.length < 3) return;
     let cancelled = false;
     setQuoteLoading(true);
-    const params = new URLSearchParams({
-      fromAddress: fromPlace.display_name,
-      toAddress: toPlace.display_name,
-      fromLat: String(fromPlace.lat),
-      fromLng: String(fromPlace.lng),
-      toLat: String(toPlace.lat),
-      toLng: String(toPlace.lng),
-    });
+    const params = new URLSearchParams({ fromAddress: resolvedFrom, toAddress: resolvedTo });
+    if (fromPlace) { params.set('fromLat', String(fromPlace.lat)); params.set('fromLng', String(fromPlace.lng)); }
+    if (toPlace) { params.set('toLat', String(toPlace.lat)); params.set('toLng', String(toPlace.lng)); }
     fetch(`/api/uber-direct/transport-quote?${params}`)
       .then(r => r.json())
       .then(d => { if (!cancelled && d.ok) setQuote({ feeCents: d.feeCents, fee_display: d.fee_display, eta_minutes: d.eta_minutes }); })
@@ -463,7 +489,7 @@ export function TransportBooker({ brandColor = BURGUNDY }: { brandColor?: string
 
   const handleBook = async () => {
     if (!guestName || !room) { setError('Name and room number are required.'); return; }
-    if (!toPlace) { setError('Please select a destination.'); return; }
+    if (!toPlace && toText.length < 3) { setError('Please enter a destination.'); return; }
     setSubmitting(true); setError('');
     try {
       const shuttleReq = await createShuttleRequest({
@@ -471,7 +497,7 @@ export function TransportBooker({ brandColor = BURGUNDY }: { brandColor?: string
         guest_name: guestName,
         room_number: room,
         pickup_location: fromPlace?.display_name || fromText || 'Hotel',
-        destination: toPlace.display_name,
+        destination: toPlace?.display_name || toText,
         pax,
         notes: notes || undefined,
         status: mode === 'uber' ? 'pending_uber' : 'pending',
@@ -512,7 +538,7 @@ export function TransportBooker({ brandColor = BURGUNDY }: { brandColor?: string
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-[15px] font-bold text-gray-900">Hotel Shuttle</span>
+              <span className="text-[15px] font-bold text-gray-900">Hotel Transportation</span>
               <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">FREE</span>
             </div>
             <p className="text-[12px] text-gray-400 mt-0.5">Our team confirms availability</p>
@@ -565,20 +591,50 @@ export function TransportBooker({ brandColor = BURGUNDY }: { brandColor?: string
   // Screen: address picker
   if (screen === 'address') return (
     <div className="space-y-3">
-      <button onClick={() => setScreen('mode')} className="text-[12px] font-semibold flex items-center gap-1" style={{ color: brandColor }}>
-        ← Back
-      </button>
+      {!skipModeScreen && (
+        <button onClick={() => setScreen('mode')} className="text-[12px] font-semibold flex items-center gap-1" style={{ color: brandColor }}>
+          ← Back
+        </button>
+      )}
 
-      {/* FROM field */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
-        <div>
-          <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin size={10} /> From</label>
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-4">
+        {/* FROM field */}
+        <div className="relative">
+          <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin size={10} className="text-emerald-500" /> From</label>
           <input
             value={fromText}
-            onChange={e => { setFromText(e.target.value); setFromPlace(null); }}
-            placeholder="Pickup location"
+            onChange={e => { setFromText(e.target.value); setFromPlace(null); setQuote(null); }}
+            placeholder="Pickup address"
             className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none text-gray-800"
           />
+          {fromLoading && (
+            <div className="absolute right-3 top-8">
+              <span className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin inline-block" />
+            </div>
+          )}
+          {fromSuggestions.length > 0 && !fromPlace && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-20 overflow-hidden">
+              {fromSuggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setFromPlace(s); setFromText(s.short_name); setFromSuggestions([]); }}
+                  className="w-full px-4 py-3 text-left border-b border-gray-50 last:border-0 active:bg-gray-50 hover:bg-gray-50"
+                >
+                  <p className="text-[13px] font-semibold text-gray-900">{s.short_name}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">{s.display_name}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Divider with swap feel */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-px bg-gray-100" />
+          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+            <MapPin size={10} className="text-red-400" />
+          </div>
+          <div className="flex-1 h-px bg-gray-100" />
         </div>
 
         {/* TO field */}
@@ -589,7 +645,6 @@ export function TransportBooker({ brandColor = BURGUNDY }: { brandColor?: string
             onChange={e => { setToText(e.target.value); setToPlace(null); setQuote(null); }}
             placeholder="Where are you going?"
             className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none text-gray-800"
-            autoFocus
           />
           {toLoading && (
             <div className="absolute right-3 top-8">
@@ -613,7 +668,7 @@ export function TransportBooker({ brandColor = BURGUNDY }: { brandColor?: string
         </div>
       </div>
 
-      {toPlace && (
+      {(toPlace || toText.length > 3) && (fromPlace || fromText.length > 3) && (
         <button
           onClick={() => setScreen('confirm')}
           className="w-full py-3.5 rounded-xl text-white font-bold text-[14px]"
@@ -653,7 +708,7 @@ export function TransportBooker({ brandColor = BURGUNDY }: { brandColor?: string
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bus size={16} className="text-emerald-600" />
-              <span className="text-[13px] font-bold text-gray-800">Hotel Shuttle</span>
+              <span className="text-[13px] font-bold text-gray-800">Hotel Transportation</span>
             </div>
             <span className="text-[13px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Free</span>
           </div>
