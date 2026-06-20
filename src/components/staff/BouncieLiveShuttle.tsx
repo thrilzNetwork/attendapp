@@ -82,6 +82,7 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
   const [error, setError] = useState('');
   const [syncError, setSyncError] = useState('');
   const [connected, setConnected] = useState<boolean | null>(null);
+  const [needsReauth, setNeedsReauth] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hotelCoords, setHotelCoords] = useState<Coords | null>(null);
   const [destCoords, setDestCoords] = useState<Coords | null>(null);
@@ -100,6 +101,7 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
       setDevices(vehRes.devices || []);
       setTrips(tripsRes.trips || []);
       setConnected(vehRes.connected === true);
+      setNeedsReauth(vehRes.needsReauth === true);
       setSyncError(vehRes.syncError || '');
       setHotelCoords(vehRes.hotelCoords || null);
       setDestCoords(vehRes.destCoords || null);
@@ -137,28 +139,34 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
 
   if (connected === false) {
     return (
-      <div className="bg-gradient-to-br from-teal-50 to-white rounded-2xl border border-teal-100 p-5 mb-4">
+      <div className={`rounded-2xl border p-5 mb-4 ${needsReauth ? 'bg-amber-50 border-amber-200' : 'bg-gradient-to-br from-teal-50 to-white border-teal-100'}`}>
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center">
-            <Bus size={20} className="text-teal-600" />
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${needsReauth ? 'bg-amber-100' : 'bg-teal-100'}`}>
+            <Bus size={20} className={needsReauth ? 'text-amber-600' : 'text-teal-600'} />
           </div>
           <div>
-            <p className="font-extrabold text-[15px] text-gray-900">Live Shuttle GPS</p>
-            <p className="text-[11px] text-gray-500">Powered by Bouncie</p>
+            <p className="font-extrabold text-[15px] text-gray-900">{needsReauth ? 'Bouncie Session Expired' : 'Live Shuttle GPS'}</p>
+            <p className="text-[11px] text-gray-500">{needsReauth ? 'Re-authorization required' : 'Powered by Bouncie'}</p>
           </div>
         </div>
-        <p className="text-[13px] text-gray-600 mb-1">Connect your Bouncie GPS tracker to see:</p>
-        <ul className="text-[12px] text-gray-500 mb-4 space-y-0.5 ml-2">
-          <li>📍 Real-time shuttle location</li>
-          <li>⏱ Live trip timer & distance</li>
-          <li>🏨 ETA back to hotel</li>
-          <li>📋 Today&apos;s trip log</li>
-        </ul>
+        {needsReauth ? (
+          <p className="text-[13px] text-amber-700 mb-4">Your Bouncie login has expired. Tap below to reconnect — it only takes a few seconds.</p>
+        ) : (
+          <>
+            <p className="text-[13px] text-gray-600 mb-1">Connect your Bouncie GPS tracker to see:</p>
+            <ul className="text-[12px] text-gray-500 mb-4 space-y-0.5 ml-2">
+              <li>📍 Real-time shuttle location</li>
+              <li>⏱ Live trip timer & distance</li>
+              <li>🏨 ETA back to hotel</li>
+              <li>📋 Today&apos;s trip log</li>
+            </ul>
+          </>
+        )}
         <a
           href={`/api/bouncie-auth?hotelId=${encodeURIComponent(hotelId)}`}
-          className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-teal-600 text-white text-[13px] font-bold hover:bg-teal-700 transition-colors"
+          className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-[13px] font-bold transition-colors ${needsReauth ? 'bg-amber-500 hover:bg-amber-600' : 'bg-teal-600 hover:bg-teal-700'}`}
         >
-          Connect Bouncie GPS <ExternalLink size={13} />
+          {needsReauth ? 'Reconnect Bouncie' : 'Connect Bouncie GPS'} <ExternalLink size={13} />
         </a>
       </div>
     );

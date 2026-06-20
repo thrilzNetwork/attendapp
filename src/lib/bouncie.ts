@@ -72,6 +72,10 @@ export async function refreshBouncieToken(refreshToken: string) {
 
   if (!res.ok) {
     const text = await res.text();
+    // invalid_grant = refresh token expired/revoked — needs re-authorization
+    if (text.includes('invalid_grant') || res.status === 403 || res.status === 401) {
+      throw new Error('BOUNCIE_REAUTH_REQUIRED');
+    }
     throw new Error(`Bouncie token refresh failed: ${res.status} ${text}`);
   }
 

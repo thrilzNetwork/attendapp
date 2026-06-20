@@ -38,7 +38,13 @@ export async function GET(req: NextRequest) {
       }
     }
   } catch (err) {
-    syncError = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg === 'BOUNCIE_REAUTH_REQUIRED') {
+      // Clear the stale connection so the UI shows the reconnect prompt
+      await db.from('bouncie_connections').delete().eq('hotel_id', hotelId);
+      return NextResponse.json({ ok: true, connected: false, needsReauth: true, devices: [] });
+    }
+    syncError = msg;
     console.error('Bouncie live vehicle fetch failed:', syncError);
   }
 
@@ -63,7 +69,6 @@ export async function GET(req: NextRequest) {
       hotel = { ...hotel, lat: geo.lat, lng: geo.lng };
     }
   }
-<<<<<<< HEAD
 
   // Auto-geocode destination if address is set but coords are missing
   if (hotel && hotel.shuttle_dest_address && (hotel.shuttle_dest_lat == null || hotel.shuttle_dest_lng == null)) {
