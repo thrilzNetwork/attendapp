@@ -55,7 +55,7 @@ import {
   getDailyRecap,
   getHotelOpsTools, getAllOpsTools,
   getWeeklyForecasts, upsertWeeklyForecast, WeeklyForecast,
-  getLearningDocs, getHrDocs,
+  getLearningDocs, getHrDocs, authedApiHeaders,
 } from '@/lib/supabase';
 import type { OpsTool } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
@@ -4048,6 +4048,13 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
   const [askResult, setAskResult] = useState<{ id: string; title: string; category: string; situation: string; response: string; score: number } | null>(null);
   const [askNotFound, setAskNotFound] = useState(false);
   const [askCopied, setAskCopied] = useState(false);
+  // PDF upload state
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfTitle, setPdfTitle] = useState('');
+  const [pdfCategory, setPdfCategory] = useState('SOP');
+  const [pdfUploading, setPdfUploading] = useState(false);
+  const [pdfMsg, setPdfMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     setLoading(true);
@@ -4087,6 +4094,53 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
       setSuggestion('');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const uploadPdf = async () => {
+    if (!pdfFile || !pdfTitle.trim()) return;
+    setPdfUploading(true);
+    setPdfMsg(null);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(pdfFile);
+      });
+      const headers = await authedApiHeaders();
+      const uploadRes = await fetch('/api/kb-upload', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ base64, filename: pdfFile.name, hotelId }),
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadData.ok) throw new Error(uploadData.error || 'Upload failed');
+
+      // Create an approved KB entry linking to the PDF
+      await createKbSuggestionPending(hotelId, {
+        title: pdfTitle.trim(),
+        category: pdfCategory,
+        situation: pdfTitle.trim(),
+        response: `PDF Document: ${uploadData.filename}`,
+        added_by: userName,
+        pdf_url: uploadData.url,
+        pdf_filename: uploadData.filename,
+      } as any);
+      // Auto-approve since admin/manager uploaded it
+      const fresh = await listKbSuggestionsByStatus(hotelId, 'pending');
+      const justAdded = fresh?.[fresh.length - 1];
+      if (justAdded) await approveKbSuggestion(justAdded.id);
+
+      await load();
+      setPdfTitle('');
+      setPdfFile(null);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+      setPdfMsg({ ok: true, text: `"${pdfTitle.trim()}" uploaded successfully.` });
+    } catch (err: any) {
+      setPdfMsg({ ok: false, text: err.message || 'Upload failed' });
+    } finally {
+      setPdfUploading(false);
     }
   };
 
@@ -4237,6 +4291,77 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
         )}
       </div>
 
+      {/* PDF Upload — admin/manager only */}
+      {isAdmin && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[16px]">📄</span>
+            <p className="text-[14px] font-bold text-gray-900">Upload PDF to Knowledge Base</p>
+          </div>
+          <p className="text-[11px] text-gray-500 mb-3">Upload SOPs, manuals, or policy documents. PDFs are stored and linked in the KB for staff to download.</p>
+          <label className="text-[10px] font-bold text-gray-500 uppercase">Document Title</label>
+          <input
+            type="text"
+            value={pdfTitle}
+            onChange={e => setPdfTitle(e.target.value)}
+            placeholder="e.g. Front Desk SOP v2, Emergency Procedures"
+            className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[13px] border border-gray-100 mt-1 mb-3"
+          />
+          <label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
+          <div className="flex flex-wrap gap-1 mt-1 mb-3">
+            {categories.map(c => (
+              <button key={c.key} onClick={() => setPdfCategory(c.key)} className={`px-3 py-1.5 rounded-full text-[11px] font-bold border ${pdfCategory === c.key ? 'text-white border-transparent' : 'bg-white border-gray-200 text-gray-600'}`} style={pdfCategory === c.key ? { backgroundColor: TEAL } : {}}>
+                <span className="mr-1">{c.icon}</span>{c.label}
+              </button>
+            ))}
+          </div>
+          <label className="text-[10px] font-bold text-gray-500 uppercase">PDF File</label>
+          <div
+            className="mt-1 mb-3 border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-gray-300 transition-colors"
+            onClick={() => pdfInputRef.current?.click()}
+          >
+            {pdfFile ? (
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-[20px]">📄</span>
+                <span className="text-[13px] font-semibold text-gray-700">{pdfFile.name}</span>
+                <span className="text-[11px] text-gray-400">({(pdfFile.size / 1024).toFixed(0)} KB)</span>
+              </div>
+            ) : (
+              <div>
+                <span className="text-[28px] block mb-1">📂</span>
+                <span className="text-[12px] text-gray-500">Click to select a PDF file</span>
+                <span className="text-[11px] text-gray-400 block mt-0.5">Max 10 MB</span>
+              </div>
+            )}
+          </div>
+          <input
+            ref={pdfInputRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={e => {
+              const f = e.target.files?.[0] || null;
+              setPdfFile(f);
+              setPdfMsg(null);
+              if (f && !pdfTitle) setPdfTitle(f.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' '));
+            }}
+          />
+          {pdfMsg && (
+            <div className={`text-[12px] px-3 py-2 rounded-xl mb-3 ${pdfMsg.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {pdfMsg.ok ? '✓ ' : '✗ '}{pdfMsg.text}
+            </div>
+          )}
+          <button
+            onClick={uploadPdf}
+            disabled={!pdfFile || !pdfTitle.trim() || pdfUploading}
+            className="w-full py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-40 flex items-center justify-center gap-2"
+            style={{ backgroundColor: TEAL }}
+          >
+            {pdfUploading ? <><span className="animate-spin">⏳</span> Uploading…</> : '⬆ Upload PDF'}
+          </button>
+        </div>
+      )}
+
       {/* Filter tabs */}
       <div className="flex gap-1 mb-3 overflow-x-auto">
         {([
@@ -4284,12 +4409,31 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
                   )}
                 </summary>
                 <div className="px-4 pb-4 pt-0 border-t border-gray-100">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase mt-3 mb-1">Suggested response</p>
-                  <p className="text-[12px] text-gray-700 leading-relaxed whitespace-pre-wrap">{d.response}</p>
+                  {d.pdf_url ? (
+                    <div className="mt-3">
+                      <a
+                        href={d.pdf_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-white font-bold text-[12px]"
+                        style={{ backgroundColor: TEAL }}
+                      >
+                        <span>📄</span> View / Download PDF
+                      </a>
+                      <p className="text-[10px] text-gray-400 mt-1">{d.pdf_filename}</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase mt-3 mb-1">Suggested response</p>
+                      <p className="text-[12px] text-gray-700 leading-relaxed whitespace-pre-wrap">{d.response}</p>
+                    </>
+                  )}
                   <div className="flex items-center gap-2 mt-3">
-                    <button onClick={() => { navigator.clipboard.writeText(d.response); }} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
-                      <Copy size={11} /> Copy
-                    </button>
+                    {!d.pdf_url && (
+                      <button onClick={() => { navigator.clipboard.writeText(d.response); }} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
+                        <Copy size={11} /> Copy
+                      </button>
+                    )}
                     {isAdmin && isPending && (
                       <>
                         <button onClick={() => approve(e.id)} className="ml-auto px-3 py-1.5 rounded-lg text-white font-bold text-[11px]" style={{ backgroundColor: TEAL }}>
