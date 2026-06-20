@@ -11,13 +11,18 @@ interface BouncieLocation {
   recorded_at: string;
 }
 
+interface ETAResult { distanceMiles: number; etaMinutes: number }
+
 interface BouncieDevice {
   id: string;
   device_id: string;
   vehicle_name: string;
   is_shuttle: boolean;
   bouncie_locations?: BouncieLocation[];
-  eta?: { distanceMiles: number; etaMinutes: number } | null;
+  eta?: ETAResult | null;
+  etaToHotel?: ETAResult | null;
+  etaToDest?: ETAResult | null;
+  shuttleDirection?: string | null;
 }
 
 interface BouncieTrip {
@@ -68,7 +73,9 @@ function LiveDuration({ startAt }: { startAt: string }) {
   return <span>{formatDuration(secs)}</span>;
 }
 
-export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
+interface Coords { lat: number; lng: number }
+
+export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: string; isAdmin?: boolean }) {
   const [devices, setDevices] = useState<BouncieDevice[]>([]);
   const [trips, setTrips] = useState<BouncieTrip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +83,12 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
   const [syncError, setSyncError] = useState('');
   const [connected, setConnected] = useState<boolean | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [hotelCoords, setHotelCoords] = useState<Coords | null>(null);
+  const [destCoords, setDestCoords] = useState<Coords | null>(null);
+  const [destName, setDestName] = useState<string | null>(null);
+  const [showDestSettings, setShowDestSettings] = useState(false);
+  const [destForm, setDestForm] = useState({ name: '', address: '' });
+  const [destSaving, setDestSaving] = useState(false);
 
   const load = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -88,6 +101,13 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
       setTrips(tripsRes.trips || []);
       setConnected(vehRes.connected === true);
       setSyncError(vehRes.syncError || '');
+      setHotelCoords(vehRes.hotelCoords || null);
+      setDestCoords(vehRes.destCoords || null);
+      setDestName(vehRes.destName || null);
+      // Pre-fill dest form from API response (only on first load, not refresh)
+      if (!isManual && vehRes.destName !== undefined) {
+        setDestForm({ name: vehRes.destName || '', address: '' });
+      }
       setError('');
     } catch {
       setError('Failed to load shuttle location. Check your network connection.');
@@ -187,6 +207,9 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
   const shuttle = devices.find(d => d.is_shuttle) || devices[0];
   const loc = shuttle?.bouncie_locations?.[0];
   const eta = shuttle?.eta ?? null;
+  const etaToHotel = shuttle?.etaToHotel ?? null;
+  const etaToDest = shuttle?.etaToDest ?? null;
+  const shuttleDirection = shuttle?.shuttleDirection ?? null;
   const activeTrips = trips.filter(t => !t.end_at);
   const completedTrips = trips.filter(t => t.end_at);
   const currentTrip = activeTrips[0] ?? null;
@@ -223,13 +246,24 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
         </div>
       )}
 
+      {/* Direction banner — only shown when destination is configured */}
+      {loc && destCoords && shuttleDirection && (
+        <div className={`rounded-xl px-3 py-2.5 text-[13px] font-bold flex items-center gap-2 ${
+          shuttleDirection === 'at_hotel' ? 'bg-teal-50 text-teal-800 border border-teal-200' :
+          shuttleDirection === 'at_dest'  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+          shuttleDirection === 'to_dest'  ? 'bg-sky-50 text-sky-800 border border-sky-200' :
+          'bg-orange-50 text-orange-800 border border-orange-200'
+        }`}>
+          {shuttleDirection === 'at_hotel' && <>🏨 At hotel</>}
+          {shuttleDirection === 'at_dest'  && <>✈️ At {destName || 'destination'}</>}
+          {shuttleDirection === 'to_dest'  && <>🏨 → ✈️ Heading to {destName || 'destination'}{etaToDest ? ` · ~${etaToDest.etaMinutes} min` : ''}</>}
+          {shuttleDirection === 'to_hotel' && <>✈️ → 🏨 Returning to hotel{etaToHotel ? ` · ~${etaToHotel.etaMinutes} min` : ''}</>}
+        </div>
+      )}
+
       {/* Live location */}
       {loc ? (
         <div className="bg-gray-50 rounded-xl p-3 space-y-2">
-          <div className="flex items-center justify-between text-[12px]">
-            <div className="flex items-center gap-1.5 text-gray-500"><MapPin size={12} /> GPS</div>
-            <span className="font-mono text-gray-800 text-[11px]">{loc.lat.toFixed(5)}, {loc.lng.toFixed(5)}</span>
-          </div>
           <div className="flex items-center justify-between text-[12px]">
             <div className="flex items-center gap-1.5 text-gray-500"><Navigation size={12} /> Speed</div>
             <span className="font-semibold text-gray-900">{loc.speed_mph.toFixed(0)} mph · {loc.heading.toFixed(0)}°</span>
@@ -238,7 +272,24 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
             <div className="flex items-center gap-1.5 text-gray-500"><Clock size={12} /> Updated</div>
             <span className="text-gray-700">{formatTimeAgo(loc.recorded_at)}</span>
           </div>
-          {eta && (
+
+          {/* Two-point ETA when destination configured, single ETA when not */}
+          {destCoords ? (
+            <>
+              {etaToDest && (
+                <div className={`flex items-center justify-between text-[12px] pt-1 border-t border-gray-200 ${etaToDest.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-sky-700'}`}>
+                  <div className="flex items-center gap-1.5 font-semibold"><Timer size={12} /> ETA to {destName || 'destination'}</div>
+                  <span className="font-bold">{etaToDest.distanceMiles <= 0.5 ? 'Arriving ✈️' : `~${etaToDest.etaMinutes} min · ${etaToDest.distanceMiles.toFixed(1)} mi`}</span>
+                </div>
+              )}
+              {etaToHotel && (
+                <div className={`flex items-center justify-between text-[12px] ${!etaToDest ? 'pt-1 border-t border-gray-200' : ''} ${etaToHotel.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-orange-700'}`}>
+                  <div className="flex items-center gap-1.5 font-semibold"><Timer size={12} /> ETA to hotel</div>
+                  <span className="font-bold">{etaToHotel.distanceMiles <= 0.5 ? 'Arriving 🏨' : `~${etaToHotel.etaMinutes} min · ${etaToHotel.distanceMiles.toFixed(1)} mi`}</span>
+                </div>
+              )}
+            </>
+          ) : eta && (
             <div className={`flex items-center justify-between text-[12px] pt-1 border-t border-gray-200 ${eta.distanceMiles <= 0.5 ? 'text-emerald-700' : ''}`}>
               <div className="flex items-center gap-1.5 font-semibold">
                 <Timer size={12} />
@@ -308,27 +359,105 @@ export default function BouncieLiveShuttle({ hotelId }: { hotelId: string }) {
         <span>Total distance: <strong className="text-gray-900">{totalDistanceToday.toFixed(1)} mi</strong></span>
       </div>
 
-      {loc && (
-        <div className="rounded-xl overflow-hidden border border-gray-200">
-          <iframe
-            title="Live shuttle location"
-            className="w-full h-44 block"
-            loading="lazy"
-            src={`https://www.openstreetmap.org/export/embed.html?bbox=${loc.lng - 0.008}%2C${loc.lat - 0.005}%2C${loc.lng + 0.008}%2C${loc.lat + 0.005}&layer=mapnik&marker=${loc.lat}%2C${loc.lng}`}
-          />
-          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 text-[11px]">
-            <span className="text-gray-500 flex items-center gap-1"><MapPin size={11} className="text-teal-600" /> Live · updated {formatTimeAgo(loc.recorded_at)}</span>
-            <a
-              href={`https://www.openstreetmap.org/?mlat=${loc.lat}&mlon=${loc.lng}#map=16/${loc.lat}/${loc.lng}`}
-              target="_blank"
-              rel="noreferrer"
-              className="font-bold text-teal-700 flex items-center gap-1"
-            >
-              Open full map <ExternalLink size={10} />
-            </a>
-          </div>
+      {/* Destination config — admin only */}
+      {isAdmin && (
+        <div className="border-t border-gray-100 pt-2">
+          <button
+            onClick={() => setShowDestSettings(v => !v)}
+            className="text-[11px] font-semibold text-gray-400 hover:text-teal-600 w-full text-left"
+          >
+            {showDestSettings ? '▾' : '▸'} {destName ? `Destination: ${destName}` : 'Set shuttle destination (airport, etc.)'}
+          </button>
+          {showDestSettings && (
+            <div className="mt-2 space-y-2">
+              <input
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] placeholder-gray-400"
+                placeholder="Destination name (e.g. FLL Airport)"
+                value={destForm.name}
+                onChange={e => setDestForm(f => ({ ...f, name: e.target.value }))}
+              />
+              <input
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] placeholder-gray-400"
+                placeholder="Address (e.g. 100 Terminal Dr, Fort Lauderdale FL)"
+                value={destForm.address}
+                onChange={e => setDestForm(f => ({ ...f, address: e.target.value }))}
+              />
+              <button
+                disabled={destSaving || !destForm.address.trim()}
+                onClick={async () => {
+                  setDestSaving(true);
+                  try {
+                    await fetch(`/api/hotel-settings?hotelId=${encodeURIComponent(hotelId)}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ shuttle_dest_name: destForm.name, shuttle_dest_address: destForm.address }),
+                    });
+                    setShowDestSettings(false);
+                    load(true);
+                  } finally {
+                    setDestSaving(false);
+                  }
+                }}
+                className="w-full py-2 rounded-lg bg-teal-600 text-white text-[12px] font-bold disabled:opacity-40"
+              >
+                {destSaving ? 'Saving…' : 'Save destination'}
+              </button>
+              {destName && (
+                <button
+                  className="w-full py-1.5 rounded-lg text-[11px] text-red-500 border border-red-100"
+                  onClick={async () => {
+                    await fetch(`/api/hotel-settings?hotelId=${encodeURIComponent(hotelId)}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ shuttle_dest_name: null, shuttle_dest_address: null }),
+                    });
+                    setShowDestSettings(false);
+                    load(true);
+                  }}
+                >
+                  Remove destination
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
+
+      {loc && (() => {
+        // Build a bbox that encompasses the shuttle + hotel + destination (when known)
+        const lats = [loc.lat, hotelCoords?.lat, destCoords?.lat].filter((v): v is number => v != null);
+        const lngs = [loc.lng, hotelCoords?.lng, destCoords?.lng].filter((v): v is number => v != null);
+        const minLat = Math.min(...lats) - 0.006;
+        const maxLat = Math.max(...lats) + 0.006;
+        const minLng = Math.min(...lngs) - 0.01;
+        const maxLng = Math.max(...lngs) + 0.01;
+        const bbox = `${minLng}%2C${minLat}%2C${maxLng}%2C${maxLat}`;
+        return (
+          <div className="rounded-xl overflow-hidden border border-gray-200">
+            <iframe
+              title="Live shuttle location"
+              className="w-full h-52 block"
+              loading="lazy"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${loc.lat}%2C${loc.lng}`}
+            />
+            <div className="flex items-center justify-between px-3 py-2 bg-gray-50 text-[11px]">
+              <div className="flex items-center gap-2 text-gray-500 flex-wrap">
+                <span className="flex items-center gap-1"><MapPin size={11} className="text-teal-600" /> Live · {formatTimeAgo(loc.recorded_at)}</span>
+                {hotelCoords && <span className="text-gray-400">· 🏨 Hotel</span>}
+                {destCoords && <span className="text-gray-400">· ✈️ {destName || 'Dest'}</span>}
+              </div>
+              <a
+                href={`https://www.openstreetmap.org/?mlat=${loc.lat}&mlon=${loc.lng}#map=14/${loc.lat}/${loc.lng}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-bold text-teal-700 flex items-center gap-1 shrink-0"
+              >
+                Open map <ExternalLink size={10} />
+              </a>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

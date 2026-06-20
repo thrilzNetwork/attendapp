@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { calculateETA, getActiveBouncieToken, listBouncieVehicles, normalizeBouncieVehicle } from '@/lib/bouncie';
+import { calculateETA, detectShuttleDirection, getActiveBouncieToken, listBouncieVehicles, normalizeBouncieVehicle } from '@/lib/bouncie';
 import { geocodeAddress } from '@/lib/geocode';
 
 export async function GET(req: NextRequest) {
@@ -48,9 +48,14 @@ export async function GET(req: NextRequest) {
     db.from('bouncie_locations').select('*').eq('hotel_id', hotelId),
   ]);
 
-  // Fetch hotel coordinates for ETA. If not set yet, auto-geocode the hotel's
-  // address (staff never enter coordinates) and persist it for next time.
-  let { data: hotel } = await db.from('hotels').select('lat,lng,name,address').eq('id', hotelId).maybeSingle();
+  // Fetch hotel + shuttle destination coordinates.
+  // Auto-geocode either if coordinates are missing (staff never enter them manually).
+  let { data: hotel } = await db
+    .from('hotels')
+    .select('lat,lng,name,address,shuttle_dest_name,shuttle_dest_address,shuttle_dest_lat,shuttle_dest_lng')
+    .eq('id', hotelId)
+    .maybeSingle();
+
   if (hotel && (hotel.lat == null || hotel.lng == null) && hotel.address) {
     const geo = await geocodeAddress(`${hotel.name || ''}, ${hotel.address}`.trim().replace(/^,\s*/, ''))
       || await geocodeAddress(hotel.address);
@@ -60,19 +65,68 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Auto-geocode destination if address is set but coords are missing
+  if (hotel && hotel.shuttle_dest_address && (hotel.shuttle_dest_lat == null || hotel.shuttle_dest_lng == null)) {
+    const query = hotel.shuttle_dest_name
+      ? `${hotel.shuttle_dest_name}, ${hotel.shuttle_dest_address}`
+      : hotel.shuttle_dest_address;
+    const geo = await geocodeAddress(query) || await geocodeAddress(hotel.shuttle_dest_address);
+    if (geo) {
+      await db.from('hotels').update({ shuttle_dest_lat: geo.lat, shuttle_dest_lng: geo.lng }).eq('id', hotelId);
+      hotel = { ...hotel, shuttle_dest_lat: geo.lat, shuttle_dest_lng: geo.lng };
+    }
+  }
+
+  const hotelCoords = hotel?.lat != null && hotel?.lng != null
+    ? { lat: Number(hotel.lat), lng: Number(hotel.lng) }
+    : null;
+
+  const destCoords = hotel?.shuttle_dest_lat != null && hotel?.shuttle_dest_lng != null
+    ? { lat: Number(hotel.shuttle_dest_lat), lng: Number(hotel.shuttle_dest_lng) }
+    : null;
+
+  const destName = hotel?.shuttle_dest_name || hotel?.shuttle_dest_address || null;
+
   const locationByDevice = new Map((freshLocations || []).map(l => [l.device_id, l]));
   const merged = (freshDevices || []).map(d => {
     const loc = locationByDevice.get(d.device_id);
-    let eta: { distanceMiles: number; etaMinutes: number } | null = null;
-    if (loc && hotel?.lat != null && hotel?.lng != null) {
-      eta = calculateETA(loc.lat, loc.lng, Number(hotel.lat), Number(hotel.lng), loc.speed_mph || 0);
+
+    // ETA to hotel (returning leg)
+    let etaToHotel: { distanceMiles: number; etaMinutes: number } | null = null;
+    if (loc && hotelCoords) {
+      etaToHotel = calculateETA(loc.lat, loc.lng, hotelCoords.lat, hotelCoords.lng, loc.speed_mph || 0);
     }
+
+    // ETA to destination (outbound leg)
+    let etaToDest: { distanceMiles: number; etaMinutes: number } | null = null;
+    if (loc && destCoords) {
+      etaToDest = calculateETA(loc.lat, loc.lng, destCoords.lat, destCoords.lng, loc.speed_mph || 0);
+    }
+
+    // Direction detection
+    let shuttleDirection: string | null = null;
+    if (loc && hotelCoords && destCoords) {
+      shuttleDirection = detectShuttleDirection(loc.lat, loc.lng, hotelCoords.lat, hotelCoords.lng, destCoords.lat, destCoords.lng);
+    }
+
     return {
       ...d,
       bouncie_locations: loc ? [loc] : [],
-      eta,
+      // Legacy single-ETA field = ETA to hotel (used by older UI paths)
+      eta: etaToHotel,
+      etaToHotel,
+      etaToDest,
+      shuttleDirection,
     };
   });
 
-  return NextResponse.json({ ok: true, connected: true, devices: merged, syncError });
+  return NextResponse.json({
+    ok: true,
+    connected: true,
+    devices: merged,
+    syncError,
+    hotelCoords,
+    destCoords,
+    destName,
+  });
 }
