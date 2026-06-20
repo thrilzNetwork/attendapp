@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { calculateETA, getActiveBouncieToken, listBouncieVehicles } from '@/lib/bouncie';
+import { calculateETA, getActiveBouncieToken, listBouncieVehicles, normalizeBouncieVehicle } from '@/lib/bouncie';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -18,27 +18,27 @@ export async function GET(req: NextRequest) {
   }
 
   // Pull live GPS from Bouncie API and refresh DB locations
+  let syncError: string | null = null;
   try {
     const accessToken = await getActiveBouncieToken(hotelId);
     const liveVehicles = await listBouncieVehicles(accessToken);
-    for (const v of liveVehicles) {
-      if (!v.deviceId) continue;
-      // Upsert device record
+    for (const raw of liveVehicles) {
+      const v = normalizeBouncieVehicle(raw);
+      if (!v) continue;
       await db.from('bouncie_devices').upsert(
-        { hotel_id: hotelId, device_id: v.deviceId, vehicle_name: v.name || '', is_active: true, is_shuttle: true, updated_at: new Date().toISOString() },
+        { hotel_id: hotelId, device_id: v.deviceId, vehicle_name: v.name, is_active: true, is_shuttle: true, updated_at: new Date().toISOString() },
         { onConflict: 'hotel_id,device_id' }
       );
-      // Upsert latest GPS location
-      const gps = v.stats?.gps;
-      if (gps?.lat !== undefined && gps?.lng !== undefined && gps.dt) {
+      if (v.gps) {
         await db.from('bouncie_locations').upsert(
-          { device_id: v.deviceId, hotel_id: hotelId, lat: gps.lat, lng: gps.lng, speed_mph: gps.speed || 0, heading: gps.heading || 0, accuracy: gps.accuracy || 0, recorded_at: gps.dt, received_at: new Date().toISOString() },
+          { device_id: v.deviceId, hotel_id: hotelId, lat: v.gps.lat, lng: v.gps.lng, speed_mph: v.gps.speed, heading: v.gps.heading, accuracy: v.gps.accuracy, recorded_at: v.gps.recordedAt, received_at: new Date().toISOString() },
           { onConflict: 'device_id' }
         );
       }
     }
   } catch (err) {
-    console.error('Bouncie live vehicle fetch failed (non-fatal):', err);
+    syncError = err instanceof Error ? err.message : String(err);
+    console.error('Bouncie live vehicle fetch failed:', syncError);
   }
 
   // Re-fetch devices + locations after live sync
@@ -64,5 +64,5 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ ok: true, connected: true, devices: merged });
+  return NextResponse.json({ ok: true, connected: true, devices: merged, syncError });
 }

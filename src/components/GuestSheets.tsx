@@ -489,20 +489,20 @@ export function TransportBooker({
   // Screen: mode selection
   if (screen === 'mode') return (
     <div className="space-y-3">
-      <p className="text-[13px] text-gray-500 text-center">How would you like to travel?</p>
+      <p className="text-sm text-gray-500 text-center">How would you like to travel?</p>
       <button
         onClick={() => setScreen('address')}
-        className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left"
+        className="w-full bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left"
       >
-        <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-          <Bus size={22} className="text-emerald-600" />
+        <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+          <Bus size={26} className="text-emerald-600" />
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-[15px] font-bold text-gray-900">Hotel Transportation</span>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">FREE</span>
+            <span className="text-base font-bold text-gray-900">Hotel Transportation</span>
+            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">FREE</span>
           </div>
-          <p className="text-[12px] text-gray-400 mt-0.5">Our team confirms availability</p>
+          <p className="text-[13px] text-gray-400 mt-1">Our team confirms availability</p>
         </div>
       </button>
       {thirdParty && (
@@ -511,21 +511,21 @@ export function TransportBooker({
             href={thirdParty.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left block"
+            className="w-full bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left block"
           >
-            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-              <ExternalLink size={22} className="text-blue-600" />
+            <div className="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+              <ExternalLink size={26} className="text-blue-600" />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-[15px] font-bold text-gray-900">{thirdParty.name}</span>
-                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">External</span>
+                <span className="text-base font-bold text-gray-900">{thirdParty.name}</span>
+                <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">External</span>
               </div>
-              <p className="text-[12px] text-gray-400 mt-0.5">{thirdParty.description || 'Third-party transport partner'}</p>
+              <p className="text-[13px] text-gray-400 mt-1">{thirdParty.description || 'Third-party transport partner'}</p>
             </div>
-            <ExternalLink size={14} className="text-gray-300 shrink-0" />
+            <ExternalLink size={16} className="text-gray-300 shrink-0" />
           </a>
-          <p className="text-[10px] text-gray-400 text-center px-4">
+          <p className="text-[11px] text-gray-400 text-center px-4">
             ⚠️ {thirdParty.name} is an independent company — booking is managed outside Attenda and subject to their own terms.
           </p>
         </div>
@@ -537,86 +537,86 @@ export function TransportBooker({
   if (screen === 'address') return (
     <div className="space-y-3">
       {!skipModeScreen && (
-        <button onClick={() => setScreen('mode')} className="text-[12px] font-semibold flex items-center gap-1" style={{ color: brandColor }}>
+        <button onClick={() => setScreen('mode')} className="text-sm font-semibold flex items-center gap-1" style={{ color: brandColor }}>
           ← Back
         </button>
       )}
 
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-4">
-        {/* FROM field */}
-        <div className="relative">
-          <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin size={10} className="text-emerald-500" /> From</label>
-          <input
-            value={fromText}
-            onChange={e => { setFromText(e.target.value); setFromTouched(true); setFromPlace(null); }}
-            placeholder="Pickup address"
-            className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none text-gray-800"
-          />
-          {fromLoading && (
-            <div className="absolute right-3 top-8">
-              <span className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin inline-block" />
-            </div>
-          )}
-          {fromSuggestions.length > 0 && !fromPlace && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-20 overflow-hidden">
-              {fromSuggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => { setFromPlace(s); setFromText(s.short_name); setFromSuggestions([]); }}
-                  className="w-full px-4 py-3 text-left border-b border-gray-50 last:border-0 active:bg-gray-50 hover:bg-gray-50"
-                >
-                  <p className="text-[13px] font-semibold text-gray-900">{s.short_name}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">{s.display_name}</p>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Divider */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-px bg-gray-100" />
-          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
-            <MapPin size={10} className="text-red-400" />
+      {/* FROM card */}
+      <div className="bg-white rounded-2xl px-4 py-4 shadow-sm border border-gray-100 relative">
+        <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded-full bg-emerald-500" /> From
+        </label>
+        <input
+          value={fromText}
+          onChange={e => { setFromText(e.target.value); setFromTouched(true); setFromPlace(null); }}
+          placeholder="Pickup address"
+          className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none text-gray-800 focus:border-gray-400 transition-colors"
+        />
+        {fromLoading && (
+          <div className="absolute right-5 bottom-5">
+            <span className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin inline-block" />
           </div>
-          <div className="flex-1 h-px bg-gray-100" />
-        </div>
+        )}
+        {fromSuggestions.length > 0 && !fromPlace && (
+          <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-20 overflow-hidden">
+            {fromSuggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => { setFromPlace(s); setFromText(s.short_name); setFromSuggestions([]); }}
+                className="w-full px-4 py-3.5 text-left border-b border-gray-50 last:border-0 active:bg-gray-50 hover:bg-gray-50"
+              >
+                <p className="text-sm font-semibold text-gray-900">{s.short_name}</p>
+                <p className="text-[12px] text-gray-400 mt-0.5 truncate">{s.display_name}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
-        {/* TO field */}
-        <div className="relative">
-          <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin size={10} className="text-red-400" /> To</label>
-          <input
-            value={toText}
-            onChange={e => { setToText(e.target.value); setToPlace(null); }}
-            placeholder="Where are you going?"
-            className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none text-gray-800"
-          />
-          {toLoading && (
-            <div className="absolute right-3 top-8">
-              <span className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin inline-block" />
-            </div>
-          )}
-          {toSuggestions.length > 0 && !toPlace && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-10 overflow-hidden">
-              {toSuggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => { setToPlace(s); setToText(s.short_name); setToSuggestions([]); }}
-                  className="w-full px-4 py-3 text-left border-b border-gray-50 last:border-0 active:bg-gray-50 hover:bg-gray-50"
-                >
-                  <p className="text-[13px] font-semibold text-gray-900">{s.short_name}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">{s.display_name}</p>
-                </button>
-              ))}
-            </div>
-          )}
+      {/* Arrow connector */}
+      <div className="flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center">
+          <MapPin size={14} className="text-red-400" />
         </div>
+      </div>
+
+      {/* TO card */}
+      <div className="bg-white rounded-2xl px-4 py-4 shadow-sm border border-gray-100 relative">
+        <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded-full bg-red-400" /> To
+        </label>
+        <input
+          value={toText}
+          onChange={e => { setToText(e.target.value); setToPlace(null); }}
+          placeholder="Where are you going?"
+          className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none text-gray-800 focus:border-gray-400 transition-colors"
+        />
+        {toLoading && (
+          <div className="absolute right-5 bottom-5">
+            <span className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin inline-block" />
+          </div>
+        )}
+        {toSuggestions.length > 0 && !toPlace && (
+          <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-10 overflow-hidden">
+            {toSuggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => { setToPlace(s); setToText(s.short_name); setToSuggestions([]); }}
+                className="w-full px-4 py-3.5 text-left border-b border-gray-50 last:border-0 active:bg-gray-50 hover:bg-gray-50"
+              >
+                <p className="text-sm font-semibold text-gray-900">{s.short_name}</p>
+                <p className="text-[12px] text-gray-400 mt-0.5 truncate">{s.display_name}</p>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {(toPlace || toText.length > 3) && fromText.length > 3 && (
         <button
           onClick={() => setScreen('confirm')}
-          className="w-full py-3.5 rounded-xl text-white font-bold text-[14px]"
+          className="w-full py-4 rounded-xl text-white font-bold text-[15px]"
           style={{ backgroundColor: brandColor }}
         >
           Continue →
@@ -628,63 +628,69 @@ export function TransportBooker({
   // Screen: confirm booking
   if (screen === 'confirm') return (
     <div className="space-y-3">
-      <button onClick={() => setScreen('address')} className="text-[12px] font-semibold flex items-center gap-1" style={{ color: brandColor }}>
+      <button onClick={() => setScreen('address')} className="text-sm font-semibold flex items-center gap-1" style={{ color: brandColor }}>
         ← Back
       </button>
 
       {/* Route card */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
         <div className="flex items-start gap-3">
           <div className="flex flex-col items-center gap-1 pt-0.5">
-            <MapPin size={14} className="text-emerald-500" />
-            <div className="w-0.5 h-5 bg-gray-200" />
-            <MapPin size={14} className="text-red-500" />
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <div className="w-0.5 h-6 bg-gray-200" />
+            <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
           </div>
-          <div className="flex-1 space-y-2">
-            <p className="text-[12px] font-semibold text-gray-800">{fromPlace?.short_name || fromText}</p>
-            <p className="text-[12px] font-semibold text-gray-800">{toPlace?.short_name || toText}</p>
+          <div className="flex-1 space-y-3">
+            <div>
+              <p className="text-[11px] font-bold text-gray-400 uppercase mb-0.5">From</p>
+              <p className="text-sm font-semibold text-gray-800">{fromPlace?.short_name || fromText}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-gray-400 uppercase mb-0.5">To</p>
+              <p className="text-sm font-semibold text-gray-800">{toPlace?.short_name || toText}</p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Service row */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bus size={16} className="text-emerald-600" />
-            <span className="text-[13px] font-bold text-gray-800">Hotel Transportation</span>
-          </div>
-          <span className="text-[13px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Staff arranges</span>
+      <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shrink-0">
+          <Bus size={18} className="text-emerald-600" />
         </div>
-        <p className="text-[11px] text-gray-400 mt-2">Our team will confirm your ride and reach out with details.</p>
+        <div className="flex-1">
+          <p className="text-sm font-bold text-gray-800">Hotel Transportation</p>
+          <p className="text-[12px] text-gray-500">Our team will confirm and reach out with details.</p>
+        </div>
+        <span className="text-[12px] font-bold text-emerald-700 bg-white px-2.5 py-1 rounded-full shrink-0">FREE</span>
       </div>
 
       {/* Guest details */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
-        <div className="flex gap-2">
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+        <div className="flex gap-3">
           <div className="flex-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Name</label>
-            <input value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="Your name" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+            <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 block">Name</label>
+            <input value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="Your name" className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors" />
           </div>
           <div className="w-24">
-            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Room</label>
-            <input value={room} onChange={e => setRoom(e.target.value)} placeholder="201" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+            <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 block">Room</label>
+            <input value={room} onChange={e => setRoom(e.target.value)} placeholder="201" className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors" />
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <label className="text-[12px] font-bold text-gray-600">Party size</label>
-          <div className="flex items-center gap-2 ml-auto">
-            <button onClick={() => setPax(Math.max(1, pax - 1))} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-bold text-[16px]">−</button>
-            <span className="w-6 text-center text-[14px] font-bold">{pax}</span>
-            <button onClick={() => setPax(Math.min(20, pax + 1))} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-bold text-[16px]">+</button>
+          <label className="text-sm font-bold text-gray-600">Party size</label>
+          <div className="flex items-center gap-3 ml-auto">
+            <button onClick={() => setPax(Math.max(1, pax - 1))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-bold text-lg">−</button>
+            <span className="w-6 text-center text-base font-bold">{pax}</span>
+            <button onClick={() => setPax(Math.min(20, pax + 1))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-bold text-lg">+</button>
           </div>
         </div>
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes — flight number, special needs, etc." className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none resize-none h-14" />
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes — flight number, special needs, etc." className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none resize-none h-16 focus:border-gray-400 transition-colors" />
       </div>
 
-      {error && <p className="text-[12px] text-red-600 bg-red-50 rounded-xl px-4 py-2.5 text-center">{error}</p>}
+      {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 text-center">{error}</p>}
 
-      <button onClick={handleBook} disabled={submitting} className="w-full py-3.5 rounded-xl text-white font-bold text-[14px] flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundColor: brandColor }}>
+      <button onClick={handleBook} disabled={submitting} className="w-full py-4 rounded-xl text-white font-bold text-[15px] flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundColor: brandColor }}>
         {submitting ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting…</> : 'Submit Request'}
       </button>
     </div>
@@ -692,14 +698,16 @@ export function TransportBooker({
 
   // Screen: done
   return (
-    <div className="bg-gray-50 rounded-2xl p-6 text-center space-y-3">
-      <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-        <CheckCircle size={24} className="text-green-600" />
+    <div className="bg-gray-50 rounded-2xl p-8 text-center space-y-4">
+      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+        <CheckCircle size={28} className="text-green-600" />
       </div>
-      <h2 className="text-[17px] font-extrabold text-black">Request submitted!</h2>
-      <p className="text-[13px] text-gray-500">Our team will confirm your transportation and reach out with details. Contact the front desk for immediate assistance.</p>
+      <div>
+        <h2 className="text-lg font-extrabold text-black">Request submitted!</h2>
+        <p className="text-sm text-gray-500 mt-2">Our team will confirm your transportation and reach out with details. Contact the front desk for immediate assistance.</p>
+      </div>
       <button onClick={() => { setScreen(skipModeScreen ? 'address' : 'mode'); setToText(''); setToPlace(null); setFromPlace(null); setFromTouched(false); setFromText(defaultFromText); setError(''); }}
-        className="text-[13px] font-semibold" style={{ color: brandColor }}>
+        className="text-sm font-semibold" style={{ color: brandColor }}>
         New Request
       </button>
     </div>

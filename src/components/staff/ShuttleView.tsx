@@ -523,7 +523,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
       <button onClick={() => { resetDispatch(); setShowDispatch(true); }}
         className="w-full mb-5 py-3.5 rounded-2xl text-white font-bold text-[14px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
         style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.35)' }}>
-        <Plus size={17} strokeWidth={2.5} /> New Pickup
+        <Plus size={17} strokeWidth={2.5} /> New Trip
       </button>
 
       {/* Tab bar */}
@@ -890,69 +890,71 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
       {/* ── Dispatch Bottom Sheet ── */}
       {showDispatch && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <div className="bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white py-3 px-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-[15px] font-extrabold text-gray-900">New Pickup</h2>
+          <div className="bg-white rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto w-full max-w-lg mx-auto">
+            <div className="sticky top-0 bg-white pt-4 pb-3 px-5 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-lg font-extrabold text-gray-900">New Trip</h2>
               <button onClick={() => { setShowDispatch(false); resetDispatch(); }}
-                className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400">
-                <X size={16} />
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 text-gray-500">
+                <X size={18} />
               </button>
             </div>
 
             {dispatchDone ? (
               <div className="p-8 text-center">
-                <CheckCircle size={48} className="mx-auto mb-3" style={{ color: TEAL }} />
-                <p className="text-[17px] font-bold text-gray-900 mb-1">Pickup logged!</p>
-                <p className="text-[13px] text-gray-500 mb-6">Appears on the timeline above.</p>
+                <div className="w-16 h-16 rounded-full bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle size={32} style={{ color: TEAL }} />
+                </div>
+                <p className="text-lg font-bold text-gray-900 mb-1">Trip logged!</p>
+                <p className="text-sm text-gray-500 mb-6">Appears on the timeline above.</p>
                 <div className="flex gap-3">
                   <button onClick={() => { resetDispatch(); }}
-                    className="flex-1 py-3 rounded-2xl text-white font-bold text-[14px]" style={{ backgroundColor: TEAL }}>
+                    className="flex-1 py-3.5 rounded-2xl text-white font-bold text-[15px]" style={{ backgroundColor: TEAL }}>
                     + Another
                   </button>
                   <button onClick={() => { setShowDispatch(false); resetDispatch(); }}
-                    className="flex-1 py-3 rounded-2xl bg-gray-100 font-bold text-[14px] text-gray-700">
+                    className="flex-1 py-3.5 rounded-2xl bg-gray-100 font-bold text-[15px] text-gray-700">
                     Done
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="px-4 py-2 space-y-2.5">
+              <div className="px-5 py-4 space-y-4">
                 {/* Trip type toggle */}
-                <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg">
+                <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
                   {(['arrival', 'departure'] as const).map(t => (
                     <button key={t} onClick={() => { setDispatchType(t); setDispatchForm(f => ({ ...f, pickup_location: '', destination: '' })); }}
-                      className={`flex-1 py-1.5 rounded-md text-[12px] font-bold transition-all ${dispatchType === t ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
+                      className={`flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all ${dispatchType === t ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
                       {t === 'arrival' ? '✈️ Arrival → Hotel' : '🚗 Hotel → Out'}
                     </button>
                   ))}
                 </div>
 
                 {/* Guest + Room + Pax in one row */}
-                <div className="flex gap-1.5">
+                <div className="flex gap-2">
                   <input value={dispatchForm.guest_name} onChange={e => setDispatchForm(f => ({ ...f, guest_name: e.target.value }))}
-                    placeholder="Guest name" className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
+                    placeholder="Guest name" className="flex-1 bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
                   <input value={dispatchForm.room_number} onChange={e => setDispatchForm(f => ({ ...f, room_number: e.target.value }))}
-                    placeholder="Rm" className="w-14 bg-gray-50 rounded-lg px-2 py-2 text-[13px] border border-gray-100 text-center focus:outline-none focus:border-teal-300" />
-                  <div className="flex items-center gap-0.5 bg-gray-50 border border-gray-100 rounded-lg px-1.5">
+                    placeholder="Rm" className="w-16 bg-gray-50 rounded-xl px-2 py-3 text-sm border border-gray-200 text-center focus:outline-none focus:border-teal-400 transition-colors" />
+                  <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-2">
                     <button onClick={() => setDispatchForm(f => ({ ...f, pax: Math.max(1, f.pax - 1) }))}
-                      className="w-5 h-5 rounded text-gray-500 text-[14px] font-bold flex items-center justify-center hover:bg-gray-200">−</button>
-                    <span className="text-[12px] font-bold text-gray-900 w-4 text-center">{dispatchForm.pax}</span>
+                      className="w-7 h-7 rounded-lg text-gray-500 text-lg font-bold flex items-center justify-center hover:bg-gray-200">−</button>
+                    <span className="text-sm font-bold text-gray-900 w-5 text-center">{dispatchForm.pax}</span>
                     <button onClick={() => setDispatchForm(f => ({ ...f, pax: f.pax + 1 }))}
-                      className="w-5 h-5 rounded text-white text-[14px] font-bold flex items-center justify-center" style={{ backgroundColor: TEAL }}>+</button>
+                      className="w-7 h-7 rounded-lg text-white text-lg font-bold flex items-center justify-center" style={{ backgroundColor: TEAL }}>+</button>
                   </div>
                 </div>
 
-                {/* Pickup location chips */}
+                {/* Pickup / dropoff location chips */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
                     {dispatchType === 'arrival' ? 'Pickup' : 'Dropoff'}
                   </p>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {(dispatchType === 'arrival' ? ARRIVAL_PICKUPS : DEPARTURE_DROPOFFS).map(loc => {
                       const active = dispatchType === 'arrival' ? dispatchForm.pickup_location === loc : dispatchForm.destination === loc;
                       return (
                         <button key={loc} onClick={() => setDispatchForm(f => dispatchType === 'arrival' ? { ...f, pickup_location: loc } : { ...f, destination: loc })}
-                          className={`px-2 py-1 rounded-full text-[11px] font-semibold border transition-all ${active ? 'border-teal-500 bg-teal-500 text-white' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
+                          className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all ${active ? 'border-teal-500 bg-teal-500 text-white' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
                           {loc}
                         </button>
                       );
@@ -961,24 +963,24 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                 </div>
 
                 {/* Time + Notes side by side */}
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <div className="flex-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Time</p>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Time</p>
                     <input type="time" value={dispatchForm.time} onChange={e => setDispatchForm(f => ({ ...f, time: e.target.value }))}
-                      className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
+                      className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Flight / Notes</p>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Flight / Notes</p>
                     <input value={dispatchForm.notes} onChange={e => setDispatchForm(f => ({ ...f, notes: e.target.value }))}
-                      placeholder="AA123, notes…" className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300" />
+                      placeholder="AA123, notes…" className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
                   </div>
                 </div>
 
                 {/* Assign Driver */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Assign Driver</p>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Assign Driver</p>
                   <select value={dispatchForm.driver_id} onChange={e => setDispatchForm(f => ({ ...f, driver_id: e.target.value }))}
-                    className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:border-teal-300">
+                    className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors">
                     <option value="">— No driver assigned —</option>
                     {todayDrivers.length > 0 ? (
                       todayDrivers.map(d => (
@@ -994,9 +996,9 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
 
                 <button onClick={handleDispatchSubmit}
                   disabled={dispatching || !dispatchForm.guest_name.trim() || !dispatchForm.room_number.trim()}
-                  className="w-full py-3 rounded-2xl text-white font-bold text-[14px] disabled:opacity-50 active:scale-[0.98] transition-all"
+                  className="w-full py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 active:scale-[0.98] transition-all"
                   style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
-                  {dispatching ? 'Logging…' : '✅ Log Pickup'}
+                  {dispatching ? 'Logging…' : '✅ Log Trip'}
                 </button>
               </div>
             )}

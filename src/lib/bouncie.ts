@@ -132,13 +132,61 @@ export async function bouncieApiRequest<T>(path: string, accessToken: string, op
   return (await res.json()) as T;
 }
 
+// Raw vehicle shape from Bouncie's GET /v1/vehicles. Field names vary by API
+// version/firmware, so every field is optional and we normalize below.
 export interface BouncieVehicle {
-  deviceId: string;
-  name?: string;
-  vin?: string;
   imei?: string;
-  model?: { year?: number; make?: string; model?: string };
-  stats?: { gps?: { lat?: number; lng?: number; speed?: number; heading?: number; accuracy?: number; dt?: string } };
+  vin?: string;
+  deviceId?: string; // not present in the classic API, kept for forward-compat
+  nickName?: string;
+  name?: string;
+  model?: { year?: number; make?: string; name?: string; model?: string };
+  stats?: {
+    lastUpdated?: string;
+    speed?: number;
+    location?: { lat?: number; lon?: number; lng?: number; heading?: number; address?: string };
+    // older/alternate shape some firmware reports
+    gps?: { lat?: number; lng?: number; lon?: number; speed?: number; heading?: number; accuracy?: number; dt?: string };
+  };
+}
+
+export interface NormalizedVehicle {
+  deviceId: string;
+  name: string;
+  gps: { lat: number; lng: number; speed: number; heading: number; accuracy: number; recordedAt: string } | null;
+}
+
+// Bouncie's /vehicles payload uses `imei` as the identifier, `nickName` for the
+// name, and `stats.location.{lat,lon}` for GPS — NOT `deviceId`/`stats.gps`.
+// Normalize across the known variants so the rest of the app sees one shape.
+export function normalizeBouncieVehicle(v: BouncieVehicle): NormalizedVehicle | null {
+  const deviceId = v.imei || v.vin || v.deviceId;
+  if (!deviceId) return null;
+
+  const name =
+    v.nickName ||
+    v.name ||
+    [v.model?.year, v.model?.make, v.model?.name || v.model?.model].filter(Boolean).join(' ') ||
+    deviceId;
+
+  const loc = v.stats?.location;
+  const alt = v.stats?.gps;
+  const lat = loc?.lat ?? alt?.lat;
+  const lng = loc?.lon ?? loc?.lng ?? alt?.lon ?? alt?.lng;
+
+  let gps: NormalizedVehicle['gps'] = null;
+  if (lat !== undefined && lat !== null && lng !== undefined && lng !== null) {
+    gps = {
+      lat,
+      lng,
+      speed: v.stats?.speed ?? alt?.speed ?? 0,
+      heading: loc?.heading ?? alt?.heading ?? 0,
+      accuracy: alt?.accuracy ?? 0,
+      recordedAt: v.stats?.lastUpdated ?? alt?.dt ?? new Date().toISOString(),
+    };
+  }
+
+  return { deviceId, name, gps };
 }
 
 export async function listBouncieVehicles(accessToken: string): Promise<BouncieVehicle[]> {
