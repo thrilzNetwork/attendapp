@@ -98,6 +98,7 @@ export default function ShuttleMap({ shuttleLat, shuttleLng, hotelLat, hotelLng,
     if (!mapRef.current) return;
     import('leaflet').then(L => {
       // Find and remove old shuttle layer, re-add updated one
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mapRef.current.eachLayer((layer: any) => {
         if (layer._popup && layer._popup.getContent() === '🚐 Shuttle') {
           mapRef.current.removeLayer(layer);
