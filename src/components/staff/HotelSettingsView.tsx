@@ -5,19 +5,17 @@ import { useState } from 'react';
 import {
   Settings, Wifi, ImageIcon, ExternalLink, CalendarDays, DollarSign,
   Bell, ShieldCheck, Bus, UtensilsCrossed, MapPin, Plus, Trash2,
-  Save, Upload, Hotel as HotelIcon, type LucideIcon,
+  Save, Upload, Hotel as HotelIcon, ChevronLeft, type LucideIcon,
+  Star, MessageSquare, Phone,
 } from 'lucide-react';
 import { HotelConfig, PositionBudget, updateHotelConfig } from '@/lib/supabase';
 
-/* ── Constants ─────────────────────────────────────────── */
 const TEAL = '#0D9488';
 
-/* ── Shared UI Helpers ──────────────────────────────────── */
-function Section({ title, Icon, children }: {
-  title: string;
-  Icon: LucideIcon;
-  children: React.ReactNode;
-}) {
+type TileKey = 'WELCOME' | 'TRANSPORT' | 'FACILITIES' | 'MESSAGE' | 'NEARBY' | 'FOOD' | 'REVIEW';
+
+/* ── Shared helpers ─────────────────────────────────────── */
+function Section({ title, Icon, children }: { title: string; Icon: LucideIcon; children: React.ReactNode }) {
   return (
     <div className="bg-white rounded-2xl p-5 border border-gray-100">
       <div className="flex items-center gap-2 mb-4">
@@ -29,368 +27,690 @@ function Section({ title, Icon, children }: {
   );
 }
 
-function Field({ label, value, onChange, placeholder }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
+function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <div>
       <label className="text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider">{label}</label>
-      <input
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none"
-      />
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none" />
     </div>
   );
 }
 
-/* ── Tile Editor Panels ─────────────────────────────────── */
-type TileKey = 'WELCOME' | 'TRANSPORT' | 'FACILITIES' | 'MESSAGE' | 'NEARBY' | 'FOOD' | 'REVIEW';
+const lbl = 'text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider';
+const inp = 'w-full bg-gray-50 rounded-xl px-3.5 py-2.5 text-[13px] border border-gray-100 focus:outline-none';
 
-function EditorPanel({ tile, form, setForm, handleSave, onClose }: {
-  tile: TileKey;
-  form: HotelConfig;
-  setForm: (f: HotelConfig) => void;
-  handleSave: () => void;
-  onClose: () => void;
-}) {
-  const labelCls = 'text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider';
-  const inputCls = 'w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none';
-  const smInputCls = 'w-full bg-gray-50 rounded-xl px-3 py-2 text-[12px] border border-gray-100 focus:outline-none';
-
-  let content: React.ReactNode = null;
-
-  if (tile === 'WELCOME') {
-    content = (
-      <div className="space-y-4">
-        <div>
-          <label className={labelCls}>Welcome Letter</label>
-          <textarea value={form.welcomeLetter} onChange={e => setForm({ ...form, welcomeLetter: e.target.value })} rows={5}
-            className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none" placeholder="Dear Guest, welcome to our hotel..." />
-        </div>
-        <div>
-          <label className={labelCls}>Team Photo URL</label>
-          <input value={form.teamPhotoUrl} onChange={e => setForm({ ...form, teamPhotoUrl: e.target.value })}
-            placeholder="https://..." className={inputCls} />
-          {form.teamPhotoUrl && (
-            <img src={form.teamPhotoUrl} alt="Team" className="mt-2 rounded-xl w-full max-h-32 object-cover border border-gray-100" />
-          )}
-        </div>
-        <div>
-          <label className={labelCls}>Wi-Fi Name</label>
-          <input value={form.wifiName} onChange={e => setForm({ ...form, wifiName: e.target.value })} className={inputCls} />
-        </div>
-        <div>
-          <label className={labelCls}>Wi-Fi Password</label>
-          <input value={form.wifiPassword} onChange={e => setForm({ ...form, wifiPassword: e.target.value })} className={inputCls} />
-        </div>
-        <div>
-          <label className={labelCls}>Brand Color</label>
-          <div className="flex items-center gap-3">
-            <input type="color" value={form.brandColor || '#6B1D3C'} onChange={e => setForm({ ...form, brandColor: e.target.value })}
-              className="w-10 h-10 rounded-xl cursor-pointer border border-gray-200 p-0.5" />
-            <input type="text" value={form.brandColor || '#6B1D3C'} onChange={e => {
-              const val = e.target.value;
-              if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) setForm({ ...form, brandColor: val });
-            }} maxLength={7} className="flex-1 bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 font-mono focus:outline-none" placeholder="#6B1D3C" />
-          </div>
-        </div>
-      </div>
-    );
-  } else if (tile === 'TRANSPORT') {
-    content = (
-      <div className="space-y-4">
-        <div>
-          <label className={labelCls}>Shuttle Pickup Location</label>
-          <input value={form.shuttlePickupLocation || ''} onChange={e => setForm({ ...form, shuttlePickupLocation: e.target.value })} placeholder="e.g. Main entrance lobby" className={inputCls} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelCls}>Shuttle Start Time</label>
-            <input value={form.shuttleStartTime || ''} onChange={e => setForm({ ...form, shuttleStartTime: e.target.value })} placeholder="e.g. 06:00" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Shuttle End Time</label>
-            <input value={form.shuttleEndTime || ''} onChange={e => setForm({ ...form, shuttleEndTime: e.target.value })} placeholder="e.g. 22:00" className={inputCls} />
-          </div>
-        </div>
-        <div className="border-t border-gray-100 pt-4 space-y-3">
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Third-Party Transport Partner</p>
-          <div>
-            <label className={labelCls}>Company Name</label>
-            <input value={form.transportContent?.third_party_name || ''} onChange={e => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_name: e.target.value } })} placeholder="e.g. CruisePort Transportation" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Booking URL</label>
-            <input value={form.transportContent?.third_party_url || ''} onChange={e => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_url: e.target.value } })} placeholder="https://example.com/book" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Description</label>
-            <input value={form.transportContent?.third_party_description || ''} onChange={e => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_description: e.target.value } })} placeholder="e.g. Scheduled airport & cruise port transfers" className={inputCls} />
-          </div>
-        </div>
-      </div>
-    );
-  } else if (tile === 'FACILITIES') {
-    content = (
-      <div className="space-y-4">
-        <p className="text-[11px] text-gray-400">Amenities guests see on the Facilities screen.</p>
-        <div className="space-y-3">
-          {(form.facilitiesContent || []).map((amenity, idx) => (
-            <div key={idx} className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Item {idx + 1}</span>
-                <button onClick={() => {
-                  const updated = (form.facilitiesContent || []).filter((_, i) => i !== idx);
-                  setForm({ ...form, facilitiesContent: updated });
-                }} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
-              </div>
-              <input value={amenity.title} onChange={e => {
-                const updated = [...(form.facilitiesContent || [])];
-                updated[idx] = { ...updated[idx], title: e.target.value };
-                setForm({ ...form, facilitiesContent: updated });
-              }} placeholder="Title (e.g. Complimentary Breakfast)" className={smInputCls} />
-              <textarea value={amenity.description || ''} onChange={e => {
-                const updated = [...(form.facilitiesContent || [])];
-                updated[idx] = { ...updated[idx], description: e.target.value };
-                setForm({ ...form, facilitiesContent: updated });
-              }} rows={2} placeholder="Description" className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none resize-none" />
-            </div>
-          ))}
-          <button onClick={() => setForm({ ...form, facilitiesContent: [...(form.facilitiesContent || []), { icon: 'Coffee', title: '', description: '' }] })}
-            className="flex items-center gap-1.5 text-[12px] font-medium text-teal-600 hover:text-teal-700">
-            <Plus size={14} /> Add Amenity
-          </button>
-        </div>
-        <div className="border-t border-gray-100 pt-4 space-y-3">
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Safety Info</p>
-          <div>
-            <label className={labelCls}>Emergency Message</label>
-            <textarea value={form.safetyContent?.emergency_message || ''} onChange={e => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_message: e.target.value } })}
-              rows={3} className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none" placeholder="Remain calm. Call 911, then notify front desk." />
-          </div>
-          <div>
-            <label className={labelCls}>Closing Message</label>
-            <input value={form.safetyContent?.closing_message || ''} onChange={e => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), closing_message: e.target.value } })}
-              placeholder="Contact front desk anytime for safety concerns." className={inputCls} />
-          </div>
-        </div>
-      </div>
-    );
-  } else if (tile === 'MESSAGE') {
-    content = (
-      <div className="space-y-4">
-        <div>
-          <label className={labelCls}>Front Desk Phone</label>
-          <input value={form.frontDeskPhone} onChange={e => setForm({ ...form, frontDeskPhone: e.target.value })} className={inputCls} />
-        </div>
-        <div>
-          <label className={labelCls}>GM Notes / Welcome Message</label>
-          <textarea value={form.gmNotes} onChange={e => setForm({ ...form, gmNotes: e.target.value })} rows={6}
-            className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none font-mono"
-            placeholder={`Today's priorities:\n• VIP arrivals\n• Staffing notes`} />
-        </div>
-        <div>
-          <label className={labelCls}>Notification Email</label>
-          <input value={form.notificationEmail} onChange={e => setForm({ ...form, notificationEmail: e.target.value })} placeholder="frontdesk@yourhotel.com" className={inputCls} />
-        </div>
-      </div>
-    );
-  } else if (tile === 'FOOD') {
-    content = (
-      <div className="space-y-4">
-        <div>
-          <label className={labelCls}>Intro Text</label>
-          <textarea value={form.foodContent?.intro_text || ''} onChange={e => setForm({ ...form, foodContent: { ...(form.foodContent || {}), intro_text: e.target.value } })} rows={5}
-            className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none" placeholder="Explore local partner restaurants and order delivery right to your room." />
-        </div>
-      </div>
-    );
-  } else if (tile === 'NEARBY') {
-    content = (
-      <div className="space-y-4">
-        <div>
-          <label className={labelCls}>Intro Text</label>
-          <textarea value={form.nearbyIntro?.intro_text || ''} onChange={e => setForm({ ...form, nearbyIntro: { ...(form.nearbyIntro || {}), intro_text: e.target.value } })} rows={5}
-            className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none" placeholder="Discover restaurants, attractions, and services near our hotel." />
-        </div>
-      </div>
-    );
-  } else if (tile === 'REVIEW') {
-    content = (
-      <div className="space-y-4">
-        <div>
-          <label className={labelCls}>Google Review URL</label>
-          <input value={form.googleReviewUrl || ''} onChange={e => setForm({ ...form, googleReviewUrl: e.target.value })} placeholder="https://www.google.com/..." className={inputCls} />
-        </div>
-        <div>
-          <label className={labelCls}>TripAdvisor URL</label>
-          <input value={form.tripadvisorUrl || ''} onChange={e => setForm({ ...form, tripadvisorUrl: e.target.value })} placeholder="https://www.tripadvisor.com/..." className={inputCls} />
-        </div>
-        <div>
-          <label className={labelCls}>Yelp URL</label>
-          <input value={form.yelpUrl || ''} onChange={e => setForm({ ...form, yelpUrl: e.target.value })} placeholder="https://www.yelp.com/..." className={inputCls} />
-        </div>
-        <div className="border-t border-gray-100 pt-4 space-y-3">
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Custom Review Links</p>
-          {(form.customReviewLinks || []).map((link, idx) => (
-            <div key={idx} className="flex items-center gap-2">
-              <input type="text" value={link.label} onChange={e => {
-                const updated = [...(form.customReviewLinks || [])];
-                updated[idx] = { ...updated[idx], label: e.target.value };
-                setForm({ ...form, customReviewLinks: updated });
-              }} className="w-[100px] bg-gray-50 rounded-xl px-2.5 py-2 text-[12px] border border-gray-100 focus:outline-none" placeholder="Label" />
-              <input type="text" value={link.url} onChange={e => {
-                const updated = [...(form.customReviewLinks || [])];
-                updated[idx] = { ...updated[idx], url: e.target.value };
-                setForm({ ...form, customReviewLinks: updated });
-              }} className="flex-1 bg-gray-50 rounded-xl px-2.5 py-2 text-[12px] border border-gray-100 focus:outline-none" placeholder="https://..." />
-              <button onClick={() => {
-                const updated = (form.customReviewLinks || []).filter((_, i) => i !== idx);
-                setForm({ ...form, customReviewLinks: updated });
-              }} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={14} /></button>
-            </div>
-          ))}
-          <button onClick={() => setForm({ ...form, customReviewLinks: [...(form.customReviewLinks || []), { label: '', url: '' }] })}
-            className="flex items-center gap-1.5 text-[12px] font-medium text-teal-600 hover:text-teal-700">
-            <Plus size={14} /> Add Review Link
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const tileLabels: Record<TileKey, string> = {
-    WELCOME: 'Welcome',
-    TRANSPORT: 'Transport',
-    FACILITIES: 'Facilities',
-    MESSAGE: 'Message',
-    NEARBY: 'Nearby',
-    FOOD: 'Food',
-    REVIEW: 'Review',
-  };
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-lg w-72 flex flex-col" style={{ maxHeight: '80vh' }}>
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
-        <h4 className="font-bold text-[13px] text-gray-800">{tileLabels[tile]} Settings</h4>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-[18px] leading-none">×</button>
-      </div>
-      <div className="overflow-y-auto flex-1 p-4">
-        {content}
-      </div>
-      <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
-        <button onClick={handleSave}
-          className="w-full py-2.5 rounded-xl text-white font-semibold text-[13px] flex items-center justify-center gap-2"
-          style={{ backgroundColor: TEAL }}>
-          <Save size={14} /> Save Changes
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ── Guest Home Preview ─────────────────────────────────── */
-function GuestHomePreview({
-  color, hotelName, selectedTile, onTileClick,
-}: {
-  color: string;
-  hotelName: string;
-  selectedTile: TileKey | null;
-  onTileClick: (tile: TileKey) => void;
-}) {
+/* ── Phone preview — home screen ───────────────────────── */
+function PhoneHome({ color, hotelName, onTileClick }: { color: string; hotelName: string; onTileClick: (t: TileKey) => void }) {
   const tiles: { label: TileKey; filled: boolean }[] = [
     { label: 'WELCOME', filled: true },
     { label: 'TRANSPORT', filled: false },
     { label: 'FACILITIES', filled: false },
     { label: 'MESSAGE', filled: false },
   ];
-
-  const ringStyle = (tile: TileKey) =>
-    selectedTile === tile ? { outline: '2.5px solid #0D9488', outlineOffset: '1px' } : {};
-
   return (
-    <div className="relative mx-auto" style={{ width: 200, height: 400 }}>
-      {/* Phone frame */}
-      <div className="absolute inset-0 rounded-[28px] border-[6px] border-gray-800 bg-[#F4F4F5] overflow-hidden shadow-2xl">
-        {/* Status bar */}
-        <div className="bg-white px-3 pt-2 pb-1">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-[9px] font-black text-black leading-none">Hello!</div>
-              <div className="text-[6px] text-gray-400 mt-0.5">What do you need today?</div>
-            </div>
-            <div className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-            </div>
+    <div className="flex flex-col h-full">
+      <div className="bg-white px-3 pt-2 pb-1.5 shrink-0">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-[9px] font-black text-black leading-none">Hello!</div>
+            <div className="text-[6px] text-gray-400 mt-0.5">What do you need today?</div>
+          </div>
+          <div className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center">
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
           </div>
         </div>
-        {/* 2×2 grid */}
-        <div className="grid grid-cols-2 gap-1 p-1.5 h-[160px]">
-          {tiles.map((t) => (
-            <button
-              key={t.label}
-              onClick={() => onTileClick(t.label)}
-              className="rounded-xl flex items-center justify-center text-[6px] font-bold tracking-wider cursor-pointer transition-all"
-              style={{
-                ...(t.filled
-                  ? { backgroundColor: color, color: 'white' }
-                  : { backgroundColor: 'white', color, border: '1px solid #e5e7eb' }),
-                ...ringStyle(t.label),
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        {/* Rewards banner */}
-        <div className="mx-1.5 rounded-xl overflow-hidden" style={{ height: 44, backgroundColor: color, opacity: 0.15 }}>
-          <div className="flex items-end h-full px-2 pb-1">
-            <span className="text-[6px] font-bold" style={{ color }}>BEST WESTERN REWARDS</span>
-          </div>
-        </div>
-        {/* Bottom row */}
-        <div className="flex gap-1 p-1.5 mt-1" style={{ height: 70 }}>
-          <button
-            onClick={() => onTileClick('NEARBY')}
-            className="w-[38%] rounded-xl bg-white border border-gray-200 flex items-center justify-center cursor-pointer transition-all"
-            style={ringStyle('NEARBY')}
-          >
-            <span className="text-[5px] font-bold" style={{ color }}>NEARBY</span>
+      </div>
+      <div className="grid grid-cols-2 gap-1 px-1.5 pb-1" style={{ height: 150 }}>
+        {tiles.map(t => (
+          <button key={t.label} onClick={() => onTileClick(t.label)}
+            className="rounded-xl flex items-center justify-center text-[6px] font-bold tracking-wider hover:opacity-80 transition-opacity cursor-pointer"
+            style={t.filled ? { backgroundColor: color, color: 'white' } : { backgroundColor: 'white', color, border: '1px solid #e5e7eb' }}>
+            {t.label}
           </button>
-          <div className="flex-1 flex flex-col gap-1">
-            <button
-              onClick={() => onTileClick('FOOD')}
-              className="flex-1 rounded-xl flex items-center justify-center cursor-pointer transition-all"
-              style={{ backgroundColor: color, ...ringStyle('FOOD') }}
-            >
-              <span className="text-[5px] font-bold text-white">FOOD</span>
-            </button>
-            <button
-              onClick={() => onTileClick('REVIEW')}
-              className="flex-1 rounded-xl bg-white border border-gray-200 flex items-center justify-center cursor-pointer transition-all"
-              style={ringStyle('REVIEW')}
-            >
-              <span className="text-[5px] font-bold" style={{ color }}>REVIEW</span>
-            </button>
-          </div>
+        ))}
+      </div>
+      <div className="mx-1.5 rounded-xl shrink-0" style={{ height: 40, backgroundColor: color, opacity: 0.15 }}>
+        <div className="flex items-end h-full px-2 pb-1">
+          <span className="text-[6px] font-bold" style={{ color }}>REWARDS</span>
         </div>
-        {/* Hotel name chip */}
-        <div className="absolute bottom-2 left-0 right-0 flex justify-center">
-          <div className="px-2 py-0.5 rounded-full text-white text-[5px] font-bold" style={{ backgroundColor: color }}>
-            {hotelName || 'Your Hotel'}
-          </div>
+      </div>
+      <div className="flex gap-1 px-1.5 pt-1 pb-1" style={{ height: 65 }}>
+        <button onClick={() => onTileClick('NEARBY')}
+          className="w-[38%] rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:opacity-80 cursor-pointer">
+          <span className="text-[5px] font-bold" style={{ color }}>NEARBY</span>
+        </button>
+        <div className="flex-1 flex flex-col gap-1">
+          <button onClick={() => onTileClick('FOOD')}
+            className="flex-1 rounded-xl flex items-center justify-center hover:opacity-80 cursor-pointer" style={{ backgroundColor: color }}>
+            <span className="text-[5px] font-bold text-white">FOOD</span>
+          </button>
+          <button onClick={() => onTileClick('REVIEW')}
+            className="flex-1 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:opacity-80 cursor-pointer">
+            <span className="text-[5px] font-bold" style={{ color }}>REVIEW</span>
+          </button>
+        </div>
+      </div>
+      <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+        <div className="px-2 py-0.5 rounded-full text-white text-[5px] font-bold" style={{ backgroundColor: color }}>
+          {hotelName || 'Your Hotel'}
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Hotel Settings View ────────────────────────────────── */
+/* ── Phone preview — inner screen content ───────────────── */
+function PhoneScreen({ tile, form, color, onBack }: { tile: TileKey; form: HotelConfig; color: string; onBack: () => void }) {
+  const titles: Record<TileKey, string> = {
+    WELCOME: 'Welcome', TRANSPORT: 'Transport', FACILITIES: 'Facilities',
+    MESSAGE: 'Message Us', NEARBY: 'Nearby', FOOD: 'Food & Dining', REVIEW: 'Rate Us',
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Mini header */}
+      <div className="bg-white px-2 py-1.5 flex items-center gap-1.5 border-b border-gray-100 shrink-0">
+        <button onClick={onBack} className="text-gray-400 hover:text-gray-600">
+          <ChevronLeft size={10} />
+        </button>
+        <span className="text-[8px] font-bold text-gray-800">{titles[tile]}</span>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-hidden px-2 py-1.5 space-y-1.5">
+        {tile === 'WELCOME' && (
+          <>
+            <div className="bg-white rounded-lg p-2 border border-gray-100">
+              <p className="text-[6px] text-gray-700 leading-relaxed line-clamp-5">
+                {form.welcomeLetter || 'Your welcome letter will appear here. Add a personal message for guests.'}
+              </p>
+              <div className="mt-1.5 pt-1 border-t border-gray-100">
+                <p className="text-[6px] font-bold" style={{ color }}>{form.managerName || 'Hotel Manager'}</p>
+                <p className="text-[5px] text-gray-400">{form.name}</p>
+              </div>
+            </div>
+            {form.teamPhotoUrl && (
+              <div className="rounded-lg overflow-hidden border border-gray-100">
+                <img src={form.teamPhotoUrl} alt="Team" className="w-full object-cover" style={{ height: 36 }} />
+                <div className="bg-white px-1.5 py-0.5">
+                  <p className="text-[5px] text-gray-500">Your team at {form.name}</p>
+                </div>
+              </div>
+            )}
+            {(form.wifiName) && (
+              <div className="bg-white rounded-lg p-1.5 border border-gray-100 flex items-center gap-1.5">
+                <Wifi size={8} style={{ color }} />
+                <div>
+                  <p className="text-[5px] font-bold text-gray-700">{form.wifiName}</p>
+                  {form.wifiPassword && <p className="text-[5px] text-gray-400">{form.wifiPassword}</p>}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {tile === 'FACILITIES' && (
+          <>
+            {((form.facilitiesContent || []).length > 0 ? form.facilitiesContent! : [
+              { title: 'Complimentary Breakfast', description: '6:30–9:30 AM daily' },
+              { title: 'Pool & Fitness Center', description: 'Open 6 AM – 10 PM' },
+              { title: 'Guest Laundry', description: '2nd floor, coin-operated' },
+            ]).slice(0, 5).map((a, i) => (
+              <div key={i} className="bg-white rounded-lg p-1.5 border border-gray-100 flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}18` }}>
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
+                </div>
+                <div>
+                  <p className="text-[6px] font-semibold text-gray-800">{a.title}</p>
+                  {a.description && <p className="text-[5px] text-gray-400 line-clamp-1">{a.description}</p>}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {tile === 'TRANSPORT' && (
+          <>
+            <div className="bg-white rounded-lg p-2 border border-gray-100">
+              <div className="flex items-center gap-1 mb-1">
+                <Bus size={8} style={{ color }} />
+                <p className="text-[7px] font-bold text-gray-800">Hotel Shuttle</p>
+              </div>
+              <p className="text-[6px] text-gray-500">
+                📍 {form.shuttlePickupLocation || 'Hotel Lobby'}
+              </p>
+              {(form.shuttleStartTime || form.shuttleEndTime) && (
+                <p className="text-[6px] text-gray-500 mt-0.5">
+                  🕐 {form.shuttleStartTime?.slice(0,5) || '--'} – {form.shuttleEndTime?.slice(0,5) || '--'}
+                </p>
+              )}
+            </div>
+            {form.transportContent?.third_party_name && (
+              <div className="bg-white rounded-lg p-2 border border-gray-100">
+                <p className="text-[7px] font-bold text-gray-800">{form.transportContent.third_party_name}</p>
+                {form.transportContent.third_party_description && (
+                  <p className="text-[6px] text-gray-400 mt-0.5">{form.transportContent.third_party_description}</p>
+                )}
+                <div className="mt-1 px-1.5 py-0.5 rounded-full text-white text-[5px] font-bold inline-block" style={{ backgroundColor: color }}>
+                  Book Now
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {tile === 'MESSAGE' && (
+          <>
+            <div className="bg-white rounded-lg p-2 border border-gray-100 space-y-1">
+              <div className="flex items-center gap-1">
+                <Phone size={7} style={{ color }} />
+                <p className="text-[6px] font-bold text-gray-700">Front Desk</p>
+              </div>
+              <p className="text-[7px] font-mono font-bold" style={{ color }}>{form.frontDeskPhone || '(000) 000-0000'}</p>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-gray-100">
+              <div className="flex items-center gap-1 mb-1">
+                <MessageSquare size={7} style={{ color }} />
+                <p className="text-[6px] font-bold text-gray-700">Send a Message</p>
+              </div>
+              <div className="bg-gray-50 rounded px-1.5 py-1">
+                <p className="text-[5px] text-gray-300">Type your message...</p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {tile === 'FOOD' && (
+          <div className="bg-white rounded-lg p-2 border border-gray-100">
+            <p className="text-[7px] font-bold text-gray-800 mb-1">Food & Dining</p>
+            <p className="text-[6px] text-gray-500 leading-relaxed">
+              {form.foodContent?.intro_text || 'Explore local partner restaurants and order delivery.'}
+            </p>
+            <div className="mt-2 space-y-1">
+              {[1,2,3].map(i => (
+                <div key={i} className="flex items-center gap-1.5 bg-gray-50 rounded px-1.5 py-1">
+                  <div className="w-5 h-5 rounded bg-gray-200" />
+                  <div><div className="h-1 bg-gray-200 rounded w-10 mb-0.5" /><div className="h-1 bg-gray-100 rounded w-6" /></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tile === 'NEARBY' && (
+          <div className="space-y-1">
+            <div className="bg-white rounded-lg p-2 border border-gray-100">
+              <p className="text-[7px] font-bold text-gray-800 mb-0.5">Nearby</p>
+              <p className="text-[6px] text-gray-500">
+                {form.nearbyIntro?.intro_text || 'Discover restaurants, attractions near the hotel.'}
+              </p>
+            </div>
+            {[1,2,3].map(i => (
+              <div key={i} className="bg-white rounded-lg px-2 py-1.5 border border-gray-100 flex items-center gap-1.5">
+                <MapPin size={6} style={{ color }} />
+                <div><div className="h-1 bg-gray-200 rounded w-12 mb-0.5" /><div className="h-0.5 bg-gray-100 rounded w-8" /></div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tile === 'REVIEW' && (
+          <div className="bg-white rounded-lg p-3 border border-gray-100 text-center">
+            <p className="text-[8px] font-bold text-gray-800 mb-0.5">How was your stay?</p>
+            <p className="text-[5px] text-gray-400 mb-2">Tap a star to rate</p>
+            <div className="flex justify-center gap-1 mb-2">
+              {[1,2,3,4,5].map(s => <Star key={s} size={10} className="fill-amber-400 text-amber-400" />)}
+            </div>
+            <div className="space-y-1">
+              {[form.googleReviewUrl && 'Google', form.tripadvisorUrl && 'TripAdvisor', form.yelpUrl && 'Yelp'].filter(Boolean).map(name => (
+                <div key={name} className="px-2 py-0.5 rounded-lg border border-gray-200 text-[5px] font-bold text-gray-600">{name}</div>
+              ))}
+              {!form.googleReviewUrl && !form.tripadvisorUrl && !form.yelpUrl && (
+                <p className="text-[5px] text-gray-300">Add review links on the left →</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Content editor per tile (LEFT SIDE when tile selected) */
+function TileEditor({ tile, form, setForm, onBack, onSave, saved }: {
+  tile: TileKey; form: HotelConfig; setForm: (f: HotelConfig) => void;
+  onBack: () => void; onSave: () => void; saved: boolean;
+}) {
+  const titles: Record<TileKey, string> = {
+    WELCOME: 'Welcome Screen', TRANSPORT: 'Transport Screen', FACILITIES: 'Facilities Screen',
+    MESSAGE: 'Message Screen', NEARBY: 'Nearby Screen', FOOD: 'Food & Dining Screen', REVIEW: 'Review Screen',
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-600 transition-colors">
+          <ChevronLeft size={16} /> All Settings
+        </button>
+        <span className="text-gray-300">·</span>
+        <h1 className="text-[18px] font-extrabold text-gray-900">{titles[tile]}</h1>
+      </div>
+
+      {tile === 'WELCOME' && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4">
+          <div>
+            <label className={lbl}>Welcome Letter</label>
+            <p className="text-[11px] text-gray-400 mb-1.5">This is the personal message guests read when they open the app.</p>
+            <textarea value={form.welcomeLetter} onChange={e => setForm({ ...form, welcomeLetter: e.target.value })} rows={6}
+              className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none"
+              placeholder="Dear Guest, welcome to our hotel! We're so glad you're here..." />
+          </div>
+          <div>
+            <label className={lbl}>Team / Property Photo</label>
+            <p className="text-[11px] text-gray-400 mb-1.5">Shown below the welcome letter. Upload a team photo or property image.</p>
+            <div className="flex items-center gap-2">
+              <input value={form.teamPhotoUrl} onChange={e => setForm({ ...form, teamPhotoUrl: e.target.value })}
+                placeholder="https://..." className={inp + ' flex-1'} />
+              <label className="cursor-pointer flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-[12px] font-semibold text-white shrink-0 transition-colors" style={{ backgroundColor: TEAL }}>
+                <Upload size={14} /> Upload
+                <input type="file" accept="image/*" className="hidden" onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = ev => setForm({ ...form, teamPhotoUrl: ev.target?.result as string });
+                  reader.readAsDataURL(file);
+                }} />
+              </label>
+            </div>
+            {form.teamPhotoUrl && (
+              <img src={form.teamPhotoUrl} alt="Preview" className="mt-2 rounded-xl w-full max-h-40 object-cover border border-gray-100" />
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={lbl}>Wi-Fi Network Name</label>
+              <input value={form.wifiName} onChange={e => setForm({ ...form, wifiName: e.target.value })} className={inp} placeholder="Hotel-WiFi" />
+            </div>
+            <div>
+              <label className={lbl}>Wi-Fi Password</label>
+              <input value={form.wifiPassword} onChange={e => setForm({ ...form, wifiPassword: e.target.value })} className={inp} placeholder="password123" />
+            </div>
+          </div>
+          <div>
+            <label className={lbl}>Brand Color</label>
+            <div className="flex items-center gap-3">
+              <input type="color" value={form.brandColor || '#6B1D3C'} onChange={e => setForm({ ...form, brandColor: e.target.value })}
+                className="w-10 h-10 rounded-xl cursor-pointer border border-gray-200 p-0.5" />
+              <input type="text" value={form.brandColor || '#6B1D3C'} onChange={e => {
+                if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) setForm({ ...form, brandColor: e.target.value });
+              }} maxLength={7} className={inp + ' flex-1 font-mono'} placeholder="#6B1D3C" />
+            </div>
+            <div className="flex gap-2 mt-2 flex-wrap">
+              {['#6B1D3C','#0D9488','#1D4ED8','#7C3AED','#B45309','#DC2626','#0F172A'].map(c => (
+                <button key={c} onClick={() => setForm({ ...form, brandColor: c })}
+                  className="w-7 h-7 rounded-lg border-2 transition-transform active:scale-90"
+                  style={{ backgroundColor: c, borderColor: form.brandColor === c ? '#111' : 'transparent' }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tile === 'FACILITIES' && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4">
+          <div>
+            <p className="text-[12px] text-gray-500 mb-3">These amenities appear as cards on the Facilities screen. Add anything guests should know about (pool hours, breakfast, laundry, parking, etc.)</p>
+            <div className="space-y-3">
+              {(form.facilitiesContent || []).map((a, idx) => (
+                <div key={idx} className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Amenity {idx + 1}</span>
+                    <button onClick={() => setForm({ ...form, facilitiesContent: (form.facilitiesContent || []).filter((_, i) => i !== idx) })}
+                      className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                  </div>
+                  <input value={a.title} onChange={e => {
+                    const u = [...(form.facilitiesContent || [])]; u[idx] = { ...u[idx], title: e.target.value };
+                    setForm({ ...form, facilitiesContent: u });
+                  }} placeholder="e.g. Complimentary Breakfast" className="w-full bg-white rounded-xl px-3 py-2 text-[13px] border border-gray-200 focus:outline-none" />
+                  <textarea value={a.description || ''} onChange={e => {
+                    const u = [...(form.facilitiesContent || [])]; u[idx] = { ...u[idx], description: e.target.value };
+                    setForm({ ...form, facilitiesContent: u });
+                  }} rows={2} placeholder="Hours, location, any other details..." className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none resize-none" />
+                </div>
+              ))}
+              <button onClick={() => setForm({ ...form, facilitiesContent: [...(form.facilitiesContent || []), { icon: 'Bell', title: '', description: '' }] })}
+                className="flex items-center gap-1.5 text-[13px] font-semibold text-teal-600 hover:text-teal-700 py-2">
+                <Plus size={15} /> Add Amenity
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tile === 'TRANSPORT' && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4">
+          <div>
+            <label className={lbl}>Shuttle Pickup Location</label>
+            <input value={form.shuttlePickupLocation || ''} onChange={e => setForm({ ...form, shuttlePickupLocation: e.target.value })}
+              placeholder="e.g. Main entrance lobby" className={inp} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={lbl}>Start Time</label>
+              <input type="time" value={form.shuttleStartTime || ''} onChange={e => setForm({ ...form, shuttleStartTime: e.target.value })} className={inp} />
+            </div>
+            <div>
+              <label className={lbl}>End Time</label>
+              <input type="time" value={form.shuttleEndTime || ''} onChange={e => setForm({ ...form, shuttleEndTime: e.target.value })} className={inp} />
+            </div>
+          </div>
+          <div className="border-t border-gray-100 pt-4 space-y-3">
+            <p className="text-[12px] font-bold text-gray-600">Third-Party Transport Partner</p>
+            <p className="text-[11px] text-gray-400">If you work with an external transport company, guests will see their booking link as an option.</p>
+            <div>
+              <label className={lbl}>Company Name</label>
+              <input value={form.transportContent?.third_party_name || ''} onChange={e => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_name: e.target.value } })}
+                placeholder="e.g. CruisePort Transportation" className={inp} />
+            </div>
+            <div>
+              <label className={lbl}>Booking URL</label>
+              <input value={form.transportContent?.third_party_url || ''} onChange={e => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_url: e.target.value } })}
+                placeholder="https://..." className={inp} />
+            </div>
+            <div>
+              <label className={lbl}>Description shown to guests</label>
+              <input value={form.transportContent?.third_party_description || ''} onChange={e => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_description: e.target.value } })}
+                placeholder="e.g. Scheduled airport & cruise port transfers" className={inp} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tile === 'MESSAGE' && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4">
+          <div>
+            <label className={lbl}>Front Desk Phone</label>
+            <p className="text-[11px] text-gray-400 mb-1.5">Shown prominently so guests can call directly.</p>
+            <input value={form.frontDeskPhone} onChange={e => setForm({ ...form, frontDeskPhone: e.target.value })} className={inp} placeholder="(000) 000-0000" />
+          </div>
+          <div>
+            <label className={lbl}>Notification Email</label>
+            <p className="text-[11px] text-gray-400 mb-1.5">Guest messages land in this inbox.</p>
+            <input value={form.notificationEmail} onChange={e => setForm({ ...form, notificationEmail: e.target.value })}
+              placeholder="frontdesk@yourhotel.com" className={inp} />
+          </div>
+        </div>
+      )}
+
+      {tile === 'FOOD' && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4">
+          <div>
+            <label className={lbl}>Intro Message</label>
+            <p className="text-[11px] text-gray-400 mb-1.5">Short intro guests see at the top of the Food screen.</p>
+            <textarea value={form.foodContent?.intro_text || ''} onChange={e => setForm({ ...form, foodContent: { ...(form.foodContent || {}), intro_text: e.target.value } })} rows={4}
+              className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none"
+              placeholder="Explore local partner restaurants and order delivery right to your room." />
+          </div>
+        </div>
+      )}
+
+      {tile === 'NEARBY' && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4">
+          <div>
+            <label className={lbl}>Intro Message</label>
+            <p className="text-[11px] text-gray-400 mb-1.5">Short intro guests see at the top of the Nearby screen.</p>
+            <textarea value={form.nearbyIntro?.intro_text || ''} onChange={e => setForm({ ...form, nearbyIntro: { ...(form.nearbyIntro || {}), intro_text: e.target.value } })} rows={4}
+              className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none"
+              placeholder="Discover restaurants, attractions, and services near our hotel." />
+          </div>
+        </div>
+      )}
+
+      {tile === 'REVIEW' && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4">
+          <p className="text-[12px] text-gray-500">Add your review profile URLs. Guests with 4-5 stars are redirected to these pages.</p>
+          <div>
+            <label className={lbl}>Google Review URL</label>
+            <input value={form.googleReviewUrl || ''} onChange={e => setForm({ ...form, googleReviewUrl: e.target.value })}
+              placeholder="https://www.google.com/maps/place/..." className={inp} />
+          </div>
+          <div>
+            <label className={lbl}>TripAdvisor URL</label>
+            <input value={form.tripadvisorUrl || ''} onChange={e => setForm({ ...form, tripadvisorUrl: e.target.value })}
+              placeholder="https://www.tripadvisor.com/..." className={inp} />
+          </div>
+          <div>
+            <label className={lbl}>Yelp URL</label>
+            <input value={form.yelpUrl || ''} onChange={e => setForm({ ...form, yelpUrl: e.target.value })}
+              placeholder="https://www.yelp.com/biz/..." className={inp} />
+          </div>
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-3">Custom Review Links</p>
+            <div className="space-y-2">
+              {(form.customReviewLinks || []).map((link, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input value={link.label} onChange={e => {
+                    const u = [...(form.customReviewLinks || [])]; u[idx] = { ...u[idx], label: e.target.value };
+                    setForm({ ...form, customReviewLinks: u });
+                  }} className="w-[100px] bg-gray-50 rounded-xl px-2.5 py-2 text-[12px] border border-gray-100 focus:outline-none" placeholder="Label" />
+                  <input value={link.url} onChange={e => {
+                    const u = [...(form.customReviewLinks || [])]; u[idx] = { ...u[idx], url: e.target.value };
+                    setForm({ ...form, customReviewLinks: u });
+                  }} className="flex-1 bg-gray-50 rounded-xl px-2.5 py-2 text-[12px] border border-gray-100 focus:outline-none" placeholder="https://..." />
+                  <button onClick={() => setForm({ ...form, customReviewLinks: (form.customReviewLinks || []).filter((_, i) => i !== idx) })}
+                    className="text-red-400 hover:text-red-600 p-1"><Trash2 size={14} /></button>
+                </div>
+              ))}
+              <button onClick={() => setForm({ ...form, customReviewLinks: [...(form.customReviewLinks || []), { label: '', url: '' }] })}
+                className="flex items-center gap-1.5 text-[13px] font-semibold text-teal-600 hover:text-teal-700 py-1">
+                <Plus size={15} /> Add Review Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {saved && (
+        <div className="bg-emerald-50 text-emerald-600 px-4 py-2.5 rounded-xl text-[13px] font-medium text-center">✅ Saved</div>
+      )}
+      <button onClick={onSave} className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px] flex items-center justify-center gap-2" style={{ backgroundColor: TEAL }}>
+        <Save size={16} /> Save Changes
+      </button>
+    </div>
+  );
+}
+
+/* ── Main settings form ─────────────────────────────────── */
+function SettingsForm({ form, setForm, onSave, saved, saveError, discovering, discoverResult, handleDiscover }: {
+  form: HotelConfig; setForm: (f: HotelConfig) => void; onSave: () => void;
+  saved: boolean; saveError: string; discovering: boolean;
+  discoverResult: { added: number; total: number } | null; handleDiscover: () => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <h1 className="text-[26px] font-extrabold text-gray-900">Property Settings</h1>
+
+      <Section title="Property Identity" Icon={HotelIcon}>
+        <Field label="Property Name" value={form.name} onChange={v => setForm({ ...form, name: v })} />
+        <div>
+          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Property Type</label>
+          <select value={form.propertyType || 'Hotel'} onChange={e => setForm({ ...form, propertyType: e.target.value })}
+            className="w-full bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 focus:outline-none">
+            {['Hotel','Short-Term Rental','Motel','Vacation Rental','Boutique Stay','Other'].map(t => <option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <Field label="Manager Name" value={form.managerName} onChange={v => setForm({ ...form, managerName: v })} />
+        <Field label="Front Desk Phone" value={form.frontDeskPhone} onChange={v => setForm({ ...form, frontDeskPhone: v })} />
+        <Field label="Admin Phone" value={form.adminPhone || ''} onChange={v => setForm({ ...form, adminPhone: v })} placeholder="Admin/owner cell" />
+        <div>
+          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Room Count</label>
+          <input type="number" value={form.roomCount || 0} onChange={e => setForm({ ...form, roomCount: parseInt(e.target.value) || 0 })}
+            className="w-full bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 focus:outline-none" />
+        </div>
+        <Field label="Property Address" value={form.address} onChange={v => setForm({ ...form, address: v })} placeholder="1221 W State Road 84, FL" />
+        {form.address && (
+          <div>
+            <button onClick={handleDiscover} disabled={discovering}
+              className="w-full py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-2 disabled:opacity-60"
+              style={{ backgroundColor: '#7C3AED', color: 'white' }}>
+              {discovering ? 'Discovering...' : 'Auto-Discover Nearby Places'}
+            </button>
+            {discoverResult && <p className="text-[12px] text-emerald-600 font-medium text-center mt-2">Added {discoverResult.added} new places ({discoverResult.total} found)</p>}
+            <p className="text-[11px] text-gray-400 mt-1.5 text-center">Scans restaurants & attractions from OpenStreetMap within 1.5 km</p>
+          </div>
+        )}
+      </Section>
+
+      <Section title="Branding" Icon={Settings}>
+        <div className="flex items-center gap-3 mt-1">
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Brand Color</label>
+          <div className="flex items-center gap-2 flex-1">
+            <input type="color" value={form.brandColor || '#6B1D3C'} onChange={e => setForm({ ...form, brandColor: e.target.value })}
+              className="w-10 h-10 rounded-xl cursor-pointer border border-gray-200 p-0.5" />
+            <input type="text" value={form.brandColor || '#6B1D3C'} onChange={e => { if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) setForm({ ...form, brandColor: e.target.value }); }}
+              maxLength={7} className="flex-1 bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 font-mono focus:outline-none" placeholder="#6B1D3C" />
+          </div>
+        </div>
+        <div className="flex gap-2 mt-2 flex-wrap">
+          {['#6B1D3C','#0D9488','#1D4ED8','#7C3AED','#B45309','#DC2626','#0F172A'].map(c => (
+            <button key={c} onClick={() => setForm({ ...form, brandColor: c })}
+              className="w-7 h-7 rounded-lg border-2 transition-transform active:scale-90"
+              style={{ backgroundColor: c, borderColor: form.brandColor === c ? '#111' : 'transparent' }} />
+          ))}
+        </div>
+        <Field label="Website URL" value={form.websiteUrl} onChange={v => setForm({ ...form, websiteUrl: v })} placeholder="https://yourhotel.com" />
+      </Section>
+
+      <Section title="GM Daily Notes" Icon={CalendarDays}>
+        <p className="text-[11px] text-gray-400 -mt-1">Staff see this on the Dashboard every morning.</p>
+        <textarea value={form.gmNotes} onChange={e => setForm({ ...form, gmNotes: e.target.value })} rows={8}
+          className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none font-mono"
+          placeholder={`Today's priorities:\n• VIP arrivals/checkouts\n• Maintenance issues\n• Staffing notes`} />
+      </Section>
+
+      <Section title="Schedule Settings" Icon={CalendarDays}>
+        <div>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Week starts on</label>
+          <div className="flex gap-2">
+            {['Sunday','Monday'].map(d => (
+              <button key={d} onClick={() => setForm({ ...form, weekStartsOn: d as 'Sunday' | 'Monday' })}
+                className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold border ${(form.weekStartsOn || 'Sunday') === d ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-600'}`}>
+                {d === 'Sunday' ? 'Sunday → Saturday' : 'Monday → Sunday'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Position Budgets" Icon={DollarSign}>
+        <p className="text-[11px] text-gray-400 -mt-1">Labor budgets per position for the KPI model.</p>
+        <div className="space-y-4 mt-3">
+          {[
+            { key: 'front_desk', label: 'Front Desk' },
+            { key: 'housekeeping', label: 'Housekeeping' },
+            { key: 'maintenance', label: 'Maintenance' },
+            { key: 'security', label: 'Security' },
+            { key: 'drivers', label: 'Drivers' },
+            { key: 'management', label: 'Management' },
+          ].map(dept => {
+            const budget = (form.positionBudgets || []).find(b => b.department === dept.key) || { department: dept.key, label: dept.label, weeklyBudgetHours: 0, modelType: 'hours_per_room' as const, hoursPerOccupiedRoom: 0, shiftsPerDay: 0, hoursPerShift: 0, fixedWeeklyHours: 0, checkoutMinutes: 0, stayoverMinutes: 0 } as PositionBudget;
+            const updateBudget = (partial: Partial<typeof budget>) => {
+              const existing = form.positionBudgets || [];
+              const idx = existing.findIndex(b => b.department === dept.key);
+              const updated = { ...budget, ...partial };
+              if (idx >= 0) { const copy = [...existing]; copy[idx] = updated; setForm({ ...form, positionBudgets: copy }); }
+              else setForm({ ...form, positionBudgets: [...existing, updated] });
+            };
+            return (
+              <div key={dept.key} className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
+                <h4 className="font-bold text-[13px] text-gray-800">{dept.label}</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Weekly Budget (hrs)</label>
+                    <input type="number" value={budget.weeklyBudgetHours} onChange={e => updateBudget({ weeklyBudgetHours: Number(e.target.value) || 0 })}
+                      className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 168" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Model</label>
+                    <select value={budget.modelType} onChange={e => updateBudget({ modelType: e.target.value as any })}
+                      className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none">
+                      <option value="hours_per_room">Hours per Room</option>
+                      <option value="shifts_per_day">Shifts per Day</option>
+                      <option value="fixed_hours">Fixed Hours</option>
+                    </select>
+                  </div>
+                </div>
+                {budget.modelType === 'hours_per_room' && (
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Hours per Occupied Room</label>
+                    <input type="number" step="0.01" value={budget.hoursPerOccupiedRoom} onChange={e => updateBudget({ hoursPerOccupiedRoom: Number(e.target.value) || 0 })}
+                      className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 0.3" />
+                  </div>
+                )}
+                {budget.modelType === 'shifts_per_day' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Shifts/Day</label>
+                      <input type="number" value={budget.shiftsPerDay} onChange={e => updateBudget({ shiftsPerDay: Number(e.target.value) || 0 })} className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" /></div>
+                    <div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Hours/Shift</label>
+                      <input type="number" value={budget.hoursPerShift} onChange={e => updateBudget({ hoursPerShift: Number(e.target.value) || 0 })} className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" /></div>
+                  </div>
+                )}
+                {budget.modelType === 'fixed_hours' && (
+                  <div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Fixed Weekly Hours</label>
+                    <input type="number" value={budget.fixedWeeklyHours} onChange={e => updateBudget({ fixedWeeklyHours: Number(e.target.value) || 0 })} className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" /></div>
+                )}
+                {dept.key === 'housekeeping' && (
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200">
+                    <div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Checkout (min)</label>
+                      <input type="number" value={budget.checkoutMinutes} onChange={e => updateBudget({ checkoutMinutes: Number(e.target.value) || 0 })} className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" /></div>
+                    <div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Stayover (min)</label>
+                      <input type="number" value={budget.stayoverMinutes} onChange={e => updateBudget({ stayoverMinutes: Number(e.target.value) || 0 })} className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" /></div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+
+      <Section title="Guest Content — Safety" Icon={ShieldCheck}>
+        <p className="text-[11px] text-gray-400 -mt-1">Safety info guests see. Leave empty to use defaults.</p>
+        <Field label="Emergency Message" value={form.safetyContent?.emergency_message || ''} onChange={v => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_message: v } })} placeholder="Remain calm. Call 911, then notify front desk." />
+        <Field label="Closing Message" value={form.safetyContent?.closing_message || ''} onChange={v => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), closing_message: v } })} placeholder="Contact front desk anytime for safety concerns." />
+        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Emergency Contacts</p>
+        {((form.safetyContent?.emergency_contacts) || []).map((contact, idx) => (
+          <div key={idx} className="flex items-center gap-2">
+            <input value={contact.label || ''} onChange={e => { const u = [...((form.safetyContent?.emergency_contacts) || [])]; u[idx] = { ...u[idx], label: e.target.value }; setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_contacts: u } }); }} placeholder="Label" className="flex-[2] bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+            <input value={contact.number || ''} onChange={e => { const u = [...((form.safetyContent?.emergency_contacts) || [])]; u[idx] = { ...u[idx], number: e.target.value }; setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_contacts: u } }); }} placeholder="Number" className="flex-1 bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
+            <button onClick={() => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_contacts: ((form.safetyContent?.emergency_contacts) || []).filter((_, i) => i !== idx) } })} className="text-red-400"><Trash2 size={14} /></button>
+          </div>
+        ))}
+        <button onClick={() => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_contacts: [...((form.safetyContent?.emergency_contacts) || []), { label: '', number: '' }] } })} className="flex items-center gap-1.5 text-[12px] font-medium text-teal-600"><Plus size={14} /> Add Contact</button>
+      </Section>
+
+      <Section title="Tenant Billing" Icon={DollarSign}>
+        <div>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Payment Method</label>
+          <select value={form.paymentType || ''} onChange={e => setForm({ ...form, paymentType: e.target.value })}
+            className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 focus:outline-none">
+            <option value="">Select payment method</option>
+            {['ACH / Bank Transfer','Check','Wire Transfer','Cash','Credit Card','Other'].map(o => <option key={o}>{o}</option>)}
+          </select>
+        </div>
+        <Field label="Last Payment" value={form.lastPayment || ''} onChange={v => setForm({ ...form, lastPayment: v })} placeholder="e.g. $500 - Jun 1, 2026" />
+      </Section>
+
+      {saved && <div className="bg-emerald-50 text-emerald-600 px-4 py-2.5 rounded-xl text-[13px] font-medium text-center">✅ Saved</div>}
+      {saveError && <div className="bg-red-50 text-red-600 px-4 py-2.5 rounded-xl text-[13px] font-medium text-center border border-red-200">❌ {saveError}</div>}
+      <button onClick={onSave} className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px] flex items-center justify-center gap-2" style={{ backgroundColor: TEAL }}>
+        <Save size={16} /> SAVE CHANGES
+      </button>
+    </div>
+  );
+}
+
+/* ── HotelSettingsView ──────────────────────────────────── */
 function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: () => void }) {
   const [form, setForm] = useState<HotelConfig>(config);
   const [saved, setSaved] = useState(false);
@@ -399,13 +719,8 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
   const [discoverResult, setDiscoverResult] = useState<{ added: number; total: number } | null>(null);
   const [selectedTile, setSelectedTile] = useState<TileKey | null>(null);
 
-  const handleTileClick = (tile: TileKey) => {
-    setSelectedTile(prev => prev === tile ? null : tile);
-  };
-
   const handleSave = async () => {
     setSaveError('');
-    // Use service-role proxy for PIN-based logins (superadmin)
     try {
       const res = await fetch('/api/superadmin-db', {
         method: 'POST',
@@ -414,16 +729,11 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
       });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || 'Save failed');
-      setSaved(true);
-      onSaved();
-      setTimeout(() => setSaved(false), 2500);
+      setSaved(true); onSaved(); setTimeout(() => setSaved(false), 2500);
     } catch {
-      // Fallback to direct call for email-login admins
       try {
         await updateHotelConfig(form);
-        setSaved(true);
-        onSaved();
-        setTimeout(() => setSaved(false), 2500);
+        setSaved(true); onSaved(); setTimeout(() => setSaved(false), 2500);
       } catch (e: unknown) {
         setSaveError(e instanceof Error ? e.message : 'Save failed');
       }
@@ -432,8 +742,7 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
 
   const handleDiscover = async () => {
     if (!form.address || !config.id) return;
-    setDiscovering(true);
-    setDiscoverResult(null);
+    setDiscovering(true); setDiscoverResult(null);
     try {
       await updateHotelConfig(form);
       const res = await fetch('/api/places-sync', {
@@ -443,556 +752,59 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Discovery failed');
-      setDiscoverResult(data);
-      onSaved();
-    } catch (e) {
-      alert('Discovery failed: ' + (e as Error).message);
-    } finally {
-      setDiscovering(false);
-    }
+      setDiscoverResult(data); onSaved();
+    } catch (e) { alert('Discovery failed: ' + (e as Error).message); }
+    finally { setDiscovering(false); }
   };
 
   return (
     <div className="flex gap-8 p-8 min-h-full">
-      {/* ── Left: Form ── */}
+      {/* ── Left: form or tile editor ── */}
       <div className="flex-1 max-w-lg space-y-5">
-        <h1 className="text-[26px] font-extrabold text-gray-900">Property Settings</h1>
-
-        <Section title="Property Identity" Icon={HotelIcon}>
-          <Field label="Property Name" value={form.name} onChange={v => setForm({ ...form, name: v })} />
-          <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Property Type</label>
-            <select
-              value={form.propertyType || 'Hotel'}
-              onChange={e => setForm({ ...form, propertyType: e.target.value })}
-              className="w-full bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <option value="Hotel">Hotel</option>
-              <option value="Short-Term Rental">Short-Term Rental</option>
-              <option value="Motel">Motel</option>
-              <option value="Vacation Rental">Vacation Rental</option>
-              <option value="Boutique Stay">Boutique Stay</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <Field label="Manager Name" value={form.managerName} onChange={v => setForm({ ...form, managerName: v })} />
-          <Field label="Front Desk Phone" value={form.frontDeskPhone} onChange={v => setForm({ ...form, frontDeskPhone: v })} />
-          <Field label="Admin Phone" value={form.adminPhone || ''} onChange={v => setForm({ ...form, adminPhone: v })} placeholder="Admin/owner cell number" />
-          <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Room Count</label>
-            <input type="number" value={form.roomCount || 0} onChange={e => setForm({ ...form, roomCount: parseInt(e.target.value) || 0 })}
-              className="w-full bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-          </div>
-          <Field
-            label="Property Address"
-            value={form.address}
-            onChange={v => setForm({ ...form, address: v })}
-            placeholder="1601 NW 42nd Ave, Miami, FL 33126"
+        {selectedTile ? (
+          <TileEditor
+            tile={selectedTile}
+            form={form}
+            setForm={setForm}
+            onBack={() => setSelectedTile(null)}
+            onSave={handleSave}
+            saved={saved}
           />
-          {form.address && (
-            <div>
-              <button
-                onClick={handleDiscover}
-                disabled={discovering}
-                className="w-full py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
-                style={{ backgroundColor: '#7C3AED', color: 'white' }}
-              >
-                {discovering ? 'Discovering...' : 'Auto-Discover Nearby Places'}
-              </button>
-              {discoverResult && (
-                <p className="text-[12px] text-emerald-600 font-medium text-center mt-2">
-                  Added {discoverResult.added} new places ({discoverResult.total} found nearby)
-                </p>
-              )}
-              <p className="text-[11px] text-gray-400 mt-1.5 text-center">
-                Scans real restaurants &amp; attractions from OpenStreetMap within 1.5 km
-              </p>
-            </div>
-          )}
-        </Section>
-
-        <Section title="Branding" Icon={Settings}>
-          <p className="text-[11px] text-gray-400 -mt-1">
-            Set the accent color used across the guest-facing app. Preview updates live on the right.
-          </p>
-          <div className="flex items-center gap-3 mt-1">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Brand Color</label>
-            <div className="flex items-center gap-2 flex-1">
-              <input
-                type="color"
-                value={form.brandColor || '#6B1D3C'}
-                onChange={e => setForm({ ...form, brandColor: e.target.value })}
-                className="w-10 h-10 rounded-xl cursor-pointer border border-gray-200 p-0.5"
-              />
-              <input
-                type="text"
-                value={form.brandColor || '#6B1D3C'}
-                onChange={e => {
-                  const val = e.target.value;
-                  if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) setForm({ ...form, brandColor: val });
-                }}
-                maxLength={7}
-                className="flex-1 bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 font-mono focus:outline-none"
-                placeholder="#6B1D3C"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2 mt-2 flex-wrap">
-            {['#6B1D3C','#0D9488','#1D4ED8','#7C3AED','#B45309','#DC2626','#0F172A'].map(c => (
-              <button
-                key={c}
-                onClick={() => setForm({ ...form, brandColor: c })}
-                className="w-7 h-7 rounded-lg border-2 transition-transform active:scale-90"
-                style={{ backgroundColor: c, borderColor: form.brandColor === c ? '#111' : 'transparent' }}
-                title={c}
-              />
-            ))}
-          </div>
-          <Field label="Website URL" value={form.websiteUrl} onChange={v => setForm({ ...form, websiteUrl: v })} placeholder="https://yourhotel.com" />
-        </Section>
-
-        <Section title="WiFi Settings" Icon={Wifi}>
-          <Field label="Network Name" value={form.wifiName} onChange={v => setForm({ ...form, wifiName: v })} />
-          <Field label="Password" value={form.wifiPassword} onChange={v => setForm({ ...form, wifiPassword: v })} />
-        </Section>
-
-        <Section title="Welcome Letter" Icon={ImageIcon}>
-          <textarea
-            value={form.welcomeLetter}
-            onChange={e => setForm({ ...form, welcomeLetter: e.target.value })}
-            rows={5}
-            className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none"
-            placeholder="Dear Guest, welcome to our hotel..."
+        ) : (
+          <SettingsForm
+            form={form} setForm={setForm} onSave={handleSave}
+            saved={saved} saveError={saveError}
+            discovering={discovering} discoverResult={discoverResult}
+            handleDiscover={handleDiscover}
           />
-          <div className="mt-3">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5"
-            >Welcome Photo / Team Photo</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={form.teamPhotoUrl}
-                onChange={e => setForm({ ...form, teamPhotoUrl: e.target.value })}
-                placeholder="https://..."
-                className="flex-1 bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 focus:outline-none"
-              />
-              <label className="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold text-white transition-colors"
-                style={{ backgroundColor: TEAL }}>
-                <Upload size={14} />
-                Upload
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                      const dataUrl = event.target?.result as string;
-                      setForm({ ...form, teamPhotoUrl: dataUrl });
-                    };
-                    reader.readAsDataURL(file);
-                  }}
-                />
-              </label>
-            </div>
-          </div>
-        </Section>
-
-        <Section title="Review Links" Icon={ExternalLink}>
-          <p className="text-[11px] text-gray-400 -mt-1">
-            Add links to your hotel&apos;s profiles on review sites. Guests can leave reviews directly from their app.
-          </p>
-          <Field label="Google Review URL" value={form.googleReviewUrl || ''} onChange={v => setForm({ ...form, googleReviewUrl: v })} placeholder="https://www.google.com/travel/hotels/..." />
-          <Field label="TripAdvisor URL" value={form.tripadvisorUrl || ''} onChange={v => setForm({ ...form, tripadvisorUrl: v })} placeholder="https://www.tripadvisor.com/..." />
-          <Field label="Yelp URL" value={form.yelpUrl || ''} onChange={v => setForm({ ...form, yelpUrl: v })} placeholder="https://www.yelp.com/..." />
-          <div className="border-t border-gray-100 mt-3 pt-3">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Custom Review Links</p>
-            <div className="space-y-2">
-              {(form.customReviewLinks || []).map((link, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={link.label}
-                  onChange={e => {
-                    const updated = [...(form.customReviewLinks || [])];
-                    updated[idx] = { ...updated[idx], label: e.target.value };
-                    setForm({ ...form, customReviewLinks: updated });
-                  }}
-                  className="w-[110px] bg-gray-50 rounded-xl px-2.5 py-2 text-[12px] border border-gray-100 focus:outline-none"
-                  placeholder="Label (e.g. Google)"
-                />
-                <input
-                  type="text"
-                  value={link.url}
-                  onChange={e => {
-                    const updated = [...(form.customReviewLinks || [])];
-                    updated[idx] = { ...updated[idx], url: e.target.value };
-                    setForm({ ...form, customReviewLinks: updated });
-                  }}
-                  className="flex-1 bg-gray-50 rounded-xl px-2.5 py-2 text-[12px] border border-gray-100 focus:outline-none"
-                  placeholder="https://..."
-                />
-                <button
-                  onClick={() => {
-                    const updated = (form.customReviewLinks || []).filter((_, i) => i !== idx);
-                    setForm({ ...form, customReviewLinks: updated });
-                  }}
-                  className="text-red-400 hover:text-red-600 p-1"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-            <button
-              onClick={() => {
-                const updated = [...(form.customReviewLinks || []), { label: '', url: '' }];
-                setForm({ ...form, customReviewLinks: updated });
-              }}
-              className="flex items-center gap-1.5 text-[12px] font-medium text-teal-600 hover:text-teal-700 transition-colors"
-            >
-              <Plus size={14} /> Add Review Link
-            </button>
-          </div>
-          </div>
-        </Section>
-
-        <Section title="GM Daily Notes" Icon={CalendarDays}>
-          <p className="text-[11px] text-gray-400 -mt-1">
-            Write the daily morning brief here. Staff see it on the Daily Brief tab. Update this every morning.
-          </p>
-          <textarea
-            value={form.gmNotes}
-            onChange={e => setForm({ ...form, gmNotes: e.target.value })}
-            rows={8}
-            className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none font-mono"
-            placeholder={`e.g. Today's priorities:
-• VIP arrivals/checkouts
-• Maintenance issues
-• Staffing notes
-• Special events today
-• Safety reminders`}
-          />
-        </Section>
-
-        <Section title="Schedule Settings" Icon={CalendarDays}>
-          <p className="text-[11px] text-gray-400 -mt-1">
-            Choose whether your schedule grid starts on Sunday or Monday.
-          </p>
-          <div className="mt-3">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Week starts on</label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setForm({ ...form, weekStartsOn: 'Sunday' })}
-                className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold border ${
-                  (form.weekStartsOn || 'Sunday') === 'Sunday'
-                    ? 'bg-teal-50 border-teal-300 text-teal-700'
-                    : 'bg-white border-gray-200 text-gray-600'
-                }`}
-              >
-                Sunday → Saturday
-              </button>
-              <button
-                onClick={() => setForm({ ...form, weekStartsOn: 'Monday' })}
-                className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold border ${
-                  form.weekStartsOn === 'Monday'
-                    ? 'bg-teal-50 border-teal-300 text-teal-700'
-                    : 'bg-white border-gray-200 text-gray-600'
-                }`}
-              >
-                Monday → Sunday
-              </button>
-            </div>
-          </div>
-        </Section>
-
-        <Section title="Position Budgets" Icon={DollarSign}>
-          <p className="text-[11px] text-gray-400 -mt-1">
-            Set labor budgets for each position. The model calculates required hours based on occupancy so you can see if you're within the owner's budget.
-          </p>
-          <div className="space-y-4 mt-3">
-            {[
-              { key: 'front_desk', label: 'Front Desk' },
-              { key: 'housekeeping', label: 'Housekeeping' },
-              { key: 'maintenance', label: 'Maintenance' },
-              { key: 'security', label: 'Security' },
-              { key: 'drivers', label: 'Drivers' },
-              { key: 'management', label: 'Management' },
-            ].map(dept => {
-              const budget = (form.positionBudgets || []).find(b => b.department === dept.key) || {
-                department: dept.key,
-                label: dept.label,
-                weeklyBudgetHours: 0,
-                modelType: 'hours_per_room' as const,
-                hoursPerOccupiedRoom: 0,
-                shiftsPerDay: 0,
-                hoursPerShift: 0,
-                fixedWeeklyHours: 0,
-                checkoutMinutes: 0,
-                stayoverMinutes: 0,
-              } as PositionBudget;
-              const updateBudget = (partial: Partial<typeof budget>) => {
-                const existing = form.positionBudgets || [];
-                const idx = existing.findIndex(b => b.department === dept.key);
-                const updated = { ...budget, ...partial };
-                if (idx >= 0) {
-                  const copy = [...existing];
-                  copy[idx] = updated;
-                  setForm({ ...form, positionBudgets: copy });
-                } else {
-                  setForm({ ...form, positionBudgets: [...existing, updated] });
-                }
-              };
-              return (
-                <div key={dept.key} className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-[13px] text-gray-800">{dept.label}</h4>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Weekly Budget (hrs)</label>
-                      <input type="number" value={budget.weeklyBudgetHours} onChange={e => updateBudget({ weeklyBudgetHours: Number(e.target.value) || 0 })}
-                        className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 168" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Model</label>
-                      <select value={budget.modelType} onChange={e => updateBudget({ modelType: e.target.value as any })}
-                        className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none">
-                        <option value="hours_per_room">Hours per Room</option>
-                        <option value="shifts_per_day">Shifts per Day</option>
-                        <option value="fixed_hours">Fixed Hours</option>
-                      </select>
-                    </div>
-                  </div>
-                  {budget.modelType === 'hours_per_room' && (
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Hours per Occupied Room</label>
-                      <input type="number" step="0.01" value={budget.hoursPerOccupiedRoom} onChange={e => updateBudget({ hoursPerOccupiedRoom: Number(e.target.value) || 0 })}
-                        className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 0.3" />
-                    </div>
-                  )}
-                  {budget.modelType === 'shifts_per_day' && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Shifts per Day</label>
-                        <input type="number" value={budget.shiftsPerDay} onChange={e => updateBudget({ shiftsPerDay: Number(e.target.value) || 0 })}
-                          className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 3" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Hours per Shift</label>
-                        <input type="number" value={budget.hoursPerShift} onChange={e => updateBudget({ hoursPerShift: Number(e.target.value) || 0 })}
-                          className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 8" />
-                      </div>
-                    </div>
-                  )}
-                  {budget.modelType === 'fixed_hours' && (
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Fixed Weekly Hours</label>
-                      <input type="number" value={budget.fixedWeeklyHours} onChange={e => updateBudget({ fixedWeeklyHours: Number(e.target.value) || 0 })}
-                        className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 40" />
-                    </div>
-                  )}
-                  {dept.key === 'housekeeping' && (
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200">
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Checkout (min)</label>
-                        <input type="number" value={budget.checkoutMinutes} onChange={e => updateBudget({ checkoutMinutes: Number(e.target.value) || 0 })}
-                          className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 30" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Stayover (min)</label>
-                        <input type="number" value={budget.stayoverMinutes} onChange={e => updateBudget({ stayoverMinutes: Number(e.target.value) || 0 })}
-                          className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" placeholder="e.g. 20" />
-                      </div>
-                    </div>
-                  )}
-                  <div className="text-[11px] text-gray-400 pt-1">
-                    Budget: <strong>{budget.weeklyBudgetHours}h/week</strong>
-                    {budget.modelType === 'hours_per_room' && (budget.hoursPerOccupiedRoom || 0) > 0 && (
-                      <> · ~{budget.hoursPerOccupiedRoom}h/room at 70% occ = <strong>{Math.round((budget.hoursPerOccupiedRoom || 0) * 100 * 0.7)}h</strong></>
-                    )}
-                    {budget.modelType === 'shifts_per_day' && (budget.shiftsPerDay || 0) > 0 && (budget.hoursPerShift || 0) > 0 && (
-                      <> · <strong>{(budget.shiftsPerDay || 0) * (budget.hoursPerShift || 0)}h/day</strong> = <strong>{(budget.shiftsPerDay || 0) * (budget.hoursPerShift || 0) * 7}h/week</strong></>
-                    )}
-                    {budget.modelType === 'fixed_hours' && (budget.fixedWeeklyHours || 0) > 0 && (
-                      <> · <strong>{budget.fixedWeeklyHours}h/week</strong> fixed</>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Section>
-
-        <Section title="Tenant Billing" Icon={DollarSign}>
-          <p className="text-[11px] text-gray-400 -mt-1">
-            Track how this tenant pays and when the last payment was received.
-          </p>
-          <div className="mt-3">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Payment Method</label>
-            <select
-              value={form.paymentType || ''}
-              onChange={e => setForm({ ...form, paymentType: e.target.value })}
-              className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <option value="">Select payment method</option>
-              <option value="ach">ACH / Bank Transfer</option>
-              <option value="check">Check</option>
-              <option value="wire">Wire Transfer</option>
-              <option value="cash">Cash</option>
-              <option value="card">Credit Card</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <Field
-            label="Last Payment"
-            value={form.lastPayment || ''}
-            onChange={v => setForm({ ...form, lastPayment: v })}
-            placeholder="e.g. $500 - Jun 1, 2026"
-          />
-        </Section>
-
-        <Section title="Email Notifications" Icon={Bell}>
-          <p className="text-[11px] text-gray-400 -mt-1">
-            Receive an email whenever a guest submits a request or sends a message.
-          </p>
-          <Field
-            label="Notification Email"
-            value={form.notificationEmail}
-            onChange={v => setForm({ ...form, notificationEmail: v })}
-            placeholder="frontdesk@yourhotel.com"
-          />
-        </Section>
-
-        <Section title="Guest Content — Facilities" Icon={Bell}>
-          <p className="text-[11px] text-gray-400 -mt-1">Amenities guests see on the Facilities screen. Add, edit, or remove items.</p>
-          <div className="space-y-3 mt-3">
-            {(form.facilitiesContent || []).map((amenity, idx) => (
-              <div key={idx} className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Item {idx + 1}</span>
-                  <button onClick={() => {
-                    const updated = (form.facilitiesContent || []).filter((_, i) => i !== idx);
-                    setForm({ ...form, facilitiesContent: updated });
-                  }} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
-                </div>
-                <input value={amenity.icon} onChange={e => {
-                  const updated = [...(form.facilitiesContent || [])];
-                  updated[idx] = { ...updated[idx], icon: e.target.value };
-                  setForm({ ...form, facilitiesContent: updated });
-                }} placeholder="Icon name (e.g. Coffee, Wifi, Dumbbell)" className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
-                <input value={amenity.title} onChange={e => {
-                  const updated = [...(form.facilitiesContent || [])];
-                  updated[idx] = { ...updated[idx], title: e.target.value };
-                  setForm({ ...form, facilitiesContent: updated });
-                }} placeholder="Title (e.g. Complimentary Breakfast)" className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
-                <textarea value={amenity.description} onChange={e => {
-                  const updated = [...(form.facilitiesContent || [])];
-                  updated[idx] = { ...updated[idx], description: e.target.value };
-                  setForm({ ...form, facilitiesContent: updated });
-                }} rows={2} placeholder="Description" className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none resize-none" />
-              </div>
-            ))}
-            <button onClick={() => setForm({ ...form, facilitiesContent: [...(form.facilitiesContent || []), { icon: 'Coffee', title: '', description: '' }] })} className="flex items-center gap-1.5 text-[12px] font-medium text-teal-600 hover:text-teal-700"><Plus size={14} /> Add Amenity</button>
-          </div>
-        </Section>
-
-        <Section title="Guest Content — Safety" Icon={ShieldCheck}>
-          <p className="text-[11px] text-gray-400 -mt-1">Safety info guests see. Leave empty sections to use defaults.</p>
-          <div className="space-y-3 mt-3">
-            <Field label="Emergency Message" value={form.safetyContent?.emergency_message || ''} onChange={v => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_message: v } })} placeholder="Remain calm. Call 911, then notify front desk." />
-            <Field label="Closing Message" value={form.safetyContent?.closing_message || ''} onChange={v => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), closing_message: v } })} placeholder="Contact front desk anytime for safety concerns." />
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Emergency Contacts</p>
-            {((form.safetyContent?.emergency_contacts) || []).map((contact, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <input value={contact.label || ''} onChange={e => {
-                  const updated = [...((form.safetyContent?.emergency_contacts) || [])];
-                  updated[idx] = { ...updated[idx], label: e.target.value };
-                  setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_contacts: updated } });
-                }} placeholder="Label (e.g. Front Desk)" className="flex-[2] bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
-                <input value={contact.number || ''} onChange={e => {
-                  const updated = [...((form.safetyContent?.emergency_contacts) || [])];
-                  updated[idx] = { ...updated[idx], number: e.target.value };
-                  setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_contacts: updated } });
-                }} placeholder="Number" className="flex-1 bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none" />
-                <button onClick={() => {
-                  const updated = ((form.safetyContent?.emergency_contacts) || []).filter((_, i) => i !== idx);
-                  setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_contacts: updated } });
-                }} className="text-red-400"><Trash2 size={14} /></button>
-              </div>
-            ))}
-            <button onClick={() => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_contacts: [...((form.safetyContent?.emergency_contacts) || []), { label: '', number: '' }] } })} className="flex items-center gap-1.5 text-[12px] font-medium text-teal-600"><Plus size={14} /> Add Contact</button>
-          </div>
-        </Section>
-
-        <Section title="Guest Content — Transport" Icon={Bus}>
-          <p className="text-[11px] text-gray-400 -mt-1">Custom message shown on the Transport page.</p>
-          <Field label="Pickup Note" value={form.transportContent?.pickup_note || ''} onChange={v => setForm({ ...form, transportContent: { ...(form.transportContent || {}), pickup_note: v } })} placeholder="Pickup requests are confirmed by staff. Contact front desk for immediate needs." />
-          <div className="mt-3 border-t border-gray-100 pt-3 space-y-2">
-            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Third-Party Transport Partner</p>
-            <p className="text-[11px] text-gray-400">If your hotel works with an external transport company, guests will see their booking link as an option alongside shuttle and Uber.</p>
-            <Field label="Company Name" value={form.transportContent?.third_party_name || ''} onChange={v => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_name: v } })} placeholder="e.g. CruisePort Transportation" />
-            <Field label="Booking URL" value={form.transportContent?.third_party_url || ''} onChange={v => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_url: v } })} placeholder="https://example.com/book" />
-            <Field label="Description (shown to guests)" value={form.transportContent?.third_party_description || ''} onChange={v => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_description: v } })} placeholder="e.g. Scheduled airport & cruise port transfers" />
-          </div>
-        </Section>
-
-        <Section title="Guest Content — Food" Icon={UtensilsCrossed}>
-          <p className="text-[11px] text-gray-400 -mt-1">Intro text shown on the Food tab.</p>
-          <textarea value={form.foodContent?.intro_text || ''} onChange={e => setForm({ ...form, foodContent: { ...(form.foodContent || {}), intro_text: e.target.value } })} rows={3} className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none" placeholder="Explore our local partner restaurants and order delivery right to your room." />
-        </Section>
-
-        <Section title="Guest Content — Nearby" Icon={MapPin}>
-          <p className="text-[11px] text-gray-400 -mt-1">Intro text shown on the Nearby page.</p>
-          <textarea value={form.nearbyIntro?.intro_text || ''} onChange={e => setForm({ ...form, nearbyIntro: { ...(form.nearbyIntro || {}), intro_text: e.target.value } })} rows={3} className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none" placeholder="Discover restaurants, attractions, and services near our hotel." />
-        </Section>
-
-        {/* Shuttle Management section removed per admin request */}
-
-        {saved && (
-          <div className="bg-emerald-50 text-emerald-600 px-4 py-2.5 rounded-xl text-[13px] font-medium text-center">
-            ✅ Saved
-          </div>
         )}
-        {saveError && (
-          <div className="bg-red-50 text-red-600 px-4 py-2.5 rounded-xl text-[13px] font-medium text-center border border-red-200">
-            ❌ {saveError}
-          </div>
-        )}
-
-        <button onClick={handleSave} className="w-full py-3.5 rounded-xl text-white font-semibold text-[14px] flex items-center justify-center gap-2" style={{ backgroundColor: TEAL }}>
-          <Save size={16} /> SAVE CHANGES
-        </button>
       </div>
 
-      {/* ── Right: Live Preview + Editor Panel ── */}
-      <div className="hidden lg:flex flex-row items-start gap-4 pt-12 sticky top-8 self-start">
-        <div className="flex flex-col items-center gap-4">
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Live Preview</p>
-          <GuestHomePreview
-            color={form.brandColor || '#6B1D3C'}
-            hotelName={form.name}
-            selectedTile={selectedTile}
-            onTileClick={handleTileClick}
-          />
-          <div className="text-center space-y-1">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: form.brandColor || '#6B1D3C' }}>
-              {form.brandColor || '#6B1D3C'}
-            </div>
-            <p className="text-[10px] text-gray-400">Click a tile to edit</p>
+      {/* ── Right: phone preview ── */}
+      <div className="hidden lg:flex flex-col items-center gap-3 pt-12 sticky top-8 self-start">
+        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+          {selectedTile ? 'Guest View' : 'Live Preview'}
+        </p>
+
+        {/* Phone frame */}
+        <div className="relative" style={{ width: 200, height: 400 }}>
+          <div className="absolute inset-0 rounded-[28px] border-[6px] border-gray-800 bg-[#F4F4F5] overflow-hidden shadow-2xl">
+            {selectedTile ? (
+              <PhoneScreen tile={selectedTile} form={form} color={form.brandColor || '#6B1D3C'} onBack={() => setSelectedTile(null)} />
+            ) : (
+              <PhoneHome color={form.brandColor || '#6B1D3C'} hotelName={form.name} onTileClick={setSelectedTile} />
+            )}
           </div>
         </div>
-        {selectedTile && (
-          <div className="mt-7">
-            <EditorPanel
-              tile={selectedTile}
-              form={form}
-              setForm={setForm}
-              handleSave={handleSave}
-              onClose={() => setSelectedTile(null)}
-            />
+
+        <div className="text-center space-y-1">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: form.brandColor || '#6B1D3C' }}>
+            {form.brandColor || '#6B1D3C'}
           </div>
-        )}
+          <p className="text-[10px] text-gray-400">
+            {selectedTile ? 'Editing ← tap back to switch screens' : 'Tap a screen to edit its content'}
+          </p>
+        </div>
       </div>
     </div>
   );
