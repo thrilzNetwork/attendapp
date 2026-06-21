@@ -265,29 +265,41 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
         </div>
       )}
 
-      {/* ETA chips — only when moving */}
-      {loc && isMoving && (etaToDest || etaToHotel) && (
-        <div className="grid grid-cols-2 gap-2">
-          {etaToDest && (
-            <div className={`rounded-xl px-3 py-2.5 text-center border ${etaToDest.distanceMiles <= 0.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-sky-50 border-sky-100'}`}>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">{destName || 'Airport'}</p>
-              <p className={`text-[18px] font-black leading-tight ${etaToDest.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-sky-700'}`}>
+      {/* ETA chips — direction-aware:
+            to_dest   → show ETA to airport
+            at_dest   → show ETA back to hotel (idle at airport, waiting to depart)
+            to_hotel  → show ETA to hotel
+            at_hotel  → hide both
+      */}
+      {loc && shuttleDirection !== 'at_hotel' && (etaToDest || etaToHotel) && (() => {
+        const showDest  = shuttleDirection === 'to_dest'  && etaToDest;
+        const showHotel = (shuttleDirection === 'at_dest' || shuttleDirection === 'to_hotel') && etaToHotel;
+        if (!showDest && !showHotel) return null;
+        return (
+        <div className={`grid gap-2 ${showDest && showHotel ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {showDest && etaToDest && (
+            <div className={`rounded-xl px-3 py-3 text-center border ${etaToDest.distanceMiles <= 0.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-sky-50 border-sky-100'}`}>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">ETA to {destName || 'Airport'}</p>
+              <p className={`text-[22px] font-black leading-tight ${etaToDest.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-sky-700'}`}>
                 {etaToDest.distanceMiles <= 0.5 ? 'Arriving' : `${etaToDest.etaMinutes} min`}
               </p>
-              <p className="text-[10px] text-gray-400">{etaToDest.distanceMiles.toFixed(1)} mi</p>
+              <p className="text-[10px] text-gray-400">{etaToDest.distanceMiles.toFixed(1)} mi away</p>
             </div>
           )}
-          {etaToHotel && (
-            <div className={`rounded-xl px-3 py-2.5 text-center border ${etaToHotel.distanceMiles <= 0.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-orange-50 border-orange-100'}`}>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Hotel</p>
-              <p className={`text-[18px] font-black leading-tight ${etaToHotel.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-orange-700'}`}>
+          {showHotel && etaToHotel && (
+            <div className={`rounded-xl px-3 py-3 text-center border ${etaToHotel.distanceMiles <= 0.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-orange-50 border-orange-100'}`}>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">ETA back to Hotel</p>
+              <p className={`text-[22px] font-black leading-tight ${etaToHotel.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-orange-700'}`}>
                 {etaToHotel.distanceMiles <= 0.5 ? 'Arriving' : `${etaToHotel.etaMinutes} min`}
               </p>
-              <p className="text-[10px] text-gray-400">{etaToHotel.distanceMiles.toFixed(1)} mi</p>
+              <p className="text-[10px] text-gray-400">{etaToHotel.distanceMiles.toFixed(1)} mi away</p>
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
+
+
 
       {/* No GPS yet */}
       {!loc && <p className="text-[12px] text-gray-400 italic">No GPS signal yet.</p>}
