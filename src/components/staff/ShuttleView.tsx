@@ -12,7 +12,8 @@ import {
   getStaffSchedulesRange,
   type ShuttleRoute, type ShuttleSlot, type ShuttleBooking, type ShuttleRequest, type Partner, type StaffAccount,
 } from '@/lib/supabase';
-import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, User } from 'lucide-react';
+import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, User, Car, CreditCard, ExternalLink } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
 
 function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 3958.8;
@@ -337,9 +338,122 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   const [dispatchForm, setDispatchForm] = useState({
     guest_name: '', room_number: '', pax: 1, pickup_location: '', destination: '',
     date: todayStr(), time: nextAvailableHour(), notes: '', driver_id: '',
+    bookingMethod: 'shuttle' as 'shuttle' | 'taxicaller',
+    guestPhone: '',
   });
   const [dispatching, setDispatching] = useState(false);
   const [dispatchDone, setDispatchDone] = useState(false);
+
+  // TaxiCaller quote + booking state (staff New Trip form)
+  type TCQuote = { quoteId: string; base_fare_cents: number; surcharge_cents: number; total_cents: number; estimated_mins: number };
+  type TCConfirm = { driver_name: string; driver_phone: string; vehicle_plate: string; tracking_url: string };
+  const [tcStep, setTcStep] = useState<'form' | 'quote' | 'paying' | 'done'>('form');
+  const [tcQuote, setTcQuote] = useState<TCQuote | null>(null);
+  const [tcConfirm, setTcConfirm] = useState<TCConfirm | null>(null);
+  const [tcError, setTcError] = useState('');
+
+  const fmtCents = (c: number) => `$${(c / 100).toFixed(2)}`;
+
+  const resetTC = () => { setTcStep('form'); setTcQuote(null); setTcConfirm(null); setTcError(''); };
+
+  const handleTCGetQuote = async () => {
+    const { guest_name, room_number, pickup_location, destination, date, time, pax } = dispatchForm;
+    if (!guest_name.trim() || !room_number.trim() || !destination.trim()) {
+      setTcError('Please fill in guest name, room, and destination.'); return;
+    }
+    setTcError(''); setDispatching(true);
+    try {
+      const pickupTime = new Date(`${date}T${time || '12:00'}`).toISOString();
+      const res = await fetch('/api/taxicaller/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pickup: pickup_location || 'Hotel Lobby', destination, pax, pickupTime }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Quote failed');
+      setTcQuote(data);
+      setTcStep('quote');
+    } catch (e) { setTcError(e instanceof Error ? e.message : 'Quote failed'); }
+    setDispatching(false);
+  };
+
+  const handleTCConfirmPay = async () => {
+    if (!tcQuote) return;
+    setTcError(''); setDispatching(true); setTcStep('paying');
+    try {
+      const { guest_name, room_number, pax, pickup_location, destination, date, time, notes, guestPhone } = dispatchForm;
+
+      // 1. Create shuttle_request record
+      const req = await createShuttleRequest({
+        hotel_id: hotelId,
+        guest_name: guest_name.trim(),
+        room_number: room_number.trim(),
+        pickup_location: pickup_location || 'Hotel Lobby',
+        destination: destination.trim(),
+        date: date || todayStr(),
+        time: time || undefined,
+        pax,
+        notes: notes.trim() || undefined,
+        status: 'pending',
+      });
+      const requestId = req?.id ?? '';
+
+      // 2. Create Stripe PaymentIntent
+      const intentRes = await fetch('/api/stripe/payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId,
+          amountCents: tcQuote.total_cents,
+          partnerId: 'taxicaller',
+          description: `Transport: ${pickup_location || 'Hotel'} → ${destination}`,
+          quoteId: tcQuote.quoteId,
+        }),
+      });
+      const intentData = await intentRes.json();
+
+      // 3. Confirm payment via Stripe.js
+      const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+      if (stripeKey && intentData.clientSecret) {
+        const stripe = await loadStripe(stripeKey);
+        if (stripe) {
+          const { error: stripeError } = await stripe.confirmPayment({
+            clientSecret: intentData.clientSecret,
+            confirmParams: { return_url: window.location.href },
+            redirect: 'if_required',
+          });
+          if (stripeError) throw new Error(stripeError.message);
+        }
+      }
+
+      // 4. Create TaxiCaller booking
+      const bookRes = await fetch('/api/taxicaller/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId,
+          quoteId: tcQuote.quoteId,
+          guestName: guest_name.trim(),
+          guestPhone: guestPhone || undefined,
+          pickup: pickup_location || 'Hotel Lobby',
+          destination: destination.trim(),
+          pickupTime: new Date(`${date}T${time || '12:00'}`).toISOString(),
+          pax,
+          notes: notes.trim() || undefined,
+        }),
+      });
+      const bookData = await bookRes.json();
+      if (!bookData.ok) throw new Error(bookData.error || 'Booking failed');
+
+      setTcConfirm(bookData.booking);
+      setTcStep('done');
+      await load();
+    } catch (e) {
+      setTcError(e instanceof Error ? e.message : 'Booking failed');
+      setTcStep('quote');
+    }
+    setDispatching(false);
+  };
 
   // Filter state for timeline
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
@@ -416,9 +530,10 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   const DEPARTURE_DROPOFFS = ['MIA – Miami Intl', 'FLL – Fort Lauderdale', 'Port Everglades', 'Other'];
 
   const resetDispatch = () => {
-    setDispatchForm({ guest_name: '', room_number: '', pax: 1, pickup_location: '', destination: '', date: todayStr(), time: nextAvailableHour(), notes: '', driver_id: '' });
+    setDispatchForm({ guest_name: '', room_number: '', pax: 1, pickup_location: '', destination: '', date: todayStr(), time: nextAvailableHour(), notes: '', driver_id: '', bookingMethod: 'shuttle', guestPhone: '' });
     setDispatchType('arrival');
     setDispatchDone(false);
+    resetTC();
   };
 
   const handleDispatchSubmit = async () => {
@@ -1007,7 +1122,8 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
               </button>
             </div>
 
-            {dispatchDone ? (
+            {/* ── Shuttle done state ── */}
+            {dispatchDone && dispatchForm.bookingMethod === 'shuttle' ? (
               <div className="p-8 text-center">
                 <div className="w-16 h-16 rounded-full bg-teal-50 flex items-center justify-center mx-auto mb-4">
                   <CheckCircle size={32} style={{ color: TEAL }} />
@@ -1015,62 +1131,130 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                 <p className="text-lg font-bold text-gray-900 mb-1">Trip logged!</p>
                 <p className="text-sm text-gray-500 mb-6">Appears on the timeline above.</p>
                 <div className="flex gap-3">
-                  <button onClick={() => { resetDispatch(); }}
-                    className="flex-1 py-3.5 rounded-2xl text-white font-bold text-[15px]" style={{ backgroundColor: TEAL }}>
-                    + Another
-                  </button>
-                  <button onClick={() => { setShowDispatch(false); resetDispatch(); }}
-                    className="flex-1 py-3.5 rounded-2xl bg-gray-100 font-bold text-[15px] text-gray-700">
-                    Done
-                  </button>
+                  <button onClick={resetDispatch} className="flex-1 py-3.5 rounded-2xl text-white font-bold text-[15px]" style={{ backgroundColor: TEAL }}>+ Another</button>
+                  <button onClick={() => { setShowDispatch(false); resetDispatch(); }} className="flex-1 py-3.5 rounded-2xl bg-gray-100 font-bold text-[15px] text-gray-700">Done</button>
                 </div>
               </div>
+
+            /* ── TaxiCaller done state ── */
+            ) : tcStep === 'done' && tcConfirm ? (
+              <div className="p-8 text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-teal-50 flex items-center justify-center mx-auto">
+                  <CheckCircle size={32} style={{ color: TEAL }} />
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-gray-900">Ride Dispatched!</p>
+                  <p className="text-sm text-gray-400 mt-0.5">Driver is on the way</p>
+                </div>
+                {tcConfirm.driver_name && (
+                  <div className="bg-gray-50 rounded-2xl p-4 text-left space-y-1">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Driver</p>
+                    <p className="text-[16px] font-extrabold text-gray-900">{tcConfirm.driver_name}</p>
+                    {tcConfirm.driver_phone && <p className="text-[13px] text-gray-500">{tcConfirm.driver_phone}</p>}
+                    {tcConfirm.vehicle_plate && <p className="text-[12px] text-gray-400">Vehicle: {tcConfirm.vehicle_plate}</p>}
+                  </div>
+                )}
+                {tcConfirm.tracking_url && (
+                  <a href={tcConfirm.tracking_url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold text-[14px] text-white"
+                    style={{ backgroundColor: TEAL }}>
+                    <ExternalLink size={15} /> Track Ride
+                  </a>
+                )}
+                <div className="flex gap-3">
+                  <button onClick={resetDispatch} className="flex-1 py-3 rounded-2xl text-white font-bold text-[14px]" style={{ backgroundColor: TEAL }}>+ Another</button>
+                  <button onClick={() => { setShowDispatch(false); resetDispatch(); }} className="flex-1 py-3 rounded-2xl bg-gray-100 font-bold text-[14px] text-gray-700">Done</button>
+                </div>
+              </div>
+
+            /* ── TaxiCaller paying state ── */
+            ) : tcStep === 'paying' ? (
+              <div className="p-10 text-center">
+                <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-3" style={{ borderColor: TEAL }} />
+                <p className="text-[14px] font-semibold text-gray-600">Processing payment & dispatching driver…</p>
+              </div>
+
             ) : (
               <div className="px-5 py-4 space-y-4">
-                {/* Trip type toggle */}
+
+                {/* Booking method toggle */}
                 <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-                  {(['arrival', 'departure'] as const).map(t => (
-                    <button key={t} onClick={() => { setDispatchType(t); setDispatchForm(f => ({ ...f, pickup_location: '', destination: '' })); }}
-                      className={`flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all ${dispatchType === t ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
-                      {t === 'arrival' ? '✈️ Arrival → Hotel' : '🚗 Hotel → Out'}
-                    </button>
-                  ))}
+                  <button onClick={() => { setDispatchForm(f => ({ ...f, bookingMethod: 'shuttle' })); resetTC(); }}
+                    className={`flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all flex items-center justify-center gap-1.5 ${dispatchForm.bookingMethod === 'shuttle' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
+                    <Bus size={13} /> Hotel Shuttle
+                  </button>
+                  <button onClick={() => { setDispatchForm(f => ({ ...f, bookingMethod: 'taxicaller' })); resetTC(); }}
+                    className={`flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all flex items-center justify-center gap-1.5 ${dispatchForm.bookingMethod === 'taxicaller' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
+                    <Car size={13} /> TaxiCaller
+                  </button>
                 </div>
 
-                {/* Guest + Room + Pax in one row */}
+                {/* Trip direction toggle (shuttle only) */}
+                {dispatchForm.bookingMethod === 'shuttle' && (
+                  <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+                    {(['arrival', 'departure'] as const).map(t => (
+                      <button key={t} onClick={() => { setDispatchType(t); setDispatchForm(f => ({ ...f, pickup_location: '', destination: '' })); }}
+                        className={`flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all ${dispatchType === t ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
+                        {t === 'arrival' ? '✈️ Arrival → Hotel' : '🚗 Hotel → Out'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Guest + Room + Pax */}
                 <div className="flex gap-2">
                   <input value={dispatchForm.guest_name} onChange={e => setDispatchForm(f => ({ ...f, guest_name: e.target.value }))}
                     placeholder="Guest name" className="flex-1 bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
                   <input value={dispatchForm.room_number} onChange={e => setDispatchForm(f => ({ ...f, room_number: e.target.value }))}
                     placeholder="Rm" className="w-16 bg-gray-50 rounded-xl px-2 py-3 text-sm border border-gray-200 text-center focus:outline-none focus:border-teal-400 transition-colors" />
                   <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-2">
-                    <button onClick={() => setDispatchForm(f => ({ ...f, pax: Math.max(1, f.pax - 1) }))}
-                      className="w-7 h-7 rounded-lg text-gray-500 text-lg font-bold flex items-center justify-center hover:bg-gray-200">−</button>
+                    <button onClick={() => setDispatchForm(f => ({ ...f, pax: Math.max(1, f.pax - 1) }))} className="w-7 h-7 rounded-lg text-gray-500 text-lg font-bold flex items-center justify-center hover:bg-gray-200">−</button>
                     <span className="text-sm font-bold text-gray-900 w-5 text-center">{dispatchForm.pax}</span>
-                    <button onClick={() => setDispatchForm(f => ({ ...f, pax: f.pax + 1 }))}
-                      className="w-7 h-7 rounded-lg text-white text-lg font-bold flex items-center justify-center" style={{ backgroundColor: TEAL }}>+</button>
+                    <button onClick={() => setDispatchForm(f => ({ ...f, pax: f.pax + 1 }))} className="w-7 h-7 rounded-lg text-white text-lg font-bold flex items-center justify-center" style={{ backgroundColor: TEAL }}>+</button>
                   </div>
                 </div>
 
-                {/* Pickup / dropoff location chips */}
-                <div>
-                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                    {dispatchType === 'arrival' ? 'Pickup' : 'Dropoff'}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(dispatchType === 'arrival' ? ARRIVAL_PICKUPS : DEPARTURE_DROPOFFS).map(loc => {
-                      const active = dispatchType === 'arrival' ? dispatchForm.pickup_location === loc : dispatchForm.destination === loc;
-                      return (
-                        <button key={loc} onClick={() => setDispatchForm(f => dispatchType === 'arrival' ? { ...f, pickup_location: loc } : { ...f, destination: loc })}
-                          className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all ${active ? 'border-teal-500 bg-teal-500 text-white' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
-                          {loc}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                {/* TaxiCaller: phone + free pickup/destination inputs */}
+                {dispatchForm.bookingMethod === 'taxicaller' && (
+                  <>
+                    <input value={dispatchForm.guestPhone} onChange={e => setDispatchForm(f => ({ ...f, guestPhone: e.target.value }))} type="tel"
+                      placeholder="Guest phone (optional)" className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-3">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        <input value={dispatchForm.pickup_location} onChange={e => setDispatchForm(f => ({ ...f, pickup_location: e.target.value }))}
+                          placeholder="Pickup (default: Hotel Lobby)" className="flex-1 bg-transparent text-sm focus:outline-none" />
+                      </div>
+                      <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-3">
+                        <MapPin size={12} style={{ color: TEAL }} className="shrink-0" />
+                        <input value={dispatchForm.destination} onChange={e => setDispatchForm(f => ({ ...f, destination: e.target.value }))}
+                          placeholder="Destination *" className="flex-1 bg-transparent text-sm focus:outline-none" />
+                      </div>
+                    </div>
+                  </>
+                )}
 
-                {/* Date + Time + Notes */}
+                {/* Shuttle: chip-based location picker */}
+                {dispatchForm.bookingMethod === 'shuttle' && (
+                  <div>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                      {dispatchType === 'arrival' ? 'Pickup' : 'Dropoff'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(dispatchType === 'arrival' ? ARRIVAL_PICKUPS : DEPARTURE_DROPOFFS).map(loc => {
+                        const active = dispatchType === 'arrival' ? dispatchForm.pickup_location === loc : dispatchForm.destination === loc;
+                        return (
+                          <button key={loc} onClick={() => setDispatchForm(f => dispatchType === 'arrival' ? { ...f, pickup_location: loc } : { ...f, destination: loc })}
+                            className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all ${active ? 'border-teal-500 bg-teal-500 text-white' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
+                            {loc}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Date + Time */}
                 <div className="flex gap-3">
                   <div className="flex-1">
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Date</p>
@@ -1083,36 +1267,65 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                       className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
                   </div>
                 </div>
+
                 <div>
                   <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Flight / Notes</p>
                   <input value={dispatchForm.notes} onChange={e => setDispatchForm(f => ({ ...f, notes: e.target.value }))}
                     placeholder="AA123, notes…" className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
                 </div>
 
-                {/* Assign Driver */}
-                <div>
-                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Assign Driver</p>
-                  <select value={dispatchForm.driver_id} onChange={e => setDispatchForm(f => ({ ...f, driver_id: e.target.value }))}
-                    className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors">
-                    <option value="">— No driver assigned —</option>
-                    {todayDrivers.length > 0 ? (
-                      todayDrivers.map(d => (
-                        <option key={d.id} value={d.id}>
-                          {d.name} · {fmt(d.start_time)}{d.end_time ? `–${fmt(d.end_time)}` : ''}
-                        </option>
-                      ))
-                    ) : (
-                      <option disabled value="">No drivers scheduled today</option>
-                    )}
-                  </select>
-                </div>
+                {/* Shuttle only: driver assignment */}
+                {dispatchForm.bookingMethod === 'shuttle' && (
+                  <div>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Assign Driver</p>
+                    <select value={dispatchForm.driver_id} onChange={e => setDispatchForm(f => ({ ...f, driver_id: e.target.value }))}
+                      className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors">
+                      <option value="">— No driver assigned —</option>
+                      {todayDrivers.length > 0 ? todayDrivers.map(d => (
+                        <option key={d.id} value={d.id}>{d.name} · {fmt(d.start_time)}{d.end_time ? `–${fmt(d.end_time)}` : ''}</option>
+                      )) : <option disabled value="">No drivers scheduled today</option>}
+                    </select>
+                  </div>
+                )}
 
-                <button onClick={handleDispatchSubmit}
-                  disabled={dispatching || !dispatchForm.guest_name.trim() || !dispatchForm.room_number.trim()}
-                  className="w-full py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 active:scale-[0.98] transition-all"
-                  style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
-                  {dispatching ? 'Logging…' : '✅ Log Trip'}
-                </button>
+                {/* TaxiCaller: quote preview card */}
+                {dispatchForm.bookingMethod === 'taxicaller' && tcStep === 'quote' && tcQuote && (
+                  <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 space-y-2">
+                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Price Quote</p>
+                    <div className="flex justify-between text-sm text-gray-600"><span>Base fare</span><span>{fmtCents(tcQuote.base_fare_cents)}</span></div>
+                    <div className="flex justify-between text-sm text-gray-600"><span>Service fee (10%)</span><span>{fmtCents(tcQuote.surcharge_cents)}</span></div>
+                    <div className="border-t border-gray-200 pt-2 flex justify-between font-extrabold text-gray-900"><span>Total</span><span>{fmtCents(tcQuote.total_cents)}</span></div>
+                    {tcQuote.estimated_mins > 0 && <p className="text-[11px] text-gray-400">~{tcQuote.estimated_mins} min estimated travel time</p>}
+                  </div>
+                )}
+
+                {tcError && <p className="text-[12px] text-red-500">{tcError}</p>}
+
+                {/* Submit button */}
+                {dispatchForm.bookingMethod === 'shuttle' ? (
+                  <button onClick={handleDispatchSubmit}
+                    disabled={dispatching || !dispatchForm.guest_name.trim() || !dispatchForm.room_number.trim()}
+                    className="w-full py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 active:scale-[0.98] transition-all"
+                    style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
+                    {dispatching ? 'Logging…' : '✅ Log Trip'}
+                  </button>
+                ) : tcStep === 'quote' && tcQuote ? (
+                  <div className="flex gap-2">
+                    <button onClick={resetTC} className="px-5 py-4 rounded-2xl bg-gray-100 font-bold text-[14px] text-gray-700">Back</button>
+                    <button onClick={handleTCConfirmPay} disabled={dispatching}
+                      className="flex-1 py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 flex items-center justify-center gap-2"
+                      style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
+                      <CreditCard size={16} /> Confirm & Pay {fmtCents(tcQuote.total_cents)}
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={handleTCGetQuote}
+                    disabled={dispatching || !dispatchForm.guest_name.trim() || !dispatchForm.room_number.trim() || !dispatchForm.destination.trim()}
+                    className="w-full py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 active:scale-[0.98] transition-all"
+                    style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
+                    {dispatching ? 'Getting price…' : '🚗 Get Price & Book'}
+                  </button>
+                )}
               </div>
             )}
           </div>
