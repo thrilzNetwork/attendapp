@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { RefreshCw, Check, X, UserCheck, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, Check, X, UserCheck, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface Request {
@@ -62,13 +62,30 @@ function OrdersView({
   const [requests, setRequests] = useState<Request[]>(initialRequests);
   const [selected, setSelected] = useState<Request | null>(null);
   const [showAllOpen, setShowAllOpen] = useState(false);
+  const [viewDate, setViewDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => { setRequests(initialRequests); }, [initialRequests]);
 
-  const pending = requests.filter(r => r.status === 'pending');
-  const inProgress = requests.filter(r => r.status === 'in-progress');
-  const completed = requests.filter(r => r.status === 'completed');
-  const closed = requests.filter(r => r.status === 'closed');
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday = viewDate === todayStr;
+
+  const shiftDate = (delta: number) => {
+    const d = new Date(viewDate + 'T12:00:00');
+    d.setDate(d.getDate() + delta);
+    setViewDate(d.toISOString().slice(0, 10));
+  };
+
+  const formatViewDate = (iso: string) => {
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  const viewed = requests.filter(r => r.created_at.slice(0, 10) === viewDate);
+
+  const pending = viewed.filter(r => r.status === 'pending');
+  const inProgress = viewed.filter(r => r.status === 'in-progress');
+  const completed = viewed.filter(r => r.status === 'completed');
+  const closed = viewed.filter(r => r.status === 'closed');
   const open = [...pending, ...inProgress];
 
   const handleAccept = async (req: Request) => {
@@ -231,7 +248,7 @@ function OrdersView({
   return (
     <div className="p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-[26px] font-extrabold text-gray-900">
             Requests
@@ -250,9 +267,32 @@ function OrdersView({
         </button>
       </div>
 
-      {requests.length === 0 ? (
+      {/* Date Nav */}
+      <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-3 py-2 mb-6 shadow-sm">
+        <button onClick={() => shiftDate(-1)} className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all">
+          <ChevronLeft size={18} className="text-gray-600" />
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-[14px] font-bold text-gray-800">{formatViewDate(viewDate)}</span>
+          {isToday && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">Today</span>}
+        </div>
+        <div className="flex items-center gap-1">
+          {!isToday && (
+            <button onClick={() => setViewDate(todayStr)} className="text-[11px] font-semibold text-teal-600 hover:text-teal-800 px-2 py-1 rounded-lg hover:bg-teal-50 transition-colors mr-1">
+              Today
+            </button>
+          )}
+          <button onClick={() => shiftDate(1)} className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all">
+            <ChevronRight size={18} className="text-gray-600" />
+          </button>
+        </div>
+      </div>
+
+      {viewed.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <p className="text-[15px] text-gray-400">No requests yet. Guest interactions will show here only when they request something.</p>
+          <p className="text-[15px] text-gray-400">
+            {isToday ? 'No requests yet today. Guest interactions will show here when they request something.' : `No requests on ${formatViewDate(viewDate)}.`}
+          </p>
         </div>
       ) : (
         <>
