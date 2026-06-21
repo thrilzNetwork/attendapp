@@ -346,15 +346,29 @@ function CruiseScheduleSection({ brandColor, config }: { brandColor: string; con
     if (!bookingForm.name || !bookingForm.room) return;
     const slot = slots.find(s => s.id === bookingForm.slot_id);
     const pricePer = slot?.override_price ?? slot?.route_price ?? 0;
-    await bookShuttleSlot({
-      slot_id: bookingForm.slot_id,
-      guest_name: bookingForm.name,
-      room_number: bookingForm.room,
-      pax: bookingForm.pax,
-      notes: bookingForm.notes,
-      price_charged: pricePer * bookingForm.pax,
-      charge_accepted: bookingForm.charge_accepted,
-    });
+    await Promise.all([
+      bookShuttleSlot({
+        slot_id: bookingForm.slot_id,
+        guest_name: bookingForm.name,
+        room_number: bookingForm.room,
+        pax: bookingForm.pax,
+        notes: bookingForm.notes,
+        price_charged: pricePer * bookingForm.pax,
+        charge_accepted: bookingForm.charge_accepted,
+      }),
+      config?.id ? createShuttleRequest({
+        hotel_id: config.id,
+        guest_name: bookingForm.name,
+        room_number: bookingForm.room,
+        pickup_location: config.shuttlePickupLocation || 'Hotel Lobby',
+        destination: slot?.route_name || 'Cruise Port',
+        date: bookingForm.date,
+        time: slot?.departure_time || undefined,
+        pax: bookingForm.pax,
+        notes: bookingForm.notes || undefined,
+        status: 'pending',
+      }) : Promise.resolve(),
+    ]);
     setBooked(bookingForm.slot_id);
     setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false, date: todayISO() });
     if (config?.id) {

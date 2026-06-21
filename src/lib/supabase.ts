@@ -971,10 +971,19 @@ export async function createShuttleRequest(req: {
   destination: string; pickup_location?: string; date?: string; time?: string;
   pax?: number; notes?: string; status?: string; assigned_driver_id?: string;
 }) {
-  const { data } = await supabase.from('shuttle_requests').insert({
+  if (!req.hotel_id || req.hotel_id === '') {
+    // Try to resolve hotel_id from config when caller didn't have it yet
+    const cfg = await getHotelConfig();
+    if (!cfg?.id) throw new Error('Hotel not identified — cannot save request.');
+    req = { ...req, hotel_id: cfg.id };
+  }
+
+  const { data, error } = await supabase.from('shuttle_requests').insert({
     ...req, pickup_location: req.pickup_location || 'Hotel Lobby',
     pax: req.pax || 1, notes: req.notes || '',
   }).select().single();
+
+  if (error) throw new Error(error.message);
 
   // Also insert into requests table so it appears in Live Orders
   if (data) {
