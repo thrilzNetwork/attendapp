@@ -265,8 +265,8 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
         </div>
       )}
 
-      {/* ETA chips */}
-      {loc && (etaToDest || etaToHotel) && (
+      {/* ETA chips — only when moving */}
+      {loc && isMoving && (etaToDest || etaToHotel) && (
         <div className="grid grid-cols-2 gap-2">
           {etaToDest && (
             <div className={`rounded-xl px-3 py-2.5 text-center border ${etaToDest.distanceMiles <= 0.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-sky-50 border-sky-100'}`}>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase, getWeeklyForecasts, authedApiHeaders, type WeeklyForecast } from '@/lib/supabase';
+import { supabase, getWeeklyForecasts, type WeeklyForecast } from '@/lib/supabase';
 import { TrendingUp, Save, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
 interface DayData {
@@ -184,14 +184,12 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
         departures: day.departures,
         total_rooms: resolvedTotalRooms,
         prev_night_occ: prevNightOcc,
+        updated_at: new Date().toISOString(),
       }));
-      const res = await fetch('/api/upsert-forecast', {
-        method: 'POST',
-        headers: await authedApiHeaders(),
-        body: JSON.stringify({ forecasts }),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'Save failed');
+      const { error } = await supabase
+        .from('weekly_forecasts')
+        .upsert(forecasts, { onConflict: 'hotel_id, date' });
+      if (error) throw new Error(error.message || 'Save failed');
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e: unknown) {
