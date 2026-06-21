@@ -399,7 +399,15 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   }, [hotelId, load]);
 
   const todaySlots = getSlotsForDate(slots, viewDate);
-  const pendingReqs = requests.filter(r => r.status === 'pending' || r.status === 'assigned' || r.status === 'in_progress');
+  // Active = today's pending/in-progress only — future bookings don't count as active yet
+  const pendingReqs = requests.filter(r =>
+    (r.status === 'pending' || r.status === 'assigned' || r.status === 'in_progress') &&
+    r.date === todayStr()
+  );
+  // All upcoming pending (for Requests tab badge — includes future dates)
+  const allPendingReqs = requests.filter(r =>
+    r.status === 'pending' || r.status === 'assigned' || r.status === 'in_progress'
+  );
 
   // Pickup / dropoff presets
   const ARRIVAL_PICKUPS = ['Terminal 1', 'Terminal 2', 'Terminal 3', 'Terminal 4', 'Cruise Terminal', 'Port Everglades', 'Curbside', 'Other'];
@@ -530,7 +538,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
       <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl">
         {([
           { key: 'today',    label: 'Today' },
-          { key: 'requests', label: `Requests${pendingReqs.length > 0 ? ` (${pendingReqs.length})` : ''}` },
+          { key: 'requests', label: `Requests${allPendingReqs.length > 0 ? ` (${allPendingReqs.length})` : ''}` },
           ...(isAdmin ? [{ key: 'setup', label: '⚙ Setup' }] : []),
         ] as { key: Tab; label: string }[]).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
