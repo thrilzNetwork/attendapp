@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plane, Bus, Ship, Car, UserCheck, X, MapPin, Clock, Users, CreditCard, CheckCircle, ExternalLink } from 'lucide-react';
 import { getHotelConfig, HotelConfig, getAllShuttleSlotsForHotel, bookShuttleSlot, getCruiseSchedules, ShuttleSlot, CruiseSchedule, createShuttleRequest } from '@/lib/supabase';
-import { TransportBooker } from '@/components/GuestSheets';
 import { goBackToHotel } from '@/lib/guest-context';
 import { loadStripe } from '@stripe/stripe-js';
 
@@ -281,9 +280,112 @@ function TaxiCallerRide({ brandColor, config, title = 'Book a Ride', pickupDefau
   );
 }
 
+/* ── Hotel Shuttle Request Form (no payment) ─── */
+function HotelShuttleForm({ brandColor, config, onBack }: { brandColor: string; config: HotelConfig | null; onBack: () => void }) {
+  const [form, setForm] = useState({ name: '', room: '', pax: 1, pickup: config?.shuttlePickupLocation || 'Hotel Lobby', destination: '', date: todayISO(), time: nowTime(), notes: '' });
+  const [done, setDone] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    if (!form.name || !form.room || !form.destination) { setError('Please fill in name, room, and destination.'); return; }
+    setError(''); setLoading(true);
+    try {
+      await createShuttleRequest({
+        hotel_id: config?.id || '',
+        guest_name: form.name,
+        room_number: form.room,
+        pickup_location: form.pickup || 'Hotel Lobby',
+        destination: form.destination,
+        date: form.date,
+        time: form.time,
+        pax: form.pax,
+        notes: form.notes || undefined,
+        status: 'pending',
+      });
+      setDone(true);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not submit request');
+    } finally { setLoading(false); }
+  };
+
+  if (done) {
+    return (
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center space-y-4">
+        <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto">
+          <CheckCircle size={28} className="text-emerald-500" />
+        </div>
+        <div>
+          <p className="text-[18px] font-extrabold text-gray-900">Request Sent!</p>
+          <p className="text-[13px] text-gray-400 mt-1">Our team will confirm your shuttle shortly.</p>
+        </div>
+        <button onClick={() => { setDone(false); setForm({ name: '', room: '', pax: 1, pickup: config?.shuttlePickupLocation || 'Hotel Lobby', destination: '', date: todayISO(), time: nowTime(), notes: '' }); onBack(); }}
+          className="w-full py-2.5 rounded-2xl text-[13px] font-semibold text-gray-500 bg-gray-100">
+          Back
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
+      <div className="flex items-center gap-2 mb-1">
+        <button onClick={onBack} className="text-gray-400 hover:text-gray-600"><ArrowLeft size={16} /></button>
+        <h4 className="font-extrabold text-[15px] text-gray-900">Hotel Transportation</h4>
+        <span className="ml-auto text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">FREE</span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <input placeholder="Your name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+          className="bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+        <input placeholder="Room number *" value={form.room} onChange={e => setForm({ ...form, room: e.target.value })}
+          className="bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+      </div>
+
+      <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200">
+        <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+        <input value={form.pickup} onChange={e => setForm({ ...form, pickup: e.target.value })} placeholder="Pickup location"
+          className="flex-1 bg-transparent text-[13px] outline-none" />
+      </div>
+
+      <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200">
+        <MapPin size={12} style={{ color: brandColor }} className="shrink-0" />
+        <input value={form.destination} onChange={e => setForm({ ...form, destination: e.target.value })} placeholder="Destination *"
+          className="flex-1 bg-transparent text-[13px] outline-none" />
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
+          className="col-span-2 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
+        <input type="time" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })}
+          className="bg-gray-50 rounded-xl px-2 py-2.5 border border-gray-200 text-[13px] outline-none" />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Users size={13} className="text-gray-400" />
+        <input type="number" min={1} max={10} value={form.pax} onChange={e => setForm({ ...form, pax: parseInt(e.target.value) || 1 })}
+          className="w-20 bg-gray-50 rounded-xl px-3 py-2 border border-gray-200 text-[13px] outline-none text-center" />
+        <span className="text-[12px] text-gray-400">passengers</span>
+      </div>
+
+      <textarea placeholder="Notes (optional)" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+        className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none resize-none h-14" />
+
+      {error && <p className="text-[12px] text-red-500">{error}</p>}
+
+      <button onClick={submit} disabled={loading || !form.name || !form.room || !form.destination}
+        className="w-full py-3.5 rounded-2xl font-extrabold text-[14px] text-white disabled:opacity-50"
+        style={{ backgroundColor: brandColor }}>
+        {loading ? 'Sending...' : 'Request Shuttle'}
+      </button>
+    </div>
+  );
+}
+
 export default function TransportPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'airport' | 'cruise' | 'private'>('airport');
+  const [mainTab, setMainTab] = useState<'book' | 'schedules'>('book');
+  const [method, setMethod] = useState<null | 'shuttle' | 'taxi'>(null);
   const [brandColor, setBrandColor] = useState('#6B1D3C');
   const [config, setConfig] = useState<HotelConfig | null>(null);
 
@@ -314,50 +416,91 @@ export default function TransportPage() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-5 pt-4 pb-8">
-          {/* 3-tab nav */}
+          {/* Main tab toggle */}
           <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-gray-100 flex mb-4">
-            {[
-              { key: 'airport' as const, label: 'Airport', icon: <Plane size={14} /> },
-              { key: 'cruise' as const, label: 'Cruise Port', icon: <Ship size={14} /> },
-              { key: 'private' as const, label: 'Private', icon: <Car size={14} /> },
-            ].map(t => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors flex items-center justify-center gap-1.5 ${
-                  tab === t.key ? 'text-white' : 'text-gray-500'
-                }`}
-                style={tab === t.key ? { backgroundColor: brandColor } : undefined}
-              >
-                {t.icon} {t.label}
+            {([
+              { key: 'book' as const, label: 'Book Transport' },
+              { key: 'schedules' as const, label: 'Schedules' },
+            ] as const).map(t => (
+              <button key={t.key} onClick={() => { setMainTab(t.key); setMethod(null); }}
+                className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${mainTab === t.key ? 'text-white' : 'text-gray-500'}`}
+                style={mainTab === t.key ? { backgroundColor: brandColor } : undefined}>
+                {t.label}
               </button>
             ))}
           </div>
 
-          {tab === 'airport' && (
-            <div className="space-y-4">
-              <AirportSchedule brandColor={brandColor} config={config} />
-              <TaxiCallerRide
-                brandColor={brandColor}
-                config={config}
-                title="Book On-Demand Airport Ride"
-                pickupDefault={config?.address || ''}
-              />
+          {mainTab === 'book' && (
+            <div>
+              {/* Step 1: Option cards */}
+              {!method && (
+                <div className="space-y-3">
+                  <p className="text-[13px] text-gray-500 font-semibold text-center mb-1">How would you like to travel?</p>
+
+                  {/* Hotel Shuttle card */}
+                  <button onClick={() => setMethod('shuttle')}
+                    className="w-full bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center shrink-0">
+                      <Bus size={22} className="text-emerald-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[15px] font-extrabold text-gray-900">Hotel Transportation</p>
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">FREE</span>
+                      </div>
+                      <p className="text-[12px] text-gray-400 mt-0.5">Our team confirms availability</p>
+                    </div>
+                    <ArrowLeft size={16} className="text-gray-300 rotate-180 shrink-0" />
+                  </button>
+
+                  {/* TaxiCaller card */}
+                  <button onClick={() => setMethod('taxi')}
+                    className="w-full bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${brandColor}15` }}>
+                      <Car size={22} style={{ color: brandColor }} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[15px] font-extrabold text-gray-900">Book a Taxi</p>
+                      <p className="text-[12px] text-gray-400 mt-0.5">Instant dispatch · Pay online</p>
+                    </div>
+                    <ArrowLeft size={16} className="text-gray-300 rotate-180 shrink-0" />
+                  </button>
+                </div>
+              )}
+
+              {/* Step 2a: Hotel Shuttle form */}
+              {method === 'shuttle' && (
+                <HotelShuttleForm brandColor={brandColor} config={config} onBack={() => setMethod(null)} />
+              )}
+
+              {/* Step 2b: TaxiCaller ride */}
+              {method === 'taxi' && (
+                <div>
+                  <button onClick={() => setMethod(null)} className="flex items-center gap-1.5 text-[13px] text-gray-500 font-semibold mb-3">
+                    <ArrowLeft size={14} /> Back
+                  </button>
+                  <TaxiCallerRide brandColor={brandColor} config={config} title="Book a Taxi" pickupDefault={config?.address || ''} />
+                </div>
+              )}
             </div>
           )}
-          {tab === 'cruise' && (
-            <div className="space-y-4">
-              <CruiseScheduleSection brandColor={brandColor} config={config} />
-            </div>
-          )}
-          {tab === 'private' && (
-            <div className="space-y-4">
-              <TaxiCallerRide
-                brandColor={brandColor}
-                config={config}
-                title="Book a Private Ride"
-                pickupDefault={config?.address || ''}
-              />
+
+          {mainTab === 'schedules' && (
+            <div className="space-y-6">
+              <div>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <Plane size={14} className="text-gray-400" />
+                  <p className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">Airport Shuttle</p>
+                </div>
+                <AirportSchedule brandColor={brandColor} config={config} />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <Ship size={14} className="text-gray-400" />
+                  <p className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">Cruise Port</p>
+                </div>
+                <CruiseScheduleSection brandColor={brandColor} config={config} />
+              </div>
             </div>
           )}
         </div>
