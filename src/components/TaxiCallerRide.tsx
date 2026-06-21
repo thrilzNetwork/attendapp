@@ -33,7 +33,8 @@ export function TaxiCallerRide({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (config?.address && !form.pickup) setForm(f => ({ ...f, pickup: config.address }));
+    if (config?.address && !form.pickup) setForm(f => ({ ...f, pickup: config!.address }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config?.address]);
 
   const getQuote = async () => {
