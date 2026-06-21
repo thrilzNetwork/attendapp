@@ -77,6 +77,7 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
   const [connected, setConnected] = useState<boolean | null>(null);
   const [needsReauth, setNeedsReauth] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   const [hotelCoords, setHotelCoords] = useState<Coords | null>(null);
   const [destCoords, setDestCoords] = useState<Coords | null>(null);
   const [destName, setDestName] = useState<string | null>(null);
@@ -179,10 +180,10 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
   // Direction banner config
   const directionConfig = (() => {
     if (!shuttleDirection) return null;
-    if (shuttleDirection === 'at_hotel') return { bg: 'bg-teal-50 border-teal-200', text: 'text-teal-800', label: `🏨 At hotel` };
-    if (shuttleDirection === 'at_dest')  return { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-800', label: `✈️ At ${destName || 'destination'}` };
-    if (shuttleDirection === 'to_dest')  return { bg: 'bg-sky-50 border-sky-200', text: 'text-sky-800', label: `🏨 → ✈️  Heading to ${destName || 'airport'}` };
-    return { bg: 'bg-orange-50 border-orange-200', text: 'text-orange-800', label: `✈️ → 🏨  Returning to hotel` };
+    if (shuttleDirection === 'at_hotel') return { bg: 'bg-gray-50 border-gray-200', text: 'text-gray-700', icon: '🏨', label: `Parked at hotel` };
+    if (shuttleDirection === 'at_dest')  return { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-800', icon: '✈️', label: `At ${destName || 'airport'} — picking up` };
+    if (shuttleDirection === 'to_dest')  return { bg: 'bg-sky-50 border-sky-200', text: 'text-sky-800', icon: '→', label: `En route to ${destName || 'airport'}` };
+    return { bg: 'bg-orange-50 border-orange-200', text: 'text-orange-800', icon: '←', label: `Returning to hotel` };
   })();
 
   // Inline map
@@ -258,7 +259,8 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
 
       {/* Direction banner */}
       {directionConfig && (
-        <div className={`rounded-xl border px-3 py-2.5 text-[13px] font-bold ${directionConfig.bg} ${directionConfig.text}`}>
+        <div className={`rounded-xl border px-3 py-2.5 flex items-center gap-2 text-[13px] font-bold ${directionConfig.bg} ${directionConfig.text}`}>
+          <span className="text-[16px]">{directionConfig.icon}</span>
           {directionConfig.label}
         </div>
       )}
@@ -268,20 +270,20 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
         <div className="grid grid-cols-2 gap-2">
           {etaToDest && (
             <div className={`rounded-xl px-3 py-2.5 text-center border ${etaToDest.distanceMiles <= 0.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-sky-50 border-sky-100'}`}>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">✈️ {destName || 'Airport'}</p>
-              <p className={`text-[16px] font-black ${etaToDest.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-sky-700'}`}>
-                {etaToDest.distanceMiles <= 0.5 ? 'Arriving' : `~${etaToDest.etaMinutes} min`}
+              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">{destName || 'Airport'}</p>
+              <p className={`text-[18px] font-black leading-tight ${etaToDest.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-sky-700'}`}>
+                {etaToDest.distanceMiles <= 0.5 ? 'Arriving' : `${etaToDest.etaMinutes} min`}
               </p>
-              <p className="text-[9px] text-gray-400">{etaToDest.distanceMiles.toFixed(1)} mi away</p>
+              <p className="text-[10px] text-gray-400">{etaToDest.distanceMiles.toFixed(1)} mi</p>
             </div>
           )}
           {etaToHotel && (
             <div className={`rounded-xl px-3 py-2.5 text-center border ${etaToHotel.distanceMiles <= 0.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-orange-50 border-orange-100'}`}>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">🏨 Hotel</p>
-              <p className={`text-[16px] font-black ${etaToHotel.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-orange-700'}`}>
-                {etaToHotel.distanceMiles <= 0.5 ? 'Arriving' : `~${etaToHotel.etaMinutes} min`}
+              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Hotel</p>
+              <p className={`text-[18px] font-black leading-tight ${etaToHotel.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-orange-700'}`}>
+                {etaToHotel.distanceMiles <= 0.5 ? 'Arriving' : `${etaToHotel.etaMinutes} min`}
               </p>
-              <p className="text-[9px] text-gray-400">{etaToHotel.distanceMiles.toFixed(1)} mi away</p>
+              <p className="text-[10px] text-gray-400">{etaToHotel.distanceMiles.toFixed(1)} mi</p>
             </div>
           )}
         </div>
@@ -306,7 +308,18 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
       )}
 
       {/* Map */}
-      {mapIframe}
+      {/* Map toggle */}
+      {loc && (
+        <div>
+          <button
+            onClick={() => setShowMap(v => !v)}
+            className="text-[12px] text-teal-600 font-semibold flex items-center gap-1"
+          >
+            {showMap ? '▾ Hide map' : '▸ Show map'}
+          </button>
+          {showMap && <div className="mt-2">{mapIframe}</div>}
+        </div>
+      )}
 
       {/* Trip history */}
       {completedTrips.length > 0 && (
