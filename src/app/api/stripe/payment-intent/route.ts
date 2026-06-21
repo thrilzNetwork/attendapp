@@ -14,11 +14,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { requestId, amountCents, partnerId, description } = body as {
+    const { requestId, amountCents, partnerId, description, quoteId } = body as {
       requestId: string;
       amountCents: number;
       partnerId: string;
       description: string;
+      quoteId?: string;
     };
 
     if (!requestId || !amountCents || amountCents < 50) {
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
         partner_id: partnerId,
         platform_fee_cents: String(platformFeeCents),
         vendor_payout_cents: String(vendorPayoutCents),
+        ...(quoteId ? { quote_id: quoteId } : {}),
       },
       automatic_payment_methods: { enabled: true },
     };

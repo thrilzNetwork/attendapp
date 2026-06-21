@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
     const requestId = intent.metadata?.request_id;
     const vendorPayout = parseInt(intent.metadata?.vendor_payout_cents || '0');
     const partnerId = intent.metadata?.partner_id;
+    const quoteId = intent.metadata?.quote_id;
 
     if (requestId) {
       await db.from('requests').update({
@@ -36,6 +37,34 @@ export async function POST(req: NextRequest) {
         paid_at: new Date().toISOString(),
         status: 'in-progress',
       }).eq('stripe_payment_intent_id', intent.id);
+
+      // If this was a TaxiCaller transport payment, create the dispatch booking
+      if (quoteId && partnerId === 'taxicaller') {
+        try {
+          const { data: sr } = await db.from('shuttle_requests')
+            .select('guest_name, room_number, pickup_location, destination, date, time, pax, notes')
+            .eq('id', requestId).maybeSingle();
+          if (sr) {
+            const pickupTime = new Date(`${sr.date}T${sr.time || '12:00'}`).toISOString();
+            await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/taxicaller/book`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                requestId,
+                quoteId,
+                guestName: sr.guest_name,
+                pickup: sr.pickup_location,
+                destination: sr.destination,
+                pickupTime,
+                pax: sr.pax ?? 1,
+                notes: sr.notes,
+              }),
+            });
+          }
+        } catch (e) {
+          console.error('TaxiCaller booking after payment failed:', e);
+        }
+      }
 
       // Add to payout ledger if vendor doesn't have Connect (will be paid manually daily)
       if (partnerId && vendorPayout > 0) {
