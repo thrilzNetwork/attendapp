@@ -253,16 +253,36 @@ export function bearingBetween(lat1: number, lng1: number, lat2: number, lng2: n
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
+// Returns the angular difference between two bearings (0–180°)
+function angleDiff(a: number, b: number): number {
+  const diff = Math.abs(a - b) % 360;
+  return diff > 180 ? 360 - diff : diff;
+}
+
 // Detect whether the shuttle is heading toward the destination or back to hotel.
-// Uses proximity as the primary signal (which endpoint is it closer to?).
+// When moving, uses GPS heading vs bearing to each endpoint (more accurate).
+// Falls back to proximity when idle or no heading available.
 export function detectShuttleDirection(
   shuttleLat: number, shuttleLng: number,
   hotelLat: number, hotelLng: number,
   destLat: number, destLng: number,
+  heading?: number | null,
+  speedMph = 0,
 ): 'to_dest' | 'to_hotel' | 'at_hotel' | 'at_dest' {
   const dHotel = haversineDistanceMiles(shuttleLat, shuttleLng, hotelLat, hotelLng);
   const dDest  = haversineDistanceMiles(shuttleLat, shuttleLng, destLat, destLng);
   if (dHotel <= HOTEL_ARRIVAL_RADIUS_MILES) return 'at_hotel';
   if (dDest  <= HOTEL_ARRIVAL_RADIUS_MILES) return 'at_dest';
+
+  // Heading-based when actively moving — much more reliable than pure proximity
+  if (speedMph > 2 && heading != null) {
+    const bearingToHotel = bearingBetween(shuttleLat, shuttleLng, hotelLat, hotelLng);
+    const bearingToDest  = bearingBetween(shuttleLat, shuttleLng, destLat, destLng);
+    const diffHotel = angleDiff(heading, bearingToHotel);
+    const diffDest  = angleDiff(heading, bearingToDest);
+    return diffDest < diffHotel ? 'to_dest' : 'to_hotel';
+  }
+
+  // Fallback: proximity (idle or no heading data)
   return dDest < dHotel ? 'to_dest' : 'to_hotel';
 }

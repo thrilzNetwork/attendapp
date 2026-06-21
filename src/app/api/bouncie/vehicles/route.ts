@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
       ? calculateETA(loc.lat, loc.lng, destCoords.lat, destCoords.lng, loc.speed_mph || 0)
       : null;
     const shuttleDirection = (loc && hotelCoords && destCoords)
-      ? detectShuttleDirection(loc.lat, loc.lng, hotelCoords.lat, hotelCoords.lng, destCoords.lat, destCoords.lng)
+      ? detectShuttleDirection(loc.lat, loc.lng, hotelCoords.lat, hotelCoords.lng, destCoords.lat, destCoords.lng, loc.heading, loc.speed_mph || 0)
       : null;
 
     return {

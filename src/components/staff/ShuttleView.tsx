@@ -62,11 +62,10 @@ function nextAvailableHour(): string {
   return `${String(h).padStart(2, '0')}:00`;
 }
 
-function getTodaySlots(slots: ShuttleSlot[]) {
-  const today = todayStr();
-  const dow   = todayDow();
+function getSlotsForDate(slots: ShuttleSlot[], date: string) {
+  const dow = new Date(date + 'T12:00:00').getDay();
   return slots
-    .filter(s => (s.date === today) || (!s.date && Array.isArray(s.days_of_week) && s.days_of_week.includes(dow)))
+    .filter(s => (s.date === date) || (!s.date && Array.isArray(s.days_of_week) && s.days_of_week.includes(dow)))
     .sort((a, b) => (a.departure_time || '').localeCompare(b.departure_time || ''));
 }
 
@@ -320,6 +319,7 @@ function RouteCard({ route, slots, onDelete, onDeleteSlot, onSaved }: {
 /* ── Main ShuttleView ── */
 export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props) {
   const [tab,      setTab]      = useState<Tab>('today');
+  const [viewDate, setViewDate] = useState(todayStr());
   const [routes,   setRoutes]   = useState<ShuttleRoute[]>([]);
   const [slots,    setSlots]    = useState<ShuttleSlot[]>([]);
   const [requests, setRequests] = useState<ShuttleRequest[]>([]);
@@ -398,7 +398,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
     return () => { supabase.removeChannel(ch); };
   }, [hotelId, load]);
 
-  const todaySlots = getTodaySlots(slots);
+  const todaySlots = getSlotsForDate(slots, viewDate);
   const pendingReqs = requests.filter(r => r.status === 'pending' || r.status === 'assigned' || r.status === 'in_progress');
 
   // Pickup / dropoff presets
@@ -472,8 +472,8 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   };
   const handleDeleteSlot = async (id: string) => { await deleteShuttleSlot(id); await load(); };
 
-  // Timeline: only show today's requests (strict date match)
-  const todayRequests = requests.filter(r => r.date === todayStr());
+  // Timeline: show requests for the selected view date
+  const todayRequests = requests.filter(r => r.date === viewDate);
   const filteredRequests = todayRequests.filter(r => {
     if (filterStatus !== 'all' && r.status !== filterStatus) return false;
     if (filterDir !== 'all') {
@@ -549,10 +549,28 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
           {/* ── TODAY — Hourly Timeline ── */}
           {tab === 'today' && (
             <div className="space-y-4">
-              <BouncieLiveShuttle hotelId={hotelId} isAdmin={isAdmin} />
+              {/* Date nav — today by default, staff can browse other days */}
+              <div className="flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3">
+                <button onClick={() => { const d = new Date(viewDate + 'T12:00:00'); d.setDate(d.getDate() - 1); setViewDate(d.toISOString().slice(0, 10)); }}
+                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-[14px]">‹</button>
+                <div className="text-center">
+                  {viewDate === todayStr()
+                    ? <p className="text-[14px] font-extrabold text-gray-900">Today</p>
+                    : <p className="text-[14px] font-extrabold text-gray-900">{new Date(viewDate + 'T12:00:00').toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</p>
+                  }
+                  {viewDate !== todayStr() && (
+                    <button onClick={() => setViewDate(todayStr())} className="text-[10px] text-teal-600 font-bold mt-0.5">Back to Today</button>
+                  )}
+                </div>
+                <button onClick={() => { const d = new Date(viewDate + 'T12:00:00'); d.setDate(d.getDate() + 1); setViewDate(d.toISOString().slice(0, 10)); }}
+                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-[14px]">›</button>
+              </div>
 
-              {/* Trip estimator */}
-              {shuttlePos && routes.filter(r => r.destination_lat && r.destination_lng).length > 0 && (
+              {/* Live shuttle only shown for today */}
+              {viewDate === todayStr() && <BouncieLiveShuttle hotelId={hotelId} isAdmin={isAdmin} />}
+
+              {/* Trip estimator — only for today */}
+              {viewDate === todayStr() && shuttlePos && routes.filter(r => r.destination_lat && r.destination_lng).length > 0 && (
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Navigation size={14} style={{ color: TEAL }} />
