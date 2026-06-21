@@ -13,6 +13,8 @@ interface BouncieLocation {
 
 interface ETAResult { distanceMiles: number; etaMinutes: number }
 
+interface DestEntry { name: string; address: string; lat: number | null; lng: number | null }
+
 interface BouncieDevice {
   id: string;
   device_id: string;
@@ -22,6 +24,7 @@ interface BouncieDevice {
   etaToHotel?: ETAResult | null;
   etaToDest?: ETAResult | null;
   shuttleDirection?: string | null;
+  activeDestName?: string | null;
 }
 
 interface BouncieTrip {
@@ -79,8 +82,7 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
   const [refreshing, setRefreshing] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [hotelCoords, setHotelCoords] = useState<Coords | null>(null);
-  const [destCoords, setDestCoords] = useState<Coords | null>(null);
-  const [destName, setDestName] = useState<string | null>(null);
+  const [destinations, setDestinations] = useState<DestEntry[]>([]);
   const [showDestSettings, setShowDestSettings] = useState(false);
   const [destForm, setDestForm] = useState({ name: '', address: '' });
   const [destSaving, setDestSaving] = useState(false);
@@ -100,11 +102,7 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
       setConnected(vehRes.connected === true);
       setNeedsReauth(vehRes.needsReauth === true);
       setHotelCoords(vehRes.hotelCoords || null);
-      setDestCoords(vehRes.destCoords || null);
-      setDestName(vehRes.destName || null);
-      if (!isManual && vehRes.destName !== undefined) {
-        setDestForm({ name: vehRes.destName || '', address: '' });
-      }
+      setDestinations(vehRes.destinations || []);
 
       // Schedule next poll based on whether any vehicle is moving
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -173,6 +171,7 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
   const etaToHotel = shuttle?.etaToHotel ?? null;
   const etaToDest = shuttle?.etaToDest ?? null;
   const shuttleDirection = shuttle?.shuttleDirection ?? null;
+  const activeDestName = shuttle?.activeDestName ?? destinations[0]?.name ?? null;
   const activeTrip = trips.find(t => !t.end_at) ?? null;
   const completedTrips = trips.filter(t => !!t.end_at);
   const isMoving = (loc?.speed_mph ?? 0) > 2;
@@ -181,15 +180,16 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
   const directionConfig = (() => {
     if (!shuttleDirection) return null;
     if (shuttleDirection === 'at_hotel') return { bg: 'bg-gray-50 border-gray-200', text: 'text-gray-700', icon: '🏨', label: `Parked at hotel` };
-    if (shuttleDirection === 'at_dest')  return { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-800', icon: '✈️', label: `At ${destName || 'airport'} — picking up` };
-    if (shuttleDirection === 'to_dest')  return { bg: 'bg-sky-50 border-sky-200', text: 'text-sky-800', icon: '→', label: `En route to ${destName || 'airport'}` };
+    if (shuttleDirection === 'at_dest')  return { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-800', icon: '✈️', label: `At ${activeDestName || 'destination'} — picking up` };
+    if (shuttleDirection === 'to_dest')  return { bg: 'bg-sky-50 border-sky-200', text: 'text-sky-800', icon: '→', label: `En route to ${activeDestName || 'destination'}` };
     return { bg: 'bg-orange-50 border-orange-200', text: 'text-orange-800', icon: '←', label: `Returning to hotel` };
   })();
 
   // Inline map
+  const activeDestCoords = destinations.find(d => d.name === activeDestName && d.lat != null && d.lng != null) || destinations.find(d => d.lat != null && d.lng != null) || null;
   const mapIframe = loc ? (() => {
-    const lats = [loc.lat, hotelCoords?.lat, destCoords?.lat].filter((v): v is number => v != null);
-    const lngs = [loc.lng, hotelCoords?.lng, destCoords?.lng].filter((v): v is number => v != null);
+    const lats = [loc.lat, hotelCoords?.lat, activeDestCoords?.lat].filter((v): v is number => v != null);
+    const lngs = [loc.lng, hotelCoords?.lng, activeDestCoords?.lng].filter((v): v is number => v != null);
     const minLat = Math.min(...lats) - 0.006;
     const maxLat = Math.max(...lats) + 0.006;
     const minLng = Math.min(...lngs) - 0.01;
@@ -204,7 +204,7 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
           src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${loc.lat}%2C${loc.lng}`}
         />
         <div className="flex items-center justify-between px-3 py-2 bg-gray-50 text-[11px]">
-          <span className="text-gray-400">📍 {formatTimeAgo(loc.recorded_at)}{hotelCoords ? ' · 🏨 Hotel' : ''}{destCoords ? ` · ✈️ ${destName || 'Airport'}` : ''}</span>
+          <span className="text-gray-400">📍 {formatTimeAgo(loc.recorded_at)}{hotelCoords ? ' · 🏨 Hotel' : ''}{activeDestCoords ? ` · ✈️ ${activeDestName || 'Destination'}` : ''}</span>
           <a href={`https://www.openstreetmap.org/?mlat=${loc.lat}&mlon=${loc.lng}#map=14/${loc.lat}/${loc.lng}`}
              target="_blank" rel="noreferrer" className="font-bold text-teal-700 flex items-center gap-1">
             Open map <ExternalLink size={10} />
@@ -279,7 +279,7 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
         <div className={`grid gap-2 ${showDest && showHotel ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {showDest && etaToDest && (
             <div className={`rounded-xl px-3 py-3 text-center border ${etaToDest.distanceMiles <= 0.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-sky-50 border-sky-100'}`}>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">ETA to {destName || 'Airport'}</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">ETA to {activeDestName || 'Destination'}</p>
               <p className={`text-[22px] font-black leading-tight ${etaToDest.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-sky-700'}`}>
                 {etaToDest.distanceMiles <= 0.5 ? 'Arriving' : `${etaToDest.etaMinutes} min`}
               </p>
@@ -353,20 +353,43 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
         </div>
       )}
 
-      {/* Destination config — admin only */}
+      {/* Destinations config — admin only */}
       {isAdmin && (
         <div className="border-t border-gray-100 pt-2">
           <button
             onClick={() => setShowDestSettings(v => !v)}
             className="text-[11px] font-semibold text-gray-400 hover:text-teal-600 w-full text-left"
           >
-            {showDestSettings ? '▾' : '▸'} {destName ? `Destination: ${destName}` : 'Set shuttle destination (airport, etc.)'}
+            {showDestSettings ? '▾' : '▸'} Shuttle destinations ({destinations.length})
           </button>
           {showDestSettings && (
             <div className="mt-2 space-y-2">
+              {/* Existing destinations list */}
+              {destinations.map((dest, i) => (
+                <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                  <div>
+                    <p className="text-[12px] font-bold text-gray-800">{dest.name}</p>
+                    <p className="text-[10px] text-gray-400">{dest.address}{dest.lat ? ` · ${dest.lat.toFixed(4)}, ${dest.lng?.toFixed(4)}` : ' · geocoding…'}</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const updated = destinations.filter((_, j) => j !== i);
+                      await fetch(`/api/hotel-settings?hotelId=${encodeURIComponent(hotelId)}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ shuttle_destinations: updated }),
+                      });
+                      load(true);
+                    }}
+                    className="text-[10px] text-red-400 hover:text-red-600 px-2 py-1 rounded"
+                  >✕</button>
+                </div>
+              ))}
+              {/* Add new destination */}
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pt-1">Add destination</p>
               <input
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[12px] placeholder-gray-400"
-                placeholder="Destination name (e.g. FLL Airport)"
+                placeholder="Name (e.g. FLL Airport, Cruise Port)"
                 value={destForm.name}
                 onChange={e => setDestForm(f => ({ ...f, name: e.target.value }))}
               />
@@ -381,12 +404,13 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
                 onClick={async () => {
                   setDestSaving(true);
                   try {
+                    const updated = [...destinations, { name: destForm.name || destForm.address, address: destForm.address, lat: null, lng: null }];
                     await fetch(`/api/hotel-settings?hotelId=${encodeURIComponent(hotelId)}`, {
                       method: 'PATCH',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ shuttle_dest_name: destForm.name, shuttle_dest_address: destForm.address }),
+                      body: JSON.stringify({ shuttle_destinations: updated }),
                     });
-                    setShowDestSettings(false);
+                    setDestForm({ name: '', address: '' });
                     load(true);
                   } finally {
                     setDestSaving(false);
@@ -394,24 +418,8 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
                 }}
                 className="w-full py-2 rounded-lg bg-teal-600 text-white text-[12px] font-bold disabled:opacity-40"
               >
-                {destSaving ? 'Saving…' : 'Save destination'}
+                {destSaving ? 'Saving…' : '+ Add destination'}
               </button>
-              {destName && (
-                <button
-                  className="w-full py-1.5 rounded-lg text-[11px] text-red-500 border border-red-100"
-                  onClick={async () => {
-                    await fetch(`/api/hotel-settings?hotelId=${encodeURIComponent(hotelId)}`, {
-                      method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ shuttle_dest_name: null, shuttle_dest_address: null }),
-                    });
-                    setShowDestSettings(false);
-                    load(true);
-                  }}
-                >
-                  Remove destination
-                </button>
-              )}
             </div>
           )}
         </div>
