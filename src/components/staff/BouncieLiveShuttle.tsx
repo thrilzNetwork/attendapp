@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { Bus, ExternalLink, CheckCircle, RefreshCw } from 'lucide-react';
+
+const ShuttleMap = lazy(() => import('./ShuttleMap'));
 
 interface BouncieLocation {
   lat: number;
@@ -193,34 +195,8 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
     return { bg: 'bg-orange-50 border-orange-200', text: 'text-orange-800', icon: '←', label: `Returning to hotel` };
   })();
 
-  // Inline map
+  // Active destination coords for map
   const activeDestCoords = destinations.find(d => d.name === activeDestName && d.lat != null && d.lng != null) || destinations.find(d => d.lat != null && d.lng != null) || null;
-  const mapIframe = loc ? (() => {
-    const lats = [loc.lat, hotelCoords?.lat, activeDestCoords?.lat].filter((v): v is number => v != null);
-    const lngs = [loc.lng, hotelCoords?.lng, activeDestCoords?.lng].filter((v): v is number => v != null);
-    const minLat = Math.min(...lats) - 0.006;
-    const maxLat = Math.max(...lats) + 0.006;
-    const minLng = Math.min(...lngs) - 0.01;
-    const maxLng = Math.max(...lngs) + 0.01;
-    const bbox = `${minLng}%2C${minLat}%2C${maxLng}%2C${maxLat}`;
-    return (
-      <div className="rounded-xl overflow-hidden border border-gray-200">
-        <iframe
-          title="Live shuttle location"
-          className="w-full h-48 block"
-          loading="lazy"
-          src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${loc.lat}%2C${loc.lng}`}
-        />
-        <div className="flex items-center justify-between px-3 py-2 bg-gray-50 text-[11px]">
-          <span className="text-gray-400">📍 {formatTimeAgo(loc.recorded_at)}{hotelCoords ? ' · 🏨 Hotel' : ''}{activeDestCoords ? ` · ✈️ ${activeDestName || 'Destination'}` : ''}</span>
-          <a href={`https://www.openstreetmap.org/?mlat=${loc.lat}&mlon=${loc.lng}#map=14/${loc.lat}/${loc.lng}`}
-             target="_blank" rel="noreferrer" className="font-bold text-teal-700 flex items-center gap-1">
-            Open map <ExternalLink size={10} />
-          </a>
-        </div>
-      </div>
-    );
-  })() : null;
 
   if (!shuttle) {
     return (
@@ -337,7 +313,29 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
           >
             {showMap ? '▾ Hide map' : '▸ Show map'}
           </button>
-          {showMap && <div className="mt-2">{mapIframe}</div>}
+          {showMap && (
+            <div className="mt-2">
+              <Suspense fallback={<div className="h-[220px] rounded-xl bg-gray-100 animate-pulse" />}>
+                <ShuttleMap
+                  shuttleLat={loc!.lat}
+                  shuttleLng={loc!.lng}
+                  hotelLat={hotelCoords?.lat}
+                  hotelLng={hotelCoords?.lng}
+                  destLat={activeDestCoords?.lat}
+                  destLng={activeDestCoords?.lng}
+                  destName={activeDestName}
+                  hotelName={hotelName}
+                />
+              </Suspense>
+              <div className="flex items-center justify-between px-1 pt-1.5 text-[11px]">
+                <span className="text-gray-400">📍 {formatTimeAgo(loc!.recorded_at)}</span>
+                <a href={`https://www.openstreetmap.org/?mlat=${loc!.lat}&mlon=${loc!.lng}#map=14/${loc!.lat}/${loc!.lng}`}
+                   target="_blank" rel="noreferrer" className="font-bold text-teal-700 flex items-center gap-1">
+                  Open in maps <ExternalLink size={10} />
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
