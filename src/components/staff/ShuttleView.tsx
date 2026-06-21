@@ -711,14 +711,17 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
           {/* ── REQUESTS ── */}
           {tab === 'requests' && (
             <div className="space-y-3">
-              {requests.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
-                  <AlertCircle size={40} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-[14px] font-semibold text-gray-600">No shuttle requests</p>
+              {(() => {
+                // Show today + future only — past dates are history, not actionable
+                const upcomingRequests = requests.filter(r => (r.date || todayStr()) >= todayStr());
+                if (upcomingRequests.length === 0) return (
+                  <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
+                    <AlertCircle size={40} className="mx-auto text-gray-300 mb-3" />
+                    <p className="text-[14px] font-semibold text-gray-600">No shuttle requests</p>
                 </div>
-              ) : (
-                (() => {
-                  const grouped = requests.reduce<Record<string, ShuttleRequest[]>>((acc, r) => {
+                );
+                return (() => {
+                  const grouped = upcomingRequests.reduce<Record<string, ShuttleRequest[]>>((acc, r) => {
                     const key = r.date || todayStr();
                     if (!acc[key]) acc[key] = [];
                     acc[key].push(r);
@@ -786,8 +789,8 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                 ))}
                     </div>
                   ));
-                })()
-              )}
+                })();
+              })()}
             </div>
           )}
 
