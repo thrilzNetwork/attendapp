@@ -178,17 +178,16 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
         hotel_id: resolvedHotelId,
         week_start: monday,
         date: day.date,
-        occupancy_pct: day.occupancyPct,
-        arrivals: day.arrivals,
-        rooms_occupied: day.roomsOccupied,
-        departures: day.departures,
-        total_rooms: resolvedTotalRooms,
-        prev_night_occ: prevNightOcc,
-        updated_at: new Date().toISOString(),
+        occupancy_pct: Math.round(day.occupancyPct),
+        arrivals: Math.round(day.arrivals),
+        rooms_occupied: Math.round(day.roomsOccupied),
+        departures: Math.round(day.departures),
+        total_rooms: Math.round(resolvedTotalRooms),
+        prev_night_occ: Math.round(prevNightOcc),
       }));
       const { error } = await supabase
         .from('weekly_forecasts')
-        .upsert(forecasts, { onConflict: 'hotel_id, date' });
+        .upsert(forecasts, { onConflict: 'hotel_id,date' });
       if (error) throw new Error(error.message || 'Save failed');
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
