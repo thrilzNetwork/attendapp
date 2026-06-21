@@ -472,8 +472,8 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   };
   const handleDeleteSlot = async (id: string) => { await deleteShuttleSlot(id); await load(); };
 
-  // Timeline: filter requests for today
-  const todayRequests = requests.filter(r => !r.date || r.date === todayStr());
+  // Timeline: only show today's requests (strict date match)
+  const todayRequests = requests.filter(r => r.date === todayStr());
   const filteredRequests = todayRequests.filter(r => {
     if (filterStatus !== 'all' && r.status !== filterStatus) return false;
     if (filterDir !== 'all') {
@@ -691,7 +691,19 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                   <p className="text-[14px] font-semibold text-gray-600">No shuttle requests</p>
                 </div>
               ) : (
-                requests.map(r => (
+                (() => {
+                  const grouped = requests.reduce<Record<string, ShuttleRequest[]>>((acc, r) => {
+                    const key = r.date || todayStr();
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(r);
+                    return acc;
+                  }, {});
+                  return Object.keys(grouped).sort().map(date => (
+                    <div key={date}>
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                        {date === todayStr() ? 'Today' : date === new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().slice(0,10) ? 'Tomorrow' : new Date(date + 'T12:00:00').toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                      </p>
+                      {grouped[date].map(r => (
                   <div key={r.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden border-l-4 ${statusBorder[r.status] || 'border-l-gray-200'}`}>
                     <div className="p-4">
                     <div className="flex items-start justify-between gap-3 mb-3">
@@ -745,7 +757,10 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                     )}
                     </div>
                   </div>
-                ))
+                ))}
+                    </div>
+                  ));
+                })()
               )}
             </div>
           )}

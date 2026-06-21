@@ -411,6 +411,11 @@ export function TransportBooker({
   const [room, setRoom] = useState('');
   const [pax, setPax] = useState(1);
   const [notes, setNotes] = useState('');
+  const [tripDate, setTripDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  });
+  const [tripTime, setTripTime] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -473,6 +478,8 @@ export function TransportBooker({
         room_number: room,
         pickup_location: fromPlace?.display_name || fromText,
         destination: toPlace?.display_name || toText,
+        date: tripDate,
+        time: tripTime || undefined,
         pax,
         notes: notes || undefined,
         status: 'pending',
@@ -675,6 +682,16 @@ export function TransportBooker({
           <div className="w-24">
             <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 block">Room</label>
             <input value={room} onChange={e => setRoom(e.target.value)} placeholder="201" className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors" />
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 block">Date</label>
+            <input type="date" value={tripDate} onChange={e => setTripDate(e.target.value)} className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors" />
+          </div>
+          <div className="flex-1">
+            <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 block">Time (optional)</label>
+            <input type="time" value={tripTime} onChange={e => setTripTime(e.target.value)} className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors" />
           </div>
         </div>
         <div className="flex items-center gap-3">

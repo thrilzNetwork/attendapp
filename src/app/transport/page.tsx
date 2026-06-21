@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plane, Bus, Ship, Car, UserCheck, X } from 'lucide-react';
-import { getHotelConfig, HotelConfig, getAllShuttleSlotsForHotel, bookShuttleSlot, getCruiseSchedules, ShuttleSlot, CruiseSchedule } from '@/lib/supabase';
+import { getHotelConfig, HotelConfig, getAllShuttleSlotsForHotel, bookShuttleSlot, getCruiseSchedules, ShuttleSlot, CruiseSchedule, createShuttleRequest } from '@/lib/supabase';
 import { TransportBooker } from '@/components/GuestSheets';
 import { goBackToHotel } from '@/lib/guest-context';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+function todayISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 
 export default function TransportPage() {
   const router = useRouter();
@@ -85,7 +86,7 @@ export default function TransportPage() {
 function AirportSchedule({ brandColor, config }: { brandColor: string; config: HotelConfig | null }) {
   const [slots, setSlots] = useState<ShuttleSlot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bookingForm, setBookingForm] = useState<{ slot_id: string; show: boolean; name: string; room: string; pax: number; notes: string; charge_accepted: boolean }>({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false });
+  const [bookingForm, setBookingForm] = useState<{ slot_id: string; show: boolean; name: string; room: string; pax: number; notes: string; charge_accepted: boolean; date: string }>({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false, date: todayISO() });
   const [booked, setBooked] = useState<string | null>(null);
 
   useEffect(() => {
@@ -105,17 +106,31 @@ function AirportSchedule({ brandColor, config }: { brandColor: string; config: H
     if (!bookingForm.name || !bookingForm.room) return;
     const slot = slots.find(s => s.id === bookingForm.slot_id);
     const pricePer = slot?.override_price ?? slot?.route_price ?? 0;
-    await bookShuttleSlot({
-      slot_id: bookingForm.slot_id,
-      guest_name: bookingForm.name,
-      room_number: bookingForm.room,
-      pax: bookingForm.pax,
-      notes: bookingForm.notes,
-      price_charged: pricePer * bookingForm.pax,
-      charge_accepted: bookingForm.charge_accepted,
-    });
+    await Promise.all([
+      bookShuttleSlot({
+        slot_id: bookingForm.slot_id,
+        guest_name: bookingForm.name,
+        room_number: bookingForm.room,
+        pax: bookingForm.pax,
+        notes: bookingForm.notes,
+        price_charged: pricePer * bookingForm.pax,
+        charge_accepted: bookingForm.charge_accepted,
+      }),
+      config?.id ? createShuttleRequest({
+        hotel_id: config.id,
+        guest_name: bookingForm.name,
+        room_number: bookingForm.room,
+        pickup_location: config.shuttlePickupLocation || 'Hotel Lobby',
+        destination: slot?.route_name || 'Airport',
+        date: bookingForm.date,
+        time: slot?.departure_time || undefined,
+        pax: bookingForm.pax,
+        notes: bookingForm.notes || undefined,
+        status: 'pending',
+      }) : Promise.resolve(),
+    ]);
     setBooked(bookingForm.slot_id);
-    setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false });
+    setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false, date: todayISO() });
     if (config?.id) {
       const s = await getAllShuttleSlotsForHotel(config.id);
       setSlots(s.filter(slot => slot.route_type === 'airport'));
@@ -219,12 +234,12 @@ function AirportSchedule({ brandColor, config }: { brandColor: string; config: H
                     <span className="text-[12px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full">Full</span>
                   ) : bookingForm.show && bookingForm.slot_id === slot.id ? (
                     <div className="flex items-center gap-2">
-                      <button onClick={() => setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false })} className="text-gray-400"><X size={16} /></button>
+                      <button onClick={() => setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false, date: todayISO() })} className="text-gray-400"><X size={16} /></button>
                       <button onClick={handleBook} className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white disabled:opacity-40" style={{ backgroundColor: brandColor }} disabled={pricePer > 0 && !bookingForm.charge_accepted}>Confirm</button>
                     </div>
                   ) : (
                     <button
-                      onClick={() => setBookingForm({ slot_id: slot.id, show: true, name: '', room: '', pax: 1, notes: '', charge_accepted: false })}
+                      onClick={() => setBookingForm({ slot_id: slot.id, show: true, name: '', room: '', pax: 1, notes: '', charge_accepted: false, date: todayISO() })}
                       className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white active:scale-95"
                       style={{ backgroundColor: brandColor }}
                     >
@@ -265,6 +280,11 @@ function AirportSchedule({ brandColor, config }: { brandColor: string; config: H
               />
             </div>
           </div>
+          <div>
+            <label className="text-[10px] text-gray-400 block mb-0.5">Date</label>
+            <input type="date" value={bookingForm.date} onChange={e => setBookingForm({ ...bookingForm, date: e.target.value })}
+              className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" />
+          </div>
           {(() => {
             const slot = slots.find(s => s.id === bookingForm.slot_id);
             const pricePer = slot?.override_price ?? slot?.route_price ?? 0;
@@ -300,7 +320,7 @@ function AirportSchedule({ brandColor, config }: { brandColor: string; config: H
 function CruiseScheduleSection({ brandColor, config }: { brandColor: string; config: HotelConfig | null }) {
   const [cruises, setCruises] = useState<CruiseSchedule[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bookingForm, setBookingForm] = useState<{ slot_id: string; show: boolean; name: string; room: string; pax: number; notes: string; charge_accepted: boolean }>({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false });
+  const [bookingForm, setBookingForm] = useState<{ slot_id: string; show: boolean; name: string; room: string; pax: number; notes: string; charge_accepted: boolean; date: string }>({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false, date: todayISO() });
   const [booked, setBooked] = useState<string | null>(null);
 
   // Get airport shuttle slots so guests can book a ride to port
@@ -336,7 +356,7 @@ function CruiseScheduleSection({ brandColor, config }: { brandColor: string; con
       charge_accepted: bookingForm.charge_accepted,
     });
     setBooked(bookingForm.slot_id);
-    setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false });
+    setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false, date: todayISO() });
     if (config?.id) {
       const s = await getAllShuttleSlotsForHotel(config.id);
       setSlots(s.filter(slot => slot.route_type === 'airport'));
@@ -430,7 +450,7 @@ function CruiseScheduleSection({ brandColor, config }: { brandColor: string; con
                   ) : full ? (
                     <span className="text-[12px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full">Full</span>
                   ) : (
-                    <button onClick={() => setBookingForm({ slot_id: slot.id, show: true, name: '', room: '', pax: 1, notes: '', charge_accepted: false })}
+                    <button onClick={() => setBookingForm({ slot_id: slot.id, show: true, name: '', room: '', pax: 1, notes: '', charge_accepted: false, date: todayISO() })}
                       className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white active:scale-95" style={{ backgroundColor: brandColor }}>
                       Book
                     </button>
@@ -480,7 +500,7 @@ function CruiseScheduleSection({ brandColor, config }: { brandColor: string; con
             className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none resize-none h-16" />
           <div className="flex gap-2 pt-1">
             <button onClick={handleBook} disabled={!bookingForm.name || !bookingForm.room} className="flex-1 py-2.5 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: brandColor }}>Confirm Booking</button>
-            <button onClick={() => setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false })} className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
+            <button onClick={() => setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false, date: todayISO() })} className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
           </div>
         </div>
       )}
