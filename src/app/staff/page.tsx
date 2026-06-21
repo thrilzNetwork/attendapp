@@ -2055,12 +2055,12 @@ function GeneralVendorView({ hotelId, vendorName, vendorType }: { hotelId: strin
 
 /* ── Enhanced Staff View ─────────────────────────────────── */
 function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelId: string; hotelName: string; hotelSlug: string; staff: StaffAccount[]; onRefresh: () => void }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', role: 'staff', vendor_type: '', department: '', hire_date: '', min_hours: 0, employment_type: 'full_time' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', role: 'staff', vendor_type: '', department: '', positions: [] as string[], hire_date: '', min_hours: 0, employment_type: 'full_time' });
   const [editingPerms, setEditingPerms] = useState<string | null>(null);
   const [editingDept, setEditingDept] = useState<string | null>(null);
   const [editingDeptValue, setEditingDeptValue] = useState('');
   const [editingProfile, setEditingProfile] = useState<string | null>(null);
-  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '', department: '', hire_date: '', min_hours: 0, employment_type: 'full_time' });
+  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '', department: '', positions: [] as string[], hire_date: '', min_hours: 0, employment_type: 'full_time' });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [sendInvite, setSendInvite] = useState(true);
@@ -2124,7 +2124,8 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
         email: form.email, phone: form.phone,
         permissions: form.role === 'vendor' ? [] : ['orders', 'messages', 'shuttle'],
         vendor_type: form.role === 'vendor' ? form.vendor_type || 'shuttle' : undefined,
-        department: form.department || undefined,
+        department: form.positions[0] || form.department || undefined,
+        positions: form.positions.length > 0 ? form.positions : undefined,
         hire_date: form.hire_date || undefined,
         min_hours: Number(form.min_hours) || 0,
         employment_type: form.employment_type || 'full_time',
@@ -2151,7 +2152,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
         }).catch(() => {});
       }
 
-      setForm({ name: '', email: '', phone: '', role: 'staff', vendor_type: '', department: '', hire_date: '', min_hours: 0, employment_type: 'full_time' });
+      setForm({ name: '', email: '', phone: '', role: 'staff', vendor_type: '', department: '', positions: [], hire_date: '', min_hours: 0, employment_type: 'full_time' });
       onRefresh();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save staff';
@@ -2167,6 +2168,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       email: s.email || '',
       phone: s.phone || '',
       department: s.department || '',
+      positions: Array.isArray(s.positions) ? s.positions : (s.department ? [s.department] : []),
       hire_date: s.hire_date || '',
       min_hours: s.min_hours || 0,
       employment_type: s.employment_type || 'full_time',
@@ -2183,7 +2185,8 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
         name: profileForm.name || undefined,
         email: profileForm.email || undefined,
         phone: profileForm.phone || undefined,
-        department: profileForm.department || undefined,
+        department: profileForm.positions[0] || profileForm.department || undefined,
+        positions: profileForm.positions,
         hire_date: profileForm.hire_date || undefined,
         min_hours: Number(profileForm.min_hours) || 0,
         employment_type: profileForm.employment_type || undefined,
@@ -2252,18 +2255,23 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                 <p className="text-[10px] text-orange-600 mt-1">Vendors only see their own manifest — no hotel data.</p>
               </div>
             )}
-            {/* Position / Department */}
+            {/* Positions — multi-select */}
             {form.role !== 'vendor' && (
               <div>
-                <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Position / Department</label>
-                <select value={form.department} onChange={e => setForm({ ...form, department: e.target.value })}
-                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
-                  <option value="">— No position —</option>
-                  {DEPARTMENTS.map(d => (
-                    <option key={d.key} value={d.key}>{d.icon} {d.label}</option>
-                  ))}
-                </select>
-                <p className="text-[10px] text-gray-400 mt-1">Used for checklist filtering on the Dashboard.</p>
+                <label className="text-[10px] text-gray-400 block mb-1.5 uppercase font-bold">Positions (select all that apply)</label>
+                <div className="flex flex-wrap gap-2">
+                  {DEPARTMENTS.map(d => {
+                    const checked = form.positions.includes(d.key);
+                    return (
+                      <button key={d.key} type="button"
+                        onClick={() => setForm(f => ({ ...f, positions: checked ? f.positions.filter(p => p !== d.key) : [...f.positions, d.key] }))}
+                        className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-colors ${checked ? 'bg-teal-600 text-white border-teal-600' : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-teal-400'}`}>
+                        {d.icon} {d.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">First selected = primary department for scheduling.</p>
               </div>
             )}
             <div className="grid grid-cols-2 gap-2">
@@ -2323,9 +2331,10 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                       <span className="text-[10px] text-gray-400 capitalize font-normal"> · {s.role}{s.vendor_type ? ` (${s.vendor_type})` : ''}</span>
                     </p>
                     <p className="text-[11px] text-gray-400">{s.email}{s.email && s.phone ? ' · ' : ''}{s.phone} · PIN: ••••
-                      {s.department && (
-                        <span> · Position: {DEPARTMENTS.find(d => d.key === s.department)?.icon} {DEPARTMENTS.find(d => d.key === s.department)?.label || s.department}</span>
-                      )}
+                      {(Array.isArray(s.positions) && s.positions.length > 0 ? s.positions : s.department ? [s.department] : []).map(pos => {
+                        const dep = DEPARTMENTS.find(d => d.key === pos);
+                        return dep ? <span key={pos}> · {dep.icon} {dep.label}</span> : null;
+                      })}
                       {s.hire_date && <span> · Hired: {new Date(s.hire_date+'T00:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}</span>}
                       {s.hire_date && (() => {
                         const months = Math.floor((Date.now() - new Date(s.hire_date+'T00:00:00').getTime()) / (1000*60*60*24*30.44));
@@ -2356,22 +2365,26 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                 {editingProfile === s.id && (
                   <div className="mt-3 bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-3">
                     <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Edit Profile</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Name</label>
-                        <input value={profileForm.name} onChange={e => setProfileForm({...profileForm, name: e.target.value})}
-                          className="w-full bg-white rounded-lg px-3 py-2 border border-gray-200 text-[12px] outline-none" />
+                    <div>
+                      <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Name</label>
+                      <input value={profileForm.name} onChange={e => setProfileForm({...profileForm, name: e.target.value})}
+                        className="w-full bg-white rounded-lg px-3 py-2 border border-gray-200 text-[12px] outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-400 block mb-1.5 uppercase font-bold">Positions (select all that apply)</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {DEPARTMENTS.map(d => {
+                          const checked = profileForm.positions.includes(d.key);
+                          return (
+                            <button key={d.key} type="button"
+                              onClick={() => setProfileForm(f => ({ ...f, positions: checked ? f.positions.filter(p => p !== d.key) : [...f.positions, d.key] }))}
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors ${checked ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-500 border-gray-200 hover:border-teal-400'}`}>
+                              {d.icon} {d.label}
+                            </button>
+                          );
+                        })}
                       </div>
-                      <div>
-                        <label className="text-[10px] text-gray-400 block mb-0.5 uppercase font-bold">Position / Department</label>
-                        <select value={profileForm.department} onChange={e => setProfileForm({...profileForm, department: e.target.value})}
-                          className="w-full bg-white rounded-lg px-3 py-2 border border-gray-200 text-[12px] outline-none">
-                          <option value="">— No position —</option>
-                          {DEPARTMENTS.map(d => (
-                            <option key={d.key} value={d.key}>{d.icon} {d.label}</option>
-                          ))}
-                        </select>
-                      </div>
+                      <p className="text-[10px] text-gray-400 mt-1">First selected = primary department for scheduling.</p>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>

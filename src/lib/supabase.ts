@@ -142,6 +142,7 @@ export interface StaffAccount {
   pto_used?: number;      // PTO days used this year
   min_hours?: number;     // Minimum weekly hours expected
   employment_type?: string; // 'full_time' | 'part_time'
+  positions?: string[];    // All positions held, e.g. ['front_desk', 'drivers']
 }
 
 export interface RequestItem {
@@ -1093,7 +1094,7 @@ export async function updateStaffPermissions(id: string, permissions: string[]) 
 
 export async function updateStaffDetails(id: string, updates: {
   name?: string; email?: string; phone?: string; permissions?: string[]; active?: boolean;
-  department?: string; hire_date?: string; pto_used?: number; min_hours?: number; employment_type?: string;
+  department?: string; positions?: string[]; hire_date?: string; pto_used?: number; min_hours?: number; employment_type?: string;
 }) {
   await callStaffApi({ action: 'update', staffId: id, updates });
 }
