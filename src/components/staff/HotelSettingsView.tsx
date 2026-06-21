@@ -48,14 +48,271 @@ function Field({ label, value, onChange, placeholder }: {
   );
 }
 
+/* ── Tile Editor Panels ─────────────────────────────────── */
+type TileKey = 'WELCOME' | 'TRANSPORT' | 'FACILITIES' | 'MESSAGE' | 'NEARBY' | 'FOOD' | 'REVIEW';
+
+function EditorPanel({ tile, form, setForm, handleSave, onClose }: {
+  tile: TileKey;
+  form: HotelConfig;
+  setForm: (f: HotelConfig) => void;
+  handleSave: () => void;
+  onClose: () => void;
+}) {
+  const labelCls = 'text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking-wider';
+  const inputCls = 'w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none';
+  const smInputCls = 'w-full bg-gray-50 rounded-xl px-3 py-2 text-[12px] border border-gray-100 focus:outline-none';
+
+  let content: React.ReactNode = null;
+
+  if (tile === 'WELCOME') {
+    content = (
+      <div className="space-y-4">
+        <div>
+          <label className={labelCls}>Welcome Letter</label>
+          <textarea value={form.welcomeLetter} onChange={e => setForm({ ...form, welcomeLetter: e.target.value })} rows={5}
+            className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none" placeholder="Dear Guest, welcome to our hotel..." />
+        </div>
+        <div>
+          <label className={labelCls}>Team Photo URL</label>
+          <input value={form.teamPhotoUrl} onChange={e => setForm({ ...form, teamPhotoUrl: e.target.value })}
+            placeholder="https://..." className={inputCls} />
+          {form.teamPhotoUrl && (
+            <img src={form.teamPhotoUrl} alt="Team" className="mt-2 rounded-xl w-full max-h-32 object-cover border border-gray-100" />
+          )}
+        </div>
+        <div>
+          <label className={labelCls}>Wi-Fi Name</label>
+          <input value={form.wifiName} onChange={e => setForm({ ...form, wifiName: e.target.value })} className={inputCls} />
+        </div>
+        <div>
+          <label className={labelCls}>Wi-Fi Password</label>
+          <input value={form.wifiPassword} onChange={e => setForm({ ...form, wifiPassword: e.target.value })} className={inputCls} />
+        </div>
+        <div>
+          <label className={labelCls}>Brand Color</label>
+          <div className="flex items-center gap-3">
+            <input type="color" value={form.brandColor || '#6B1D3C'} onChange={e => setForm({ ...form, brandColor: e.target.value })}
+              className="w-10 h-10 rounded-xl cursor-pointer border border-gray-200 p-0.5" />
+            <input type="text" value={form.brandColor || '#6B1D3C'} onChange={e => {
+              const val = e.target.value;
+              if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) setForm({ ...form, brandColor: val });
+            }} maxLength={7} className="flex-1 bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 font-mono focus:outline-none" placeholder="#6B1D3C" />
+          </div>
+        </div>
+      </div>
+    );
+  } else if (tile === 'TRANSPORT') {
+    content = (
+      <div className="space-y-4">
+        <div>
+          <label className={labelCls}>Shuttle Pickup Location</label>
+          <input value={form.shuttlePickupLocation || ''} onChange={e => setForm({ ...form, shuttlePickupLocation: e.target.value })} placeholder="e.g. Main entrance lobby" className={inputCls} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>Shuttle Start Time</label>
+            <input value={form.shuttleStartTime || ''} onChange={e => setForm({ ...form, shuttleStartTime: e.target.value })} placeholder="e.g. 06:00" className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Shuttle End Time</label>
+            <input value={form.shuttleEndTime || ''} onChange={e => setForm({ ...form, shuttleEndTime: e.target.value })} placeholder="e.g. 22:00" className={inputCls} />
+          </div>
+        </div>
+        <div className="border-t border-gray-100 pt-4 space-y-3">
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Third-Party Transport Partner</p>
+          <div>
+            <label className={labelCls}>Company Name</label>
+            <input value={form.transportContent?.third_party_name || ''} onChange={e => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_name: e.target.value } })} placeholder="e.g. CruisePort Transportation" className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Booking URL</label>
+            <input value={form.transportContent?.third_party_url || ''} onChange={e => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_url: e.target.value } })} placeholder="https://example.com/book" className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Description</label>
+            <input value={form.transportContent?.third_party_description || ''} onChange={e => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_description: e.target.value } })} placeholder="e.g. Scheduled airport & cruise port transfers" className={inputCls} />
+          </div>
+        </div>
+      </div>
+    );
+  } else if (tile === 'FACILITIES') {
+    content = (
+      <div className="space-y-4">
+        <p className="text-[11px] text-gray-400">Amenities guests see on the Facilities screen.</p>
+        <div className="space-y-3">
+          {(form.facilitiesContent || []).map((amenity, idx) => (
+            <div key={idx} className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Item {idx + 1}</span>
+                <button onClick={() => {
+                  const updated = (form.facilitiesContent || []).filter((_, i) => i !== idx);
+                  setForm({ ...form, facilitiesContent: updated });
+                }} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+              </div>
+              <input value={amenity.title} onChange={e => {
+                const updated = [...(form.facilitiesContent || [])];
+                updated[idx] = { ...updated[idx], title: e.target.value };
+                setForm({ ...form, facilitiesContent: updated });
+              }} placeholder="Title (e.g. Complimentary Breakfast)" className={smInputCls} />
+              <textarea value={amenity.description || ''} onChange={e => {
+                const updated = [...(form.facilitiesContent || [])];
+                updated[idx] = { ...updated[idx], description: e.target.value };
+                setForm({ ...form, facilitiesContent: updated });
+              }} rows={2} placeholder="Description" className="w-full bg-white rounded-xl px-3 py-2 text-[12px] border border-gray-200 focus:outline-none resize-none" />
+            </div>
+          ))}
+          <button onClick={() => setForm({ ...form, facilitiesContent: [...(form.facilitiesContent || []), { icon: 'Coffee', title: '', description: '' }] })}
+            className="flex items-center gap-1.5 text-[12px] font-medium text-teal-600 hover:text-teal-700">
+            <Plus size={14} /> Add Amenity
+          </button>
+        </div>
+        <div className="border-t border-gray-100 pt-4 space-y-3">
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Safety Info</p>
+          <div>
+            <label className={labelCls}>Emergency Message</label>
+            <textarea value={form.safetyContent?.emergency_message || ''} onChange={e => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), emergency_message: e.target.value } })}
+              rows={3} className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none" placeholder="Remain calm. Call 911, then notify front desk." />
+          </div>
+          <div>
+            <label className={labelCls}>Closing Message</label>
+            <input value={form.safetyContent?.closing_message || ''} onChange={e => setForm({ ...form, safetyContent: { ...(form.safetyContent || {}), closing_message: e.target.value } })}
+              placeholder="Contact front desk anytime for safety concerns." className={inputCls} />
+          </div>
+        </div>
+      </div>
+    );
+  } else if (tile === 'MESSAGE') {
+    content = (
+      <div className="space-y-4">
+        <div>
+          <label className={labelCls}>Front Desk Phone</label>
+          <input value={form.frontDeskPhone} onChange={e => setForm({ ...form, frontDeskPhone: e.target.value })} className={inputCls} />
+        </div>
+        <div>
+          <label className={labelCls}>GM Notes / Welcome Message</label>
+          <textarea value={form.gmNotes} onChange={e => setForm({ ...form, gmNotes: e.target.value })} rows={6}
+            className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none font-mono"
+            placeholder={`Today's priorities:\n• VIP arrivals\n• Staffing notes`} />
+        </div>
+        <div>
+          <label className={labelCls}>Notification Email</label>
+          <input value={form.notificationEmail} onChange={e => setForm({ ...form, notificationEmail: e.target.value })} placeholder="frontdesk@yourhotel.com" className={inputCls} />
+        </div>
+      </div>
+    );
+  } else if (tile === 'FOOD') {
+    content = (
+      <div className="space-y-4">
+        <div>
+          <label className={labelCls}>Intro Text</label>
+          <textarea value={form.foodContent?.intro_text || ''} onChange={e => setForm({ ...form, foodContent: { ...(form.foodContent || {}), intro_text: e.target.value } })} rows={5}
+            className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none" placeholder="Explore local partner restaurants and order delivery right to your room." />
+        </div>
+      </div>
+    );
+  } else if (tile === 'NEARBY') {
+    content = (
+      <div className="space-y-4">
+        <div>
+          <label className={labelCls}>Intro Text</label>
+          <textarea value={form.nearbyIntro?.intro_text || ''} onChange={e => setForm({ ...form, nearbyIntro: { ...(form.nearbyIntro || {}), intro_text: e.target.value } })} rows={5}
+            className="w-full bg-gray-50 rounded-xl px-3.5 py-3 text-[13px] border border-gray-100 focus:outline-none resize-none" placeholder="Discover restaurants, attractions, and services near our hotel." />
+        </div>
+      </div>
+    );
+  } else if (tile === 'REVIEW') {
+    content = (
+      <div className="space-y-4">
+        <div>
+          <label className={labelCls}>Google Review URL</label>
+          <input value={form.googleReviewUrl || ''} onChange={e => setForm({ ...form, googleReviewUrl: e.target.value })} placeholder="https://www.google.com/..." className={inputCls} />
+        </div>
+        <div>
+          <label className={labelCls}>TripAdvisor URL</label>
+          <input value={form.tripadvisorUrl || ''} onChange={e => setForm({ ...form, tripadvisorUrl: e.target.value })} placeholder="https://www.tripadvisor.com/..." className={inputCls} />
+        </div>
+        <div>
+          <label className={labelCls}>Yelp URL</label>
+          <input value={form.yelpUrl || ''} onChange={e => setForm({ ...form, yelpUrl: e.target.value })} placeholder="https://www.yelp.com/..." className={inputCls} />
+        </div>
+        <div className="border-t border-gray-100 pt-4 space-y-3">
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Custom Review Links</p>
+          {(form.customReviewLinks || []).map((link, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <input type="text" value={link.label} onChange={e => {
+                const updated = [...(form.customReviewLinks || [])];
+                updated[idx] = { ...updated[idx], label: e.target.value };
+                setForm({ ...form, customReviewLinks: updated });
+              }} className="w-[100px] bg-gray-50 rounded-xl px-2.5 py-2 text-[12px] border border-gray-100 focus:outline-none" placeholder="Label" />
+              <input type="text" value={link.url} onChange={e => {
+                const updated = [...(form.customReviewLinks || [])];
+                updated[idx] = { ...updated[idx], url: e.target.value };
+                setForm({ ...form, customReviewLinks: updated });
+              }} className="flex-1 bg-gray-50 rounded-xl px-2.5 py-2 text-[12px] border border-gray-100 focus:outline-none" placeholder="https://..." />
+              <button onClick={() => {
+                const updated = (form.customReviewLinks || []).filter((_, i) => i !== idx);
+                setForm({ ...form, customReviewLinks: updated });
+              }} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={14} /></button>
+            </div>
+          ))}
+          <button onClick={() => setForm({ ...form, customReviewLinks: [...(form.customReviewLinks || []), { label: '', url: '' }] })}
+            className="flex items-center gap-1.5 text-[12px] font-medium text-teal-600 hover:text-teal-700">
+            <Plus size={14} /> Add Review Link
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const tileLabels: Record<TileKey, string> = {
+    WELCOME: 'Welcome',
+    TRANSPORT: 'Transport',
+    FACILITIES: 'Facilities',
+    MESSAGE: 'Message',
+    NEARBY: 'Nearby',
+    FOOD: 'Food',
+    REVIEW: 'Review',
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-lg w-72 flex flex-col" style={{ maxHeight: '80vh' }}>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+        <h4 className="font-bold text-[13px] text-gray-800">{tileLabels[tile]} Settings</h4>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-[18px] leading-none">×</button>
+      </div>
+      <div className="overflow-y-auto flex-1 p-4">
+        {content}
+      </div>
+      <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
+        <button onClick={handleSave}
+          className="w-full py-2.5 rounded-xl text-white font-semibold text-[13px] flex items-center justify-center gap-2"
+          style={{ backgroundColor: TEAL }}>
+          <Save size={14} /> Save Changes
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ── Guest Home Preview ─────────────────────────────────── */
-function GuestHomePreview({ color, hotelName }: { color: string; hotelName: string }) {
-  const tiles = [
+function GuestHomePreview({
+  color, hotelName, selectedTile, onTileClick,
+}: {
+  color: string;
+  hotelName: string;
+  selectedTile: TileKey | null;
+  onTileClick: (tile: TileKey) => void;
+}) {
+  const tiles: { label: TileKey; filled: boolean }[] = [
     { label: 'WELCOME', filled: true },
     { label: 'TRANSPORT', filled: false },
     { label: 'FACILITIES', filled: false },
     { label: 'MESSAGE', filled: false },
   ];
+
+  const ringStyle = (tile: TileKey) =>
+    selectedTile === tile ? { outline: '2.5px solid #0D9488', outlineOffset: '1px' } : {};
+
   return (
     <div className="relative mx-auto" style={{ width: 200, height: 400 }}>
       {/* Phone frame */}
@@ -75,15 +332,19 @@ function GuestHomePreview({ color, hotelName }: { color: string; hotelName: stri
         {/* 2×2 grid */}
         <div className="grid grid-cols-2 gap-1 p-1.5 h-[160px]">
           {tiles.map((t) => (
-            <div
+            <button
               key={t.label}
-              className="rounded-xl flex items-center justify-center text-[6px] font-bold tracking-wider"
-              style={t.filled
-                ? { backgroundColor: color, color: 'white' }
-                : { backgroundColor: 'white', color, border: '1px solid #e5e7eb' }}
+              onClick={() => onTileClick(t.label)}
+              className="rounded-xl flex items-center justify-center text-[6px] font-bold tracking-wider cursor-pointer transition-all"
+              style={{
+                ...(t.filled
+                  ? { backgroundColor: color, color: 'white' }
+                  : { backgroundColor: 'white', color, border: '1px solid #e5e7eb' }),
+                ...ringStyle(t.label),
+              }}
             >
               {t.label}
-            </div>
+            </button>
           ))}
         </div>
         {/* Rewards banner */}
@@ -94,16 +355,28 @@ function GuestHomePreview({ color, hotelName }: { color: string; hotelName: stri
         </div>
         {/* Bottom row */}
         <div className="flex gap-1 p-1.5 mt-1" style={{ height: 70 }}>
-          <div className="w-[38%] rounded-xl bg-white border border-gray-200 flex items-center justify-center">
+          <button
+            onClick={() => onTileClick('NEARBY')}
+            className="w-[38%] rounded-xl bg-white border border-gray-200 flex items-center justify-center cursor-pointer transition-all"
+            style={ringStyle('NEARBY')}
+          >
             <span className="text-[5px] font-bold" style={{ color }}>NEARBY</span>
-          </div>
+          </button>
           <div className="flex-1 flex flex-col gap-1">
-            <div className="flex-1 rounded-xl flex items-center justify-center" style={{ backgroundColor: color }}>
+            <button
+              onClick={() => onTileClick('FOOD')}
+              className="flex-1 rounded-xl flex items-center justify-center cursor-pointer transition-all"
+              style={{ backgroundColor: color, ...ringStyle('FOOD') }}
+            >
               <span className="text-[5px] font-bold text-white">FOOD</span>
-            </div>
-            <div className="flex-1 rounded-xl bg-white border border-gray-200 flex items-center justify-center">
+            </button>
+            <button
+              onClick={() => onTileClick('REVIEW')}
+              className="flex-1 rounded-xl bg-white border border-gray-200 flex items-center justify-center cursor-pointer transition-all"
+              style={ringStyle('REVIEW')}
+            >
               <span className="text-[5px] font-bold" style={{ color }}>REVIEW</span>
-            </div>
+            </button>
           </div>
         </div>
         {/* Hotel name chip */}
@@ -124,6 +397,11 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
   const [saveError, setSaveError] = useState('');
   const [discovering, setDiscovering] = useState(false);
   const [discoverResult, setDiscoverResult] = useState<{ added: number; total: number } | null>(null);
+  const [selectedTile, setSelectedTile] = useState<TileKey | null>(null);
+
+  const handleTileClick = (tile: TileKey) => {
+    setSelectedTile(prev => prev === tile ? null : tile);
+  };
 
   const handleSave = async () => {
     setSaveError('');
@@ -687,16 +965,34 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
         </button>
       </div>
 
-      {/* ── Right: Live Preview ── */}
-      <div className="hidden lg:flex flex-col items-center gap-4 pt-12 sticky top-8 self-start">
-        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Live Preview</p>
-        <GuestHomePreview color={form.brandColor || '#6B1D3C'} hotelName={form.name} />
-        <div className="text-center space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: form.brandColor || '#6B1D3C' }}>
-            {form.brandColor || '#6B1D3C'}
+      {/* ── Right: Live Preview + Editor Panel ── */}
+      <div className="hidden lg:flex flex-row items-start gap-4 pt-12 sticky top-8 self-start">
+        <div className="flex flex-col items-center gap-4">
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Live Preview</p>
+          <GuestHomePreview
+            color={form.brandColor || '#6B1D3C'}
+            hotelName={form.name}
+            selectedTile={selectedTile}
+            onTileClick={handleTileClick}
+          />
+          <div className="text-center space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: form.brandColor || '#6B1D3C' }}>
+              {form.brandColor || '#6B1D3C'}
+            </div>
+            <p className="text-[10px] text-gray-400">Click a tile to edit</p>
           </div>
-          <p className="text-[10px] text-gray-400">Updates as you edit</p>
         </div>
+        {selectedTile && (
+          <div className="mt-7">
+            <EditorPanel
+              tile={selectedTile}
+              form={form}
+              setForm={setForm}
+              handleSave={handleSave}
+              onClose={() => setSelectedTile(null)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
