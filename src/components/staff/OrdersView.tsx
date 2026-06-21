@@ -16,6 +16,12 @@ interface Request {
   guest_verified?: boolean;
 }
 
+interface StaffMember {
+  id?: string;
+  name: string;
+  active?: boolean;
+}
+
 interface OrdersViewProps {
   requests: Request[];
   messages: unknown[];
@@ -23,6 +29,7 @@ interface OrdersViewProps {
   onDelete: (id: string) => void;
   onRefresh: () => void;
   staffName: string;
+  staffList?: StaffMember[];
 }
 
 const STATUS_PALETTE: Record<string, { bg: string; border: string; badge: string; badgeText: string; label: string }> = {
@@ -57,11 +64,13 @@ const STATUS_PALETTE: Record<string, { bg: string; border: string; badge: string
 };
 
 function OrdersView({
-  requests: initialRequests, onStatusChange, onDelete, onRefresh, staffName,
+  requests: initialRequests, onStatusChange, onDelete, onRefresh, staffName, staffList = [],
 }: OrdersViewProps) {
   const [requests, setRequests] = useState<Request[]>(initialRequests);
   const [selected, setSelected] = useState<Request | null>(null);
   const [showAllOpen, setShowAllOpen] = useState(false);
+  const [reassigning, setReassigning] = useState(false);
+  const [reassignTo, setReassignTo] = useState('');
   const [viewDate, setViewDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => { setRequests(initialRequests); }, [initialRequests]);
@@ -112,7 +121,15 @@ function OrdersView({
     await supabase.from('requests').update({ guest_verified: true }).eq('id', req.id);
   };
 
-  const handleTap = (req: Request) => setSelected(req);
+  const handleReassign = async (req: Request, toName: string) => {
+    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, assigned_to: toName, status: 'in-progress' } : r));
+    setSelected(prev => prev?.id === req.id ? { ...prev, assigned_to: toName, status: 'in-progress' } : prev);
+    await onStatusChange(req.id, 'in-progress', toName);
+    setReassigning(false);
+    setReassignTo('');
+  };
+
+  const handleTap = (req: Request) => { setReassigning(false); setReassignTo(''); setSelected(req); };
 
   const isAssignedToMe = (req: Request) => req.assigned_to === staffName;
 
@@ -180,11 +197,62 @@ function OrdersView({
               </div>
             </div>
 
-            {req.assigned_to && (
-              <div className="flex items-center gap-2 bg-blue-50 rounded-xl px-3 py-2 border border-blue-100">
-                <UserCheck size={14} className="text-blue-600" />
-                <span className="text-[12px] font-semibold text-blue-800">Assigned to {req.assigned_to}</span>
+            {req.assigned_to && !reassigning && (
+              <div className="flex items-center justify-between bg-blue-50 rounded-xl px-3 py-2 border border-blue-100">
+                <div className="flex items-center gap-2">
+                  <UserCheck size={14} className="text-blue-600" />
+                  <span className="text-[12px] font-semibold text-blue-800">Assigned to {req.assigned_to}</span>
+                </div>
+                {(req.status === 'pending' || req.status === 'in-progress') && (
+                  <button
+                    onClick={() => { setReassigning(true); setReassignTo(req.assigned_to || ''); }}
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 px-2 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    Reassign
+                  </button>
+                )}
               </div>
+            )}
+
+            {reassigning && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-3 space-y-2">
+                <p className="text-[11px] font-bold text-indigo-700 uppercase tracking-wide">Reassign to</p>
+                <select
+                  value={reassignTo}
+                  onChange={e => setReassignTo(e.target.value)}
+                  className="w-full text-[13px] border border-indigo-200 rounded-lg px-2.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                >
+                  <option value="">— select staff —</option>
+                  {staffList.filter(s => s.name !== req.assigned_to).map(s => (
+                    <option key={s.id} value={s.name}>{s.name}</option>
+                  ))}
+                  {staffList.length === 0 && <option value={staffName}>{staffName} (me)</option>}
+                </select>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => reassignTo && handleReassign(req, reassignTo)}
+                    disabled={!reassignTo}
+                    className="flex-1 py-2 rounded-lg bg-indigo-600 text-white text-[12px] font-bold disabled:opacity-40 active:scale-95 transition-all"
+                  >
+                    Confirm Reassign
+                  </button>
+                  <button
+                    onClick={() => { setReassigning(false); setReassignTo(''); }}
+                    className="px-3 py-2 rounded-lg bg-gray-100 text-gray-600 text-[12px] font-semibold active:scale-95 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!req.assigned_to && !reassigning && (req.status === 'pending' || req.status === 'in-progress') && staffList.length > 0 && (
+              <button
+                onClick={() => setReassigning(true)}
+                className="w-full py-2 rounded-xl border border-dashed border-indigo-300 text-indigo-600 text-[12px] font-semibold hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <UserCheck size={13} /> Assign to staff
+              </button>
             )}
           </div>
 

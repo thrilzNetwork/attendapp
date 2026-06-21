@@ -875,6 +875,7 @@ function DashboardInner() {
             requests={requests}
             messages={messages}
             staffName={s.name}
+            staffList={staff}
             onStatusChange={async (id, status, assigned_to) => { await updateRequestStatus(id, status, assigned_to); reload(s.role); }}
             onDelete={async id => { await deleteRequest(id); reload(s.role); }}
             onRefresh={() => reload(s.role)}
