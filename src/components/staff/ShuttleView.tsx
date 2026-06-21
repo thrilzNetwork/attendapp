@@ -328,6 +328,8 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   const [error,    setError]    = useState<string | null>(null);
   const [shuttlePos, setShuttlePos] = useState<{ lat: number; lng: number; speed_mph: number } | null>(null);
   const [todayDrivers, setTodayDrivers] = useState<{ id: string; name: string; start_time: string; end_time?: string }[]>([]);
+  const [reassigningId, setReassigningId] = useState<string | null>(null);
+  const [reassignDriverId, setReassignDriverId] = useState('');
 
   // Dispatch sheet state
   const [showDispatch, setShowDispatch] = useState(false);
@@ -449,6 +451,16 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
 
   const handleUpdateRequest = async (id: string, status: string) => {
     await updateShuttleRequest(id, { status: status as ShuttleRequest['status'] });
+    await load();
+  };
+
+  const handleReassign = async (id: string) => {
+    await updateShuttleRequest(id, {
+      assigned_driver_id: reassignDriverId || undefined,
+      status: 'assigned',
+    });
+    setReassigningId(null);
+    setReassignDriverId('');
     await load();
   };
 
@@ -666,22 +678,51 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                                   {r.notes && <p className="text-[11px] text-gray-400 italic mt-0.5">{r.notes}</p>}
                                 </div>
                               </div>
-                              {isAdmin && r.status !== 'completed' && r.status !== 'cancelled' && (
-                                <div className="flex gap-1.5 mt-2 flex-wrap">
-                                  {(r.status === 'pending' || r.status === 'assigned') && (
-                                    <button onClick={() => handleUpdateRequest(r.id, 'in_progress')}
-                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 hover:bg-teal-100">
-                                      En Route
+                              {r.status !== 'completed' && r.status !== 'cancelled' && (
+                                <div className="mt-2 space-y-1.5">
+                                  <div className="flex gap-1.5 flex-wrap">
+                                    {(r.status === 'pending' || r.status === 'assigned') && (
+                                      <button onClick={() => handleUpdateRequest(r.id, 'in_progress')}
+                                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 hover:bg-teal-100">
+                                        En Route
+                                      </button>
+                                    )}
+                                    <button onClick={() => handleUpdateRequest(r.id, 'completed')}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+                                      ✓ Complete
                                     </button>
+                                    <button
+                                      onClick={() => { setReassigningId(reassigningId === r.id ? null : r.id); setReassignDriverId(r.assigned_driver_id || ''); }}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 hover:bg-blue-100">
+                                      Reassign
+                                    </button>
+                                    <button onClick={() => handleUpdateRequest(r.id, 'cancelled')}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-gray-50 text-gray-400 hover:bg-gray-100">
+                                      Cancel
+                                    </button>
+                                  </div>
+                                  {reassigningId === r.id && (
+                                    <div className="flex gap-2 items-center bg-blue-50 rounded-xl px-3 py-2">
+                                      <select
+                                        value={reassignDriverId}
+                                        onChange={e => setReassignDriverId(e.target.value)}
+                                        className="flex-1 text-[12px] bg-white border border-blue-200 rounded-lg px-2 py-1.5 outline-none"
+                                      >
+                                        <option value="">— Unassigned —</option>
+                                        {staffList.filter(s => s.active && (s.department === 'drivers' || (s.positions || []).includes('drivers') || s.role === 'driver')).map(s => (
+                                          <option key={s.id} value={s.id}>{s.name}</option>
+                                        ))}
+                                        {staffList.filter(s => s.active && s.department !== 'drivers' && !(s.positions || []).includes('drivers') && s.role !== 'driver').map(s => (
+                                          <option key={s.id} value={s.id}>{s.name} (staff)</option>
+                                        ))}
+                                      </select>
+                                      <button onClick={() => handleReassign(r.id)}
+                                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-600 text-white hover:bg-blue-700">
+                                        Save
+                                      </button>
+                                      <button onClick={() => setReassigningId(null)} className="text-[11px] text-gray-400 px-1">✕</button>
+                                    </div>
                                   )}
-                                  <button onClick={() => handleUpdateRequest(r.id, 'completed')}
-                                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
-                                    Complete
-                                  </button>
-                                  <button onClick={() => handleUpdateRequest(r.id, 'cancelled')}
-                                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-gray-50 text-gray-400 hover:bg-gray-100">
-                                    Cancel
-                                  </button>
                                 </div>
                               )}
                             </div>
@@ -760,28 +801,51 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                         {r.notes && <p className="text-[11px] text-gray-400 italic mt-1">{r.notes}</p>}
                       </div>
                     </div>
-                    {isAdmin && r.status !== 'completed' && r.status !== 'cancelled' && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {r.status === 'pending' && (
-                          <button onClick={() => handleUpdateRequest(r.id, 'assigned')}
+                    {r.status !== 'completed' && r.status !== 'cancelled' && (
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-1.5">
+                          {(r.status === 'assigned' || r.status === 'pending') && (
+                            <button onClick={() => handleUpdateRequest(r.id, 'in_progress')}
+                              className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 hover:bg-teal-100">
+                              Mark En Route
+                            </button>
+                          )}
+                          <button onClick={() => handleUpdateRequest(r.id, 'completed')}
+                            className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+                            ✓ Complete
+                          </button>
+                          <button
+                            onClick={() => { setReassigningId(reassigningId === r.id ? null : r.id); setReassignDriverId(r.assigned_driver_id || ''); }}
                             className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 hover:bg-blue-100">
-                            Assign Driver
+                            Reassign
                           </button>
-                        )}
-                        {(r.status === 'assigned' || r.status === 'pending') && (
-                          <button onClick={() => handleUpdateRequest(r.id, 'in_progress')}
-                            className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 hover:bg-teal-100">
-                            Mark En Route
+                          <button onClick={() => handleUpdateRequest(r.id, 'cancelled')}
+                            className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-gray-50 text-gray-500 hover:bg-gray-100">
+                            Cancel
                           </button>
+                        </div>
+                        {reassigningId === r.id && (
+                          <div className="flex gap-2 items-center bg-blue-50 rounded-xl px-3 py-2.5">
+                            <select
+                              value={reassignDriverId}
+                              onChange={e => setReassignDriverId(e.target.value)}
+                              className="flex-1 text-[12px] bg-white border border-blue-200 rounded-lg px-2 py-1.5 outline-none"
+                            >
+                              <option value="">— Unassigned —</option>
+                              {staffList.filter(s => s.active && (s.department === 'drivers' || (s.positions || []).includes('drivers') || s.role === 'driver')).map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))}
+                              {staffList.filter(s => s.active && s.department !== 'drivers' && !(s.positions || []).includes('drivers') && s.role !== 'driver').map(s => (
+                                <option key={s.id} value={s.id}>{s.name} (staff)</option>
+                              ))}
+                            </select>
+                            <button onClick={() => handleReassign(r.id)}
+                              className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-blue-600 text-white hover:bg-blue-700">
+                              Save
+                            </button>
+                            <button onClick={() => setReassigningId(null)} className="text-[11px] text-gray-400 font-semibold px-1">✕</button>
+                          </div>
                         )}
-                        <button onClick={() => handleUpdateRequest(r.id, 'completed')}
-                          className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
-                          Complete
-                        </button>
-                        <button onClick={() => handleUpdateRequest(r.id, 'cancelled')}
-                          className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-gray-50 text-gray-500 hover:bg-gray-100">
-                          Cancel
-                        </button>
                       </div>
                     )}
                     </div>
