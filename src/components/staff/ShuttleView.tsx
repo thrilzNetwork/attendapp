@@ -334,7 +334,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   const [dispatchType, setDispatchType] = useState<DispatchType>('arrival');
   const [dispatchForm, setDispatchForm] = useState({
     guest_name: '', room_number: '', pax: 1, pickup_location: '', destination: '',
-    time: nextAvailableHour(), notes: '', driver_id: '',
+    date: todayStr(), time: nextAvailableHour(), notes: '', driver_id: '',
   });
   const [dispatching, setDispatching] = useState(false);
   const [dispatchDone, setDispatchDone] = useState(false);
@@ -406,7 +406,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   const DEPARTURE_DROPOFFS = ['MIA – Miami Intl', 'FLL – Fort Lauderdale', 'Port Everglades', 'Other'];
 
   const resetDispatch = () => {
-    setDispatchForm({ guest_name: '', room_number: '', pax: 1, pickup_location: '', destination: '', time: nextAvailableHour(), notes: '', driver_id: '' });
+    setDispatchForm({ guest_name: '', room_number: '', pax: 1, pickup_location: '', destination: '', date: todayStr(), time: nextAvailableHour(), notes: '', driver_id: '' });
     setDispatchType('arrival');
     setDispatchDone(false);
   };
@@ -424,7 +424,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
         room_number: room_number.trim(),
         pickup_location: pickup,
         destination: dest,
-        date: todayStr(),
+        date: dispatchForm.date || todayStr(),
         time: time || undefined,
         pax,
         notes: notes.trim(),
@@ -962,18 +962,23 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                   </div>
                 </div>
 
-                {/* Time + Notes side by side */}
+                {/* Date + Time + Notes */}
                 <div className="flex gap-3">
+                  <div className="flex-1">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Date</p>
+                    <input type="date" value={dispatchForm.date} onChange={e => setDispatchForm(f => ({ ...f, date: e.target.value }))}
+                      className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
+                  </div>
                   <div className="flex-1">
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Time</p>
                     <input type="time" value={dispatchForm.time} onChange={e => setDispatchForm(f => ({ ...f, time: e.target.value }))}
                       className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Flight / Notes</p>
-                    <input value={dispatchForm.notes} onChange={e => setDispatchForm(f => ({ ...f, notes: e.target.value }))}
-                      placeholder="AA123, notes…" className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
-                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Flight / Notes</p>
+                  <input value={dispatchForm.notes} onChange={e => setDispatchForm(f => ({ ...f, notes: e.target.value }))}
+                    placeholder="AA123, notes…" className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
                 </div>
 
                 {/* Assign Driver */}
