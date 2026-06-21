@@ -1,9 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Bus, ExternalLink, CheckCircle, RefreshCw } from 'lucide-react';
-
-const ShuttleMap = lazy(() => import('./ShuttleMap'));
 
 interface BouncieLocation {
   lat: number;
@@ -50,14 +48,6 @@ function formatDuration(seconds: number) {
   return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
-function formatTimeAgo(iso?: string) {
-  if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ago`;
-}
 
 function LiveDuration({ startAt }: { startAt: string }) {
   const [secs, setSecs] = useState(Math.floor((Date.now() - new Date(startAt).getTime()) / 1000));
@@ -82,7 +72,6 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
   const [connected, setConnected] = useState<boolean | null>(null);
   const [needsReauth, setNeedsReauth] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [showMap, setShowMap] = useState(false);
   const [hotelCoords, setHotelCoords] = useState<Coords | null>(null);
   const [hotelName, setHotelName] = useState<string | null>(null);
   const [hotelAddress, setHotelAddress] = useState<string | null>(null);
@@ -195,8 +184,6 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
     return { bg: 'bg-orange-50 border-orange-200', text: 'text-orange-800', icon: '←', label: `Returning to hotel` };
   })();
 
-  // Active destination coords for map
-  const activeDestCoords = destinations.find(d => d.name === activeDestName && d.lat != null && d.lng != null) || destinations.find(d => d.lat != null && d.lng != null) || null;
 
   if (!shuttle) {
     return (
@@ -306,37 +293,14 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
       {/* Map */}
       {/* Map toggle */}
       {loc && (
-        <div>
-          <button
-            onClick={() => setShowMap(v => !v)}
-            className="text-[12px] text-teal-600 font-semibold flex items-center gap-1"
-          >
-            {showMap ? '▾ Hide map' : '▸ Show map'}
-          </button>
-          {showMap && (
-            <div className="mt-2">
-              <Suspense fallback={<div className="h-[220px] rounded-xl bg-gray-100 animate-pulse" />}>
-                <ShuttleMap
-                  shuttleLat={loc!.lat}
-                  shuttleLng={loc!.lng}
-                  hotelLat={hotelCoords?.lat}
-                  hotelLng={hotelCoords?.lng}
-                  destLat={activeDestCoords?.lat}
-                  destLng={activeDestCoords?.lng}
-                  destName={activeDestName}
-                  hotelName={hotelName}
-                />
-              </Suspense>
-              <div className="flex items-center justify-between px-1 pt-1.5 text-[11px]">
-                <span className="text-gray-400">📍 {formatTimeAgo(loc!.recorded_at)}</span>
-                <a href={`https://www.openstreetmap.org/?mlat=${loc!.lat}&mlon=${loc!.lng}#map=14/${loc!.lat}/${loc!.lng}`}
-                   target="_blank" rel="noreferrer" className="font-bold text-teal-700 flex items-center gap-1">
-                  Open in maps <ExternalLink size={10} />
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
+        <a
+          href={`https://www.google.com/maps?q=${loc.lat},${loc.lng}`}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-1.5 text-[12px] font-semibold text-teal-600 hover:text-teal-800"
+        >
+          <ExternalLink size={12} /> Open live location in Google Maps
+        </a>
       )}
 
       {/* Trip history */}
