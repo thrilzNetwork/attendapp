@@ -41,59 +41,77 @@ const lbl = 'text-[11px] font-medium text-gray-400 mb-1 block uppercase tracking
 const inp = 'w-full bg-gray-50 rounded-xl px-3.5 py-2.5 text-[13px] border border-gray-100 focus:outline-none';
 
 /* ── Phone preview — home screen ───────────────────────── */
-function PhoneHome({ color, hotelName, onTileClick }: { color: string; hotelName: string; onTileClick: (t: TileKey) => void }) {
-  const tiles: { label: TileKey; filled: boolean }[] = [
-    { label: 'WELCOME', filled: true },
-    { label: 'TRANSPORT', filled: false },
-    { label: 'FACILITIES', filled: false },
-    { label: 'MESSAGE', filled: false },
-  ];
+function PhoneHome({ color, onTileClick }: { color: string; hotelName: string; onTileClick: (t: TileKey) => void }) {
+  function Tile({ label, tile, filled, icon }: { label: string; tile: TileKey; filled: boolean; icon: React.ReactNode }) {
+    return (
+      <button onClick={() => onTileClick(tile)}
+        className="rounded-2xl flex flex-col items-center justify-center gap-0.5 hover:opacity-80 transition-opacity cursor-pointer w-full h-full"
+        style={filled ? { backgroundColor: color, color: 'white' } : { backgroundColor: 'white', color, border: '1px solid #e5e7eb' }}>
+        <div style={{ color: filled ? 'white' : color }}>{icon}</div>
+        <span className="text-[5px] font-bold tracking-widest">{label}</span>
+      </button>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="bg-white px-3 pt-2 pb-1.5 shrink-0">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-[9px] font-black text-black leading-none">Hello!</div>
-            <div className="text-[6px] text-gray-400 mt-0.5">What do you need today?</div>
+    <div className="flex flex-col h-full bg-gray-100">
+      {/* Header */}
+      <div className="bg-gray-100 px-3 pt-2 pb-1.5 shrink-0 flex items-start justify-between">
+        <div>
+          <div className="text-[10px] font-black text-black leading-tight">Hello!</div>
+          <div className="text-[6px] text-gray-400">What do you need today?</div>
+        </div>
+        <div className="w-5 h-5 rounded-full border border-gray-200 bg-white flex items-center justify-center">
+          <Phone size={8} style={{ color }} />
+        </div>
+      </div>
+
+      {/* Row 1: WELCOME (big, filled) | TRANSPORT */}
+      <div className="flex gap-1.5 px-2 mb-1.5" style={{ height: 56 }}>
+        <div className="flex-1">
+          <Tile label="WELCOME" tile="WELCOME" filled icon={<MapPin size={10} />} />
+        </div>
+        <div className="flex-1">
+          <Tile label="TRANSPORT" tile="TRANSPORT" filled={false} icon={<Bus size={10} />} />
+        </div>
+      </div>
+
+      {/* Row 2: FACILITIES | SAFETY (filled) */}
+      <div className="flex gap-1.5 px-2 mb-1.5" style={{ height: 50 }}>
+        <div className="flex-1">
+          <Tile label="FACILITIES" tile="FACILITIES" filled={false} icon={<Bell size={10} />} />
+        </div>
+        <div className="flex-1">
+          <Tile label="SAFETY" tile="MESSAGE" filled icon={<ShieldCheck size={10} />} />
+        </div>
+      </div>
+
+      {/* Row 3: NEARBY (tall left) | FOOD (filled top) + LEAVE A REVIEW (bottom) */}
+      <div className="flex gap-1.5 px-2 mb-1.5" style={{ height: 70 }}>
+        <div style={{ width: '42%' }}>
+          <Tile label="NEARBY" tile="NEARBY" filled={false} icon={<MapPin size={9} />} />
+        </div>
+        <div className="flex flex-col gap-1.5" style={{ flex: 1 }}>
+          <div style={{ flex: '0 0 55%' }}>
+            <Tile label="FOOD" tile="FOOD" filled icon={<UtensilsCrossed size={9} />} />
           </div>
-          <div className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+          <div style={{ flex: 1 }}>
+            <Tile label="LEAVE A REVIEW" tile="REVIEW" filled={false} icon={null} />
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-1 px-1.5 pb-1" style={{ height: 150 }}>
-        {tiles.map(t => (
-          <button key={t.label} onClick={() => onTileClick(t.label)}
-            className="rounded-xl flex items-center justify-center text-[6px] font-bold tracking-wider hover:opacity-80 transition-opacity cursor-pointer"
-            style={t.filled ? { backgroundColor: color, color: 'white' } : { backgroundColor: 'white', color, border: '1px solid #e5e7eb' }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div className="mx-1.5 rounded-xl shrink-0" style={{ height: 40, backgroundColor: color, opacity: 0.15 }}>
-        <div className="flex items-end h-full px-2 pb-1">
-          <span className="text-[6px] font-bold" style={{ color }}>REWARDS</span>
+
+      {/* Bottom bar */}
+      <div className="mt-auto mx-2 mb-1.5 bg-white rounded-2xl flex items-center justify-between px-2 py-1.5 border border-gray-100">
+        <div className="flex items-center gap-1">
+          <div className="w-3.5 h-3.5 rounded-full bg-gray-100 flex items-center justify-center">
+            <span className="text-[5px]">🍪</span>
+          </div>
+          <span className="text-[5px] text-gray-400">Powered by Attenda</span>
         </div>
-      </div>
-      <div className="flex gap-1 px-1.5 pt-1 pb-1" style={{ height: 65 }}>
-        <button onClick={() => onTileClick('NEARBY')}
-          className="w-[38%] rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:opacity-80 cursor-pointer">
-          <span className="text-[5px] font-bold" style={{ color }}>NEARBY</span>
-        </button>
-        <div className="flex-1 flex flex-col gap-1">
-          <button onClick={() => onTileClick('FOOD')}
-            className="flex-1 rounded-xl flex items-center justify-center hover:opacity-80 cursor-pointer" style={{ backgroundColor: color }}>
-            <span className="text-[5px] font-bold text-white">FOOD</span>
-          </button>
-          <button onClick={() => onTileClick('REVIEW')}
-            className="flex-1 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:opacity-80 cursor-pointer">
-            <span className="text-[5px] font-bold" style={{ color }}>REVIEW</span>
-          </button>
-        </div>
-      </div>
-      <div className="absolute bottom-2 left-0 right-0 flex justify-center">
-        <div className="px-2 py-0.5 rounded-full text-white text-[5px] font-bold" style={{ backgroundColor: color }}>
-          {hotelName || 'Your Hotel'}
+        <div className="flex items-center gap-1">
+          <span className="text-[5px] font-bold" style={{ color }}>MY ORDERS</span>
+          <div className="rounded-full px-1.5 py-0.5 text-[5px] font-bold text-white" style={{ backgroundColor: color }}>REQUEST NOW</div>
         </div>
       </div>
     </div>
