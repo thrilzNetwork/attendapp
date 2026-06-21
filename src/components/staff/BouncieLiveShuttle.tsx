@@ -183,9 +183,10 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
   const completedTrips = trips.filter(t => !!t.end_at);
   const isMoving = (loc?.speed_mph ?? 0) > 2;
 
-  // Direction banner config
+  // Direction banner config — when idle/parked always show Parked regardless of detected direction
   const directionConfig = (() => {
     if (!shuttleDirection) return null;
+    if (!isMoving) return { bg: 'bg-gray-50 border-gray-200', text: 'text-gray-600', icon: '🅿️', label: 'Parked' };
     if (shuttleDirection === 'at_hotel') return { bg: 'bg-gray-50 border-gray-200', text: 'text-gray-700', icon: '🏨', label: `Parked at hotel` };
     if (shuttleDirection === 'at_dest')  return { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-800', icon: '✈️', label: `At ${activeDestName || 'destination'} — picking up` };
     if (shuttleDirection === 'to_dest')  return { bg: 'bg-sky-50 border-sky-200', text: 'text-sky-800', icon: '→', label: `En route to ${activeDestName || 'destination'}` };
@@ -278,7 +279,7 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
             to_hotel  → show ETA to hotel
             at_hotel  → hide both
       */}
-      {loc && shuttleDirection !== 'at_hotel' && (etaToDest || etaToHotel) && (() => {
+      {loc && isMoving && shuttleDirection !== 'at_hotel' && (etaToDest || etaToHotel) && (() => {
         const showDest  = shuttleDirection === 'to_dest'  && etaToDest;
         const showHotel = (shuttleDirection === 'at_dest' || shuttleDirection === 'to_hotel') && etaToHotel;
         if (!showDest && !showHotel) return null;
