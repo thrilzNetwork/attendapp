@@ -507,10 +507,10 @@ export function TransportBooker({
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-gray-900">Hotel Transportation</span>
+            <span className="text-base font-bold text-gray-900">Complementary Airport Shuttle</span>
             <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">FREE</span>
           </div>
-          <p className="text-[13px] text-gray-400 mt-1">Our team confirms availability</p>
+          <p className="text-[13px] text-gray-400 mt-1">Free hotel shuttle · Staff confirms your spot</p>
         </div>
       </button>
       <button
@@ -521,8 +521,8 @@ export function TransportBooker({
           <Car size={26} style={{ color: brandColor }} />
         </div>
         <div className="flex-1">
-          <span className="text-base font-bold text-gray-900">Book a Taxi</span>
-          <p className="text-[13px] text-gray-400 mt-1">Instant dispatch · Pay online</p>
+          <span className="text-base font-bold text-gray-900">Book an Attenda Taxi</span>
+          <p className="text-[13px] text-gray-400 mt-1">On-demand · Get a price &amp; pay online</p>
         </div>
       </button>
       {thirdParty && (
