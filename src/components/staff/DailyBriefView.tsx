@@ -12,6 +12,8 @@ import {
   getChecklistInstances,
   getStaffSchedulesRange,
   getCruiseSchedulesAll,
+  getPositionTodoTemplates,
+  getTodayInstances,
   type HotelConfig,
   type ShuttleSlot,
   type ShuttleRoute,
@@ -45,6 +47,8 @@ const DEPARTMENTS = [
 type WidgetId =
   | 'gm_notes'
   | 'quick_stats'
+  | 'my_shift'
+  | 'my_todos'
   | 'kpis'
   | 'activity'
   | 'checklists'
@@ -62,6 +66,8 @@ interface WidgetDef {
 const ALL_WIDGETS: WidgetDef[] = [
   { id: 'gm_notes',     label: "Today's Brief",    description: 'GM notes and daily announcements',      icon: '📋' },
   { id: 'quick_stats',  label: 'Quick Stats',       description: 'Pending requests, completed, staff on duty', icon: '📊' },
+  { id: 'my_shift',     label: 'My Shift Today',    description: 'Your scheduled start/end time today',   icon: '🕐' },
+  { id: 'my_todos',     label: 'My Checklist',      description: 'Your position-based tasks for this shift', icon: '✅' },
   { id: 'kpis',         label: 'KPI Snapshot',      description: 'Today\'s KPI values vs targets',        icon: '🎯' },
   { id: 'activity',     label: 'Today\'s Activity', description: 'Request completion progress bar',       icon: '⚡' },
   { id: 'checklists',   label: 'Checklists',        description: 'Interactive shift checklists',          icon: '✅' },
@@ -70,7 +76,7 @@ const ALL_WIDGETS: WidgetDef[] = [
   { id: 'cruise',       label: 'Cruise Ships',      description: 'Upcoming cruise ship arrivals',         icon: '🚢' },
 ];
 
-const DEFAULT_WIDGETS: WidgetId[] = ['gm_notes', 'quick_stats', 'kpis', 'forecast_14', 'shuttle', 'cruise'];
+const DEFAULT_WIDGETS: WidgetId[] = ['gm_notes', 'quick_stats', 'my_shift', 'my_todos', 'kpis', 'forecast_14', 'shuttle', 'cruise'];
 
 function loadWidgetPrefs(hotelId: string): WidgetId[] {
   try {
@@ -92,12 +98,13 @@ function saveWidgetPrefs(hotelId: string, prefs: WidgetId[]) {
 }
 
 /* ── Daily Brief View (staff-facing) ──────────────────── */
-export default function DailyBriefView({ hotelId, hotelName, config, sessionName, department, isAdmin }: {
+export default function DailyBriefView({ hotelId, hotelName, config, sessionName, department, positions, isAdmin }: {
   hotelId: string;
   hotelName: string;
   config: HotelConfig | null;
   sessionName: string;
   department?: string;
+  positions?: string[];
   isAdmin: boolean;
 }) {
   const [recap, setRecap] = useState<{
@@ -114,6 +121,11 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
   const [checklistTemplates, setChecklistTemplates] = useState<Checklist[]>([]);
   const [checklistInstances, setChecklistInstances] = useState<ChecklistInstance[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  // Position-based todos
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [posTodoTemplates, setPosTodoTemplates] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [posTodoInstances, setPosTodoInstances] = useState<any[]>([]);
 
   // Widget customizer state
   const [enabledWidgets, setEnabledWidgets] = useState<WidgetId[]>(DEFAULT_WIDGETS);
@@ -145,7 +157,7 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
 
   useEffect(() => {
     (async () => {
-      const [r, slots, routes, monthSlots, schedules, templates, instances, kpiDefs, kpiLogs] = await Promise.all([
+      const [r, slots, routes, monthSlots, schedules, templates, instances, kpiDefs, kpiLogs, posTpls, posInsts] = await Promise.all([
         getDailyRecap(hotelId),
         getAllShuttleSlotsForHotel(hotelId),
         getShuttleRoutes(hotelId),
@@ -155,6 +167,8 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
         getChecklistInstances(hotelId, todayStr),
         listKpiDefinitions(hotelId),
         listKpiSubmissions(hotelId),
+        getPositionTodoTemplates(hotelId),
+        getTodayInstances(hotelId),
       ]);
       setRecap(r);
       setTodayShuttleSlots(slots);
@@ -163,6 +177,8 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
       setWeekShifts(schedules || []);
       setChecklistTemplates(templates || []);
       setChecklistInstances(instances || []);
+      setPosTodoTemplates(posTpls || []);
+      setPosTodoInstances(posInsts || []);
       // Filter to score-related KPIs only — exclude checklist completion counts and parking items
       const SCORE_KEYWORDS = ['score', 'satisfaction', 'rating', 'review', 'nps', 'tripadvisor', 'google'];
       const EXCLUDE_KEYWORDS = ['checklist', 'parking', 'completion'];
@@ -241,6 +257,26 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
         if (!t.department && !t.assigned_role) return true;
         return false;
       });
+
+  // My shift today
+  const myPositions = positions && positions.length > 0 ? positions : myDept ? [myDept] : [];
+  const myShiftToday = weekShifts.filter(s =>
+    s.shift_date === todayStr &&
+    (s.staff_name === sessionName || (s.staff_name || '').toLowerCase() === sessionName.toLowerCase())
+  );
+
+  // Position todos for this staff member — match by any of their positions
+  const myPosTodoTemplates = posTodoTemplates.filter((t: any) => {
+    if (isAdmin && myPositions.length === 0) return true;
+    if (!t.department) return true;
+    return myPositions.includes(t.department);
+  });
+  // Find today's instances for this staff member (matched by name)
+  const myPosTodoInstances = posTodoInstances.filter((i: any) =>
+    (i.staff_name || '').toLowerCase() === sessionName.toLowerCase()
+  );
+  const getPosInstance = (templateId: string) =>
+    myPosTodoInstances.find((i: any) => i.template_id === templateId);
 
   const todayDay = new Date().getDay();
   const daySlots = todayShuttleSlots.filter(s =>
@@ -387,6 +423,100 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Staff on Duty</p>
             <p className="text-[28px] font-extrabold text-gray-900 mt-1">{recap.staffOnDuty}</p>
           </div>
+        </div>
+      )}
+
+      {/* ── My Shift Today ── */}
+      {on('my_shift') && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-[16px]">🕐</span>
+            <h3 className="text-[13px] font-bold text-gray-900">My Shift Today</h3>
+          </div>
+          {myShiftToday.length > 0 ? (
+            <div className="space-y-2">
+              {myShiftToday.map((s, i) => {
+                const start = s.start_time ? s.start_time.slice(0,5) : null;
+                const end   = s.end_time   ? s.end_time.slice(0,5)   : null;
+                const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+                const endMin = end ? parseInt(end.split(':')[0]) * 60 + parseInt(end.split(':')[1]) : null;
+                const minsLeft = endMin ? endMin - nowMin : null;
+                return (
+                  <div key={i} className="flex items-center justify-between bg-teal-50 border border-teal-100 rounded-xl px-4 py-3">
+                    <div>
+                      <p className="text-[14px] font-extrabold text-teal-900">
+                        {start && end ? `${start} – ${end}` : start ? `From ${start}` : 'Shift scheduled'}
+                      </p>
+                      {s.role && <p className="text-[11px] text-teal-600 mt-0.5">{s.role}</p>}
+                    </div>
+                    {minsLeft != null && minsLeft > 0 && (
+                      <div className="text-right">
+                        <p className="text-[13px] font-bold text-teal-700">{Math.floor(minsLeft / 60)}h {minsLeft % 60}m left</p>
+                        <p className="text-[10px] text-teal-500">in shift</p>
+                      </div>
+                    )}
+                    {minsLeft != null && minsLeft <= 0 && (
+                      <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-gray-100 text-gray-500">Shift ended</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-[12px] text-gray-400">No shift scheduled for you today.</p>
+          )}
+        </div>
+      )}
+
+      {/* ── My Position Checklist ── */}
+      {on('my_todos') && myPosTodoTemplates.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm mb-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[16px]">✅</span>
+              <h3 className="text-[13px] font-bold text-gray-900">My Checklist</h3>
+            </div>
+            {myPosTodoTemplates.length > 0 && (() => {
+              const total = myPosTodoTemplates.length;
+              const done  = myPosTodoTemplates.filter((t: any) => {
+                const inst = getPosInstance(t.id);
+                return inst?.status === 'completed';
+              }).length;
+              return (
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${done === total ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {done}/{total} done
+                </span>
+              );
+            })()}
+          </div>
+          <div className="space-y-2">
+            {myPosTodoTemplates.map((t: any) => {
+              const inst = getPosInstance(t.id);
+              const isDone = inst?.status === 'completed';
+              const isInProgress = inst && inst.status !== 'completed';
+              const dept = DEPARTMENTS.find(d => d.key === t.department);
+              return (
+                <div key={t.id} className={`flex items-center justify-between rounded-xl px-4 py-3 border ${isDone ? 'bg-emerald-50 border-emerald-100' : isInProgress ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[18px]">{isDone ? '✅' : isInProgress ? '🔄' : '⬜'}</span>
+                    <div>
+                      <p className={`text-[13px] font-semibold ${isDone ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{t.name}</p>
+                      {dept && <p className="text-[10px] text-gray-400">{dept.icon} {dept.label}</p>}
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isDone ? 'bg-emerald-100 text-emerald-600' : isInProgress ? 'bg-amber-100 text-amber-600' : 'bg-gray-200 text-gray-500'}`}>
+                    {isDone ? 'Done' : isInProgress ? 'In progress' : 'Not started'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-gray-400 mt-3 text-center">Complete these in the To-Dos tab → then they update here automatically</p>
+        </div>
+      )}
+      {on('my_todos') && myPosTodoTemplates.length === 0 && !isAdmin && (
+        <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-5 text-center">
+          <p className="text-[12px] text-gray-400">No checklists assigned to your position yet.</p>
         </div>
       )}
 

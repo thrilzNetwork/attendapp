@@ -152,6 +152,7 @@ interface Session {
   role: Role;
   vendorType?: string;
   department?: string;
+  positions?: string[];
   permissions?: string[];
 }
 
@@ -283,7 +284,7 @@ function DashboardInner() {
         getStaffAccountByEmail(email).then(staff => {
           if (staff) {
             const role: Role = staff.role === 'manager' || staff.role === 'admin' ? 'admin' : staff.role === 'supervisor' ? 'supervisor' : staff.role === 'vendor' ? 'vendor' : 'staff';
-            setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined, permissions: staff.permissions ?? [] });
+            setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined, permissions: staff.permissions ?? [], department: staff.department, positions: staff.positions || [] });
             setAuthMode('authenticated');
             // Save hotel slug to localStorage so config queries work
             if (staff.hotel_id) {
@@ -337,7 +338,7 @@ function DashboardInner() {
         await supabase.auth.refreshSession();
       }
 
-      setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined, permissions: staff.permissions ?? [] });
+      setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined, permissions: staff.permissions ?? [], department: staff.department, positions: staff.positions || [] });
       setAuthMode('authenticated');
       // Show welcome modal for first-time logins (redirected from setup with ?welcome=1)
       if (searchParams.get('welcome') === '1' && !localStorage.getItem('attenda_welcomed')) {
@@ -839,7 +840,7 @@ function DashboardInner() {
         )}
         {tabPanel('dailybrief', true,
           <ErrorBoundary fallback={<div className="p-4 md:p-8"><div className="bg-red-50 border border-red-200 rounded-2xl p-6"><p className="text-[16px] font-bold text-red-800 mb-2">Dashboard error</p><pre id="error-message" className="text-[12px] text-red-700 whitespace-pre-wrap bg-red-100 p-4 rounded-xl">{/* error will show here */}</pre></div></div>}>
-            <DailyBriefView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} config={config} sessionName={session?.name || ''} department={session?.department} isAdmin={isAdmin} />
+            <DailyBriefView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} config={config} sessionName={session?.name || ''} department={session?.department} positions={session?.positions} isAdmin={isAdmin} />
           </ErrorBoundary>
         )}
         {tabPanel('property_info', !!config,
