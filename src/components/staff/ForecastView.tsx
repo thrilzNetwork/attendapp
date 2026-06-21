@@ -91,6 +91,8 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
 
   const loadWeek = async (offset: number) => {
     setLoading(true);
+    setWeekDays([]);
+    setSaveError('');
     const todayLocal = getTodayInTimezone(resolvedTimezone);
     const ref = new Date(todayLocal + 'T12:00:00');
     ref.setDate(ref.getDate() + offset * 7);
@@ -167,8 +169,10 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
 
   const handleSave = async () => {
     if (!resolvedHotelId) { setSaveError('Hotel not loaded yet — please wait.'); return; }
+    if (!mondayStr) { setSaveError('Week not loaded yet — please wait.'); return; }
+    if (weekDays.length === 0) { setSaveError('No data to save.'); return; }
     setSaving(true); setSaveError('');
-    const monday = weekDays.length > 0 ? getMonday(weekDays[0].date) : mondayStr;
+    const monday = mondayStr;
     try {
       const forecasts = weekDays.map(day => ({
         hotel_id: resolvedHotelId,
@@ -219,7 +223,7 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
           </button>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || loading}
             className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors"
           >
             <Save size={12} /> {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}

@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
             prev_night_occ: f.prev_night_occ,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: 'hotel_id,date' }
+          { onConflict: 'hotel_id, date' }
         );
 
       results.push({ date: f.date, ok: !error });
