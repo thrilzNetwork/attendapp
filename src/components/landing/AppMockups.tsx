@@ -11,7 +11,7 @@ import {
   Bell, Bus, ChevronRight, Clock, DollarSign,
   Home, LayoutDashboard, LogOut, MessageSquare,
   Star, Users, Calendar, ClipboardList,
-  TrendingUp, Wrench, Utensils, ShoppingBag, Phone, Layers, Truck, MapPin,
+  TrendingUp, Wrench, Utensils, ShoppingBag, Phone, Layers, MapPin,
 } from 'lucide-react';
 
 const TEAL = '#0D9488';
