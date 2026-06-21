@@ -17,6 +17,7 @@ import {
   ShuttleSlot, CruiseSchedule,
 
 } from '@/lib/supabase';
+import { TaxiCallerRide } from '@/components/TaxiCallerRide';
 
 const BURGUNDY = '#6B1D3C';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -390,7 +391,7 @@ export function TransportBooker({
   defaultToText?: string;
   skipModeScreen?: boolean;
 }) {
-  const [screen, setScreen] = useState<'mode' | 'address' | 'confirm' | 'done'>(skipModeScreen ? 'address' : 'mode');
+  const [screen, setScreen] = useState<'mode' | 'address' | 'confirm' | 'done' | 'taxi'>(skipModeScreen ? 'address' : 'mode');
   const [config, setConfig] = useState<HotelConfig | null>(null);
 
   // FROM field — fromTouched prevents autocomplete firing on pre-filled default
@@ -512,6 +513,18 @@ export function TransportBooker({
           <p className="text-[13px] text-gray-400 mt-1">Our team confirms availability</p>
         </div>
       </button>
+      <button
+        onClick={() => setScreen('taxi')}
+        className="w-full bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left"
+      >
+        <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${brandColor}18` }}>
+          <Car size={26} style={{ color: brandColor }} />
+        </div>
+        <div className="flex-1">
+          <span className="text-base font-bold text-gray-900">Book a Taxi</span>
+          <p className="text-[13px] text-gray-400 mt-1">Instant dispatch · Pay online</p>
+        </div>
+      </button>
       {thirdParty && (
         <div className="space-y-2">
           <a
@@ -538,6 +551,17 @@ export function TransportBooker({
         </div>
       )}
     </div>
+  );
+
+  // Screen: TaxiCaller on-demand
+  if (screen === 'taxi') return (
+    <TaxiCallerRide
+      brandColor={brandColor}
+      config={config}
+      title="Book a Taxi"
+      pickupDefault={config?.address || ''}
+      onBack={() => setScreen('mode')}
+    />
   );
 
   // Screen: address picker

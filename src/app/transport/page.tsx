@@ -2,21 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plane, Bus, Ship, Car, UserCheck, X, MapPin, Clock, Users, CreditCard, CheckCircle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Plane, Bus, Ship, Car, UserCheck, X, MapPin, CheckCircle, Users } from 'lucide-react';
 import { getHotelConfig, HotelConfig, getAllShuttleSlotsForHotel, bookShuttleSlot, getCruiseSchedules, ShuttleSlot, CruiseSchedule, createShuttleRequest } from '@/lib/supabase';
 import { goBackToHotel } from '@/lib/guest-context';
-import { loadStripe } from '@stripe/stripe-js';
+import { TaxiCallerRide } from '@/components/TaxiCallerRide';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 function todayISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function nowTime() { const d = new Date(); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
-function fmt(cents: number) { return `$${(cents / 100).toFixed(2)}`; }
 
-/* ── TaxiCaller On-Demand Ride Booking ───────── */
-type QuoteResult = { quoteId: string; base_fare_cents: number; surcharge_cents: number; total_cents: number; estimated_mins: number; vehicle_type: string };
-type BookingConfirm = { booking_id: string; driver_name: string; driver_phone: string; vehicle_plate: string; tracking_url: string };
-
-function TaxiCallerRide({ brandColor, config, title = 'Book a Ride', pickupDefault = '' }: { brandColor: string; config: HotelConfig | null; title?: string; pickupDefault?: string }) {
+/* ── TaxiCaller moved to src/components/TaxiCallerRide.tsx ── */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _TaxiCallerRidePlaceholder({ brandColor, config, title = 'Book a Ride', pickupDefault = '' }: { brandColor: string; config: HotelConfig | null; title?: string; pickupDefault?: string }) {
   const [form, setForm] = useState({ name: '', room: '', phone: '', pickup: pickupDefault || config?.address || '', destination: '', date: todayISO(), time: nowTime(), pax: 1, notes: '' });
   const [step, setStep] = useState<'form' | 'quote' | 'paying' | 'done'>('form');
   const [quote, setQuote] = useState<QuoteResult | null>(null);
