@@ -139,6 +139,8 @@ export async function GET(req: NextRequest) {
     devices: merged,
     syncError,
     hotelCoords,
+    hotelName: hotel?.name || null,
+    hotelAddress: hotel?.address || null,
     destinations,
     // legacy single-dest fields for older UI paths
     destCoords: validDests[0] ? { lat: validDests[0].lat, lng: validDests[0].lng } : null,

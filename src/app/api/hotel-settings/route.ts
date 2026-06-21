@@ -11,6 +11,7 @@ export async function PATCH(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updates: Record<string, any> = {};
 
+  // Legacy single-dest fields
   const scalarAllowed = ['shuttle_dest_name', 'shuttle_dest_address'];
   for (const key of scalarAllowed) {
     if (key in body) updates[key] = body[key] ?? null;
@@ -18,6 +19,14 @@ export async function PATCH(req: NextRequest) {
   // Multi-destination JSONB array
   if ('shuttle_destinations' in body) {
     updates.shuttle_destinations = body.shuttle_destinations;
+  }
+  // Hotel identity fields (used by admin to correct the hotel's own address)
+  if ('hotel_name' in body) updates.name = body.hotel_name ?? null;
+  if ('hotel_address' in body) {
+    updates.address = body.hotel_address ?? null;
+    // Clear cached hotel coords so next vehicles poll re-geocodes
+    updates.lat = null;
+    updates.lng = null;
   }
 
   if (Object.keys(updates).length === 0) {

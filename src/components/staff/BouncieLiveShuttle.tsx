@@ -82,10 +82,15 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
   const [refreshing, setRefreshing] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [hotelCoords, setHotelCoords] = useState<Coords | null>(null);
+  const [hotelName, setHotelName] = useState<string | null>(null);
+  const [hotelAddress, setHotelAddress] = useState<string | null>(null);
   const [destinations, setDestinations] = useState<DestEntry[]>([]);
   const [showDestSettings, setShowDestSettings] = useState(false);
   const [destForm, setDestForm] = useState({ name: '', address: '' });
   const [destSaving, setDestSaving] = useState(false);
+  const [hotelForm, setHotelForm] = useState({ name: '', address: '' });
+  const [hotelSaving, setHotelSaving] = useState(false);
+  const [editingHotel, setEditingHotel] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -102,6 +107,8 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
       setConnected(vehRes.connected === true);
       setNeedsReauth(vehRes.needsReauth === true);
       setHotelCoords(vehRes.hotelCoords || null);
+      setHotelName(vehRes.hotelName || null);
+      setHotelAddress(vehRes.hotelAddress || null);
       setDestinations(vehRes.destinations || []);
 
       // Schedule next poll based on whether any vehicle is moving
@@ -287,10 +294,10 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
             </div>
           )}
           {showHotel && etaToHotel && (
-            <div className={`rounded-xl px-3 py-3 text-center border ${etaToHotel.distanceMiles <= 0.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-orange-50 border-orange-100'}`}>
+            <div className={`rounded-xl px-3 py-3 text-center border ${etaToHotel.distanceMiles <= 1.0 ? 'bg-emerald-50 border-emerald-200' : 'bg-orange-50 border-orange-100'}`}>
               <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">ETA back to Hotel</p>
-              <p className={`text-[22px] font-black leading-tight ${etaToHotel.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-orange-700'}`}>
-                {etaToHotel.distanceMiles <= 0.5 ? 'Arriving' : `${etaToHotel.etaMinutes} min`}
+              <p className={`text-[22px] font-black leading-tight ${etaToHotel.distanceMiles <= 1.0 ? 'text-emerald-700' : 'text-orange-700'}`}>
+                {etaToHotel.distanceMiles <= 1.0 ? 'Arriving' : `${etaToHotel.etaMinutes} min`}
               </p>
               <p className="text-[10px] text-gray-400">{etaToHotel.distanceMiles.toFixed(1)} mi away</p>
             </div>
@@ -360,11 +367,68 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
             onClick={() => setShowDestSettings(v => !v)}
             className="text-[11px] font-semibold text-gray-400 hover:text-teal-600 w-full text-left"
           >
-            {showDestSettings ? '▾' : '▸'} Shuttle destinations ({destinations.length})
+            {showDestSettings ? '▾' : '▸'} Manage shuttle destinations
           </button>
           {showDestSettings && (
             <div className="mt-2 space-y-2">
-              {/* Existing destinations list */}
+              {/* Hotel — pinned return destination */}
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Return (Hotel)</p>
+              <div className="bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+                {editingHotel ? (
+                  <div className="space-y-1.5">
+                    <input
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-[12px] placeholder-gray-400"
+                      placeholder="Hotel name"
+                      value={hotelForm.name}
+                      onChange={e => setHotelForm(f => ({ ...f, name: e.target.value }))}
+                    />
+                    <input
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-[12px] placeholder-gray-400"
+                      placeholder="Hotel address"
+                      value={hotelForm.address}
+                      onChange={e => setHotelForm(f => ({ ...f, address: e.target.value }))}
+                    />
+                    <div className="flex gap-1.5">
+                      <button
+                        disabled={hotelSaving || !hotelForm.address.trim()}
+                        onClick={async () => {
+                          setHotelSaving(true);
+                          try {
+                            await fetch(`/api/hotel-settings?hotelId=${encodeURIComponent(hotelId)}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ hotel_name: hotelForm.name, hotel_address: hotelForm.address }),
+                            });
+                            setEditingHotel(false);
+                            load(true);
+                          } finally {
+                            setHotelSaving(false);
+                          }
+                        }}
+                        className="flex-1 py-1.5 rounded-lg bg-teal-600 text-white text-[11px] font-bold disabled:opacity-40"
+                      >{hotelSaving ? 'Saving…' : 'Save'}</button>
+                      <button onClick={() => setEditingHotel(false)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-[11px] text-gray-500">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[12px] font-bold text-gray-800">🏨 {hotelName || 'Hotel'}</p>
+                      <p className="text-[10px] text-gray-500">{hotelAddress || 'No address set'}{hotelCoords ? ` · ${hotelCoords.lat.toFixed(4)}, ${hotelCoords.lng.toFixed(4)}` : ' · not geocoded'}</p>
+                    </div>
+                    <button
+                      onClick={() => { setHotelForm({ name: hotelName || '', address: hotelAddress || '' }); setEditingHotel(true); }}
+                      className="text-[10px] text-teal-600 font-semibold px-2 py-1 rounded hover:bg-teal-50"
+                    >Edit</button>
+                  </div>
+                )}
+              </div>
+
+              {/* Outbound destinations */}
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pt-1">Outbound destinations</p>
+              {destinations.length === 0 && (
+                <p className="text-[11px] text-gray-400 italic px-1">No destinations added yet.</p>
+              )}
               {destinations.map((dest, i) => (
                 <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
                   <div>
@@ -385,6 +449,7 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
                   >✕</button>
                 </div>
               ))}
+
               {/* Add new destination */}
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pt-1">Add destination</p>
               <input
