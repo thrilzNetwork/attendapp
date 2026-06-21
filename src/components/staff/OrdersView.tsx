@@ -32,6 +32,11 @@ interface OrdersViewProps {
   staffList?: StaffMember[];
 }
 
+// Use local calendar date, not UTC — UTC rolls over ~8pm ET and makes today's requests vanish
+function localDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const STATUS_PALETTE: Record<string, { bg: string; border: string; badge: string; badgeText: string; label: string }> = {
   'pending': {
     bg: 'from-orange-50 to-orange-100/60',
@@ -71,17 +76,17 @@ function OrdersView({
   const [showAllOpen, setShowAllOpen] = useState(false);
   const [reassigning, setReassigning] = useState(false);
   const [reassignTo, setReassignTo] = useState('');
-  const [viewDate, setViewDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [viewDate, setViewDate] = useState(() => localDateStr(new Date()));
 
   useEffect(() => { setRequests(initialRequests); }, [initialRequests]);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateStr(new Date());
   const isToday = viewDate === todayStr;
 
   const shiftDate = (delta: number) => {
     const d = new Date(viewDate + 'T12:00:00');
     d.setDate(d.getDate() + delta);
-    setViewDate(d.toISOString().slice(0, 10));
+    setViewDate(localDateStr(d));
   };
 
   const formatViewDate = (iso: string) => {
@@ -89,7 +94,7 @@ function OrdersView({
     return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
-  const viewed = requests.filter(r => r.created_at.slice(0, 10) === viewDate);
+  const viewed = requests.filter(r => localDateStr(new Date(r.created_at)) === viewDate);
 
   const pending = viewed.filter(r => r.status === 'pending');
   const inProgress = viewed.filter(r => r.status === 'in-progress');
