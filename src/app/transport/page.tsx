@@ -6,6 +6,7 @@ import { ArrowLeft, Plane, Bus, Ship, Car, UserCheck, X, MapPin, CheckCircle, Us
 import { getHotelConfig, HotelConfig, getAllShuttleSlotsForHotel, bookShuttleSlot, getCruiseSchedules, ShuttleSlot, CruiseSchedule, createShuttleRequest } from '@/lib/supabase';
 import { goBackToHotel } from '@/lib/guest-context';
 import { TaxiCallerRide } from '@/components/TaxiCallerRide';
+import { AirportSchedule } from '@/components/AirportSchedule';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 function todayISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -506,8 +507,9 @@ export default function TransportPage() {
   );
 }
 
-/* ── Airport Shuttle ───────────────────────── */
-function AirportSchedule({ brandColor, config }: { brandColor: string; config: HotelConfig | null }) {
+/* ── AirportSchedule moved to src/components/AirportSchedule.tsx ── */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _AirportSchedulePlaceholder({ brandColor, config }: { brandColor: string; config: HotelConfig | null }) {
   const [slots, setSlots] = useState<ShuttleSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingForm, setBookingForm] = useState<{ slot_id: string; show: boolean; name: string; room: string; pax: number; notes: string; charge_accepted: boolean; date: string }>({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false, date: todayISO() });

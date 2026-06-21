@@ -18,6 +18,7 @@ import {
 
 } from '@/lib/supabase';
 import { TaxiCallerRide } from '@/components/TaxiCallerRide';
+import { AirportSchedule } from '@/components/AirportSchedule';
 
 const BURGUNDY = '#6B1D3C';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -391,7 +392,7 @@ export function TransportBooker({
   defaultToText?: string;
   skipModeScreen?: boolean;
 }) {
-  const [screen, setScreen] = useState<'mode' | 'address' | 'confirm' | 'done' | 'taxi'>(skipModeScreen ? 'address' : 'mode');
+  const [screen, setScreen] = useState<'mode' | 'schedule' | 'address' | 'confirm' | 'done' | 'taxi'>(skipModeScreen ? 'address' : 'mode');
   const [config, setConfig] = useState<HotelConfig | null>(null);
 
   // FROM field — fromTouched prevents autocomplete firing on pre-filled default
@@ -499,7 +500,7 @@ export function TransportBooker({
     <div className="space-y-3">
       <p className="text-sm text-gray-500 text-center">How would you like to travel?</p>
       <button
-        onClick={() => setScreen('address')}
+        onClick={() => setScreen('schedule')}
         className="w-full bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left"
       >
         <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
@@ -550,6 +551,16 @@ export function TransportBooker({
           </p>
         </div>
       )}
+    </div>
+  );
+
+  // Screen: hotel shuttle schedule (time slot picker)
+  if (screen === 'schedule') return (
+    <div>
+      <button onClick={() => setScreen('mode')} className="text-sm font-semibold flex items-center gap-1 mb-3" style={{ color: brandColor }}>
+        ← Back
+      </button>
+      <AirportSchedule brandColor={brandColor} config={config} />
     </div>
   );
 
