@@ -53,6 +53,14 @@ export async function exchangeBouncieCode(code: string) {
   };
 }
 
+// Thrown when Bouncie rejects the refresh token (invalid_grant / revoked).
+// The vehicles route catches this to return connected:false so the UI
+// shows a re-authorize prompt instead of a cryptic sync error.
+export class BouncieAuthError extends Error {
+  readonly needsReauth = true;
+  constructor(msg: string) { super(msg); this.name = 'BouncieAuthError'; }
+}
+
 export async function refreshBouncieToken(refreshToken: string) {
   const { clientId, clientSecret } = getBouncieConfig();
 
@@ -72,6 +80,9 @@ export async function refreshBouncieToken(refreshToken: string) {
 
   if (!res.ok) {
     const text = await res.text();
+    if (res.status === 403 || text.includes('invalid_grant')) {
+      throw new BouncieAuthError(`Bouncie token refresh failed: ${res.status} ${text}`);
+    }
     throw new Error(`Bouncie token refresh failed: ${res.status} ${text}`);
   }
 

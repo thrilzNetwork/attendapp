@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { Bus, MapPin, Navigation, Clock, Activity, ExternalLink, Timer, Route, CheckCircle } from 'lucide-react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Bus, ExternalLink, CheckCircle, RefreshCw } from 'lucide-react';
 
 interface BouncieLocation {
   lat: number;
@@ -19,7 +19,6 @@ interface BouncieDevice {
   vehicle_name: string;
   is_shuttle: boolean;
   bouncie_locations?: BouncieLocation[];
-  eta?: ETAResult | null;
   etaToHotel?: ETAResult | null;
   etaToDest?: ETAResult | null;
   shuttleDirection?: string | null;
@@ -32,36 +31,27 @@ interface BouncieTrip {
   end_at: string | null;
   distance_miles: number;
   duration_seconds: number;
-  start_lat?: number;
-  start_lng?: number;
-  end_lat?: number;
-  end_lng?: number;
-}
-
-function formatTimeAgo(iso?: string) {
-  if (!iso) return 'Unknown';
-  const diff = Date.now() - new Date(iso).getTime();
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  return `${hours}h ago`;
-}
-
-function formatDuration(seconds: number) {
-  if (!seconds) return '—';
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  if (m === 0) return `${s}s`;
-  if (m < 60) return `${m}m ${s}s`;
-  const h = Math.floor(m / 60);
-  return `${h}h ${m % 60}m`;
 }
 
 function formatTime(iso?: string | null) {
   if (!iso) return '—';
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDuration(seconds: number) {
+  if (!seconds) return '—';
+  const m = Math.floor(seconds / 60);
+  if (m < 60) return `${m}m`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
+function formatTimeAgo(iso?: string) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  return `${Math.floor(m / 60)}h ago`;
 }
 
 function LiveDuration({ startAt }: { startAt: string }) {
@@ -70,18 +60,22 @@ function LiveDuration({ startAt }: { startAt: string }) {
     const id = setInterval(() => setSecs(Math.floor((Date.now() - new Date(startAt).getTime()) / 1000)), 1000);
     return () => clearInterval(id);
   }, [startAt]);
-  return <span>{formatDuration(secs)}</span>;
+  const m = Math.floor(secs / 60);
+  return <span>{m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`}</span>;
 }
 
 interface Coords { lat: number; lng: number }
+
+// Poll every 30s while moving, every 5 min while idle
+const POLL_MOVING_MS = 30_000;
+const POLL_IDLE_MS   = 5 * 60_000;
 
 export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: string; isAdmin?: boolean }) {
   const [devices, setDevices] = useState<BouncieDevice[]>([]);
   const [trips, setTrips] = useState<BouncieTrip[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [syncError, setSyncError] = useState('');
   const [connected, setConnected] = useState<boolean | null>(null);
+  const [needsReauth, setNeedsReauth] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hotelCoords, setHotelCoords] = useState<Coords | null>(null);
   const [destCoords, setDestCoords] = useState<Coords | null>(null);
@@ -90,6 +84,8 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
   const [destForm, setDestForm] = useState({ name: '', address: '' });
   const [destSaving, setDestSaving] = useState(false);
 
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const load = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
     try {
@@ -97,20 +93,27 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
         fetch(`/api/bouncie/vehicles?hotelId=${encodeURIComponent(hotelId)}`).then(r => r.json()),
         fetch(`/api/bouncie/trips?hotelId=${encodeURIComponent(hotelId)}`).then(r => r.json()),
       ]);
-      setDevices(vehRes.devices || []);
+      const devs: BouncieDevice[] = vehRes.devices || [];
+      setDevices(devs);
       setTrips(tripsRes.trips || []);
       setConnected(vehRes.connected === true);
-      setSyncError(vehRes.syncError || '');
+      setNeedsReauth(vehRes.needsReauth === true);
       setHotelCoords(vehRes.hotelCoords || null);
       setDestCoords(vehRes.destCoords || null);
       setDestName(vehRes.destName || null);
-      // Pre-fill dest form from API response (only on first load, not refresh)
       if (!isManual && vehRes.destName !== undefined) {
         setDestForm({ name: vehRes.destName || '', address: '' });
       }
-      setError('');
+
+      // Schedule next poll based on whether any vehicle is moving
+      if (timerRef.current) clearTimeout(timerRef.current);
+      const shuttle = devs.find(d => d.is_shuttle) || devs[0];
+      const speed = shuttle?.bouncie_locations?.[0]?.speed_mph ?? 0;
+      const delay = speed > 2 ? POLL_MOVING_MS : POLL_IDLE_MS;
+      timerRef.current = setTimeout(() => load(false), delay);
     } catch {
-      setError('Failed to load shuttle location. Check your network connection.');
+      // on error, retry in 2 min
+      timerRef.current = setTimeout(() => load(false), 2 * 60_000);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -120,21 +123,18 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
   useEffect(() => {
     if (!hotelId) return;
     load(false);
-    const id = setInterval(() => load(false), 30000);
-    return () => clearInterval(id);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [hotelId, load]);
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-4">
-        <div className="flex items-center gap-2 text-gray-500 text-[12px]">
-          <Activity size={14} className="animate-pulse" />
-          Loading shuttle GPS...
-        </div>
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 flex items-center gap-2 text-gray-400 text-[12px]">
+        <Bus size={14} className="animate-pulse" /> Loading shuttle GPS…
       </div>
     );
   }
 
+  // Not connected or needs re-auth
   if (connected === false) {
     return (
       <div className="bg-gradient-to-br from-teal-50 to-white rounded-2xl border border-teal-100 p-5 mb-4">
@@ -144,76 +144,92 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
           </div>
           <div>
             <p className="font-extrabold text-[15px] text-gray-900">Live Shuttle GPS</p>
-            <p className="text-[11px] text-gray-500">Powered by Bouncie</p>
+            {needsReauth
+              ? <p className="text-[11px] text-amber-600 font-semibold">Authorization expired — re-connect to restore live tracking</p>
+              : <p className="text-[11px] text-gray-500">Powered by Bouncie</p>
+            }
           </div>
         </div>
-        <p className="text-[13px] text-gray-600 mb-1">Connect your Bouncie GPS tracker to see:</p>
-        <ul className="text-[12px] text-gray-500 mb-4 space-y-0.5 ml-2">
-          <li>📍 Real-time shuttle location</li>
-          <li>⏱ Live trip timer & distance</li>
-          <li>🏨 ETA back to hotel</li>
-          <li>📋 Today&apos;s trip log</li>
-        </ul>
+        {!needsReauth && (
+          <ul className="text-[12px] text-gray-500 mb-4 space-y-0.5 ml-1">
+            <li>📍 Live shuttle location & direction</li>
+            <li>⏱ ETA to airport and back</li>
+            <li>📋 Today&apos;s trip log</li>
+          </ul>
+        )}
         <a
           href={`/api/bouncie-auth?hotelId=${encodeURIComponent(hotelId)}`}
           className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-teal-600 text-white text-[13px] font-bold hover:bg-teal-700 transition-colors"
         >
-          Connect Bouncie GPS <ExternalLink size={13} />
+          {needsReauth ? 'Re-connect Bouncie GPS' : 'Connect Bouncie GPS'} <ExternalLink size={13} />
         </a>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 rounded-2xl border border-red-100 p-4 mb-4 space-y-2">
-        <p className="text-[12px] text-red-600 font-semibold">{error}</p>
-        <button onClick={() => load(true)} className="text-[12px] text-red-500 underline">Retry</button>
-      </div>
-    );
-  }
-
-  // Connected but no devices discovered yet — show waiting state with sync error if any
-  if (devices.length === 0) {
-    return (
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bus size={16} className="text-teal-600" />
-            <span className="font-bold text-[14px] text-gray-900">Live Shuttle</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✓ Bouncie Connected</span>
-          </div>
-          <button
-            onClick={() => load(true)}
-            disabled={refreshing}
-            className="text-[11px] font-bold text-teal-600 bg-teal-50 px-3 py-1 rounded-full disabled:opacity-50"
-          >
-            {refreshing ? 'Refreshing…' : '↻ Refresh'}
-          </button>
-        </div>
-        {syncError ? (
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-            <p className="text-[11px] font-bold text-amber-700 mb-0.5">GPS sync error</p>
-            <p className="text-[11px] text-amber-600 font-mono break-all">{syncError}</p>
-            <p className="text-[11px] text-amber-500 mt-1">Check that your Bouncie account is active and the device has signal.</p>
-          </div>
-        ) : (
-          <p className="text-[12px] text-gray-500">Waiting for GPS tracker to come online. Start a trip and it will appear here automatically.</p>
-        )}
       </div>
     );
   }
 
   const shuttle = devices.find(d => d.is_shuttle) || devices[0];
   const loc = shuttle?.bouncie_locations?.[0];
-  const eta = shuttle?.eta ?? null;
   const etaToHotel = shuttle?.etaToHotel ?? null;
   const etaToDest = shuttle?.etaToDest ?? null;
   const shuttleDirection = shuttle?.shuttleDirection ?? null;
-  const activeTrips = trips.filter(t => !t.end_at);
-  const completedTrips = trips.filter(t => t.end_at);
-  const currentTrip = activeTrips[0] ?? null;
-  const totalDistanceToday = trips.reduce((s, t) => s + (t.distance_miles || 0), 0);
+  const activeTrip = trips.find(t => !t.end_at) ?? null;
+  const completedTrips = trips.filter(t => !!t.end_at);
+  const isMoving = (loc?.speed_mph ?? 0) > 2;
+
+  // Direction banner config
+  const directionConfig = (() => {
+    if (!shuttleDirection) return null;
+    if (shuttleDirection === 'at_hotel') return { bg: 'bg-teal-50 border-teal-200', text: 'text-teal-800', label: `🏨 At hotel` };
+    if (shuttleDirection === 'at_dest')  return { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-800', label: `✈️ At ${destName || 'destination'}` };
+    if (shuttleDirection === 'to_dest')  return { bg: 'bg-sky-50 border-sky-200', text: 'text-sky-800', label: `🏨 → ✈️  Heading to ${destName || 'airport'}` };
+    return { bg: 'bg-orange-50 border-orange-200', text: 'text-orange-800', label: `✈️ → 🏨  Returning to hotel` };
+  })();
+
+  // Inline map
+  const mapIframe = loc ? (() => {
+    const lats = [loc.lat, hotelCoords?.lat, destCoords?.lat].filter((v): v is number => v != null);
+    const lngs = [loc.lng, hotelCoords?.lng, destCoords?.lng].filter((v): v is number => v != null);
+    const minLat = Math.min(...lats) - 0.006;
+    const maxLat = Math.max(...lats) + 0.006;
+    const minLng = Math.min(...lngs) - 0.01;
+    const maxLng = Math.max(...lngs) + 0.01;
+    const bbox = `${minLng}%2C${minLat}%2C${maxLng}%2C${maxLat}`;
+    return (
+      <div className="rounded-xl overflow-hidden border border-gray-200">
+        <iframe
+          title="Live shuttle location"
+          className="w-full h-48 block"
+          loading="lazy"
+          src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${loc.lat}%2C${loc.lng}`}
+        />
+        <div className="flex items-center justify-between px-3 py-2 bg-gray-50 text-[11px]">
+          <span className="text-gray-400">📍 {formatTimeAgo(loc.recorded_at)}{hotelCoords ? ' · 🏨 Hotel' : ''}{destCoords ? ` · ✈️ ${destName || 'Airport'}` : ''}</span>
+          <a href={`https://www.openstreetmap.org/?mlat=${loc.lat}&mlon=${loc.lng}#map=14/${loc.lat}/${loc.lng}`}
+             target="_blank" rel="noreferrer" className="font-bold text-teal-700 flex items-center gap-1">
+            Open map <ExternalLink size={10} />
+          </a>
+        </div>
+      </div>
+    );
+  })() : null;
+
+  if (!shuttle) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bus size={16} className="text-teal-600" />
+            <span className="font-bold text-[14px] text-gray-900">Live Shuttle</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✓ Connected</span>
+          </div>
+          <button onClick={() => load(true)} disabled={refreshing} className="text-teal-600 disabled:opacity-40">
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+        </div>
+        <p className="text-[12px] text-gray-400">Waiting for GPS device to come online.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 space-y-3">
@@ -226,138 +242,91 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
           </div>
           <div>
             <h3 className="font-extrabold text-[14px] text-gray-900">Live Shuttle</h3>
-            <p className="text-[11px] text-gray-500">{shuttle?.vehicle_name || shuttle?.device_id || 'Shuttle'} · Bouncie GPS</p>
+            <p className="text-[10px] text-gray-400">{shuttle.vehicle_name || 'Shuttle'} · Bouncie GPS</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => load(true)} disabled={refreshing} className="text-[10px] text-teal-600 font-bold disabled:opacity-40">
-            {refreshing ? '…' : '↻'}
-          </button>
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <div className={`w-2 h-2 rounded-full ${currentTrip ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
-            <span className="text-[10px] font-bold text-gray-600">{currentTrip ? 'On Trip' : 'Idle'}</span>
+            <div className={`w-2 h-2 rounded-full ${isMoving ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
+            <span className="text-[10px] font-bold text-gray-600">{isMoving ? 'Moving' : 'Idle'}</span>
           </div>
+          <button onClick={() => load(true)} disabled={refreshing} className="text-gray-400 hover:text-teal-600 disabled:opacity-40">
+            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+          </button>
         </div>
       </div>
 
-      {syncError && (
-        <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-          <p className="text-[11px] text-amber-700 font-semibold">GPS sync issue: <span className="font-normal font-mono">{syncError}</span></p>
+      {/* Direction banner */}
+      {directionConfig && (
+        <div className={`rounded-xl border px-3 py-2.5 text-[13px] font-bold ${directionConfig.bg} ${directionConfig.text}`}>
+          {directionConfig.label}
         </div>
       )}
 
-      {/* Direction banner — only shown when destination is configured */}
-      {loc && destCoords && shuttleDirection && (
-        <div className={`rounded-xl px-3 py-2.5 text-[13px] font-bold flex items-center gap-2 ${
-          shuttleDirection === 'at_hotel' ? 'bg-teal-50 text-teal-800 border border-teal-200' :
-          shuttleDirection === 'at_dest'  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
-          shuttleDirection === 'to_dest'  ? 'bg-sky-50 text-sky-800 border border-sky-200' :
-          'bg-orange-50 text-orange-800 border border-orange-200'
-        }`}>
-          {shuttleDirection === 'at_hotel' && <>🏨 At hotel</>}
-          {shuttleDirection === 'at_dest'  && <>✈️ At {destName || 'destination'}</>}
-          {shuttleDirection === 'to_dest'  && <>🏨 → ✈️ Heading to {destName || 'destination'}{etaToDest ? ` · ~${etaToDest.etaMinutes} min` : ''}</>}
-          {shuttleDirection === 'to_hotel' && <>✈️ → 🏨 Returning to hotel{etaToHotel ? ` · ~${etaToHotel.etaMinutes} min` : ''}</>}
-        </div>
-      )}
-
-      {/* Live location */}
-      {loc ? (
-        <div className="bg-gray-50 rounded-xl p-3 space-y-2">
-          <div className="flex items-center justify-between text-[12px]">
-            <div className="flex items-center gap-1.5 text-gray-500"><Navigation size={12} /> Speed</div>
-            <span className="font-semibold text-gray-900">{loc.speed_mph.toFixed(0)} mph · {loc.heading.toFixed(0)}°</span>
-          </div>
-          <div className="flex items-center justify-between text-[12px]">
-            <div className="flex items-center gap-1.5 text-gray-500"><Clock size={12} /> Updated</div>
-            <span className="text-gray-700">{formatTimeAgo(loc.recorded_at)}</span>
-          </div>
-
-          {/* Two-point ETA when destination configured, single ETA when not */}
-          {destCoords ? (
-            <>
-              {etaToDest && (
-                <div className={`flex items-center justify-between text-[12px] pt-1 border-t border-gray-200 ${etaToDest.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-sky-700'}`}>
-                  <div className="flex items-center gap-1.5 font-semibold"><Timer size={12} /> ETA to {destName || 'destination'}</div>
-                  <span className="font-bold">{etaToDest.distanceMiles <= 0.5 ? 'Arriving ✈️' : `~${etaToDest.etaMinutes} min · ${etaToDest.distanceMiles.toFixed(1)} mi`}</span>
-                </div>
-              )}
-              {etaToHotel && (
-                <div className={`flex items-center justify-between text-[12px] ${!etaToDest ? 'pt-1 border-t border-gray-200' : ''} ${etaToHotel.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-orange-700'}`}>
-                  <div className="flex items-center gap-1.5 font-semibold"><Timer size={12} /> ETA to hotel</div>
-                  <span className="font-bold">{etaToHotel.distanceMiles <= 0.5 ? 'Arriving 🏨' : `~${etaToHotel.etaMinutes} min · ${etaToHotel.distanceMiles.toFixed(1)} mi`}</span>
-                </div>
-              )}
-            </>
-          ) : eta && (
-            <div className={`flex items-center justify-between text-[12px] pt-1 border-t border-gray-200 ${eta.distanceMiles <= 0.5 ? 'text-emerald-700' : ''}`}>
-              <div className="flex items-center gap-1.5 font-semibold">
-                <Timer size={12} />
-                {eta.distanceMiles <= 0.5 ? 'Arriving at hotel' : 'ETA to hotel'}
-              </div>
-              <span className="font-bold">
-                {eta.distanceMiles <= 0.5 ? 'NOW 🟢' : `~${eta.etaMinutes} min · ${eta.distanceMiles.toFixed(1)} mi`}
-              </span>
+      {/* ETA chips */}
+      {loc && (etaToDest || etaToHotel) && (
+        <div className="grid grid-cols-2 gap-2">
+          {etaToDest && (
+            <div className={`rounded-xl px-3 py-2.5 text-center border ${etaToDest.distanceMiles <= 0.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-sky-50 border-sky-100'}`}>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">✈️ {destName || 'Airport'}</p>
+              <p className={`text-[16px] font-black ${etaToDest.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-sky-700'}`}>
+                {etaToDest.distanceMiles <= 0.5 ? 'Arriving' : `~${etaToDest.etaMinutes} min`}
+              </p>
+              <p className="text-[9px] text-gray-400">{etaToDest.distanceMiles.toFixed(1)} mi away</p>
+            </div>
+          )}
+          {etaToHotel && (
+            <div className={`rounded-xl px-3 py-2.5 text-center border ${etaToHotel.distanceMiles <= 0.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-orange-50 border-orange-100'}`}>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">🏨 Hotel</p>
+              <p className={`text-[16px] font-black ${etaToHotel.distanceMiles <= 0.5 ? 'text-emerald-700' : 'text-orange-700'}`}>
+                {etaToHotel.distanceMiles <= 0.5 ? 'Arriving' : `~${etaToHotel.etaMinutes} min`}
+              </p>
+              <p className="text-[9px] text-gray-400">{etaToHotel.distanceMiles.toFixed(1)} mi away</p>
             </div>
           )}
         </div>
-      ) : (
-        <p className="text-[12px] text-gray-400 italic">No GPS signal yet.</p>
       )}
 
-      {/* Active trip A→B */}
-      {currentTrip && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-          <div className="flex items-center gap-1.5 mb-2">
-            <Route size={12} className="text-emerald-600" />
-            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wide">Active Trip</span>
+      {/* No GPS yet */}
+      {!loc && <p className="text-[12px] text-gray-400 italic">No GPS signal yet.</p>}
+
+      {/* Active trip */}
+      {activeTrip && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5">🟢 Active Trip</p>
+          <div className="flex justify-between text-[12px]">
+            <span className="text-emerald-700">Departed</span>
+            <span className="font-bold text-gray-900">{formatTime(activeTrip.start_at)}</span>
           </div>
-          <div className="space-y-1.5 text-[12px]">
-            <div className="flex justify-between">
-              <span className="text-emerald-600">Departed</span>
-              <span className="font-semibold text-gray-900">{formatTime(currentTrip.start_at)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-emerald-600">Duration</span>
-              <span className="font-bold text-gray-900"><LiveDuration startAt={currentTrip.start_at} /></span>
-            </div>
-            {currentTrip.distance_miles > 0 && (
-              <div className="flex justify-between">
-                <span className="text-emerald-600">Distance</span>
-                <span className="font-semibold text-gray-900">{currentTrip.distance_miles.toFixed(1)} mi</span>
-              </div>
-            )}
+          <div className="flex justify-between text-[12px] mt-1">
+            <span className="text-emerald-700">Running</span>
+            <span className="font-bold text-gray-900"><LiveDuration startAt={activeTrip.start_at} /></span>
           </div>
         </div>
       )}
 
-      {/* Today's trip log */}
+      {/* Map */}
+      {mapIframe}
+
+      {/* Trip history */}
       {completedTrips.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Today&apos;s Trips</p>
-          <div className="space-y-1.5">
-            {completedTrips.slice(-4).reverse().map(trip => (
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Today&apos;s Trips</p>
+          <div className="space-y-1">
+            {completedTrips.slice(-5).reverse().map(trip => (
               <div key={trip.id} className="flex items-center justify-between text-[12px] bg-gray-50 rounded-lg px-3 py-2">
-                <div className="flex items-center gap-1.5 text-gray-500">
-                  <CheckCircle size={11} className="text-teal-500" />
+                <div className="flex items-center gap-1.5 text-gray-600">
+                  <CheckCircle size={11} className="text-teal-500 shrink-0" />
                   <span>{formatTime(trip.start_at)} → {formatTime(trip.end_at)}</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-700 font-semibold">
-                  <span>{trip.distance_miles > 0 ? `${trip.distance_miles.toFixed(1)} mi` : ''}</span>
-                  <span className="text-gray-400">·</span>
-                  <span>{trip.duration_seconds > 0 ? formatDuration(trip.duration_seconds) : '—'}</span>
+                <div className="text-gray-500 font-semibold">
+                  {trip.distance_miles > 0 ? `${trip.distance_miles.toFixed(1)} mi` : ''}{trip.distance_miles > 0 && trip.duration_seconds > 0 ? ' · ' : ''}{trip.duration_seconds > 0 ? formatDuration(trip.duration_seconds) : ''}
                 </div>
               </div>
             ))}
           </div>
         </div>
       )}
-
-      {/* Footer stats */}
-      <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
-        <span>Trips today: <strong className="text-gray-900">{trips.length}</strong></span>
-        <span>Total distance: <strong className="text-gray-900">{totalDistanceToday.toFixed(1)} mi</strong></span>
-      </div>
 
       {/* Destination config — admin only */}
       {isAdmin && (
@@ -422,42 +391,6 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
           )}
         </div>
       )}
-
-      {loc && (() => {
-        // Build a bbox that encompasses the shuttle + hotel + destination (when known)
-        const lats = [loc.lat, hotelCoords?.lat, destCoords?.lat].filter((v): v is number => v != null);
-        const lngs = [loc.lng, hotelCoords?.lng, destCoords?.lng].filter((v): v is number => v != null);
-        const minLat = Math.min(...lats) - 0.006;
-        const maxLat = Math.max(...lats) + 0.006;
-        const minLng = Math.min(...lngs) - 0.01;
-        const maxLng = Math.max(...lngs) + 0.01;
-        const bbox = `${minLng}%2C${minLat}%2C${maxLng}%2C${maxLat}`;
-        return (
-          <div className="rounded-xl overflow-hidden border border-gray-200">
-            <iframe
-              title="Live shuttle location"
-              className="w-full h-52 block"
-              loading="lazy"
-              src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${loc.lat}%2C${loc.lng}`}
-            />
-            <div className="flex items-center justify-between px-3 py-2 bg-gray-50 text-[11px]">
-              <div className="flex items-center gap-2 text-gray-500 flex-wrap">
-                <span className="flex items-center gap-1"><MapPin size={11} className="text-teal-600" /> Live · {formatTimeAgo(loc.recorded_at)}</span>
-                {hotelCoords && <span className="text-gray-400">· 🏨 Hotel</span>}
-                {destCoords && <span className="text-gray-400">· ✈️ {destName || 'Dest'}</span>}
-              </div>
-              <a
-                href={`https://www.openstreetmap.org/?mlat=${loc.lat}&mlon=${loc.lng}#map=14/${loc.lat}/${loc.lng}`}
-                target="_blank"
-                rel="noreferrer"
-                className="font-bold text-teal-700 flex items-center gap-1 shrink-0"
-              >
-                Open map <ExternalLink size={10} />
-              </a>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }

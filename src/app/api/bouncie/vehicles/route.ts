@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { calculateETA, detectShuttleDirection, getActiveBouncieToken, listBouncieVehicles, normalizeBouncieVehicle } from '@/lib/bouncie';
+import { BouncieAuthError, calculateETA, detectShuttleDirection, getActiveBouncieToken, listBouncieVehicles, normalizeBouncieVehicle } from '@/lib/bouncie';
 import { geocodeAddress } from '@/lib/geocode';
 
 export async function GET(req: NextRequest) {
@@ -38,6 +38,10 @@ export async function GET(req: NextRequest) {
       }
     }
   } catch (err) {
+    // Refresh token revoked — signal the UI to show a re-auth prompt
+    if (err instanceof BouncieAuthError) {
+      return NextResponse.json({ ok: true, connected: false, needsReauth: true, devices: [] });
+    }
     syncError = err instanceof Error ? err.message : String(err);
     console.error('Bouncie live vehicle fetch failed:', syncError);
   }
