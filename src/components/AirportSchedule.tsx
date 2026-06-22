@@ -61,6 +61,13 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
         cfg?.id ? createShuttleRequest({ hotel_id: cfg.id, guest_name: name, room_number: room, pickup_location: cfg.shuttlePickupLocation || 'Hotel Lobby', destination: selected!.route_name || 'Airport', date, time: selected!.departure_time || undefined, pax, status: 'pending' }) : Promise.resolve(),
       ]);
       results.forEach((r, i) => { if (r.status === 'rejected') console.error(`[AirportSchedule] promise[${i}] rejected:`, r.reason); });
+      // Add to guest's local request list so it appears in MY ORDERS
+      try {
+        const timeLabel = fmt12(selected!.departure_time);
+        const newReq = { id: Math.random().toString(36).slice(2), guestName: name, room, type: 'Shuttle Booking', details: `Airport Shuttle · ${timeLabel} · ${date} · ${pax} pax`, status: 'pending', createdAt: new Date().toISOString() };
+        const existing = JSON.parse(localStorage.getItem('guestRequests') || '[]');
+        localStorage.setItem('guestRequests', JSON.stringify([newReq, ...existing]));
+      } catch {}
     } catch (e) { console.error('[AirportSchedule] handleBook error:', e); }
     setSubmitting(false);
     setDone(true);
