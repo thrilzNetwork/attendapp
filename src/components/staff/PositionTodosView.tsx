@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   getPositionTodoTemplates, createPositionTodoTemplate, updatePositionTodoTemplate, deletePositionTodoTemplate,
   getTemplateItems, createTemplateItem, deleteTemplateItem,
-  getTodayInstances, createInstance, completeInstance, deleteInstance, resetInstance,
+  getTodayInstances, createInstance, completeInstance, deleteInstance,
   getInstanceResponses, upsertResponse,
   createRoomMove, createNoShow, createBankCount,
   type PositionTodoTemplate, type PositionTodoItem,
