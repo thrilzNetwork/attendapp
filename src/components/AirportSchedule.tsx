@@ -54,13 +54,14 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
     setSubmitting(true);
     try {
       const isVirtual = selected!.id.startsWith('virtual-');
-      // Ensure we have hotel config — fetch it if not already loaded
       const cfg = config?.id ? config : await getHotelConfig();
-      await Promise.allSettled([
+      console.log('[AirportSchedule] handleBook cfg.id=', cfg?.id, 'isVirtual=', isVirtual);
+      const results = await Promise.allSettled([
         isVirtual ? Promise.resolve() : bookShuttleSlot({ slot_id: selected!.id, guest_name: name, room_number: room, pax, notes: '', price_charged: 0, charge_accepted: false }),
         cfg?.id ? createShuttleRequest({ hotel_id: cfg.id, guest_name: name, room_number: room, pickup_location: cfg.shuttlePickupLocation || 'Hotel Lobby', destination: selected!.route_name || 'Airport', date, time: selected!.departure_time || undefined, pax, status: 'pending' }) : Promise.resolve(),
       ]);
-    } catch {}
+      results.forEach((r, i) => { if (r.status === 'rejected') console.error(`[AirportSchedule] promise[${i}] rejected:`, r.reason); });
+    } catch (e) { console.error('[AirportSchedule] handleBook error:', e); }
     setSubmitting(false);
     setDone(true);
   };
