@@ -19,18 +19,48 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
       if (!config?.id) { setLoading(false); return; }
       const s = await getAllShuttleSlotsForHotel(config.id);
       if (cancelled) return;
-      setSlots(s.filter(slot => slot.route_type === 'airport'));
+      const airport = s.filter(slot => slot.route_type === 'airport');
+      setSlots(airport);
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [config?.id]);
 
+  // Generate virtual hourly slots from hotel config when none are configured in DB
+  function generateHourlySlots(): ShuttleSlot[] {
+    const start = config?.shuttleStartTime || '06:00';
+    const end = config?.shuttleEndTime || '23:00';
+    const [startH] = start.split(':').map(Number);
+    const [endH] = end.split(':').map(Number);
+    const generated: ShuttleSlot[] = [];
+    for (let h = startH; h <= endH; h++) {
+      const time = `${String(h).padStart(2, '0')}:00:00`;
+      generated.push({
+        id: `virtual-${h}`,
+        route_id: '',
+        departure_time: time,
+        route_name: 'Airport Shuttle',
+        route_type: 'airport',
+        route_price: 0,
+        override_price: null,
+        capacity: 0,
+        bookings_count: 0,
+        days_of_week: [0, 1, 2, 3, 4, 5, 6],
+        event_label: null,
+        date: null,
+        active: true,
+      } as unknown as ShuttleSlot);
+    }
+    return generated;
+  }
+
   const handleBook = async () => {
     if (!bookingForm.name || !bookingForm.room) return;
-    const slot = slots.find(s => s.id === bookingForm.slot_id);
+    const slot = displaySlots.find(s => s.id === bookingForm.slot_id);
     const pricePer = slot?.override_price ?? slot?.route_price ?? 0;
+    const isVirtual = bookingForm.slot_id.startsWith('virtual-');
     await Promise.all([
-      bookShuttleSlot({
+      isVirtual ? Promise.resolve() : bookShuttleSlot({
         slot_id: bookingForm.slot_id,
         guest_name: bookingForm.name,
         room_number: bookingForm.room,
@@ -60,8 +90,12 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
     }
   };
 
+  const isFreeShuttle = config?.hasFreeShuttle;
+  const displaySlots = slots.length > 0 ? slots : generateHourlySlots();
+  const isVirtualSchedule = slots.length === 0;
+
   const byDay: Record<string, ShuttleSlot[]> = {};
-  slots.forEach(slot => {
+  displaySlots.forEach(slot => {
     const days = (slot.days_of_week || []).length > 0 ? slot.days_of_week : [new Date().getDay()];
     days.forEach(d => {
       const dayLabel = DAYS[d];
@@ -82,18 +116,6 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
     );
   }
 
-  if (slots.length === 0) {
-    return (
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
-        <Plane size={40} className="text-gray-300 mx-auto mb-3" />
-        <p className="text-[13px] text-gray-500">No airport shuttle schedule available yet.</p>
-        <p className="text-[12px] text-gray-400 mt-1">Check with the front desk for current times.</p>
-      </div>
-    );
-  }
-
-  const isFreeShuttle = config?.hasFreeShuttle;
-
   return (
     <div className="space-y-4">
       <div className={`rounded-2xl p-3 border flex items-start gap-2.5 ${isFreeShuttle ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
@@ -103,19 +125,19 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
             {isFreeShuttle ? 'Complimentary Airport Shuttle' : 'Airport Shuttle'}
           </p>
           <p className="text-[11px] text-gray-600">
-            {config?.shuttlePickupLocation || 'Hotel lobby'} pickup · {config?.shuttleStartTime?.slice(0, 5) || '—'} to {config?.shuttleEndTime?.slice(0, 5) || '—'}
+            {config?.shuttlePickupLocation || 'Hotel lobby'} pickup · {config?.shuttleStartTime?.slice(0, 5) || '06:00'} to {config?.shuttleEndTime?.slice(0, 5) || '23:00'}
             {!isFreeShuttle && <span className="font-semibold"> · Charges apply</span>}
           </p>
         </div>
       </div>
 
-      {dayOrder.filter(d => byDay[d]).map(day => (
-        <div key={day} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      {isVirtualSchedule ? (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-            <h3 className="font-bold text-[13px] text-gray-900">{day}s</h3>
+            <h3 className="font-bold text-[13px] text-gray-900">Daily Schedule</h3>
           </div>
           <div className="divide-y divide-gray-50">
-            {byDay[day].map(slot => {
+            {displaySlots.map(slot => {
               const pricePer = slot.override_price ?? slot.route_price ?? 0;
               const full = slot.capacity > 0 && (slot.bookings_count || 0) >= slot.capacity;
               const isBooked = booked === slot.id;
@@ -162,7 +184,62 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
             })}
           </div>
         </div>
-      ))}
+      ) : (
+        dayOrder.filter(d => byDay[d]).map(day => (
+          <div key={day} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+              <h3 className="font-bold text-[13px] text-gray-900">{day}s</h3>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {byDay[day].map(slot => {
+                const pricePer = slot.override_price ?? slot.route_price ?? 0;
+                const full = slot.capacity > 0 && (slot.bookings_count || 0) >= slot.capacity;
+                const isBooked = booked === slot.id;
+                return (
+                  <div key={slot.id} className="px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="text-center min-w-[48px]">
+                        <p className="text-[18px] font-extrabold text-gray-900">{slot.departure_time?.slice(0, 5)}</p>
+                        {slot.event_label && <p className="text-[9px] text-gray-400">{slot.event_label}</p>}
+                      </div>
+                      <div>
+                        {pricePer > 0 ? (
+                          <p className="text-[10px] font-semibold text-amber-700">${pricePer}/person</p>
+                        ) : (
+                          <p className="text-[10px] font-semibold text-emerald-600">Free</p>
+                        )}
+                        {slot.capacity > 0 && (
+                          <p className={`text-[10px] font-semibold ${full ? 'text-red-500' : 'text-emerald-600'}`}>
+                            {full ? 'Full' : `${slot.capacity - (slot.bookings_count || 0)} spots`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {isBooked ? (
+                      <span className="flex items-center gap-1 text-[12px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">
+                        <UserCheck size={12} /> Booked
+                      </span>
+                    ) : full ? (
+                      <span className="text-[12px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full">Full</span>
+                    ) : bookingForm.show && bookingForm.slot_id === slot.id ? (
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setBookingForm({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false, date: todayISO() })} className="text-gray-400"><X size={16} /></button>
+                        <button onClick={handleBook} className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white disabled:opacity-40" style={{ backgroundColor: brandColor }} disabled={pricePer > 0 && !bookingForm.charge_accepted}>Confirm</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setBookingForm({ slot_id: slot.id, show: true, name: '', room: '', pax: 1, notes: '', charge_accepted: false, date: todayISO() })}
+                        className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white active:scale-95"
+                        style={{ backgroundColor: brandColor }}>
+                        Book
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))
+      )}
 
       {bookingForm.show && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
@@ -184,7 +261,7 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
               className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] text-gray-800 outline-none" />
           </div>
           {(() => {
-            const slot = slots.find(s => s.id === bookingForm.slot_id);
+            const slot = displaySlots.find(s => s.id === bookingForm.slot_id);
             const pricePer = slot?.override_price ?? slot?.route_price ?? 0;
             const total = pricePer * bookingForm.pax;
             return total > 0 ? (

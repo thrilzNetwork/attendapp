@@ -6,22 +6,18 @@ import {
   X, CheckCircle, Wifi, Check, Coffee, Dumbbell, Printer,
   WashingMachine, IceCream, Car, Bus, Flame, AlertTriangle,
   AlarmSmoke, Crosshair, ShieldCheck, Phone, Star, ExternalLink,
-  Plane, UserCheck, MapPin, Utensils, ShoppingBag, Bell, Globe,
+  Plane, MapPin, Utensils, ShoppingBag, Bell, Globe,
   User, Clock, DoorOpen, TrendingUp,
 } from 'lucide-react';
 import {
   supabase, getHotelConfig, HotelConfig,
   FacilitiesAmenity,
-  getAllShuttleSlotsForHotel, bookShuttleSlot, createShuttleRequest,
-  getCruiseSchedules,
-  ShuttleSlot, CruiseSchedule,
-
+  createShuttleRequest,
 } from '@/lib/supabase';
 import { TaxiCallerRide } from '@/components/TaxiCallerRide';
 import { AirportSchedule } from '@/components/AirportSchedule';
 
 const BURGUNDY = '#6B1D3C';
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /* ── Modal wrapper — centered, same style as check-in modal ── */
 export function GuestSheet({
@@ -217,160 +213,17 @@ export function MessageSheetContent() {
   );
 }
 
-/* ── Transport ─────────────────────────────────────────────── */
+/* ── Transport ────────────────────────────────────────────────────── */
 export function TransportSheetContent() {
-  const [view, setView] = useState<'request' | 'schedule'>('request');
   return (
     <div className="overflow-y-auto flex-1">
       <div className="px-5 pt-2 pb-6">
-        <div className="bg-gray-100 rounded-2xl p-1 flex mb-4">
-          <button onClick={() => setView('request')} className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${view === 'request' ? 'text-white' : 'text-gray-500'}`} style={view === 'request' ? { backgroundColor: BURGUNDY } : undefined}>Book Transport</button>
-          <button onClick={() => setView('schedule')} className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${view === 'schedule' ? 'text-white' : 'text-gray-500'}`} style={view === 'schedule' ? { backgroundColor: BURGUNDY } : undefined}>Schedules</button>
-        </div>
-        {view === 'schedule' ? <ShuttleScheduleInner /> : <OnDemandInner />}
+        <OnDemandInner />
       </div>
     </div>
   );
 }
 
-function ShuttleScheduleInner() {
-  const [hotel, setHotel] = useState<HotelConfig | null>(null);
-  const [slots, setSlots] = useState<ShuttleSlot[]>([]);
-  const [cruises, setCruises] = useState<CruiseSchedule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'shuttle' | 'cruise'>('shuttle');
-  const [bookingForm, setBookingForm] = useState<{ slot_id: string; show: boolean; name: string; room: string; pax: number; notes: string; charge_accepted: boolean }>({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false });
-  const [booked, setBooked] = useState<string | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const h = await getHotelConfig();
-      setHotel(h);
-      if (h?.id) {
-        const [s, c] = await Promise.all([getAllShuttleSlotsForHotel(h.id), getCruiseSchedules(h.id)]);
-        setSlots(s); setCruises(c);
-        if (c.length > 0) setActiveTab('cruise');
-      }
-      // Pre-fill name/room from guest session
-      try {
-        const gs = localStorage.getItem('guestSession');
-        if (gs) { const s = JSON.parse(gs); setBookingForm(f => ({ ...f, name: s.name || '', room: s.room || '' })); }
-      } catch {}
-      setLoading(false);
-    })();
-  }, []);
-
-  const handleBook = async () => {
-    if (!bookingForm.name || !bookingForm.room) return;
-    const slot = slots.find(s => s.id === bookingForm.slot_id);
-    const pricePer = slot?.override_price ?? slot?.route_price ?? 0;
-    await bookShuttleSlot({ slot_id: bookingForm.slot_id, guest_name: bookingForm.name, room_number: bookingForm.room, pax: bookingForm.pax, notes: bookingForm.notes, price_charged: pricePer * bookingForm.pax, charge_accepted: bookingForm.charge_accepted });
-    setBooked(bookingForm.slot_id);
-    setBookingForm(f => ({ ...f, slot_id: '', show: false }));
-    if (hotel?.id) setSlots(await getAllShuttleSlotsForHotel(hotel.id));
-  };
-
-  const byRoute: Record<string, ShuttleSlot[]> = {};
-  slots.forEach(s => { const k = s.route_name || 'Unknown'; if (!byRoute[k]) byRoute[k] = []; byRoute[k].push(s); });
-
-  if (loading) return <div className="text-center py-8"><div className="w-6 h-6 border-2 border-[#6B1D3C] border-t-transparent rounded-full animate-spin mx-auto" /></div>;
-
-  if (slots.length === 0 && cruises.length === 0) return (
-    <div className="bg-gray-50 rounded-2xl p-6 text-center">
-      <Bus size={36} className="text-gray-300 mx-auto mb-2" />
-      <p className="text-[13px] text-gray-500">No shuttle schedule available yet.</p>
-      <p className="text-[12px] text-gray-400 mt-1">Check with the front desk for current times.</p>
-    </div>
-  );
-
-  return (
-    <div className="space-y-4">
-      {cruises.length > 0 && (
-        <div className="bg-gray-100 rounded-2xl p-1 flex">
-          <button onClick={() => setActiveTab('cruise')} className={`flex-1 py-2 rounded-xl text-[12px] font-bold ${activeTab === 'cruise' ? 'text-white' : 'text-gray-500'}`} style={activeTab === 'cruise' ? { backgroundColor: BURGUNDY } : undefined}>🚢 Cruise Schedule</button>
-          <button onClick={() => setActiveTab('shuttle')} className={`flex-1 py-2 rounded-xl text-[12px] font-bold ${activeTab === 'shuttle' ? 'text-white' : 'text-gray-500'}`} style={activeTab === 'shuttle' ? { backgroundColor: BURGUNDY } : undefined}>✈️ Shuttle Times</button>
-        </div>
-      )}
-      {activeTab === 'cruise' && cruises.map(c => (
-        <div key={c.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{c.cruise_line || 'Cruise'}</span>
-                {c.terminal && <span className="text-[10px] text-gray-400">{c.terminal}</span>}
-              </div>
-              <p className="text-[16px] font-extrabold text-gray-900">{c.ship_name}</p>
-              <p className="text-[13px] text-gray-600">{new Date(c.departure_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-              <p className="text-[13px] font-semibold" style={{ color: BURGUNDY }}>Departs {c.departure_time.slice(0, 5)}</p>
-              {c.notes && <p className="text-[11px] text-gray-400 mt-0.5">{c.notes}</p>}
-            </div>
-            <button onClick={() => setActiveTab('shuttle')} className="shrink-0 px-3 py-2 rounded-xl text-[11px] font-bold text-white" style={{ backgroundColor: BURGUNDY }}>Book Shuttle</button>
-          </div>
-        </div>
-      ))}
-      {activeTab === 'shuttle' && Object.entries(byRoute).map(([routeName, routeSlots]) => (
-        <div key={routeName} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-            <Bus size={15} style={{ color: BURGUNDY }} />
-            <h3 className="font-extrabold text-[14px] text-gray-900">{routeName}</h3>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {routeSlots.map(slot => {
-              const dayNames = (slot.days_of_week || []).map((d: number) => DAYS[d - 1]).join(', ');
-              const full = slot.capacity > 0 && (slot.bookings_count || 0) >= slot.capacity;
-              const isBooked = booked === slot.id;
-              const showingForm = bookingForm.show && bookingForm.slot_id === slot.id;
-              return (
-                <div key={slot.id}>
-                  <div className="px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="text-center min-w-[48px]">
-                        <p className="text-[18px] font-extrabold text-gray-900">{slot.departure_time?.slice(0, 5)}</p>
-                        <p className="text-[9px] text-gray-400">{slot.event_label || dayNames || (slot.date ? new Date(slot.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Daily')}</p>
-                      </div>
-                      <div>
-                        {(() => { const p = slot.override_price ?? slot.route_price ?? 0; return p > 0 ? <p className="text-[10px] font-semibold text-amber-700">${p}/person</p> : null; })()}
-                        {slot.capacity > 0 && <p className={`text-[10px] font-semibold ${full ? 'text-red-500' : 'text-emerald-600'}`}>{full ? 'Full' : `${slot.capacity - (slot.bookings_count || 0)} spots left`}</p>}
-                      </div>
-                    </div>
-                    {isBooked ? (
-                      <span className="flex items-center gap-1 text-[12px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full"><UserCheck size={12} /> Booked</span>
-                    ) : full ? (
-                      <span className="text-[12px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full">Full</span>
-                    ) : showingForm ? (
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setBookingForm(f => ({ ...f, show: false, slot_id: '' }))} className="text-gray-400"><X size={16} /></button>
-                        <button onClick={handleBook} className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: BURGUNDY }}>Confirm</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setBookingForm(f => ({ ...f, slot_id: slot.id, show: true }))} className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: BURGUNDY }}>Sign Up</button>
-                    )}
-                  </div>
-                  {showingForm && (
-                    <div className="px-4 pb-4 space-y-2 bg-gray-50">
-                      <input placeholder="Your name" value={bookingForm.name} onChange={e => setBookingForm(f => ({ ...f, name: e.target.value }))} className="w-full bg-white rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-                      <div className="flex gap-2">
-                        <input placeholder="Room" value={bookingForm.room} onChange={e => setBookingForm(f => ({ ...f, room: e.target.value }))} className="flex-1 bg-white rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-                        <input type="number" min={1} max={10} value={bookingForm.pax} onChange={e => setBookingForm(f => ({ ...f, pax: parseInt(e.target.value) || 1 }))} className="w-16 bg-white rounded-xl px-2 py-2.5 border border-gray-200 text-[13px] outline-none text-center" />
-                      </div>
-                      {(() => { const p = (slot.override_price ?? slot.route_price ?? 0); const total = p * bookingForm.pax; return total > 0 ? (
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1.5">
-                          <div className="flex justify-between text-[12px]"><span className="text-amber-800">${p} × {bookingForm.pax}</span><span className="font-extrabold text-amber-900">${total.toFixed(2)}</span></div>
-                          <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={bookingForm.charge_accepted} onChange={e => setBookingForm(f => ({ ...f, charge_accepted: e.target.checked }))} className="w-4 h-4 accent-[#6B1D3C]" /><span className="text-[11px] text-amber-900 font-semibold">I accept this charge to my final bill</span></label>
-                        </div>
-                      ) : null; })()}
-                      <textarea placeholder="Notes (optional)" value={bookingForm.notes} onChange={e => setBookingForm(f => ({ ...f, notes: e.target.value }))} className="w-full bg-white rounded-xl px-3 py-2 border border-gray-200 text-[13px] outline-none resize-none h-14" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 interface PlaceResult {
   display_name: string;
@@ -770,7 +623,7 @@ function OnDemandInner() {
   return <TransportBooker brandColor={BURGUNDY} />;
 }
 
-/* ── Facilities ────────────────────────────────────────────── */
+/* ── Facilities ──────────────────────────────────────────────────── */
 export function FacilitiesSheetContent() {
   const [copied, setCopied] = useState(false);
   const [config, setConfig] = useState<HotelConfig | null>(null);
@@ -859,7 +712,7 @@ export function FacilitiesSheetContent() {
   );
 }
 
-/* ── Safety ────────────────────────────────────────────────── */
+/* ── Safety ──────────────────────────────────────────────────────── */
 const DEFAULT_EMERGENCY_MSG = "Remain calm. Call 911 for immediate emergency response, then notify the front desk at";
 const DEFAULT_CONTACTS: { label: string; number: string }[] = [
   { label: 'Emergency (Police, Fire, Medical)', number: '911' },
@@ -943,7 +796,7 @@ export function SafetySheetContent() {
   );
 }
 
-/* ── Welcome Letter ────────────────────────────────────────── */
+/* ── Welcome Letter ──────────────────────────────────────────────────── */
 export function WelcomeSheetContent() {
   const [config, setConfig] = useState<HotelConfig | null>(null);
   useEffect(() => { getHotelConfig().then(setConfig); }, []);
@@ -968,7 +821,7 @@ export function WelcomeSheetContent() {
   );
 }
 
-/* ── Review ────────────────────────────────────────────────── */
+/* ── Review ────────────────────────────────────────────────────────── */
 export function ReviewSheetContent({ onClose: closeSheet }: { onClose: () => void }) {
   const [step, setStep] = useState<'rating' | 'feedback' | 'done'>('rating');
   const [rating, setRating] = useState(0);
