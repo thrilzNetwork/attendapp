@@ -99,7 +99,7 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
       <div className="rounded-3xl py-8 px-6 mb-8 text-center" style={{ backgroundColor: `${brandColor}0d`, border: `2px solid ${brandColor}20` }}>
         <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-[0.15em] mb-2">Your shuttle</p>
         <p className="text-[64px] font-black leading-none" style={{ color: brandColor }}>{fmt12(selected.departure_time)}</p>
-        <p className="text-[14px] text-gray-500 mt-3">{config?.shuttlePickupLocation || 'Hotel Lobby'} → Airport</p>
+        <p className="text-[14px] text-gray-500 mt-3">{date} · {config?.shuttlePickupLocation || 'Hotel Lobby'} → Airport</p>
         {allFree && (
           <span className="inline-block mt-4 text-[13px] font-extrabold text-emerald-600 bg-white border-2 border-emerald-300 px-5 py-2 rounded-full">
             🎟 Complimentary · FREE
@@ -131,15 +131,6 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
         </div>
 
         <div>
-          <p className="text-[12px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 pl-1">Date</p>
-          <input
-            type="date" value={date} onChange={e => setDate(e.target.value)}
-            className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-5 py-5 text-[18px] font-semibold text-gray-900 outline-none"
-            style={{ WebkitAppearance: 'none' }}
-          />
-        </div>
-
-        <div>
           <p className="text-[12px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 pl-1">Passengers</p>
           <div className="flex items-center bg-gray-50 border-2 border-gray-200 rounded-2xl px-4 py-3 gap-4">
             <button onClick={() => setPax(p => Math.max(1, p - 1))} className="w-14 h-14 rounded-2xl bg-white border-2 border-gray-200 text-2xl font-black flex items-center justify-center active:scale-90 active:bg-gray-100 shrink-0">−</button>
@@ -162,7 +153,7 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
 
   return (
     <div>
-      <div className="text-center mb-8">
+      <div className="text-center mb-6">
         <p className="text-[24px] font-extrabold text-gray-900 leading-tight">When do you need<br />the shuttle?</p>
         <p className="text-[14px] text-gray-400 mt-2">{config?.shuttlePickupLocation || 'Hotel Lobby'} · Every hour on the hour</p>
         {allFree && (
@@ -170,6 +161,17 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
             🚌 Always FREE · Complimentary
           </span>
         )}
+      </div>
+
+      <div className="mb-5">
+        <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 pl-1">Date</p>
+        <input
+          type="date"
+          value={date}
+          onChange={e => setDate(e.target.value)}
+          className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-5 py-4 text-[17px] font-semibold text-gray-900 outline-none"
+          style={{ WebkitAppearance: 'none' }}
+        />
       </div>
 
       <div className="grid grid-cols-3 gap-3">
