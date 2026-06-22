@@ -52,11 +52,13 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
   const handleBook = async () => {
     if (!name.trim() || !room.trim()) return;
     setSubmitting(true);
-    const isVirtual = selected!.id.startsWith('virtual-');
-    await Promise.all([
-      isVirtual ? Promise.resolve() : bookShuttleSlot({ slot_id: selected!.id, guest_name: name, room_number: room, pax, notes: '', price_charged: 0, charge_accepted: false }),
-      config?.id ? createShuttleRequest({ hotel_id: config.id, guest_name: name, room_number: room, pickup_location: config.shuttlePickupLocation || 'Hotel Lobby', destination: selected!.route_name || 'Airport', date, time: selected!.departure_time || undefined, pax, status: 'pending' }) : Promise.resolve(),
-    ]);
+    try {
+      const isVirtual = selected!.id.startsWith('virtual-');
+      await Promise.allSettled([
+        isVirtual ? Promise.resolve() : bookShuttleSlot({ slot_id: selected!.id, guest_name: name, room_number: room, pax, notes: '', price_charged: 0, charge_accepted: false }),
+        config?.id ? createShuttleRequest({ hotel_id: config.id, guest_name: name, room_number: room, pickup_location: config.shuttlePickupLocation || 'Hotel Lobby', destination: selected!.route_name || 'Airport', date, time: selected!.departure_time || undefined, pax, status: 'pending' }) : Promise.resolve(),
+      ]);
+    } catch {}
     setSubmitting(false);
     setDone(true);
   };
