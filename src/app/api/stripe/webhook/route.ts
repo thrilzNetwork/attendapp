@@ -66,6 +66,24 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Dispatch Uber delivery for food orders (failsafe — client also tries after payment)
+      if (partnerId && partnerId !== 'taxicaller') {
+        try {
+          const { data: reqRow } = await db.from('requests')
+            .select('uber_delivery_id, hotel_id, partner_id')
+            .eq('id', requestId).maybeSingle();
+          if (reqRow && !reqRow.uber_delivery_id) {
+            await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/uber-direct`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'dispatch', requestId }),
+            });
+          }
+        } catch (e) {
+          console.error('Uber food dispatch after payment failed:', e);
+        }
+      }
+
       // Add to payout ledger if vendor doesn't have Connect (will be paid manually daily)
       if (partnerId && vendorPayout > 0) {
         const { data: partner } = await db.from('partners').select('stripe_account_id, stripe_onboarding_complete, hotel_id').eq('id', partnerId).maybeSingle();

@@ -87,7 +87,8 @@ function PartnerContent() {
   const stripeEnabled = !!stripePromise;
 
   // Uber delivery quote
-  const [uberQuote, setUberQuote] = useState<{ fee_display: string; feeCents: number } | null>(null);
+  const [uberQuote, setUberQuote] = useState<{ fee_display: string; feeCents: number; quoteId?: string } | null>(null);
+  const [trackingUrl, setTrackingUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
@@ -122,17 +123,20 @@ function PartnerContent() {
     } catch { /* ignore */ }
   }, []);
 
-  // Fetch Uber quote when cart has items and partner uses uber_direct
+  // Fetch Uber quote when cart has items and partner has Attenda ordering enabled
   useEffect(() => {
     const totalQty = Object.values(cart).reduce((s, q) => s + q, 0);
-    if (!partner || totalQty === 0) { setUberQuote(null); return; }
-    if (!partner.delivery_providers?.some(d => d.name.toLowerCase().includes('uber'))) return;
+    if (!partner?.has_ordering || totalQty === 0) { setUberQuote(null); return; }
     let cancelled = false;
     fetch(`/api/uber-direct/quote?partnerId=${partner.id}&hotelId=${partner.hotel_id}`)
       .then(r => r.json())
       .then(d => {
         if (!cancelled && d.ok && d.quote) {
-          setUberQuote({ fee_display: d.quote.fee_display || `$${(d.quote.fee?.total / 100).toFixed(2)}`, feeCents: d.quote.fee?.total || 0 });
+          setUberQuote({
+            fee_display: d.quote.fee_display || `$${(d.quote.fee_cents / 100).toFixed(2)}`,
+            feeCents: d.quote.fee_cents || 0,
+            quoteId: d.quote.id,
+          });
         }
       })
       .catch(() => {});
@@ -187,6 +191,7 @@ function PartnerContent() {
         total_amount: total,
         vendor_payout: +subtotal.toFixed(2),
         uber_fee_cents: uberQuote ? Math.round(uberQuote.feeCents) : 0,
+        uber_quote_id: uberQuote?.quoteId || null,
         stripe_payment_status: stripeEnabled ? 'pending' : 'room_charge',
       }).select('id').single();
       if (error) throw error;
@@ -245,8 +250,20 @@ function PartnerContent() {
     });
   };
 
-  const onPaymentSuccess = () => {
+  const onPaymentSuccess = async () => {
     sendOrderEmail();
+    // Dispatch Uber delivery if partner uses Attenda ordering
+    if (pendingRequestId && partner?.has_ordering) {
+      try {
+        const res = await fetch('/api/uber-direct', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'dispatch', requestId: pendingRequestId }),
+        });
+        const data = await res.json();
+        if (data.ok && data.trackingUrl) setTrackingUrl(data.trackingUrl);
+      } catch { /* non-blocking — webhook will retry */ }
+    }
     setClientSecret(null);
     setOrderDone(true);
   };
@@ -493,8 +510,15 @@ function PartnerContent() {
                 <p className="text-[14px] text-gray-500 leading-relaxed mb-6">
                   {partner.name} received your order. We&apos;ll bring it to Room <strong>{roomNumber}</strong>.
                 </p>
+                {trackingUrl && (
+                  <a href={trackingUrl} target="_blank" rel="noopener noreferrer"
+                    className="w-full py-3 rounded-2xl border-2 font-bold text-[15px] flex items-center justify-center gap-2 mb-3"
+                    style={{ borderColor: brandColor, color: brandColor }}>
+                    🛵 Track your delivery
+                  </a>
+                )}
                 <button
-                  onClick={() => { setOrderDone(false); setCheckoutOpen(false); setCart({}); }}
+                  onClick={() => { setOrderDone(false); setCheckoutOpen(false); setCart({}); setTrackingUrl(null); }}
                   className="w-full py-4 rounded-2xl text-white font-bold text-[15px]"
                   style={{ backgroundColor: brandColor }}>
                   Done
