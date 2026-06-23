@@ -438,6 +438,7 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
               {myShiftToday.map((s, i) => {
                 const start = s.start_time ? s.start_time.slice(0,5) : null;
                 const end   = s.end_time   ? s.end_time.slice(0,5)   : null;
+                const fmt12 = (t: string) => { const [h, m] = t.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`; };
                 const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
                 const endMin = end ? parseInt(end.split(':')[0]) * 60 + parseInt(end.split(':')[1]) : null;
                 const minsLeft = endMin ? endMin - nowMin : null;
@@ -445,7 +446,7 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
                   <div key={i} className="flex items-center justify-between bg-teal-50 border border-teal-100 rounded-xl px-4 py-3">
                     <div>
                       <p className="text-[14px] font-extrabold text-teal-900">
-                        {start && end ? `${start} – ${end}` : start ? `From ${start}` : 'Shift scheduled'}
+                        {start && end ? `${fmt12(start)} – ${fmt12(end)}` : start ? `From ${fmt12(start)}` : 'Shift scheduled'}
                       </p>
                       {s.role && <p className="text-[11px] text-teal-600 mt-0.5">{s.role}</p>}
                     </div>

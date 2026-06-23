@@ -37,6 +37,11 @@ function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+function tomorrowStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 function todayDow() { return new Date().getDay(); }
 
 function fmt(t?: string | null) {
@@ -886,7 +891,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                   return Object.keys(grouped).sort().map(date => (
                     <div key={date}>
                       <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                        {date === todayStr() ? 'Today' : date === new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().slice(0,10) ? 'Tomorrow' : new Date(date + 'T12:00:00').toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                        {date === todayStr() ? 'Today' : date === tomorrowStr() ? 'Tomorrow' : new Date(date + 'T12:00:00').toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
                       </p>
                       {grouped[date].map(r => (
                   <div key={r.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden border-l-4 ${statusBorder[r.status] || 'border-l-gray-200'}`}>
