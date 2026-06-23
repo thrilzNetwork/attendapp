@@ -94,7 +94,10 @@ function OrdersView({
     return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
-  const viewed = requests.filter(r => localDateStr(new Date(r.created_at)) === viewDate);
+  // Shuttle Booking requests live in the Transport tab — exclude them here to keep Requests clean
+  const viewed = requests.filter(r =>
+    localDateStr(new Date(r.created_at)) === viewDate && r.type !== 'Shuttle Booking'
+  );
 
   const pending = viewed.filter(r => r.status === 'pending');
   const inProgress = viewed.filter(r => r.status === 'in-progress');
