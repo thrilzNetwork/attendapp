@@ -1451,7 +1451,7 @@ export async function getDailyRecap(hotelId: string): Promise<{
 
   const [reqRes, msgRes, shuttleRes, staffRes, checklistRes] = await Promise.all([
     // Exclude ops-store rows (room='STAFF') that share the `requests` table — only count real guest requests
-    supabase.from('requests').select('status, created_at').eq('hotel_id', hotelId).neq('room', 'STAFF').gte('created_at', today),
+    supabase.from('requests').select('status, created_at').eq('hotel_id', hotelId).neq('room', 'STAFF').neq('type', 'Shuttle Booking').gte('created_at', today),
     supabase.from('messages').select('id, created_at').eq('hotel_id', hotelId).gte('created_at', today),
     supabase.from('shuttle_bookings')
       .select('id, created_at, status, shuttle_slots!inner(shuttle_routes!inner(hotel_id))')

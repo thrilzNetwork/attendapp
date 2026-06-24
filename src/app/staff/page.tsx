@@ -244,7 +244,7 @@ function DashboardInner() {
   const [lastRequestCount, setLastRequestCount] = useState(0);
 
   // pendingCount must be computed before early returns for the alert bar effect
-  const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const pendingCount = requests.filter(r => r.status === 'pending' && r.type !== 'Shuttle Booking').length;
 
   // Reset alert bar when new pending tickets appear
   useEffect(() => {
