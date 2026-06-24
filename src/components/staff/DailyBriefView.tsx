@@ -2,10 +2,11 @@
 /* eslint-disable */
 
 import { useState, useEffect } from 'react';
-import { Bus, CalendarDays, Ship, Settings, X, GripVertical, Check } from 'lucide-react';
+import { Bus, CalendarDays, Ship, Settings, X, GripVertical, Check, TrendingUp } from 'lucide-react';
 import {
   supabase,
   getDailyRecap,
+  getWeeklyForecasts,
   getAllShuttleSlotsForHotel,
   getShuttleRoutes,
   getChecklists,
@@ -71,7 +72,7 @@ const ALL_WIDGETS: WidgetDef[] = [
   { id: 'kpis',         label: 'KPI Snapshot',      description: 'Today\'s KPI values vs targets',        icon: '🎯' },
   { id: 'activity',     label: 'Today\'s Activity', description: 'Request completion progress bar',       icon: '⚡' },
   { id: 'checklists',   label: 'Checklists',        description: 'Interactive shift checklists',          icon: '✅' },
-  { id: 'forecast_14',  label: 'Next 14 Days',      description: 'Mini calendar with shuttle & staff counts', icon: '📅' },
+  { id: 'forecast_14',  label: 'Forecast',            description: 'Next 7 days occupancy, arrivals & departures', icon: '📈' },
   { id: 'shuttle',      label: "Today's Shuttle",   description: 'Shuttle trips scheduled for today',     icon: '🚌' },
   { id: 'cruise',       label: 'Cruise Ships',      description: 'Upcoming cruise ship arrivals',         icon: '🚢' },
 ];
@@ -118,6 +119,7 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
   const [monthShuttleSlots, setMonthShuttleSlots] = useState<(OpsShuttleSlot & { id: string })[]>([]);
   const [todayShuttleRoutes, setTodayShuttleRoutes] = useState<ShuttleRoute[]>([]);
   const [weekShifts, setWeekShifts] = useState<StaffSchedule[]>([]);
+  const [forecastDays, setForecastDays] = useState<{ date: string; occupancy_pct: number; arrivals: number; departures: number; rooms_occupied: number }[]>([]);
   const [checklistTemplates, setChecklistTemplates] = useState<Checklist[]>([]);
   const [checklistInstances, setChecklistInstances] = useState<ChecklistInstance[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -157,7 +159,9 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
 
   useEffect(() => {
     (async () => {
-      const [r, slots, routes, monthSlots, schedules, templates, instances, kpiDefs, kpiLogs, posTpls, posInsts] = await Promise.all([
+      const thisWeekStart = today(); // getWeeklyForecasts handles the range
+      const nextWeekStart = addDaysStr(today(), 7);
+      const [r, slots, routes, monthSlots, schedules, templates, instances, kpiDefs, kpiLogs, posTpls, posInsts, fw1, fw2] = await Promise.all([
         getDailyRecap(hotelId),
         getAllShuttleSlotsForHotel(hotelId),
         getShuttleRoutes(hotelId),
@@ -169,12 +173,16 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
         listKpiSubmissions(hotelId),
         getPositionTodoTemplates(hotelId),
         getTodayInstances(hotelId),
+        getWeeklyForecasts(hotelId, thisWeekStart).catch(() => []),
+        getWeeklyForecasts(hotelId, nextWeekStart).catch(() => []),
       ]);
       setRecap(r);
       setTodayShuttleSlots(slots);
       setTodayShuttleRoutes(routes);
       setMonthShuttleSlots(monthSlots || []);
       setWeekShifts(schedules || []);
+      const allForecast = [...(fw1 || []), ...(fw2 || [])].sort((a, b) => a.date.localeCompare(b.date));
+      setForecastDays(allForecast);
       setChecklistTemplates(templates || []);
       setChecklistInstances(instances || []);
       setPosTodoTemplates(posTpls || []);
@@ -645,25 +653,51 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
             </div>
           )}
 
-          {/* Next 14 Days */}
+          {/* Forecast */}
           {on('forecast_14') && (
             <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <CalendarDays size={16} style={{ color: TEAL }} />
-                <h3 className="text-[13px] font-bold text-gray-900">Next 14 Days</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp size={16} style={{ color: TEAL }} />
+                  <h3 className="text-[13px] font-bold text-gray-900">Forecast</h3>
+                </div>
+                {forecastDays.length === 0 && (
+                  <span className="text-[10px] text-gray-400">No forecast entered yet</span>
+                )}
               </div>
-              <div className="grid grid-cols-7 gap-1.5">
-                {next14.map(d => (
-                  <div key={d.date} className={`text-center p-2 rounded-xl border ${d.isToday ? 'border-gray-900 bg-gray-50' : 'border-gray-100'}`}>
-                    <p className={`text-[9px] font-bold uppercase ${d.isToday ? 'text-gray-900' : 'text-gray-400'}`}>{d.day}</p>
-                    <p className={`text-[14px] font-extrabold ${d.isToday ? 'text-gray-900' : 'text-gray-700'}`}>{d.dayNum}</p>
-                    <div className="flex items-center justify-center gap-0.5 mt-1">
-                      {d.slotsCount > 0 && <span className="text-[8px] px-1 py-0.5 rounded font-bold" style={{ backgroundColor: `${TEAL}20`, color: TEAL }}>{d.slotsCount}🚌</span>}
-                      {d.shiftsCount > 0 && <span className="text-[8px] px-1 py-0.5 rounded font-bold bg-gray-100 text-gray-600">{d.shiftsCount}👤</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {forecastDays.length === 0 ? (
+                <p className="text-[12px] text-gray-400 text-center py-4">Add forecast data in the Forecast tab to see occupancy trends here.</p>
+              ) : (
+                <div className="space-y-2">
+                  {forecastDays.slice(0, 7).map(f => {
+                    const d = new Date(f.date + 'T12:00:00');
+                    const isToday = f.date === todayStr;
+                    const occ = Math.round(f.occupancy_pct ?? 0);
+                    const occColor = occ >= 90 ? '#16a34a' : occ >= 70 ? '#d97706' : occ >= 50 ? TEAL : '#9ca3af';
+                    return (
+                      <div key={f.date} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isToday ? 'bg-teal-50 border border-teal-100' : 'bg-gray-50'}`}>
+                        <div className="w-10 shrink-0 text-center">
+                          <p className={`text-[9px] font-bold uppercase ${isToday ? 'text-teal-700' : 'text-gray-400'}`}>{d.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+                          <p className={`text-[15px] font-extrabold leading-tight ${isToday ? 'text-teal-900' : 'text-gray-800'}`}>{d.getDate()}</p>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${occ}%`, backgroundColor: occColor }} />
+                            </div>
+                            <span className="text-[12px] font-bold shrink-0" style={{ color: occColor }}>{occ}%</span>
+                          </div>
+                          <div className="flex gap-3 text-[10px] text-gray-500">
+                            {f.arrivals > 0 && <span>↓ {f.arrivals} arr</span>}
+                            {f.departures > 0 && <span>↑ {f.departures} dep</span>}
+                            {f.rooms_occupied > 0 && <span>{f.rooms_occupied} rms</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
