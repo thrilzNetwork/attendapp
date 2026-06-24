@@ -1,0 +1,26 @@
+<svg width="320" height="80" viewBox="0 0 320 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icon mark scaled to 80px tall, viewBox 0 0 110 110 → scale(0.727) -->
+  <g transform="scale(0.727)">
+    <!-- Left leg of A -->
+    <polygon points="6,104 20,104 52,26 40,26" fill="#0D9488"/>
+    <!-- Right leg of A -->
+    <polygon points="54,26 66,26 76,104 62,104" fill="#0F766E"/>
+    <!-- Crossbar -->
+    <polygon points="22,72 16,86 70,86 64,72" fill="#0D9488"/>
+    <!-- Arrow shaft -->
+    <polygon points="8,88 20,104 92,10 80,4" fill="#14B8A6"/>
+    <!-- Arrow head -->
+    <polygon points="78,2 104,2 104,26 92,26 92,14 78,14" fill="#14B8A6"/>
+    <!-- White tree -->
+    <polygon points="46,36 26,74 66,74" fill="white"/>
+    <rect x="42" y="73" width="8" height="10" fill="white"/>
+  </g>
+
+  <!-- Wordmark "Attenda" — bold rounded sans-serif in teal -->
+  <text x="94" y="56"
+    font-family="'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
+    font-size="44"
+    font-weight="700"
+    fill="#0D9488"
+    letter-spacing="-1">Attenda</text>
+</svg>

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Attenda Brand Guide</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #F8FAFC; color: #0F172A; }
+  .page { max-width: 900px; margin: 0 auto; padding: 60px 32px; }
+  h1 { font-size: 36px; font-weight: 800; letter-spacing: -1px; margin-bottom: 6px; }
+  h2 { font-size: 18px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 1px; margin: 48px 0 20px; }
+  h3 { font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 4px; }
+  .subtitle { font-size: 16px; color: #475569; margin-bottom: 60px; }
+  .divider { border: none; border-top: 1px solid #E2E8F0; margin: 0; }
+
+  /* Logo section */
+  .logo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .logo-box { border-radius: 16px; padding: 40px; display: flex; align-items: center; justify-content: center; }
+  .logo-box.light { background: white; border: 1px solid #E2E8F0; }
+  .logo-box.dark { background: #0F172A; }
+  .logo-box.teal { background: #0D9488; }
+
+  /* Colors */
+  .color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .color-card { border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0; }
+  .color-swatch { height: 80px; }
+  .color-info { background: white; padding: 12px 14px; }
+  .color-name { font-size: 13px; font-weight: 700; color: #0F172A; }
+  .color-hex { font-size: 11px; color: #64748B; font-family: monospace; margin-top: 2px; }
+  .color-role { font-size: 10px; color: #94A3B8; margin-top: 1px; }
+
+  /* Typography */
+  .type-sample { background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 28px; margin-bottom: 12px; }
+  .type-label { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+  /* Icons section */
+  .icon-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .icon-box { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .icon-label { font-size: 11px; color: #94A3B8; }
+
+  /* Voice */
+  .voice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .voice-card { background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; }
+  .voice-card.good { border-left: 3px solid #0D9488; }
+  .voice-card.bad { border-left: 3px solid #F43F5E; }
+  .voice-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .voice-tag.good { color: #0D9488; }
+  .voice-tag.bad { color: #F43F5E; }
+  .voice-text { font-size: 14px; color: #334155; line-height: 1.5; }
+
+  /* Usage */
+  .usage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .usage-card { border-radius: 12px; padding: 20px; }
+  .usage-card.do { background: #F0FDF9; border: 1px solid #99F6E4; }
+  .usage-card.dont { background: #FFF1F2; border: 1px solid #FECDD3; }
+  .usage-tag { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .usage-tag.do { color: #0F766E; }
+  .usage-tag.dont { color: #E11D48; }
+  .usage-item { font-size: 13px; color: #334155; margin-bottom: 6px; display: flex; gap: 6px; }
+
+  /* Tagline */
+  .tagline-box { background: white; border: 1px solid #E2E8F0; border-radius: 16px; padding: 32px; text-align: center; }
+  .tagline-main { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: #0F172A; margin-bottom: 8px; }
+  .tagline-sub { font-size: 15px; color: #64748B; }
+  .tagline-badge { display: inline-block; background: #CCFBF1; color: #0F766E; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 99px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
+    <img src="icon-mark.svg" width="52" height="52" alt="Attenda icon" />
+    <div>
+      <h1>Attenda</h1>
+      <p class="subtitle" style="margin:0;">Brand Guidelines — v1.0</p>
+    </div>
+  </div>
+  <p class="subtitle">One platform. Zero guest apps. Built for independent hotels.</p>
+
+  <hr class="divider" />
+
+  <!-- LOGO -->
+  <h2>Logo</h2>
+  <div class="logo-grid">
+    <div>
+      <h3>Primary — Light backgrounds</h3>
+      <div class="logo-box light" style="margin-top:8px;">
+        <img src="logo-primary.svg" width="180" alt="Attenda logo primary" />
+      </div>
+    </div>
+    <div>
+      <h3>Reversed — Dark backgrounds</h3>
+      <div class="logo-box dark" style="margin-top:8px;">
+        <img src="logo-white.svg" width="180" alt="Attenda logo white" />
+      </div>
+    </div>
+    <div>
+      <h3>Icon mark — App icons, favicons</h3>
+      <div class="logo-box light" style="margin-top:8px; gap:24px; flex-direction:row;">
+        <img src="icon-mark.svg" width="64" height="64" alt="64px" />
+        <img src="icon-mark.svg" width="48" height="48" alt="48px" />
+        <img src="icon-mark.svg" width="32" height="32" alt="32px" />
+        <img src="icon-mark.svg" width="20" height="20" alt="20px" />
+      </div>
+    </div>
+    <div>
+      <h3>Stacked — Print, square placements</h3>
+      <div class="logo-box light" style="margin-top:8px;">
+        <img src="logo-stacked.svg" width="120" height="90" alt="Attenda stacked" />
+      </div>
+    </div>
+  </div>
+
+  <!-- COLORS -->
+  <h2>Color Palette</h2>
+  <div class="color-grid">
+    <div class="color-card">
+      <div class="color-swatch" style="background:#0D9488;"></div>
+      <div class="color-info">
+        <div class="color-name">Attenda Teal</div>
+        <div class="color-hex">#0D9488</div>
+        <div class="color-role">Primary • Buttons • CTAs • Icons</div>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background:#0F766E;"></div>
+      <div class="color-info">
+        <div class="color-name">Deep Teal</div>
+        <div class="color-hex">#0F766E</div>
+        <div class="color-role">Hover • Pressed • Active states</div>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background:#CCFBF1;"></div>
+      <div class="color-info">
+        <div class="color-name">Soft Teal</div>
+        <div class="color-hex">#CCFBF1</div>
+        <div class="color-role">Backgrounds • Badges • Highlights</div>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background:#0F172A;"></div>
+      <div class="color-info">
+        <div class="color-name">Attenda Navy</div>
+        <div class="color-hex">#0F172A</div>
+        <div class="color-role">Headlines • Primary text • Dark UI</div>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background:#475569;"></div>
+      <div class="color-info">
+        <div class="color-name">Slate</div>
+        <div class="color-hex">#475569</div>
+        <div class="color-role">Body text • Labels • Secondary info</div>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background:#F8FAFC;"></div>
+      <div class="color-info">
+        <div class="color-name">Off-White</div>
+        <div class="color-hex">#F8FAFC</div>
+        <div class="color-role">Page backgrounds • App shell</div>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background:#10B981;"></div>
+      <div class="color-info">
+        <div class="color-name">Emerald</div>
+        <div class="color-hex">#10B981</div>
+        <div class="color-role">Success • Completed • Confirmed</div>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background:#F59E0B;"></div>
+      <div class="color-info">
+        <div class="color-name">Amber</div>
+        <div class="color-hex">#F59E0B</div>
+        <div class="color-role">Warnings • TBD • Pending action</div>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background:#F43F5E;"></div>
+      <div class="color-info">
+        <div class="color-name">Rose</div>
+        <div class="color-hex">#F43F5E</div>
+        <div class="color-role">Errors • Destructive • Alerts</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TYPOGRAPHY -->
+  <h2>Typography</h2>
+  <div class="type-sample">
+    <div class="type-label">Display / Hero</div>
+    <div style="font-size:40px;font-weight:800;letter-spacing:-1.5px;color:#0F172A;line-height:1.1;">One platform.<br/>Built for independent hotels.</div>
+  </div>
+  <div class="type-sample">
+    <div class="type-label">Heading 1</div>
+    <div style="font-size:28px;font-weight:700;letter-spacing:-0.5px;color:#0F172A;">Today's Operations Dashboard</div>
+  </div>
+  <div class="type-sample">
+    <div class="type-label">Heading 2</div>
+    <div style="font-size:20px;font-weight:700;color:#0F172A;">Shuttle Schedule · June 24</div>
+  </div>
+  <div class="type-sample">
+    <div class="type-label">Body</div>
+    <div style="font-size:15px;color:#334155;line-height:1.6;max-width:540px;">Attenda replaces your radio calls, sticky notes, and spreadsheets with one thread — visible to every department, from front desk to housekeeping. No app required for guests.</div>
+  </div>
+  <div class="type-sample">
+    <div class="type-label">Label / Badge</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <span style="background:#CCFBF1;color:#0F766E;font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;">Completed</span>
+      <span style="background:#FEF3C7;color:#92400E;font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;">Pending</span>
+      <span style="background:#FFF1F2;color:#E11D48;font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;">Urgent</span>
+      <span style="background:#F1F5F9;color:#475569;font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;">Front Desk</span>
+      <span style="background:#0D9488;color:white;font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;">AM Shift</span>
+    </div>
+  </div>
+
+  <!-- TAGLINES -->
+  <h2>Taglines</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="tagline-box">
+      <div class="tagline-badge">Primary</div>
+      <div class="tagline-main">One platform.<br/>Zero guest apps.</div>
+      <div class="tagline-sub">The complete ops layer for independent hotels.</div>
+    </div>
+    <div class="tagline-box">
+      <div class="tagline-badge">Short form</div>
+      <div class="tagline-main">Hotel ops,<br/>finally simple.</div>
+      <div class="tagline-sub">Built by operators, for operators.</div>
+    </div>
+    <div class="tagline-box">
+      <div class="tagline-badge">ROI-led</div>
+      <div class="tagline-main">$7,820 from shuttle<br/>in 4 months.</div>
+      <div class="tagline-sub">Real revenue from the ops layer most hotels ignore.</div>
+    </div>
+    <div class="tagline-box">
+      <div class="tagline-badge">Problem-led</div>
+      <div class="tagline-main">Radios. Sticky notes.<br/>Spreadsheets. No more.</div>
+      <div class="tagline-sub">Replace 4 tools with one thread your whole team uses.</div>
+    </div>
+  </div>
+
+  <!-- BRAND VOICE -->
+  <h2>Brand Voice</h2>
+  <div class="voice-grid">
+    <div class="voice-card good">
+      <div class="voice-tag good">✓ Do — Operator tone</div>
+      <div class="voice-text">"73% faster response. 4 tools → 1. No app for guests." Short. Specific. Operator language.</div>
+    </div>
+    <div class="voice-card bad">
+      <div class="voice-tag bad">✗ Don't — Corporate fluff</div>
+      <div class="voice-text">"Attenda leverages cutting-edge AI to synergistically optimize your hospitality ecosystem." Never.</div>
+    </div>
+    <div class="voice-card good">
+      <div class="voice-tag good">✓ Do — Real numbers</div>
+      <div class="voice-text">"One hotel, Fort Lauderdale, 121 rooms — earned $7,820 from cruise-day shuttle in 4 months. Here's how."</div>
+    </div>
+    <div class="voice-card bad">
+      <div class="voice-tag bad">✗ Don't — Vague claims</div>
+      <div class="voice-text">"Attenda helps hotels increase revenue and improve guest satisfaction across all touchpoints." Too broad.</div>
+    </div>
+    <div class="voice-card good">
+      <div class="voice-tag good">✓ Do — Name the pain</div>
+      <div class="voice-text">"It's 7am. Guest wants towels. Housekeeper on radio 2. Front desk on 3. Neither picks up. That was my hotel in 2019."</div>
+    </div>
+    <div class="voice-card bad">
+      <div class="voice-tag bad">✗ Don't — Feature lists</div>
+      <div class="voice-text">"Key features include: real-time messaging, task management, shuttle scheduling, KPI tracking, and more!"</div>
+    </div>
+  </div>
+
+  <!-- USAGE DO/DONT -->
+  <h2>Logo Usage</h2>
+  <div class="usage-grid">
+    <div class="usage-card do">
+      <div class="usage-tag do">✓ Do</div>
+      <div class="usage-item">✓ Use on white or very light backgrounds</div>
+      <div class="usage-item">✓ Use white version on teal or dark navy</div>
+      <div class="usage-item">✓ Maintain clear space equal to the icon width on all sides</div>
+      <div class="usage-item">✓ Use icon mark alone at small sizes (under 120px wide)</div>
+      <div class="usage-item">✓ Keep wordmark lowercase — "attenda" not "Attenda"</div>
+    </div>
+    <div class="usage-card dont">
+      <div class="usage-tag dont">✗ Don't</div>
+      <div class="usage-item">✗ Recolor the icon to anything other than teal or white</div>
+      <div class="usage-item">✗ Stretch or distort the logo proportions</div>
+      <div class="usage-item">✗ Place on busy photography or low-contrast backgrounds</div>
+      <div class="usage-item">✗ Add drop shadows or effects to the logo</div>
+      <div class="usage-item">✗ Use the wordmark without the icon in formal contexts</div>
+    </div>
+  </div>
+
+  <!-- PERSONALITY -->
+  <h2>Brand Personality</h2>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+    <div style="background:white;border:1px solid #E2E8F0;border-radius:12px;padding:20px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:8px;">🏨</div>
+      <div style="font-size:13px;font-weight:700;color:#0F172A;">Operator-built</div>
+      <div style="font-size:11px;color:#64748B;margin-top:4px;">Founded by a hotelier. We know the floor.</div>
+    </div>
+    <div style="background:white;border:1px solid #E2E8F0;border-radius:12px;padding:20px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:8px;">⚡</div>
+      <div style="font-size:13px;font-weight:700;color:#0F172A;">Frictionless</div>
+      <div style="font-size:11px;color:#64748B;margin-top:4px;">Zero app for guests. Works on any phone.</div>
+    </div>
+    <div style="background:white;border:1px solid #E2E8F0;border-radius:12px;padding:20px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:8px;">💰</div>
+      <div style="font-size:13px;font-weight:700;color:#0F172A;">Revenue-aware</div>
+      <div style="font-size:11px;color:#64748B;margin-top:4px;">Ops and revenue in one thread.</div>
+    </div>
+    <div style="background:white;border:1px solid #E2E8F0;border-radius:12px;padding:20px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:8px;">🛠️</div>
+      <div style="font-size:13px;font-weight:700;color:#0F172A;">Practical</div>
+      <div style="font-size:11px;color:#64748B;margin-top:4px;">No buzzwords. Just tools that work.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:60px;padding-top:24px;border-top:1px solid #E2E8F0;text-align:center;color:#94A3B8;font-size:12px;">
+    Attenda Brand Guide v1.0 · attenda.app · thrilznetwork@gmail.com
+  </div>
+</div>
+</body>
+</html>

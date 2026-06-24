@@ -1,0 +1,29 @@
+<svg width="110" height="110" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Attenda logomark:
+    - "A" shape: left leg + right leg + crossbar
+    - Diagonal arrow shaft sweeps from lower-left to upper-right through the A
+    - White pine tree (triangle + trunk) in the negative space
+    - Arrow head at upper-right
+  -->
+
+  <!-- Left leg of A (front face, primary teal) -->
+  <polygon points="6,104 20,104 52,26 40,26" fill="#0D9488"/>
+
+  <!-- Right leg of A (slightly darker, giving depth) -->
+  <polygon points="54,26 66,26 76,104 62,104" fill="#0F766E"/>
+
+  <!-- Crossbar connecting legs (primary teal) -->
+  <polygon points="22,72 16,86 70,86 64,72" fill="#0D9488"/>
+
+  <!-- Arrow shaft: diagonal ribbon from lower-left area sweeping up-right across the A -->
+  <!-- left edge: (10,92)→(82,18), right edge: (22,104)→(90,10) -->
+  <polygon points="8,88 20,104 92,10 80,4" fill="#14B8A6"/>
+
+  <!-- Arrow head (upper-right corner) -->
+  <polygon points="78,2 104,2 104,26 92,26 92,14 78,14" fill="#14B8A6"/>
+
+  <!-- White pine tree: triangle + trunk, centered inside A's interior -->
+  <polygon points="46,36 26,74 66,74" fill="white"/>
+  <rect x="42" y="73" width="8" height="10" fill="white"/>
+</svg>

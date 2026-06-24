@@ -680,9 +680,8 @@ function DashboardInner() {
       {/* ── Desktop sidebar ─────────────────────────── */}
       <aside className="hidden md:flex w-[230px] bg-[#F3F4F6] flex-col shrink-0 h-screen sticky top-0 overflow-y-auto">
         <div className="px-5 pt-5 pb-4">
-          <div className="inline-flex items-center justify-center w-10 h-6 rounded mb-2" style={{ backgroundColor: `${TEAL}20` }}>
-            <span className="text-[10px] font-bold" style={{ color: TEAL }}>A</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-primary.svg" alt="Attenda" style={{ height: 28, width: 'auto', marginBottom: 4 }} />
           <h2 className="text-[15px] font-bold text-gray-900 leading-tight">
             {config?.name || 'Attenda'}
           </h2>
