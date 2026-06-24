@@ -2098,6 +2098,7 @@ export async function createInstance(inst: {
     hotel_id: inst.hotel_id, template_id: inst.template_id,
     staff_id: inst.staff_id, staff_name: inst.staff_name,
     shift: inst.shift || 'AM', status: 'in_progress',
+    shift_date: localDate(), // use client local date, not DB server UTC default
   }).select().single();
   if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
