@@ -1,0 +1,7 @@
+<svg width="120" height="90" viewBox="0 0 120 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Centered icon -->
+  <rect x="36" y="0" width="48" height="48" rx="12" fill="#0D9488"/>
+  <text x="60" y="34" font-family="system-ui, -apple-system, sans-serif" font-size="26" font-weight="800" fill="white" text-anchor="middle">A</text>
+  <!-- Centered wordmark below -->
+  <text x="60" y="76" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="700" fill="#0F172A" text-anchor="middle" letter-spacing="-0.5">attenda</text>
+</svg>
