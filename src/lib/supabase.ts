@@ -240,6 +240,14 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       brand: config.propertyType || 'Hotel',
       gm_notes: config.gmNotes || '',
       week_starts_on: config.weekStartsOn || 'Sunday',
+      timezone: config.timezone || 'America/New_York',
+      has_free_shuttle: config.hasFreeShuttle ?? false,
+      shuttle_start_time: config.shuttleStartTime || null,
+      shuttle_end_time: config.shuttleEndTime || null,
+      shuttle_days: config.shuttleDays || [1,2,3,4,5,6,7],
+      shuttle_capacity: config.shuttleCapacity || 8,
+      shuttle_pickup_location: config.shuttlePickupLocation || '',
+      shuttle_notes: config.shuttleNotes || '',
       payment_type: config.paymentType || '',
       last_payment: config.lastPayment || '',
       facilities_content: config.facilitiesContent || [],
@@ -1726,8 +1734,13 @@ export async function getBankCounts(hotelId: string, date?: string): Promise<Ban
 }
 
 export async function createBankCount(bc: Omit<BankCount, 'id' | 'created_at'>): Promise<void> {
-  const { error } = await supabase.from('bank_counts').insert(bc);
-  if (error) throw error;
+  const res = await fetch('/api/ops-data', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'create_bank_count', bankCount: bc }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Failed to save bank count');
 }
 
 // ─── Daily Property Snapshot ──────────────────────────

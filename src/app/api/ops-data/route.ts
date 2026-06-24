@@ -179,6 +179,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    if (action === 'create_bank_count') {
+      if (!body.bankCount) {
+        return NextResponse.json({ ok: false, error: 'bankCount data required.' }, { status: 400 });
+      }
+      if (!scopedHotelId) {
+        return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
+      }
+      const { error } = await supabaseAdmin
+        .from('bank_counts')
+        .insert({ ...body.bankCount, hotel_id: scopedHotelId });
+      if (error) throw new Error(error.message || JSON.stringify(error));
+      return NextResponse.json({ ok: true });
+    }
+
     return NextResponse.json({ ok: false, error: 'Unknown action.' }, { status: 400 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Ops data error';
