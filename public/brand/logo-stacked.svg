@@ -1,16 +1,21 @@
-<svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Icon mark centered, scaled to ~56px wide -->
-  <g transform="translate(2,0) scale(0.565)">
-    <g fill="#0D9488">
-      <polygon points="2,98 16,98 50,12 40,12"/>
-      <polygon points="60,12 50,12 84,98 98,98"/>
-      <polygon points="18,68 10,82 90,82 82,68"/>
-      <polygon points="52,14 60,8 108,2 100,10"/>
-      <polygon points="98,0 114,0 114,16 106,8 98,8"/>
-    </g>
-    <polygon points="50,26 30,68 70,68" fill="white"/>
-    <rect x="47" y="67" width="6" height="9" fill="white"/>
+<svg width="140" height="120" viewBox="0 0 140 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icon mark centered, scale(0.727) then translate to center -->
+  <g transform="translate(15,0) scale(0.727)">
+    <polygon points="6,104 20,104 52,26 40,26" fill="#0D9488"/>
+    <polygon points="54,26 66,26 76,104 62,104" fill="#0F766E"/>
+    <polygon points="22,72 16,86 70,86 64,72" fill="#0D9488"/>
+    <polygon points="8,88 20,104 92,10 80,4" fill="#14B8A6"/>
+    <polygon points="78,2 104,2 104,26 92,26 92,14 78,14" fill="#14B8A6"/>
+    <polygon points="46,36 26,74 66,74" fill="white"/>
+    <rect x="42" y="73" width="8" height="10" fill="white"/>
   </g>
+
   <!-- Wordmark centered below -->
-  <text x="60" y="84" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="22" font-weight="700" fill="#0D9488" text-anchor="middle" letter-spacing="-0.5">Attenda</text>
+  <text x="70" y="112"
+    font-family="'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
+    font-size="26"
+    font-weight="700"
+    fill="#0D9488"
+    text-anchor="middle"
+    letter-spacing="-0.5">Attenda</text>
 </svg>
