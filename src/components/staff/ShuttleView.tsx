@@ -527,7 +527,8 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   );
   // All upcoming pending (for Requests tab badge — includes future dates)
   const allPendingReqs = requests.filter(r =>
-    r.status === 'pending' || r.status === 'assigned' || r.status === 'in_progress'
+    (r.status === 'pending' || r.status === 'assigned' || r.status === 'in_progress') &&
+    (r.date || todayStr()) >= todayStr()
   );
 
   // Pickup / dropoff presets
