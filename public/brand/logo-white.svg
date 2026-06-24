@@ -1,8 +1,17 @@
-<svg width="200" height="48" viewBox="0 0 200 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Icon mark (white outlined on dark) -->
-  <rect width="48" height="48" rx="12" fill="white" fill-opacity="0.15"/>
-  <rect x="1" y="1" width="46" height="46" rx="11" stroke="white" stroke-opacity="0.4" stroke-width="1.5"/>
-  <text x="24" y="34" font-family="system-ui, -apple-system, sans-serif" font-size="26" font-weight="800" fill="white" text-anchor="middle">A</text>
+<svg width="220" height="56" viewBox="0 0 220 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icon mark: A + tree + arrow, white version -->
+  <g transform="translate(0,0) scale(0.57)">
+    <g fill="white">
+      <polygon points="2,98 16,98 50,12 40,12"/>
+      <polygon points="60,12 50,12 84,98 98,98"/>
+      <polygon points="18,68 10,82 90,82 82,68"/>
+      <polygon points="52,14 60,8 108,2 100,10"/>
+      <polygon points="98,0 114,0 114,16 106,8 98,8"/>
+    </g>
+    <!-- Tree cutout (transparent on white logo = dark background) -->
+    <polygon points="50,26 30,68 70,68" fill="#0D9488"/>
+    <rect x="47" y="67" width="6" height="9" fill="#0D9488"/>
+  </g>
   <!-- Wordmark white -->
-  <text x="62" y="32" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="700" fill="white" letter-spacing="-0.5">attenda</text>
+  <text x="74" y="38" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" fill="white" letter-spacing="-0.8">Attenda</text>
 </svg>

@@ -218,9 +218,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-teal-600">
-                <span className="text-white font-black text-[12px]">A</span>
-              </div>
+              <img src="/brand/icon-mark.svg" alt="Attenda" style={{ height: 28, width: 'auto' }} />
               <span className="text-[13px] text-gray-600">Attenda</span>
             </Link>
           </div>

@@ -335,11 +335,8 @@ function AttendaLandingPage() {
       {/* NAV */}
       <nav className={`sticky top-0 z-50 transition-all ${scrolled ? 'bg-white/95 backdrop-blur-xl shadow-sm' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
-          <a href="#" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm" style={{ backgroundColor: TEAL }}>
-              <span className="text-white font-black text-[16px] tracking-tight">A</span>
-            </div>
-            <span className="font-bold text-[17px] text-gray-900 tracking-tight">attenda</span>
+          <a href="#" className="flex items-center group">
+            <img src="/brand/logo-primary.svg" alt="Attenda" height={36} style={{ height: 36, width: 'auto' }} />
           </a>
           <div className="hidden md:flex items-center gap-7">
             <a href="#platform" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Platform</a>
@@ -1336,9 +1333,7 @@ function AttendaLandingPage() {
           </div>
           <div className="pt-8 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: TEAL }}>
-                <span className="text-white font-black text-[12px]">A</span>
-              </div>
+              <img src="/brand/icon-mark.svg" alt="Attenda" style={{ height: 28, width: 'auto' }} />
               <span className="text-[13px] text-gray-600">attenda &mdash; the operations platform for independent hotels</span>
             </div>
             <div className="text-[12px] text-gray-500">

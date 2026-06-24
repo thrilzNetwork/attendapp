@@ -20,6 +20,13 @@ const CANONICAL = "https://attendaapp.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(CANONICAL),
+  icons: {
+    icon: [
+      { url: "/brand/icon-mark.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: "/brand/icon-mark.svg",
+  },
   title: {
     default: "Attenda — Hotel Operations Platform for Independent Properties",
     template: "%s | Attenda",
