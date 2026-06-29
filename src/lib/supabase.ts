@@ -2060,6 +2060,46 @@ export async function getTemplateItems(templateId: string): Promise<PositionTodo
   return (data || []) as PositionTodoItem[];
 }
 
+// ── Staff Positions (admin-managed) ──────────────────────
+export interface StaffPosition {
+  id: string;
+  hotel_id: string;
+  name: string;
+  department: string;
+  shift: string;  // 'AM', 'PM', 'Night', 'all'
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getStaffPositions(hotelId: string): Promise<StaffPosition[]> {
+  const { data } = await supabase.from('staff_positions').select('*')
+    .eq('hotel_id', hotelId).eq('is_active', true).order('sort_order');
+  return (data || []) as StaffPosition[];
+}
+
+export async function createStaffPosition(pos: {
+  hotel_id: string; name: string; department: string; shift?: string; sort_order?: number;
+}) {
+  const { data, error } = await supabase.from('staff_positions').insert({
+    hotel_id: pos.hotel_id, name: pos.name, department: pos.department,
+    shift: pos.shift || 'all', sort_order: pos.sort_order || 0,
+  }).select().single();
+  if (error) throw new Error(error.message || JSON.stringify(error));
+  return data;
+}
+
+export async function updateStaffPosition(id: string, updates: Partial<StaffPosition>) {
+  const { error } = await supabase.from('staff_positions').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(error.message || JSON.stringify(error));
+}
+
+export async function deleteStaffPosition(id: string) {
+  const { error } = await supabase.from('staff_positions').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function createTemplateItem(item: {
   template_id: string; label: string; item_type: string; required?: boolean; sort_order?: number; config?: Record<string, unknown>;
 }) {

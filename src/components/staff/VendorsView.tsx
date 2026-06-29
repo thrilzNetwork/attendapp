@@ -239,7 +239,7 @@ function VendorForm({ hotelId, onSave, onCancel, editing }: {
       {err && <div className="bg-red-50 rounded-xl p-3 text-red-600 text-[13px]">{err}</div>}
       <div className="grid grid-cols-2 gap-4">
         <Field label="Vendor Name" value={form.name} onChange={v => setForm({ ...form, name: v })} placeholder="Sysco" />
-        <SelectField label="Category" value={form.category} onChange={v => setForm({ ...form, category: v })} options={CATEGORIES.map(c => ({ key: c, label: c }))} />
+        <SelectField label="Category" value={form.category} onChange={v => setForm({ ...form, category: v })} options={CATEGORIES.map(c => ({ key: c.key as string, label: c.label as string }))} />
         <Field label="Contact Name" value={form.contact_name} onChange={v => setForm({ ...form, contact_name: v })} />
         <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
         <Field label="Phone" value={form.phone} onChange={v => setForm({ ...form, phone: v })} />
@@ -969,7 +969,7 @@ function SpendingTab({ hotelId, userName, vendors }: { hotelId: string; userName
               </select>
             </div>
             <Field label="Amount" value={newExp.amount} onChange={v => setNewExp({ ...newExp, amount: v })} type="number" />
-            <SelectField label="Category" value={newExp.category} onChange={v => setNewExp({ ...newExp, category: v })} options={CATEGORIES.map(c => ({ key: c, label: c }))} />
+            <SelectField label="Category" value={newExp.category} onChange={v => setNewExp({ ...newExp, category: v })} options={CATEGORIES.map(c => ({ key: c.key as string, label: c.label as string }))} />
             <SelectField label="Type" value={newExp.expense_type} onChange={v => setNewExp({ ...newExp, expense_type: v })}
               options={[{ key: 'order', label: 'Order' }, { key: 'utility', label: 'Utility' }, { key: 'misc', label: 'Miscellaneous' }]} />
             <Field label="Date" value={newExp.expense_date} onChange={v => setNewExp({ ...newExp, expense_date: v })} type="date" />
