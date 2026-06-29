@@ -12,8 +12,7 @@ export interface FeeBreakdown {
   total: number;
 }
 
-export default function PaymentSheet({ clientSecret, onSuccess, onCancel, brandColor, breakdown }: {
-  clientSecret: string;
+export default function PaymentSheet({ onSuccess, onCancel, brandColor, breakdown }: {
   onSuccess: () => void;
   onCancel: () => void;
   brandColor: string;

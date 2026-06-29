@@ -44,7 +44,6 @@ export async function POST(req: NextRequest) {
       email,
       phone,
       rooms,
-      message,
     } = body as {
       propertyName: string;
       contactName: string;
@@ -126,7 +125,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Create the auth user (pre-confirmed, no email verification)
-    const { data: authData, error: authErr } = await admin.auth.admin.createUser({
+    const { error: authErr } = await admin.auth.admin.createUser({
       email,
       password: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2), // temp password, they'll set their own on /staff/setup
       email_confirm: true,
