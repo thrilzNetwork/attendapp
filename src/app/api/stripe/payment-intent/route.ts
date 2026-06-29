@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAllowedOrigin, originBlocked } from '@/lib/api-auth';
+import Stripe from 'stripe';
 import { getStripe, computeFees } from '@/lib/stripe';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
@@ -13,12 +14,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { requestId, amountCents, tipCents, partnerId, description } = body as {
+    const { requestId, amountCents, partnerId, description, quoteId } = body as {
       requestId: string;
       amountCents: number;
-      tipCents?: number;
       partnerId: string;
       description: string;
+      quoteId?: string;
     };
 
     if (!requestId || !amountCents || amountCents < 50) {
@@ -27,7 +28,6 @@ export async function POST(req: NextRequest) {
 
     const db = getSupabaseAdmin();
     const { platformFeeCents, vendorPayoutCents } = computeFees(amountCents);
-    const totalCents = amountCents + (tipCents || 0);
 
     // Fetch partner's Stripe Connect account (if any) for automatic transfer
     const { data: partner } = await db
@@ -38,8 +38,8 @@ export async function POST(req: NextRequest) {
 
     const stripe = getStripe();
 
-    const intentParams: any = {
-      amount: totalCents,
+    const intentParams: Stripe.PaymentIntentCreateParams = {
+      amount: amountCents,
       currency: 'usd',
       description,
       metadata: {
@@ -47,8 +47,7 @@ export async function POST(req: NextRequest) {
         partner_id: partnerId,
         platform_fee_cents: String(platformFeeCents),
         vendor_payout_cents: String(vendorPayoutCents),
-        tip_cents: String(tipCents || 0),
-        subtotal_cents: String(amountCents),
+        ...(quoteId ? { quote_id: quoteId } : {}),
       },
       automatic_payment_methods: { enabled: true },
     };
@@ -65,10 +64,9 @@ export async function POST(req: NextRequest) {
     await db.from('requests').update({
       stripe_payment_intent_id: intent.id,
       stripe_payment_status: 'pending',
-      amount_cents: totalCents,
+      amount_cents: amountCents,
       platform_fee_cents: platformFeeCents,
       vendor_payout_cents: vendorPayoutCents,
-      tip_cents: tipCents || 0,
     }).eq('id', requestId);
 
     return NextResponse.json({ ok: true, clientSecret: intent.client_secret, intentId: intent.id });

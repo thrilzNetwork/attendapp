@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import {
-  getPositionTodoTemplates, createPositionTodoTemplate, deletePositionTodoTemplate,
+  getPositionTodoTemplates, createPositionTodoTemplate, updatePositionTodoTemplate, deletePositionTodoTemplate,
   getTemplateItems, createTemplateItem, deleteTemplateItem,
-  getTodayInstances, createInstance, completeInstance,
+  getTodayInstances, createInstance, completeInstance, deleteInstance,
   getInstanceResponses, upsertResponse,
   createRoomMove, createNoShow, createBankCount,
   type PositionTodoTemplate, type PositionTodoItem,
@@ -38,14 +38,10 @@ const ITEM_TYPES: { key: string; label: string; icon: React.ReactNode }[] = [
   { key: 'action_link', label: 'Action Link',         icon: <Link size={14} /> },
   { key: 'room_move',   label: 'Room Move',           icon: <Move size={14} /> },
   { key: 'no_show',     label: 'No Show',             icon: <UserX size={14} /> },
-  { key: 'bank_count',  label: 'Bank/Drawer Count',   icon: <DollarSign size={14} /> },
+  { key: 'bank_count',  label: 'Cash Drawer Count',   icon: <DollarSign size={14} /> },
 ];
 
-interface CommunityItem {
-  label: string;
-  item_type: string;
-  config?: Record<string, unknown>;
-}
+interface CommunityItem { label: string; item_type: string; config?: Record<string, unknown>; }
 
 interface CommunityTemplate {
   id: string;
@@ -170,9 +166,8 @@ const POSITIONS: { key: string; label: string }[] = [
   { key: 'night_auditor', label: 'Night Auditor' },
   { key: 'housekeeper', label: 'Housekeeper' },
   { key: 'maintenance_tech', label: 'Maintenance Tech' },
-  { key: 'security_guard', label: 'Security Guard' },
-  { key: 'shuttle_driver', label: 'Shuttle Driver' },
-  { key: 'manager', label: 'Manager on Duty' },
+  { key: 'security_officer', label: 'Security Officer' },
+  { key: 'driver', label: 'Driver' },
 ];
 
 type ViewMode = 'staff' | 'builder';
@@ -200,6 +195,22 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [installedId, setInstalledId] = useState<string | null>(null);
+  const [renamingTemplate, setRenamingTemplate] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [previewInstance, setPreviewInstance] = useState<PositionTodoInstance | null>(null);
+  const [deptNames, setDeptNames] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem(`attenda_dept_names_${hotelId}`) || '{}'); } catch { return {}; }
+  });
+  const [renamingDept, setRenamingDept] = useState<string | null>(null);
+  const [deptRenameValue, setDeptRenameValue] = useState('');
+  const [shiftPicker, setShiftPicker] = useState<{ tplId: string; tplName: string } | null>(null);
+
+  const saveDeptName = (key: string, name: string) => {
+    const next = { ...deptNames, [key]: name.trim() };
+    setDeptNames(next);
+    localStorage.setItem(`attenda_dept_names_${hotelId}`, JSON.stringify(next));
+    setRenamingDept(null);
+  };
 
   // New template form
   const [newName, setNewName] = useState('');
@@ -229,7 +240,8 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       }
       setItemsByTemplate(itemsMap);
 
-      const insts = await getTodayInstances(hotelId, staffId);
+      // Admin loads all staff instances; staff loads only their own
+      const insts = await getTodayInstances(hotelId, isAdmin ? undefined : staffId);
       setInstances(insts);
 
       const respMap: Record<string, PositionTodoResponse[]> = {};
@@ -262,11 +274,11 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
         hotel_id: hotelId, name: newName.trim(), description: newDesc.trim(),
         department: newDept, assigned_position: newPos,
       });
-      setNewName(''); setNewDesc(''); setNewDept('front_desk'); setNewPos('');
+      setNewName(''); setNewDesc(''); setNewPos('');
       setShowNew(false);
       await loadAll();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create');
+      setError(e instanceof Error ? e.message : 'Failed to create template');
     }
     setSubmitting(false);
   };
@@ -279,30 +291,45 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
         department: ct.department, assigned_position: ct.assigned_position || '',
       });
       for (let i = 0; i < ct.items.length; i++) {
+        const item = ct.items[i];
         await createTemplateItem({
-          template_id: tpl.id, label: ct.items[i].label,
-          item_type: ct.items[i].item_type, sort_order: i,
-          config: ct.items[i].config || {},
+          template_id: tpl.id, label: item.label,
+          item_type: item.item_type, sort_order: i,
+          config: item.config || {},
         });
       }
       setInstalledId(ct.id);
       await loadAll();
-      setBuilderTab('my-templates');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to install template');
     }
     setSubmitting(false);
   };
 
-  const deleteTpl = async (id: string) => {
-    if (!confirm('Delete this To-Do template? All items will be removed.')) return;
-    await deletePositionTodoTemplate(id);
+  const startRenameTpl = (tpl: PositionTodoTemplate) => {
+    setRenamingTemplate(tpl.id);
+    setRenameValue(tpl.name);
+  };
+  const confirmRenameTpl = async (tplId: string) => {
+    if (!renameValue.trim()) return;
+    setSubmitting(true);
+    try {
+      await updatePositionTodoTemplate(tplId, { name: renameValue.trim() });
+      setRenamingTemplate(null);
+      await loadAll();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to rename'); }
+    setSubmitting(false);
+  };
+
+  const deleteTpl = async (tplId: string) => {
+    if (!confirm('Delete this checklist? This cannot be undone.')) return;
+    await deletePositionTodoTemplate(tplId);
     await loadAll();
   };
 
   const addItem = async (templateId: string) => {
     if (!newItemLabel.trim()) return;
-    setSubmitting(true);
+    setSubmitting(true); setError(null);
     const items = itemsByTemplate[templateId] || [];
     let config: Record<string, unknown> = {};
     try { if (newItemConfig.trim()) config = JSON.parse(newItemConfig); } catch {}
@@ -326,18 +353,28 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     setItemsByTemplate(prev => ({ ...prev, [templateId]: updated }));
   };
 
-  const startInstance = async (tplId: string) => {
+  const isCashDrawerTemplate = (tplId: string) =>
+    (itemsByTemplate[tplId] || []).some(i => i.item_type === 'bank_count');
+
+  const startInstance = async (tplId: string, shift: string) => {
     setSubmitting(true);
+    setError(null);
     try {
-      const existing = instances.find(i => i.template_id === tplId && i.status !== 'completed');
+      // Block only if this shift already has an in-progress instance for this template
+      const existing = instances.find(i =>
+        i.template_id === tplId &&
+        i.shift === shift &&
+        (i.staff_id === staffId || i.staff_name === staffName) &&
+        i.status !== 'completed'
+      );
       if (existing) {
-        setError('You already have this To-Do in progress today.');
+        setError(`You already have a ${shift} shift checklist in progress.`);
         setSubmitting(false);
         return;
       }
       const inst = await createInstance({
         hotel_id: hotelId, template_id: tplId,
-        staff_id: staffId, staff_name: staffName || 'Staff',
+        staff_id: staffId, staff_name: staffName || 'Staff', shift,
       });
       const items = itemsByTemplate[tplId] || [];
       for (const item of items) {
@@ -406,18 +443,42 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     setSubmitting(false);
   };
 
+  const DENOMS = [
+    { key: 'd100',    label: '$100 bills' },
+    { key: 'd50',     label: '$50 bills'  },
+    { key: 'd20',     label: '$20 bills'  },
+    { key: 'd10',     label: '$10 bills'  },
+    { key: 'd5',      label: '$5 bills'   },
+    { key: 'd1',      label: '$1 bills'   },
+    { key: 'c100',    label: '$1 coins'   },
+    { key: 'c50',     label: '50¢ coins'  },
+    { key: 'c25',     label: '25¢ coins'  },
+    { key: 'c10',     label: '10¢ coins'  },
+    { key: 'c5',      label: '5¢ coins'   },
+    { key: 'c1',      label: '1¢ coins'   },
+  ];
+
+  const calcDrawerTotal = (f: Record<string, string>) => {
+    const bills = DENOMS.reduce((sum, d) => sum + (parseFloat(f[d.key] || '0') || 0), 0);
+    const paidOut = parseFloat(f.paid_out || '0') || 0;
+    const petty   = parseFloat(f.petty_cash || '0') || 0;
+    return bills - paidOut - petty;
+  };
+
   const handleBankCount = async (instId: string, itemId: string) => {
     const f = opsForm[itemId] || {};
-    if (!f.cash_total?.trim()) { setError('Cash total is required.'); return; }
+    const total = calcDrawerTotal(f);
     setSubmitting(true); setError(null);
     try {
+      const billsBreakdown = DENOMS.map(d => `${d.label}: $${f[d.key] || '0'}`).join(' | ');
       await createBankCount({
         hotel_id: hotelId, count_date: localDateStr(), shift: f.shift || 'AM',
-        counted_by: staffName || '', cash_total: parseFloat(f.cash_total) || 0,
-        card_total: parseFloat(f.card_total || '0') || 0, room_charges: parseFloat(f.room_charges || '0') || 0,
-        discrepancies: f.discrepancies?.trim() || '', notes: '',
+        counted_by: staffName || '', cash_total: total,
+        card_total: 0, room_charges: 0,
+        discrepancies: f.discrepancies?.trim() || '',
+        notes: `Bills: ${billsBreakdown} | Paid Out: $${f.paid_out || '0'} | Petty Cash: $${f.petty_cash || '0'}${f.notes ? ' | Notes: ' + f.notes : ''}`,
       });
-      await upsertResponse({ instance_id: instId, item_id: itemId, checked: true, text_value: `Cash $${f.cash_total} · Card $${f.card_total || '0'}` });
+      await upsertResponse({ instance_id: instId, item_id: itemId, checked: true, text_value: `Cash $${total.toFixed(2)}` });
       const updated = await getInstanceResponses(instId);
       setResponsesByInstance(prev => ({ ...prev, [instId]: updated }));
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to log bank count'); }
@@ -432,9 +493,12 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const getResp = (instId: string, itemId: string): PositionTodoResponse | undefined =>
     (responsesByInstance[instId] || []).find(r => r.item_id === itemId);
 
-  const myInstances = instances.filter(i => i.staff_name === staffName);
+  const myInstances = instances.filter(i => i.staff_id === staffId || i.staff_name === staffName);
   const completedCount = myInstances.filter(i => i.status === 'completed').length;
   const totalCount = myInstances.length;
+  // Admin-only: all staff instances count
+  const allCompleted = instances.filter(i => i.status === 'completed').length;
+  const allTotal = instances.length;
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
@@ -443,7 +507,9 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900">To-Dos</h1>
           <p className="text-[13px] text-gray-500">
-            {isAdmin ? staffName || 'Admin' : staffName || 'Staff'} · {totalCount > 0 ? `${completedCount}/${totalCount} done today` : 'Start your shift tasks'}
+            {isAdmin
+              ? allTotal > 0 ? `${allCompleted}/${allTotal} checklists completed today across all staff` : 'No checklists started yet today'
+              : totalCount > 0 ? `${completedCount}/${totalCount} done today` : 'Start your shift tasks'}
           </p>
         </div>
         {isAdmin && (
@@ -464,6 +530,29 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] rounded-xl px-4 py-3 mb-4">{error}<button onClick={() => setError(null)} className="ml-2 font-bold">✕</button></div>}
+
+      {/* Cash shift status banner — visible to everyone */}
+      {(() => {
+        const cashTpls = templates.filter(t => (itemsByTemplate[t.id] || []).some(i => i.item_type === 'bank_count'));
+        if (cashTpls.length === 0) return null;
+        const shifts = ['AM', 'PM', 'Night'];
+        const missing = shifts.filter(shift => {
+          const cashInsts = instances.filter(i => cashTpls.some(t => t.id === i.template_id) && i.shift === shift);
+          return cashInsts.length === 0 || cashInsts.some(i => i.status !== 'completed');
+        });
+        if (missing.length === 0) return null;
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
+            <span className="text-amber-500 text-[16px] mt-0.5">⚠️</span>
+            <div>
+              <p className="text-[12px] font-bold text-amber-800">Cash Count Incomplete</p>
+              <p className="text-[11px] text-amber-700 mt-0.5">
+                {missing.map(s => `${s} shift`).join(', ')} — cash drawer not yet counted
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Builder tab bar */}
       {isAdmin && viewMode === 'builder' && (
@@ -574,8 +663,8 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                           <div className="flex items-center gap-2">
                             <span className="text-[20px]">{dept.icon}</span>
                             <div className="text-left">
-                              <p className="text-[14px] font-bold text-gray-900">{dept.label}</p>
-                              <p className="text-[11px] text-gray-500">{deptTpls.length} template{deptTpls.length !== 1 ? 's' : ''}</p>
+                              <p className="text-[14px] font-bold text-gray-900">{deptNames[dept.key] || dept.label}</p>
+                              <p className="text-[11px] text-gray-500">{deptTpls.length} checklist{deptTpls.length !== 1 ? 's' : ''}</p>
                             </div>
                           </div>
                           <ChevronDown size={18} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -584,61 +673,74 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                         {open && (
                           <div className="border-t border-gray-100 divide-y divide-gray-100">
                             {deptTpls.map(tpl => {
-                              const editing = editingTemplate === tpl.id;
                               const items = itemsByTemplate[tpl.id] || [];
                               return (
                                 <div key={tpl.id} className="px-4 py-3">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div>
-                                      <p className="text-[14px] font-semibold text-gray-900">{tpl.name}
-                                        {tpl.assigned_position && <span className="ml-2 text-[10px] text-gray-500 font-normal">· {POSITIONS.find(p => p.key === tpl.assigned_position)?.label}</span>}
-                                      </p>
-                                      <p className="text-[11px] text-gray-500">{tpl.description || 'No description'} · {items.length} items</p>
+                                  <div className="flex items-start justify-between gap-2 mb-2">
+                                    <div className="flex-1 min-w-0">
+                                      {renamingTemplate === tpl.id ? (
+                                        <div className="flex items-center gap-1.5">
+                                          <input
+                                            autoFocus
+                                            value={renameValue}
+                                            onChange={e => setRenameValue(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') confirmRenameTpl(tpl.id); if (e.key === 'Escape') setRenamingTemplate(null); }}
+                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] font-semibold"
+                                          />
+                                          <button onClick={() => confirmRenameTpl(tpl.id)} disabled={submitting} className="p-1.5 rounded-lg text-white text-[11px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}><Save size={13} /></button>
+                                          <button onClick={() => setRenamingTemplate(null)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={13} /></button>
+                                        </div>
+                                      ) : (
+                                        <p className="text-[13px] font-semibold text-gray-900">{tpl.name}</p>
+                                      )}
+                                      <p className="text-[11px] text-gray-500 mt-0.5">{items.length} item{items.length !== 1 ? 's' : ''}</p>
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                      <button onClick={() => setEditingTemplate(editing ? null : tpl.id)} className={`p-2 rounded-lg transition-colors ${editing ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
-                                        <Edit3 size={14} />
-                                      </button>
-                                      <button onClick={() => deleteTpl(tpl.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
-                                        <Trash2 size={14} />
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <button onClick={() => startRenameTpl(tpl)} title="Rename" className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100"><Edit3 size={13} /></button>
+                                      <button onClick={() => deleteTpl(tpl.id)} title="Delete" className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100"><Trash2 size={13} /></button>
+                                      <button
+                                        onClick={() => setEditingTemplate(editingTemplate === tpl.id ? null : tpl.id)}
+                                        className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100"
+                                        title="Edit items"
+                                      >
+                                        <ChevronDown size={13} className={editingTemplate === tpl.id ? 'rotate-180' : ''} />
                                       </button>
                                     </div>
                                   </div>
 
-                                  {editing && (
-                                    <div className="border-t border-gray-100 pt-3 mt-2 space-y-3">
-                                      {items.length === 0 && (
-                                        <p className="text-[12px] text-gray-400 italic">No items yet. Add tasks below.</p>
-                                      )}
+                                  {editingTemplate === tpl.id && (
+                                    <div className="mt-2 space-y-1.5">
                                       {items.sort((a, b) => a.sort_order - b.sort_order).map(item => (
-                                        <div key={item.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
-                                          <div className="flex items-center gap-2">
-                                            <GripVertical size={14} className="text-gray-300" />
-                                            <span className="text-[11px] text-gray-400 uppercase font-bold w-20 shrink-0">{ITEM_TYPES.find(t => t.key === item.item_type)?.label || item.item_type}</span>
-                                            <span className="text-[13px] text-gray-700">{item.label}</span>
-                                            {item.config?.unit && <span className="text-[11px] text-gray-400">({item.config.unit})</span>}
-                                          </div>
-                                          <button onClick={() => removeItem(item.id, tpl.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
-                                            <Trash2 size={12} />
-                                          </button>
+                                        <div key={item.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                                          <GripVertical size={14} className="text-gray-300 shrink-0" />
+                                          <span className="flex-1 text-[12px] text-gray-700">{item.label}</span>
+                                          <span className="text-[10px] text-gray-400 bg-white border border-gray-100 rounded-lg px-1.5 py-0.5">{ITEM_TYPES.find(t => t.key === item.item_type)?.label || item.item_type}</span>
+                                          <button onClick={() => removeItem(item.id, tpl.id)} className="p-1 rounded-lg text-red-400 hover:bg-red-50"><Trash2 size={12} /></button>
                                         </div>
                                       ))}
-
-                                      <div className="bg-gray-50 rounded-xl p-3 border border-dashed border-gray-200">
-                                        <p className="text-[11px] font-bold text-gray-500 mb-2">Add Item</p>
-                                        <div className="space-y-2">
-                                          <input value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} placeholder="e.g. Check lobby cleanliness" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                          <div className="flex gap-2">
-                                            <select value={newItemType} onChange={e => setNewItemType(e.target.value)} className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200">
-                                              {ITEM_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
-                                            </select>
-                                            <button onClick={() => addItem(tpl.id)} disabled={submitting || !newItemLabel.trim()} className="px-3 py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                                              <Plus size={14} />
-                                            </button>
-                                          </div>
-                                          {(newItemType === 'number' || newItemType === 'kpi_field') && (
-                                            <input value={newItemConfig} onChange={e => setNewItemConfig(e.target.value)} placeholder='e.g. {"unit":"rooms","placeholder":"Enter count"}' className="w-full bg-white rounded-lg px-3 py-2 text-[11px] border border-gray-200 font-mono" />
-                                          )}
+                                      <div className="pt-2 border-t border-gray-100 space-y-1.5">
+                                        <input
+                                          value={newItemLabel}
+                                          onChange={e => setNewItemLabel(e.target.value)}
+                                          placeholder="New item label..."
+                                          className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px]"
+                                        />
+                                        <div className="flex gap-1.5">
+                                          <select
+                                            value={newItemType}
+                                            onChange={e => setNewItemType(e.target.value)}
+                                            className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px]"
+                                          >
+                                            {ITEM_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                                          </select>
+                                          <button
+                                            onClick={() => addItem(tpl.id)}
+                                            disabled={submitting || !newItemLabel.trim()}
+                                            className="px-3 py-2 rounded-xl text-white text-[12px] font-bold disabled:opacity-50"
+                                            style={{ backgroundColor: TEAL }}
+                                          >
+                                            <Plus size={14} />
+                                          </button>
                                         </div>
                                       </div>
                                     </div>
@@ -653,12 +755,113 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                   })}
                 </div>
               )}
+
+              {/* New template form */}
+              {showNew && (
+                <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center p-4">
+                  <div className="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[15px] font-bold text-gray-900">New Checklist</p>
+                      <button onClick={() => setShowNew(false)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={14} /></button>
+                    </div>
+                    <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Checklist name" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px]" />
+                    <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Description (optional)" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px] text-gray-600" />
+                    <select value={newDept} onChange={e => setNewDept(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
+                      {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
+                    </select>
+                    <select value={newPos} onChange={e => setNewPos(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
+                      {POSITIONS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                    </select>
+                    <button onClick={createTemplate} disabled={submitting || !newName.trim()} className="w-full py-3 rounded-xl text-white font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                      Create Checklist
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
           {/* ── STAFF VIEW ── */}
-          {viewMode === 'staff' && (
+          {(!isAdmin || viewMode === 'staff') && (
             <>
+              {/* Admin preview instance modal */}
+              {isAdmin && previewInstance && (
+                <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="text-[15px] font-bold text-gray-900">{previewInstance.staff_name}</p>
+                        <p className="text-[12px] text-gray-500">{previewInstance.shift} shift · {previewInstance.status}</p>
+                      </div>
+                      <button onClick={() => setPreviewInstance(null)} className="p-1.5 rounded-lg bg-gray-100"><XIcon size={14} /></button>
+                    </div>
+                    {(responsesByInstance[previewInstance.id] || []).map(r => {
+                      const allItems = Object.values(itemsByTemplate).flat();
+                      const item = allItems.find(i => i.id === r.item_id);
+                      return (
+                        <div key={r.id} className="flex items-start gap-2 py-2 border-b border-gray-100 last:border-0">
+                          <span className={`w-4 h-4 rounded-full mt-0.5 shrink-0 ${r.checked ? 'bg-emerald-400' : 'bg-gray-200'}`} />
+                          <div>
+                            <p className="text-[13px] text-gray-700">{item?.label || 'Item'}</p>
+                            {r.text_value && <p className="text-[11px] text-gray-500 mt-0.5">{r.text_value}</p>}
+                            {r.number_value !== undefined && r.number_value !== null && <p className="text-[11px] text-gray-500 mt-0.5">{r.number_value}</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Admin: all instances today */}
+              {isAdmin && instances.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-[12px] font-bold text-gray-500 uppercase tracking-widest mb-3">All Staff Today</p>
+                  <div className="space-y-2">
+                    {instances.map(inst => {
+                      const tpl = templates.find(t => t.id === inst.template_id);
+                      const items = itemsByTemplate[inst.template_id] || [];
+                      const resps = responsesByInstance[inst.id] || [];
+                      const done = resps.filter(r => r.checked).length;
+                      const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0;
+                      return (
+                        <div
+                          key={inst.id}
+                          className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 cursor-pointer hover:border-gray-200"
+                          onClick={() => setPreviewInstance(inst)}
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <p className="text-[13px] font-semibold text-gray-900 truncate">{inst.staff_name}</p>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 shrink-0">{inst.shift}</span>
+                              {tpl && <p className="text-[11px] text-gray-400 truncate">{tpl.name}</p>}
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${inst.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                {inst.status === 'completed' ? '✅ Done' : `${pct}%`}
+                              </span>
+                              <button
+                                onClick={async (e) => { e.stopPropagation(); if (!confirm(`Delete ${inst.staff_name}'s checklist instance?`)) return; await deleteInstance(inst.id); await loadAll(); }}
+                                disabled={submitting}
+                                title="Delete"
+                                className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                          {items.length > 0 && (
+                            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: inst.status === 'completed' ? '#10b981' : TEAL }} />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {templates.length === 0 && (
                 <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
                   <ClipboardList size={48} className="mx-auto text-gray-300 mb-3" />
@@ -680,169 +883,310 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                     const deptTpls = templates.filter(t => t.department === dept.key);
                     if (deptTpls.length === 0) return null;
                     const open = openDept === dept.key;
+                    const deptLabel = deptNames[dept.key] || dept.label;
                     return (
                       <div key={dept.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                        <button onClick={() => setOpenDept(open ? null : dept.key)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[20px]">{dept.icon}</span>
-                            <div className="text-left">
-                              <p className="text-[14px] font-bold text-gray-900">{dept.label}</p>
-                              <p className="text-[11px] text-gray-500">{deptTpls.length} checklist{deptTpls.length !== 1 ? 's' : ''}</p>
+                        <div className="flex items-center px-4 py-3 hover:bg-gray-50">
+                          {renamingDept === dept.key ? (
+                            <div className="flex-1 flex items-center gap-1.5">
+                              <span className="text-[20px]">{dept.icon}</span>
+                              <input
+                                autoFocus
+                                value={deptRenameValue}
+                                onChange={e => setDeptRenameValue(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') saveDeptName(dept.key, deptRenameValue); if (e.key === 'Escape') setRenamingDept(null); }}
+                                className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] font-bold"
+                              />
+                              <button onClick={() => saveDeptName(dept.key, deptRenameValue)} className="p-1.5 rounded-lg text-white" style={{ backgroundColor: TEAL }}><Save size={13} /></button>
+                              <button onClick={() => setRenamingDept(null)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={13} /></button>
                             </div>
-                          </div>
-                          <ChevronDown size={18} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-                        </button>
+                          ) : (
+                            <>
+                              <button onClick={() => setOpenDept(open ? null : dept.key)} className="flex-1 flex items-center gap-2 text-left">
+                                <span className="text-[20px]">{dept.icon}</span>
+                                <div>
+                                  <p className="text-[14px] font-bold text-gray-900">{deptLabel}</p>
+                                  <p className="text-[11px] text-gray-500">{deptTpls.length} checklist{deptTpls.length !== 1 ? 's' : ''}</p>
+                                </div>
+                              </button>
+                              {isAdmin && (
+                                <div className="flex items-center gap-1 shrink-0 ml-2">
+                                  <button
+                                    onClick={() => { setRenamingDept(dept.key); setDeptRenameValue(deptLabel); }}
+                                    title="Rename category"
+                                    className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100 transition-colors"
+                                  ><Edit3 size={13} /></button>
+                                  <button
+                                    onClick={async () => {
+                                      if (!confirm(`Delete ALL ${deptTpls.length} checklist${deptTpls.length !== 1 ? 's' : ''} in ${deptLabel}? This cannot be undone.`)) return;
+                                      for (const tpl of deptTpls) await deletePositionTodoTemplate(tpl.id);
+                                      await loadAll();
+                                    }}
+                                    title="Delete all checklists in this category"
+                                    className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
+                                  ><Trash2 size={13} /></button>
+                                </div>
+                              )}
+                              <ChevronDown size={18} className={`text-gray-400 transition-transform ml-2 ${open ? 'rotate-180' : ''}`} onClick={() => setOpenDept(open ? null : dept.key)} />
+                            </>
+                          )}
+                        </div>
 
                         {open && (
                           <div className="border-t border-gray-100 divide-y divide-gray-100">
                             {deptTpls.map(tpl => {
                               const items = itemsByTemplate[tpl.id] || [];
-                              const myInst = instances.find(i => i.template_id === tpl.id && i.staff_name === staffName && i.status !== 'completed');
-                              const completedInst = instances.find(i => i.template_id === tpl.id && i.status === 'completed' && i.staff_name === staffName);
+                              const myInst = instances.find(i => i.template_id === tpl.id && (i.staff_id === staffId || i.staff_name === staffName) && i.status !== 'completed');
+                              const completedInst = instances.find(i => i.template_id === tpl.id && i.status === 'completed' && (i.staff_id === staffId || i.staff_name === staffName));
+                              // All instances for this template (admin view)
+                              const allInsts = isAdmin ? instances.filter(i => i.template_id === tpl.id) : [];
+                              // For cash drawer: show all my instances (one per shift); otherwise just the active one
+                              const myInsts = isCashDrawerTemplate(tpl.id)
+                                ? instances.filter(i => i.template_id === tpl.id && (i.staff_id === staffId || i.staff_name === staffName))
+                                : myInst ? [myInst] : [];
 
                               return (
                                 <div key={tpl.id} className="px-4 py-3">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div>
-                                      <p className="text-[14px] font-semibold text-gray-900">{tpl.name}</p>
-                                      <p className="text-[11px] text-gray-500">
-                                        {tpl.description && `${tpl.description} · `}
-                                        {items.length} item{items.length !== 1 ? 's' : ''}
-                                        {tpl.assigned_position && ` · ${POSITIONS.find(p => p.key === tpl.assigned_position)?.label || tpl.assigned_position}`}
-                                      </p>
+                                  <div className="flex items-center justify-between mb-2 gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      {renamingTemplate === tpl.id ? (
+                                        <div className="flex items-center gap-1.5">
+                                          <input
+                                            autoFocus
+                                            value={renameValue}
+                                            onChange={e => setRenameValue(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') confirmRenameTpl(tpl.id); if (e.key === 'Escape') setRenamingTemplate(null); }}
+                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] font-semibold"
+                                          />
+                                          <button onClick={() => confirmRenameTpl(tpl.id)} disabled={submitting} className="p-1.5 rounded-lg text-white text-[11px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}><Save size={13} /></button>
+                                          <button onClick={() => setRenamingTemplate(null)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={13} /></button>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <p className="text-[14px] font-semibold text-gray-900">{tpl.name}</p>
+                                          <p className="text-[11px] text-gray-500">
+                                            {tpl.description && `${tpl.description} · `}
+                                            {items.length} item{items.length !== 1 ? 's' : ''}
+                                            {tpl.assigned_position && ` · ${POSITIONS.find(p => p.key === tpl.assigned_position)?.label || tpl.assigned_position}`}
+                                            {isAdmin && allInsts.length > 0 && ` · ${allInsts.filter(i => i.status === 'completed').length}/${allInsts.length} staff done`}
+                                          </p>
+                                        </>
+                                      )}
                                     </div>
-                                    {completedInst ? (
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✅ Done</span>
-                                    ) : myInst ? (
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ In Progress</span>
-                                    ) : staffName ? (
-                                      <button onClick={() => startInstance(tpl.id)} disabled={submitting} className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                                        Start
-                                      </button>
-                                    ) : null}
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      {isAdmin && renamingTemplate !== tpl.id && (
+                                        <>
+                                          <button
+                                            onClick={() => startRenameTpl(tpl)}
+                                            title="Rename"
+                                            className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100 transition-colors"
+                                          ><Edit3 size={13} /></button>
+                                          <button
+                                            onClick={() => deleteTpl(tpl.id)}
+                                            title="Delete checklist"
+                                            className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
+                                          ><Trash2 size={13} /></button>
+                                        </>
+                                      )}
+                                      {renamingTemplate !== tpl.id && (completedInst && !isCashDrawerTemplate(tpl.id) ? (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✅ Done</span>
+                                      ) : myInst && !isCashDrawerTemplate(tpl.id) ? (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ In Progress</span>
+                                      ) : staffName ? (
+                                        isCashDrawerTemplate(tpl.id) ? (
+                                          shiftPicker?.tplId === tpl.id ? (
+                                            <div className="flex items-center gap-1">
+                                              {['AM', 'PM', 'Night'].map(s => (
+                                                <button key={s} onClick={() => { setShiftPicker(null); startInstance(tpl.id, s); }} disabled={submitting} className="text-[10px] font-bold px-2 py-1 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: TEAL }}>{s}</button>
+                                              ))}
+                                              <button onClick={() => setShiftPicker(null)} className="text-[10px] px-2 py-1 rounded-lg bg-gray-100 text-gray-500">✕</button>
+                                            </div>
+                                          ) : (
+                                            <button onClick={() => setShiftPicker({ tplId: tpl.id, tplName: tpl.name })} disabled={submitting} className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                                              + New Count
+                                            </button>
+                                          )
+                                        ) : (
+                                          <button onClick={() => startInstance(tpl.id, 'AM')} disabled={submitting} className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                                            Start
+                                          </button>
+                                        )
+                                      ) : null)}
+                                    </div>
                                   </div>
 
-                                  {myInst && items.length > 0 && (
-                                    <div className="space-y-2 mt-3 border-t border-gray-100 pt-3">
-                                      {items.sort((a, b) => a.sort_order - b.sort_order).map(item => {
-                                        const resp = getResp(myInst.id, item.id);
-                                        return (
-                                          <div key={item.id} className="flex items-start gap-2.5 py-1">
-                                            {item.item_type === 'checkbox' && (
-                                              <label className="flex items-center gap-2.5 cursor-pointer flex-1">
-                                                <input type="checkbox" checked={resp?.checked || false} onChange={() => handleCheck(myInst.id, item.id, !resp?.checked)} className="w-4 h-4 rounded border-gray-300 cursor-pointer" style={{ accentColor: TEAL }} />
-                                                <span className={`text-[13px] ${resp?.checked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{item.label}</span>
-                                              </label>
-                                            )}
-                                            {item.item_type === 'number' && (
-                                              <div className="flex-1">
-                                                <p className="text-[13px] text-gray-700 mb-1">{item.label}{item.config?.unit ? ` (${item.config.unit})` : ''}</p>
-                                                <input type="number" value={resp?.number_value ?? ''} onChange={e => handleNumber(myInst.id, item.id, parseFloat(e.target.value) || 0)} placeholder={item.config?.placeholder || 'Enter value...'} min={item.config?.min} max={item.config?.max} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
-                                              </div>
-                                            )}
-                                            {item.item_type === 'text' && (
-                                              <div className="flex-1">
-                                                <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
-                                                <input type="text" value={resp?.text_value || ''} onChange={e => handleText(myInst.id, item.id, e.target.value)} placeholder={item.config?.placeholder || 'Type answer...'} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
-                                              </div>
-                                            )}
-                                            {item.item_type === 'time' && (
-                                              <div className="flex-1">
-                                                <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
-                                                <input type="time" value={resp?.text_value || ''} onChange={e => handleText(myInst.id, item.id, e.target.value)} className="w-40 bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
-                                              </div>
-                                            )}
-                                            {item.item_type === 'kpi_field' && (
-                                              <div className="flex-1">
-                                                <p className="text-[13px] text-gray-700 mb-1">📊 {item.label}{item.config?.unit ? ` (${item.config.unit})` : ''}</p>
-                                                <input type="number" value={resp?.number_value ?? ''} onChange={e => handleNumber(myInst.id, item.id, parseFloat(e.target.value) || 0)} placeholder={item.config?.placeholder || 'Enter KPI value...'} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
-                                              </div>
-                                            )}
-                                            {item.item_type === 'action_link' && (
-                                              <div className="flex-1">
-                                                <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
-                                                <div className="flex items-center gap-2">
-                                                  <input type="checkbox" checked={resp?.checked || false} onChange={() => handleCheck(myInst.id, item.id, !resp?.checked)} className="w-4 h-4 rounded border-gray-300 cursor-pointer" style={{ accentColor: TEAL }} />
-                                                  {item.config?.link_path ? (
-                                                    <button onClick={() => window.location.href = item.config.link_path!} className="text-[12px] font-bold px-3 py-1.5 rounded-lg text-white" style={{ backgroundColor: TEAL }}>Open</button>
+                                  {myInsts.length > 0 && items.length > 0 && myInsts.map(inst => {
+                                    const resps = responsesByInstance[inst.id] || [];
+                                    const done = resps.filter(r => r.checked).length;
+                                    const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0;
+                                    return (
+                                      <div key={inst.id} className="space-y-2 mt-3 border-t border-gray-100 pt-3">
+                                        {myInsts.length > 1 && (
+                                          <div className="flex items-center justify-between mb-1">
+                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{inst.shift} Shift</span>
+                                            {inst.status === 'completed' && <span className="text-[10px] font-bold text-emerald-600">✅ Completed</span>}
+                                          </div>
+                                        )}
+                                        {items.length > 0 && (
+                                          <div className="w-full bg-gray-100 rounded-full h-1 overflow-hidden mb-2">
+                                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: inst.status === 'completed' ? '#10b981' : TEAL }} />
+                                          </div>
+                                        )}
+                                        {items.sort((a, b) => a.sort_order - b.sort_order).map(item => {
+                                          const resp = getResp(inst.id, item.id);
+                                          return (
+                                            <div key={item.id} className="flex items-start gap-2.5 py-1">
+                                              {item.item_type === 'checkbox' && (
+                                                <label className="flex items-center gap-2.5 cursor-pointer flex-1">
+                                                  <input type="checkbox" checked={resp?.checked || false} onChange={() => handleCheck(inst.id, item.id, !resp?.checked)} className="w-4 h-4 rounded border-gray-300 cursor-pointer" style={{ accentColor: TEAL }} />
+                                                  <span className={`text-[13px] ${resp?.checked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{item.label}</span>
+                                                </label>
+                                              )}
+                                              {item.item_type === 'number' && (
+                                                <div className="flex-1">
+                                                  <p className="text-[13px] text-gray-700 mb-1">{item.label}{item.config?.unit ? ` (${item.config.unit})` : ''}</p>
+                                                  <input type="number" value={resp?.number_value ?? ''} onChange={e => handleNumber(inst.id, item.id, parseFloat(e.target.value) || 0)} placeholder={item.config?.placeholder || 'Enter value...'} min={item.config?.min} max={item.config?.max} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
+                                                </div>
+                                              )}
+                                              {item.item_type === 'text' && (
+                                                <div className="flex-1">
+                                                  <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
+                                                  <input type="text" value={resp?.text_value || ''} onChange={e => handleText(inst.id, item.id, e.target.value)} placeholder={item.config?.placeholder || 'Type answer...'} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
+                                                </div>
+                                              )}
+                                              {item.item_type === 'time' && (
+                                                <div className="flex-1">
+                                                  <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
+                                                  <input type="time" value={resp?.text_value || ''} onChange={e => handleText(inst.id, item.id, e.target.value)} className="w-40 bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
+                                                </div>
+                                              )}
+                                              {item.item_type === 'kpi_field' && (
+                                                <div className="flex-1">
+                                                  <p className="text-[13px] text-gray-700 mb-1">📊 {item.label}{item.config?.unit ? ` (${item.config.unit})` : ''}</p>
+                                                  <input type="number" value={resp?.number_value ?? ''} onChange={e => handleNumber(inst.id, item.id, parseFloat(e.target.value) || 0)} placeholder={item.config?.placeholder || 'Enter KPI value...'} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
+                                                </div>
+                                              )}
+                                              {item.item_type === 'action_link' && (
+                                                <div className="flex-1">
+                                                  <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
+                                                  <div className="flex items-center gap-2">
+                                                    <input type="checkbox" checked={resp?.checked || false} onChange={() => handleCheck(inst.id, item.id, !resp?.checked)} className="w-4 h-4 rounded border-gray-300 cursor-pointer" style={{ accentColor: TEAL }} />
+                                                    {item.config?.link_path ? (
+                                                      <button onClick={() => window.location.href = item.config.link_path!} className="text-[12px] font-bold px-3 py-1.5 rounded-lg text-white" style={{ backgroundColor: TEAL }}>Open</button>
+                                                    ) : (
+                                                      <span className="text-[12px] text-gray-400">Mark as done</span>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              )}
+                                              {item.item_type === 'room_move' && (
+                                                <div className="flex-1">
+                                                  {resp?.checked ? (
+                                                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                                                      <p className="text-[12px] font-bold text-emerald-700">✓ Room Move Logged</p>
+                                                      {resp.text_value && <p className="text-[11px] text-emerald-600 mt-0.5">{resp.text_value}</p>}
+                                                    </div>
                                                   ) : (
-                                                    <span className="text-[12px] text-gray-400">Mark as done</span>
+                                                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
+                                                      <p className="text-[12px] font-bold text-gray-700">🔄 {item.label}</p>
+                                                      <input value={opsForm[item.id]?.guest_name || ''} onChange={e => setOpsField(item.id, 'guest_name', e.target.value)} placeholder="Guest Name" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px]" />
+                                                      <div className="flex gap-2">
+                                                        <input value={opsForm[item.id]?.from_room || ''} onChange={e => setOpsField(item.id, 'from_room', e.target.value)} placeholder="From Room" className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px]" />
+                                                        <input value={opsForm[item.id]?.to_room || ''} onChange={e => setOpsField(item.id, 'to_room', e.target.value)} placeholder="To Room" className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px]" />
+                                                      </div>
+                                                      <input value={opsForm[item.id]?.reason || ''} onChange={e => setOpsField(item.id, 'reason', e.target.value)} placeholder="Reason (optional)" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px]" />
+                                                      <button onClick={() => handleRoomMove(inst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log Room Move</button>
+                                                    </div>
                                                   )}
                                                 </div>
-                                              </div>
-                                            )}
-                                            {item.item_type === 'room_move' && (
-                                              <div className="flex-1">
-                                                <p className="text-[13px] font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><Move size={13} /> {item.label}</p>
-                                                {resp?.checked ? (
-                                                  <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
-                                                ) : (
-                                                  <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                                    <input value={opsForm[item.id]?.guest_name || ''} onChange={e => setOpsField(item.id, 'guest_name', e.target.value)} placeholder="Guest name" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                    <div className="flex gap-1.5">
-                                                      <input value={opsForm[item.id]?.from_room || ''} onChange={e => setOpsField(item.id, 'from_room', e.target.value)} placeholder="From room" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                      <input value={opsForm[item.id]?.to_room || ''} onChange={e => setOpsField(item.id, 'to_room', e.target.value)} placeholder="To room" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                              )}
+                                              {item.item_type === 'no_show' && (
+                                                <div className="flex-1">
+                                                  {resp?.checked ? (
+                                                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                                                      <p className="text-[12px] font-bold text-emerald-700">✓ No-Show Logged</p>
+                                                      {resp.text_value && <p className="text-[11px] text-emerald-600 mt-0.5">{resp.text_value}</p>}
                                                     </div>
-                                                    <input value={opsForm[item.id]?.reason || ''} onChange={e => setOpsField(item.id, 'reason', e.target.value)} placeholder="Reason (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                    <button onClick={() => handleRoomMove(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log Room Move</button>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )}
-                                            {item.item_type === 'no_show' && (
-                                              <div className="flex-1">
-                                                <p className="text-[13px] font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><UserX size={13} /> {item.label}</p>
-                                                {resp?.checked ? (
-                                                  <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
-                                                ) : (
-                                                  <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                                    <input value={opsForm[item.id]?.guest_name || ''} onChange={e => setOpsField(item.id, 'guest_name', e.target.value)} placeholder="Guest name" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                    <div className="flex gap-1.5">
-                                                      <input value={opsForm[item.id]?.room || ''} onChange={e => setOpsField(item.id, 'room', e.target.value)} placeholder="Room" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                      <input value={opsForm[item.id]?.reservation_ref || ''} onChange={e => setOpsField(item.id, 'reservation_ref', e.target.value)} placeholder="Reservation # (opt.)" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                  ) : (
+                                                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
+                                                      <p className="text-[12px] font-bold text-gray-700">🚫 {item.label}</p>
+                                                      <input value={opsForm[item.id]?.guest_name || ''} onChange={e => setOpsField(item.id, 'guest_name', e.target.value)} placeholder="Guest Name" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px]" />
+                                                      <input value={opsForm[item.id]?.room || ''} onChange={e => setOpsField(item.id, 'room', e.target.value)} placeholder="Room Number" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px]" />
+                                                      <input value={opsForm[item.id]?.reservation_ref || ''} onChange={e => setOpsField(item.id, 'reservation_ref', e.target.value)} placeholder="Reservation # (optional)" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px]" />
+                                                      <input value={opsForm[item.id]?.reason || ''} onChange={e => setOpsField(item.id, 'reason', e.target.value)} placeholder="Reason (optional)" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px]" />
+                                                      <button onClick={() => handleNoShow(inst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log No-Show</button>
                                                     </div>
-                                                    <input value={opsForm[item.id]?.reason || ''} onChange={e => setOpsField(item.id, 'reason', e.target.value)} placeholder="Reason (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                    <button onClick={() => handleNoShow(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log No Show</button>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )}
-                                            {item.item_type === 'bank_count' && (
-                                              <div className="flex-1">
-                                                <p className="text-[13px] font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><DollarSign size={13} /> {item.label}</p>
-                                                {resp?.checked ? (
-                                                  <p className="text-[12px] text-emerald-600">✓ {resp.text_value}</p>
-                                                ) : (
-                                                  <div className="space-y-1.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                                    <select value={opsForm[item.id]?.shift || 'AM'} onChange={e => setOpsField(item.id, 'shift', e.target.value)} className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200">
-                                                      <option value="AM">AM Shift</option>
-                                                      <option value="PM">PM Shift</option>
-                                                      <option value="Overnight">Overnight</option>
-                                                    </select>
-                                                    <div className="flex gap-1.5">
-                                                      <input type="number" value={opsForm[item.id]?.cash_total || ''} onChange={e => setOpsField(item.id, 'cash_total', e.target.value)} placeholder="Cash total ($)" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                      <input type="number" value={opsForm[item.id]?.card_total || ''} onChange={e => setOpsField(item.id, 'card_total', e.target.value)} placeholder="Card total ($)" className="flex-1 bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
+                                                  )}
+                                                </div>
+                                              )}
+                                              {item.item_type === 'bank_count' && (
+                                                <div className="flex-1">
+                                                  {resp?.checked ? (
+                                                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                                                      <p className="text-[12px] font-bold text-emerald-700">✓ Cash Counted</p>
+                                                      {resp.text_value && <p className="text-[11px] text-emerald-600 mt-0.5">{resp.text_value}</p>}
                                                     </div>
-                                                    <input type="number" value={opsForm[item.id]?.room_charges || ''} onChange={e => setOpsField(item.id, 'room_charges', e.target.value)} placeholder="Room charges ($)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                    <input value={opsForm[item.id]?.discrepancies || ''} onChange={e => setOpsField(item.id, 'discrepancies', e.target.value)} placeholder="Discrepancies (optional)" className="w-full bg-white rounded-lg px-3 py-2 text-[13px] border border-gray-200" />
-                                                    <button onClick={() => handleBankCount(myInst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Log Drawer Count</button>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-
-                                      <button onClick={() => handleComplete(myInst.id)} disabled={submitting} className="w-full mt-3 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50 flex items-center justify-center gap-2" style={{ backgroundColor: TEAL }}>
-                                        <Save size={16} /> Mark All Complete
-                                      </button>
-                                    </div>
-                                  )}
-
-                                  {completedInst && (
-                                    <p className="text-[11px] text-emerald-600 mt-1">✓ Completed {completedInst.completed_at ? new Date(completedInst.completed_at).toLocaleTimeString() : ''}</p>
-                                  )}
+                                                  ) : (
+                                                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
+                                                      <div className="flex items-center justify-between">
+                                                        <p className="text-[12px] font-bold text-gray-700">💵 {item.label}</p>
+                                                        <select value={opsForm[item.id]?.shift || inst.shift || 'AM'} onChange={e => setOpsField(item.id, 'shift', e.target.value)} className="text-[11px] bg-white border border-gray-200 rounded-lg px-2 py-1">
+                                                          <option value="AM">AM</option>
+                                                          <option value="PM">PM</option>
+                                                          <option value="Night">Night</option>
+                                                        </select>
+                                                      </div>
+                                                      <div className="grid grid-cols-2 gap-1.5">
+                                                        {DENOMS.map(d => (
+                                                          <div key={d.key} className="flex items-center gap-1.5 bg-white border border-gray-100 rounded-lg px-2 py-1.5">
+                                                            <span className="text-[10px] text-gray-500 flex-1">{d.label}</span>
+                                                            <input
+                                                              type="number" min="0" step="any"
+                                                              value={opsForm[item.id]?.[d.key] || ''}
+                                                              onChange={e => setOpsField(item.id, d.key, e.target.value)}
+                                                              placeholder="0"
+                                                              className="w-16 text-right bg-transparent text-[12px] font-mono outline-none"
+                                                            />
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                      <div className="flex gap-2">
+                                                        <div className="flex-1 bg-white border border-gray-100 rounded-lg px-2 py-1.5">
+                                                          <p className="text-[9px] text-gray-400 uppercase">Paid Out</p>
+                                                          <input type="number" min="0" step="any" value={opsForm[item.id]?.paid_out || ''} onChange={e => setOpsField(item.id, 'paid_out', e.target.value)} placeholder="0" className="w-full text-[12px] font-mono bg-transparent outline-none" />
+                                                        </div>
+                                                        <div className="flex-1 bg-white border border-gray-100 rounded-lg px-2 py-1.5">
+                                                          <p className="text-[9px] text-gray-400 uppercase">Petty Cash</p>
+                                                          <input type="number" min="0" step="any" value={opsForm[item.id]?.petty_cash || ''} onChange={e => setOpsField(item.id, 'petty_cash', e.target.value)} placeholder="0" className="w-full text-[12px] font-mono bg-transparent outline-none" />
+                                                        </div>
+                                                      </div>
+                                                      <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 flex items-center justify-between">
+                                                        <span className="text-[12px] font-bold text-gray-700">Total</span>
+                                                        <span className="text-[16px] font-black text-gray-900">${calcDrawerTotal(opsForm[item.id] || {}).toFixed(2)}</span>
+                                                      </div>
+                                                      <input value={opsForm[item.id]?.discrepancies || ''} onChange={e => setOpsField(item.id, 'discrepancies', e.target.value)} placeholder="Discrepancies (optional)" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px]" />
+                                                      <input value={opsForm[item.id]?.notes || ''} onChange={e => setOpsField(item.id, 'notes', e.target.value)} placeholder="Notes (optional)" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px]" />
+                                                      <button onClick={() => handleBankCount(inst.id, item.id)} disabled={submitting} className="w-full py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>Submit Cash Count</button>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                        {inst.status !== 'completed' && (
+                                          <button
+                                            onClick={() => handleComplete(inst.id)}
+                                            disabled={submitting}
+                                            className="w-full mt-2 py-2.5 rounded-xl text-white text-[13px] font-bold disabled:opacity-50"
+                                            style={{ backgroundColor: TEAL }}
+                                          >
+                                            Mark All Complete
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               );
                             })}
@@ -856,45 +1200,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
             </>
           )}
         </>
-      )}
-
-      {/* New template modal */}
-      {showNew && isAdmin && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowNew(false)}>
-          <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[15px] font-bold">New To-Do Template</h2>
-              <button onClick={() => setShowNew(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
-            </div>
-            <p className="text-[12px] text-gray-500 mb-4">Create a custom checklist for a position. Add items after creating — or install a ready-made template from the Library.</p>
-            <div className="space-y-3">
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">Name</label>
-                <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Morning Shift Checklist" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" autoFocus />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">Description (optional)</label>
-                <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="e.g. Tasks for front desk morning shift" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100" />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">Department</label>
-                <select value={newDept} onChange={e => setNewDept(e.target.value)} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100">
-                  {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">Assigned Position</label>
-                <select value={newPos} onChange={e => setNewPos(e.target.value)} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100">
-                  {POSITIONS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-                </select>
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={createTemplate} disabled={submitting || !newName.trim()} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{submitting ? 'Saving…' : 'Create'}</button>
-                <button onClick={() => setShowNew(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

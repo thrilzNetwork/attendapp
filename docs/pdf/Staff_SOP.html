@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/>
+<style>@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+
+@page {
+  size: A4;
+  margin: 20mm 18mm 25mm 18mm;
+  @bottom-center {
+    content: "ATTENDA  ·  Confidential  ·  Do Not Distribute  ·  " counter(page);
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 8pt;
+    color: #9b6070;
+    letter-spacing: 0.08em;
+  }
+}
+
+@page :first {
+  @bottom-center { content: ""; }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.5pt;
+  color: #1a1a2e;
+  line-height: 1.6;
+  background: white;
+}
+
+/* ── COVER ── */
+.cover {
+  page: cover;
+  min-height: 260mm;
+  background: linear-gradient(160deg, #7B1C3E 0%, #3d0e1f 55%, #1a0810 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60pt 50pt;
+  border-radius: 4pt;
+}
+
+@page cover { margin: 0; @bottom-center { content: ""; } }
+
+.cover-logo {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 11pt;
+  letter-spacing: 0.5em;
+  color: #e8c0cd;
+  text-transform: uppercase;
+  margin-bottom: 28pt;
+}
+
+.cover h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 30pt;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  margin-bottom: 10pt;
+}
+
+.cover .subtitle {
+  font-size: 10pt;
+  letter-spacing: 0.35em;
+  color: #f0b8cb;
+  text-transform: uppercase;
+  margin-bottom: 30pt;
+}
+
+.cover .role-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.12);
+  border: 1pt solid rgba(255,255,255,0.3);
+  border-radius: 20pt;
+  padding: 6pt 20pt;
+  font-size: 9.5pt;
+  color: #fce8ef;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 50pt;
+}
+
+.cover .divider {
+  width: 60pt;
+  height: 1pt;
+  background: rgba(255,255,255,0.3);
+  margin: 0 auto 30pt;
+}
+
+.cover .meta {
+  font-size: 8.5pt;
+  color: #c49aaa;
+  line-height: 1.8;
+  letter-spacing: 0.05em;
+}
+
+/* ── QUICK REF BOX ── */
+.quick-ref {
+  background: #fdf0f4;
+  border-left: 4pt solid #7B1C3E;
+  border-radius: 3pt;
+  padding: 14pt 18pt;
+  margin: 16pt 0 22pt;
+}
+
+.quick-ref-title {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #7B1C3E;
+  margin-bottom: 10pt;
+}
+
+/* ── SECTION HEADER ── */
+h1.section {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 16pt;
+  font-weight: 700;
+  color: #7B1C3E;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 28pt 0 4pt;
+  padding-bottom: 6pt;
+  border-bottom: 2pt solid #7B1C3E;
+  page-break-after: avoid;
+}
+
+h2.sub {
+  font-family: 'Source Sans Pro', sans-serif;
+  font-size: 11.5pt;
+  font-weight: 700;
+  color: #3d0e1f;
+  margin: 16pt 0 6pt;
+  page-break-after: avoid;
+}
+
+h3.sub2 {
+  font-size: 10pt;
+  font-weight: 700;
+  color: #5a1028;
+  margin: 12pt 0 4pt;
+  page-break-after: avoid;
+}
+
+/* ── TABLES ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10pt 0 16pt;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+thead tr {
+  background: #7B1C3E;
+  color: white;
+}
+
+thead th {
+  padding: 7pt 10pt;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 9pt;
+}
+
+tbody tr:nth-child(odd)  { background: #ffffff; }
+tbody tr:nth-child(even) { background: #fdf0f4; }
+
+tbody td {
+  padding: 6pt 10pt;
+  border-bottom: 0.5pt solid #e8d0d8;
+  vertical-align: top;
+}
+
+/* ── CODE / EXAMPLE BLOCKS ── */
+pre, code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 8.5pt;
+}
+
+pre {
+  background: #1a1a2e;
+  color: #e8f4f8;
+  padding: 12pt 14pt;
+  border-radius: 4pt;
+  margin: 10pt 0 16pt;
+  white-space: pre-wrap;
+  page-break-inside: avoid;
+}
+
+/* ── CALLOUT / TIP ── */
+blockquote {
+  background: #fff8e7;
+  border-left: 3pt solid #d4a017;
+  padding: 8pt 14pt;
+  margin: 8pt 0 14pt;
+  font-size: 9.5pt;
+  color: #5a4010;
+  border-radius: 0 3pt 3pt 0;
+}
+
+blockquote strong {
+  color: #7a5500;
+}
+
+/* WARNING */
+blockquote.warn {
+  background: #fff0f0;
+  border-left-color: #c0392b;
+  color: #6a1010;
+}
+
+/* ── STEPS ── */
+ol {
+  padding-left: 18pt;
+  margin: 6pt 0 12pt;
+}
+
+ol li {
+  margin-bottom: 5pt;
+  padding-left: 4pt;
+}
+
+ul {
+  padding-left: 16pt;
+  margin: 4pt 0 10pt;
+  list-style: none;
+}
+
+ul li::before {
+  content: "•";
+  color: #7B1C3E;
+  font-weight: bold;
+  margin-right: 6pt;
+}
+
+ul li {
+  margin-bottom: 3pt;
+  padding-left: 4pt;
+}
+
+/* ── HORIZONTAL RULE ── */
+hr {
+  border: none;
+  border-top: 1pt solid #e0c0cc;
+  margin: 14pt 0;
+}
+
+/* ── STATUS PILLS ── */
+.pill {
+  display: inline-block;
+  padding: 2pt 8pt;
+  border-radius: 10pt;
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pill-amber { background: #fff3cd; color: #856404; }
+.pill-blue  { background: #d0e8ff; color: #0a3a6e; }
+.pill-teal  { background: #d0f0ee; color: #0a4a46; }
+.pill-green { background: #d0f0dc; color: #0a4020; }
+.pill-gray  { background: #e8e8e8; color: #555;    }
+
+/* ── TOC ── */
+.toc-row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 0.5pt dotted #c0a0aa;
+  padding: 3pt 0;
+  font-size: 10pt;
+}
+
+.toc-row .toc-num { color: #7B1C3E; font-weight: 700; min-width: 22pt; }
+.toc-row .toc-pg  { color: #9b6070; font-size: 9pt; }
+
+/* ── MISC ── */
+p { margin-bottom: 8pt; }
+
+strong { color: #3d0e1f; }
+
+.page-break { page-break-before: always; }
+
+.label-new {
+  display: inline-block;
+  background: #7B1C3E;
+  color: white;
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 1pt 5pt;
+  border-radius: 3pt;
+  text-transform: uppercase;
+  vertical-align: middle;
+  margin-left: 4pt;
+}
+
+.sop-num {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #9b6070;
+  text-transform: uppercase;
+  margin-bottom: 2pt;
+}
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-logo">✦ Quantum Hospitality Solutions ✦</div>
+  <h1>General Staff SOP</h1>
+  <div class="subtitle">Version 2.0 &nbsp;·&nbsp; Standard Operating Procedures · v2.0</div>
+  <div class="role-badge">Role: All Staff (Non-Management)</div>
+  <div class="divider"></div>
+  <div class="meta">
+    Attenda Platform &nbsp;·&nbsp; Confidential &nbsp;·&nbsp; Do Not Distribute<br/>
+    Issued June 2026 &nbsp;·&nbsp; Quantum Hospitality Solutions
+  </div>
+</div>
+
+<div class="page-break"></div>
+<div class="quick-ref">
+<div class="quick-ref-title">Quick Reference — General Staff Tasks</div>
+<table style="margin:0;">
+<thead><tr><th>Task</th><th>Where</th><th>Time</th></tr></thead>
+<tbody>
+<tr><td>View your schedule</td><td>Schedules tab</td><td>10 sec</td></tr>
+<tr><td>Report a callout</td><td>Callouts tab</td><td>1 min</td></tr>
+<tr><td>Submit KPIs</td><td>KPIs tab</td><td>2 min</td></tr>
+<tr><td>Complete Position To-Dos</td><td>Position To-Dos</td><td>Per task</td></tr>
+<tr><td>Search Right Answers</td><td>Right Answers tab</td><td>30 sec</td></tr>
+<tr><td>Complete training</td><td>Learning &amp; HR</td><td>Per course</td></tr>
+<tr><td>Check leaderboard</td><td>Culture Hub</td><td>30 sec</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-ST-01</div>
+<h1 class="section">Logging In</h1>
+<ol>
+<li>Open a browser on any device → go to <code>attendaapp.com/staff</code>.</li>
+<li>Enter your <strong>email</strong> and <strong>password</strong>. Click <strong>Sign In</strong>.</li>
+</ol>
+<blockquote><strong>First time logging in?</strong> Your manager set a temporary password. Change it: click your name (top-right) → Account Settings → update password → Save.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-ST-02</div>
+<h1 class="section">Viewing Your Schedule</h1>
+<p><strong>Access:</strong> Operations → Schedules</p>
+<ol>
+<li>Click <strong>Schedules</strong> in the Operations section.</li>
+<li>The weekly grid shows the current week — find your name on the left.</li>
+<li>Use ← → to navigate to future or past weeks.</li>
+</ol>
+<blockquote><strong>Published schedules only:</strong> You can only see your schedule after a manager has published it. If blank, ask your manager if the week has been published.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-ST-03</div>
+<h1 class="section">Reporting a Callout</h1>
+<p><strong>Access:</strong> Callouts tab</p>
+<ol>
+<li>Click <strong>Callouts</strong> in the left navigation.</li>
+<li>Click <strong>Report Callout</strong>.</li>
+<li>Fill in: Shift Date, Reason, Notes.</li>
+<li>Click <strong>Submit</strong> — your manager sees it immediately.</li>
+</ol>
+<blockquote class="warn">⚠ <strong>Attenda does not replace calling your manager.</strong> Per hotel policy, also call or text your direct supervisor. Attenda creates the official record.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-ST-04</div>
+<h1 class="section">Submitting KPIs</h1>
+<p><strong>Access:</strong> Operations → KPIs</p>
+<ol>
+<li>Click <strong>KPIs</strong> → click your department's category tab.</li>
+<li>Enter values for each metric in the list.</li>
+<li>Click <strong>Submit</strong> — green checkmark confirms it was saved.</li>
+</ol>
+<blockquote><strong>When:</strong> At the end of your shift or at the time your manager specifies. Each category can only be submitted once per day per person.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-ST-05</div>
+<h1 class="section">Position To-Do Checklist</h1>
+<p><strong>Access:</strong> Operations → Position To-Dos</p>
+<ol>
+<li>Click <strong>Position To-Dos</strong> in Operations.</li>
+<li>Today's checklist for your position loads automatically.</li>
+<li>Complete each task physically, then check it off in Attenda.</li>
+<li>When all items are done, click <strong>Submit Checklist</strong>.</li>
+</ol>
+<blockquote><strong>Each checkbox is timestamped</strong> when you check it — be honest. Do not check off tasks you haven't done.</blockquote>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-ST-06</div>
+<h1 class="section">Right Answers Knowledge Base</h1>
+<p><strong>Access:</strong> Operations → Right Answers</p>
+<h2 class="sub">Searching for an Answer</h2>
+<ol>
+<li>Click <strong>Right Answers</strong> → type keywords in the search bar.</li>
+<li>Matching KB articles appear ranked by relevance.</li>
+<li>Read the <strong>Approved Response</strong> and use it as your guide.</li>
+</ol>
+<h2 class="sub">Getting an AI Suggestion</h2>
+<ol>
+<li>If no KB article matches, click <strong>Get AI Suggestion</strong>.</li>
+<li>Wait 2–5 seconds — a suggested professional response appears.</li>
+<li>Use as a starting point and adapt to your specific situation.</li>
+</ol>
+<blockquote><strong>AI suggestions are not official policy.</strong> If unsure, escalate to a manager before responding to the guest.</blockquote>
+<h2 class="sub">Submitting a Suggestion</h2>
+<ol>
+<li>Click <strong>Suggest Answer</strong> on the search results screen.</li>
+<li>Describe the situation and your suggested response → Submit.</li>
+<li>A manager will review and approve for the knowledge base.</li>
+</ol>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-ST-07</div>
+<h1 class="section">Learning & HR</h1>
+<p><strong>Access:</strong> Learning &amp; HR tab</p>
+<h2 class="sub">Completing a Course</h2>
+<ol>
+<li>Click <strong>Learning &amp; HR</strong> → <strong>Courses</strong> tab.</li>
+<li>Open an assigned course → read each module in order.</li>
+<li>Complete the <strong>Quiz</strong> (multiple choice, 80% to pass).</li>
+<li>Certificate of Completion is issued automatically.</li>
+</ol>
+<blockquote><strong>Failed the quiz?</strong> Review the modules and retake it — no limit on attempts.</blockquote>
+<h2 class="sub">Acknowledging HR Documents</h2>
+<ol>
+<li>In Learning &amp; HR → <strong>Documents</strong> tab.</li>
+<li>Open documents marked <strong>"Requires Acknowledgement"</strong>.</li>
+<li>Read, then click <strong>I Acknowledge</strong>.</li>
+</ol>
+
+<div class="page-break"></div>
+<div class="sop-num">SOP-ST-08</div>
+<h1 class="section">Culture Hub</h1>
+<p><strong>Access:</strong> Operations → Culture Hub</p>
+<h2 class="sub">Points &amp; Leaderboard</h2>
+<p>Monthly points ranking across all staff. Points earned via: KPI submissions on time, training completions, guest commendations, attendance &amp; punctuality. Resets each month.</p>
+<ol>
+<li>Click <strong>Culture Hub</strong> → <strong>Leaderboard</strong> tab — see your rank and points.</li>
+</ol>
+<h2 class="sub">Redeeming Rewards</h2>
+<ol>
+<li>Click the <strong>Rewards</strong> tab → browse catalog (shows point cost per reward).</li>
+<li>Click <strong>Redeem</strong> on a reward you can afford.</li>
+<li>Your manager reviews and approves or denies the request.</li>
+</ol>
+<h2 class="sub">Team Events</h2>
+<ol>
+<li>Click the <strong>Events</strong> tab — upcoming team meetings and events listed here.</li>
+<li>RSVP if the event has an attendance option.</li>
+</ol>
+
+</body></html>

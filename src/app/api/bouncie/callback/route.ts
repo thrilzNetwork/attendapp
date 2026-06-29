@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exchangeBouncieCode, getActiveBouncieToken, listBouncieVehicles } from '@/lib/bouncie';
+import { exchangeBouncieCode, getActiveBouncieToken, listBouncieVehicles, normalizeBouncieVehicle } from '@/lib/bouncie';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET(req: NextRequest) {
@@ -39,33 +39,33 @@ export async function GET(req: NextRequest) {
     try {
       const accessToken = await getActiveBouncieToken(hotelId);
       const vehicles = await listBouncieVehicles(accessToken);
-      for (const v of vehicles) {
-        if (!v.deviceId) continue;
+      for (const raw of vehicles) {
+        const v = normalizeBouncieVehicle(raw);
+        if (!v) continue;
         await db.from('bouncie_devices').upsert(
           {
             hotel_id: hotelId,
             device_id: v.deviceId,
-            vehicle_name: v.name || '',
-            vin: v.vin || '',
-            imei: v.imei || '',
+            vehicle_name: v.name,
+            vin: raw.vin || '',
+            imei: raw.imei || '',
             is_active: true,
             is_shuttle: true,
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'hotel_id,device_id' }
         );
-        const gps = v.stats?.gps;
-        if (gps?.lat !== undefined && gps?.lng !== undefined && gps.dt) {
+        if (v.gps) {
           await db.from('bouncie_locations').upsert(
             {
               device_id: v.deviceId,
               hotel_id: hotelId,
-              lat: gps.lat,
-              lng: gps.lng,
-              speed_mph: gps.speed || 0,
-              heading: gps.heading || 0,
-              accuracy: gps.accuracy || 0,
-              recorded_at: gps.dt,
+              lat: v.gps.lat,
+              lng: v.gps.lng,
+              speed_mph: v.gps.speed,
+              heading: v.gps.heading,
+              accuracy: v.gps.accuracy,
+              recorded_at: v.gps.recordedAt,
               received_at: new Date().toISOString(),
             },
             { onConflict: 'device_id' }

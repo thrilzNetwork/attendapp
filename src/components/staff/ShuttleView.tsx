@@ -7,12 +7,14 @@ import {
   getAllShuttleSlotsForHotel, createShuttleSlot, deleteShuttleSlot,
   bookShuttleSlot, cancelShuttleBooking,
   getShuttleRequests, createShuttleRequest, updateShuttleRequest,
-  getPartners,
-  type ShuttleRoute, type ShuttleSlot, type ShuttleBooking, type ShuttleRequest, type Partner,
+  subscribeToShuttleRequests,
+  getPartners, supabase,
+  getStaffSchedulesRange,
+  type ShuttleRoute, type ShuttleSlot, type ShuttleBooking, type ShuttleRequest, type Partner, type StaffAccount,
 } from '@/lib/supabase';
-import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, Timer } from 'lucide-react';
+import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, User, Car, CreditCard, ExternalLink } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
 
-// Haversine distance in miles (client-side copy)
 function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 3958.8;
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -26,12 +28,18 @@ const TEAL = '#0D9488';
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAYS_FULL  = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-type Tab = 'runs' | 'requests' | 'setup';
+type Tab = 'today' | 'requests' | 'setup';
+type DispatchType = 'arrival' | 'departure';
 
-interface Props { hotelId: string; isAdmin: boolean; staffName?: string; }
+interface Props { hotelId: string; isAdmin: boolean; staffName?: string; staffList?: StaffAccount[]; }
 
 function todayStr() {
   const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function tomorrowStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 function todayDow() { return new Date().getDay(); }
@@ -43,20 +51,48 @@ function fmt(t?: string | null) {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')}${ampm}`;
 }
 
-function getTodaySlots(slots: ShuttleSlot[]) {
-  const today = todayStr();
-  const dow   = todayDow();
+function hourLabel(h: number) {
+  const ampm = h >= 12 ? 'pm' : 'am';
+  return `${h % 12 || 12}${ampm}`;
+}
+
+function getReqHour(r: ShuttleRequest): number | null {
+  if (!r.time) return null;
+  return parseInt(r.time.split(':')[0]);
+}
+
+function nextAvailableHour(): string {
+  const now = new Date();
+  let h = now.getHours() + 1;
+  if (h > 23) h = 23;
+  return `${String(h).padStart(2, '0')}:00`;
+}
+
+function getSlotsForDate(slots: ShuttleSlot[], date: string) {
+  const dow = new Date(date + 'T12:00:00').getDay();
   return slots
-    .filter(s => (s.date === today) || (!s.date && Array.isArray(s.days_of_week) && s.days_of_week.includes(dow)))
+    .filter(s => (s.date === date) || (!s.date && Array.isArray(s.days_of_week) && s.days_of_week.includes(dow)))
     .sort((a, b) => (a.departure_time || '').localeCompare(b.departure_time || ''));
 }
 
+const statusColors: Record<string, string> = {
+  pending:     'bg-amber-50 text-amber-700 border-amber-200',
+  assigned:    'bg-blue-50 text-blue-700 border-blue-200',
+  in_progress: 'bg-teal-50 text-teal-700 border-teal-200',
+  completed:   'bg-emerald-50 text-emerald-700 border-emerald-200',
+  cancelled:   'bg-gray-100 text-gray-400 border-gray-200',
+};
+
+const statusBorder: Record<string, string> = {
+  pending:     'border-l-amber-400',
+  assigned:    'border-l-blue-400',
+  in_progress: 'border-l-teal-400',
+  completed:   'border-l-emerald-300',
+  cancelled:   'border-l-gray-200',
+};
+
 /* ── Inline booking form per slot ── */
-function SlotRow({
-  slot, isAdmin, onRefresh,
-}: {
-  slot: ShuttleSlot; isAdmin: boolean; onRefresh: () => void;
-}) {
+function SlotRow({ slot, isAdmin, onRefresh }: { slot: ShuttleSlot; isAdmin: boolean; onRefresh: () => void; }) {
   const [open,       setOpen]       = useState(false);
   const [bookings,   setBookings]   = useState<ShuttleBooking[]>([]);
   const [showAdd,    setShowAdd]    = useState(false);
@@ -67,17 +103,16 @@ function SlotRow({
   const loadBookings = useCallback(async () => {
     const { getShuttleBookings } = await import('@/lib/supabase');
     const b = await getShuttleBookings(slot.id);
-    const active = b.filter(bk => bk.status !== 'cancelled');
-    setBookings(active);
+    setBookings(b.filter(bk => bk.status !== 'cancelled'));
   }, [slot.id]);
 
   useEffect(() => { if (open) loadBookings(); }, [open, loadBookings]);
 
-  const totalPax  = bookings.reduce((s, b) => s + (b.pax || 1), 0);
-  const capacity  = slot.capacity || 0;
-  const pct       = capacity > 0 ? Math.min(100, Math.round((totalPax / capacity) * 100)) : 0;
-  const isFull    = capacity > 0 && totalPax >= capacity;
-  const price     = slot.override_price ?? slot.route_price ?? 0;
+  const totalPax = bookings.reduce((s, b) => s + (b.pax || 1), 0);
+  const capacity = slot.capacity || 0;
+  const pct      = capacity > 0 ? Math.min(100, Math.round((totalPax / capacity) * 100)) : 0;
+  const isFull   = capacity > 0 && totalPax >= capacity;
+  const price    = slot.override_price ?? slot.route_price ?? 0;
 
   const handleAdd = async () => {
     if (!form.guest_name.trim() || !form.room_number.trim()) return;
@@ -102,7 +137,6 @@ function SlotRow({
 
   return (
     <div className={`border-b border-gray-100 last:border-0 ${isFull ? 'opacity-60' : ''}`}>
-      {/* Slot header row */}
       <button onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors text-left">
         <div className="flex items-center gap-3">
@@ -132,7 +166,6 @@ function SlotRow({
         </div>
       </button>
 
-      {/* Expanded: bookings list + add form */}
       {open && (
         <div className="px-5 pb-4 space-y-3 bg-gray-50">
           {bookings.length === 0 ? (
@@ -155,7 +188,6 @@ function SlotRow({
               ))}
             </div>
           )}
-
           {!isFull && (
             showAdd ? (
               <div className="bg-white rounded-xl border border-teal-100 p-3 space-y-2">
@@ -192,11 +224,7 @@ function SlotRow({
 
 /* ── Route card with destination coords editor ── */
 function RouteCard({ route, slots, onDelete, onDeleteSlot, onSaved }: {
-  route: ShuttleRoute;
-  slots: ShuttleSlot[];
-  onDelete: () => void;
-  onDeleteSlot: (id: string) => void;
-  onSaved: () => void;
+  route: ShuttleRoute; slots: ShuttleSlot[]; onDelete: () => void; onDeleteSlot: (id: string) => void; onSaved: () => void;
 }) {
   const [editDest, setEditDest] = useState(false);
   const [destAddr, setDestAddr] = useState(route.destination_address || '');
@@ -206,17 +234,14 @@ function RouteCard({ route, slots, onDelete, onDeleteSlot, onSaved }: {
   const [msg,      setMsg]      = useState('');
 
   const handleSaveDest = async () => {
-    setSaving(true);
-    setMsg('');
+    setSaving(true); setMsg('');
     try {
       await updateShuttleRoute(route.id, {
         destination_address: destAddr.trim() || undefined,
         destination_lat: destLat ? parseFloat(destLat) : undefined,
         destination_lng: destLng ? parseFloat(destLng) : undefined,
       });
-      setMsg('✅ Saved');
-      setEditDest(false);
-      onSaved();
+      setMsg('✅ Saved'); setEditDest(false); onSaved();
     } catch { setMsg('❌ Failed to save'); }
     setSaving(false);
   };
@@ -232,7 +257,6 @@ function RouteCard({ route, slots, onDelete, onDeleteSlot, onSaved }: {
           <Trash2 size={14} />
         </button>
       </div>
-
       {slots.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {slots.map(s => (
@@ -245,8 +269,6 @@ function RouteCard({ route, slots, onDelete, onDeleteSlot, onSaved }: {
           ))}
         </div>
       )}
-
-      {/* Destination / GPS section */}
       <div className="border-t border-gray-100 pt-3">
         {!editDest ? (
           <div className="flex items-center justify-between">
@@ -267,30 +289,19 @@ function RouteCard({ route, slots, onDelete, onDeleteSlot, onSaved }: {
         ) : (
           <div className="space-y-2">
             <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Destination Coordinates</p>
-            <input
-              value={destAddr}
-              onChange={e => setDestAddr(e.target.value)}
+            <input value={destAddr} onChange={e => setDestAddr(e.target.value)}
               placeholder="e.g. Miami International Airport"
-              className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100"
-            />
+              className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100" />
             <div className="flex gap-2">
               <div className="flex-1">
                 <label className="text-[10px] text-gray-400 block mb-0.5">Latitude</label>
-                <input
-                  type="number" step="0.0001" value={destLat}
-                  onChange={e => setDestLat(e.target.value)}
-                  placeholder="25.7959"
-                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 font-mono"
-                />
+                <input type="number" step="0.0001" value={destLat} onChange={e => setDestLat(e.target.value)}
+                  placeholder="25.7959" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 font-mono" />
               </div>
               <div className="flex-1">
                 <label className="text-[10px] text-gray-400 block mb-0.5">Longitude</label>
-                <input
-                  type="number" step="0.0001" value={destLng}
-                  onChange={e => setDestLng(e.target.value)}
-                  placeholder="-80.2870"
-                  className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 font-mono"
-                />
+                <input type="number" step="0.0001" value={destLng} onChange={e => setDestLng(e.target.value)}
+                  placeholder="-80.2870" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 font-mono" />
               </div>
             </div>
             <p className="text-[10px] text-gray-400">Find coords: Google Maps → right-click location → copy lat/lng</p>
@@ -312,8 +323,9 @@ function RouteCard({ route, slots, onDelete, onDeleteSlot, onSaved }: {
 }
 
 /* ── Main ShuttleView ── */
-export default function ShuttleView({ hotelId, isAdmin }: Props) {
-  const [tab,      setTab]      = useState<Tab>('runs');
+export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props) {
+  const [tab,      setTab]      = useState<Tab>('today');
+  const [viewDate, setViewDate] = useState(todayStr());
   const [routes,   setRoutes]   = useState<ShuttleRoute[]>([]);
   const [slots,    setSlots]    = useState<ShuttleSlot[]>([]);
   const [requests, setRequests] = useState<ShuttleRequest[]>([]);
@@ -321,26 +333,145 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
   const [shuttlePos, setShuttlePos] = useState<{ lat: number; lng: number; speed_mph: number } | null>(null);
+  const [todayDrivers, setTodayDrivers] = useState<{ id: string; name: string; start_time: string; end_time?: string }[]>([]);
+  const [reassigningId, setReassigningId] = useState<string | null>(null);
+  const [reassignDriverId, setReassignDriverId] = useState('');
 
-  // Setup state — one wizard for creating the whole schedule
+  // Dispatch sheet state
+  const [showDispatch, setShowDispatch] = useState(false);
+  const [dispatchType, setDispatchType] = useState<DispatchType>('arrival');
+  const [dispatchForm, setDispatchForm] = useState({
+    guest_name: '', room_number: '', pax: 1, pickup_location: '', destination: '',
+    date: todayStr(), time: nextAvailableHour(), notes: '', driver_id: '',
+    bookingMethod: 'shuttle' as 'shuttle' | 'taxicaller',
+    guestPhone: '',
+  });
+  const [dispatching, setDispatching] = useState(false);
+  const [dispatchDone, setDispatchDone] = useState(false);
+
+  // TaxiCaller quote + booking state (staff New Trip form)
+  type TCQuote = { quoteId: string; base_fare_cents: number; surcharge_cents: number; total_cents: number; estimated_mins: number };
+  type TCConfirm = { driver_name: string; driver_phone: string; vehicle_plate: string; tracking_url: string };
+  const [tcStep, setTcStep] = useState<'form' | 'quote' | 'paying' | 'done'>('form');
+  const [tcQuote, setTcQuote] = useState<TCQuote | null>(null);
+  const [tcConfirm, setTcConfirm] = useState<TCConfirm | null>(null);
+  const [tcError, setTcError] = useState('');
+
+  const fmtCents = (c: number) => `$${(c / 100).toFixed(2)}`;
+
+  const resetTC = () => { setTcStep('form'); setTcQuote(null); setTcConfirm(null); setTcError(''); };
+
+  const handleTCGetQuote = async () => {
+    const { guest_name, room_number, pickup_location, destination, date, time, pax } = dispatchForm;
+    if (!guest_name.trim() || !room_number.trim() || !destination.trim()) {
+      setTcError('Please fill in guest name, room, and destination.'); return;
+    }
+    setTcError(''); setDispatching(true);
+    try {
+      const pickupTime = new Date(`${date}T${time || '12:00'}`).toISOString();
+      const res = await fetch('/api/taxicaller/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pickup: pickup_location || 'Hotel Lobby', destination, pax, pickupTime }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Quote failed');
+      setTcQuote(data);
+      setTcStep('quote');
+    } catch (e) { setTcError(e instanceof Error ? e.message : 'Quote failed'); }
+    setDispatching(false);
+  };
+
+  const handleTCConfirmPay = async () => {
+    if (!tcQuote) return;
+    setTcError(''); setDispatching(true); setTcStep('paying');
+    try {
+      const { guest_name, room_number, pax, pickup_location, destination, date, time, notes, guestPhone } = dispatchForm;
+
+      // 1. Create shuttle_request record
+      const req = await createShuttleRequest({
+        hotel_id: hotelId,
+        guest_name: guest_name.trim(),
+        room_number: room_number.trim(),
+        pickup_location: pickup_location || 'Hotel Lobby',
+        destination: destination.trim(),
+        date: date || todayStr(),
+        time: time || undefined,
+        pax,
+        notes: notes.trim() || undefined,
+        status: 'pending',
+      });
+      const requestId = req?.id ?? '';
+
+      // 2. Create Stripe PaymentIntent
+      const intentRes = await fetch('/api/stripe/payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId,
+          amountCents: tcQuote.total_cents,
+          partnerId: 'taxicaller',
+          description: `Transport: ${pickup_location || 'Hotel'} → ${destination}`,
+          quoteId: tcQuote.quoteId,
+        }),
+      });
+      const intentData = await intentRes.json();
+
+      // 3. Confirm payment via Stripe.js
+      const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+      if (stripeKey && intentData.clientSecret) {
+        const stripe = await loadStripe(stripeKey);
+        if (stripe) {
+          const { error: stripeError } = await stripe.confirmPayment({
+            clientSecret: intentData.clientSecret,
+            confirmParams: { return_url: window.location.href },
+            redirect: 'if_required',
+          });
+          if (stripeError) throw new Error(stripeError.message);
+        }
+      }
+
+      // 4. Create TaxiCaller booking
+      const bookRes = await fetch('/api/taxicaller/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId,
+          quoteId: tcQuote.quoteId,
+          guestName: guest_name.trim(),
+          guestPhone: guestPhone || undefined,
+          pickup: pickup_location || 'Hotel Lobby',
+          destination: destination.trim(),
+          pickupTime: new Date(`${date}T${time || '12:00'}`).toISOString(),
+          pax,
+          notes: notes.trim() || undefined,
+        }),
+      });
+      const bookData = await bookRes.json();
+      if (!bookData.ok) throw new Error(bookData.error || 'Booking failed');
+
+      setTcConfirm(bookData.booking);
+      setTcStep('done');
+      await load();
+    } catch (e) {
+      setTcError(e instanceof Error ? e.message : 'Booking failed');
+      setTcStep('quote');
+    }
+    setDispatching(false);
+  };
+
+  // Filter state for timeline
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
+  const [filterDir, setFilterDir] = useState<'all' | 'arrival' | 'departure'>('all');
+
+  // Setup wizard state
   const [schedule, setSchedule] = useState({
-    routeName: 'Hotel Shuttle',
-    routeType: 'custom',
-    fromTime:  '06:00',
-    toTime:    '23:00',
-    interval:  60,
-    days:      [0, 1, 2, 3, 4, 5, 6] as number[],
-    capacity:  8,
-    price:     0,
-    vendorId:  '',
+    routeName: 'Hotel Shuttle', routeType: 'custom',
+    fromTime: '06:00', toTime: '23:00', interval: 60,
+    days: [0, 1, 2, 3, 4, 5, 6] as number[], capacity: 8, price: 0, vendorId: '',
   });
   const [setupSaving, setSetupSaving] = useState(false);
   const [setupMsg,    setSetupMsg]    = useState<string | null>(null);
-
-  // Custom request form
-  const [reqForm,   setReqForm]   = useState({ guest_name: '', room_number: '', destination: '', date: todayStr(), time: '', pax: 1, notes: '' });
-  const [reqSaving, setReqSaving] = useState(false);
-  const [reqDone,   setReqDone]   = useState(false);
 
   const load = useCallback(async () => {
     if (!hotelId) return;
@@ -357,7 +488,6 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
       setSlots(s);
       setRequests(req);
       setPartners(p.filter(p => p.category === 'transport' || p.category === 'transportation'));
-      // Extract ETA from first shuttle device
       const shuttle = (vehRes.devices || []).find((d: { is_shuttle: boolean }) => d.is_shuttle) || (vehRes.devices || [])[0];
       const loc = shuttle?.bouncie_locations?.[0];
       setShuttlePos(loc ? { lat: loc.lat, lng: loc.lng, speed_mph: loc.speed_mph ?? 0 } : null);
@@ -365,40 +495,110 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
     setLoading(false);
   }, [hotelId]);
 
+  // Load today's driver schedules
+  useEffect(() => {
+    if (!hotelId) return;
+    const today = todayStr();
+    getStaffSchedulesRange(hotelId, today, today).then(schedules => {
+      const driverSchedules = schedules.filter(s => {
+        const staff = staffList.find(st => st.name === s.staff_name);
+        return staff?.department === 'drivers' || staff?.role === 'driver' || s.role === 'driver';
+      });
+      setTodayDrivers(driverSchedules.map(s => ({
+        id: s.id, name: s.staff_name,
+        start_time: s.start_time, end_time: s.end_time,
+      })));
+    }).catch(() => {});
+  }, [hotelId, staffList]);
+
   useEffect(() => { load(); }, [load]);
 
-  const todaySlots = getTodaySlots(slots);
+  useEffect(() => {
+    if (!hotelId) return;
+    const ch = subscribeToShuttleRequests(hotelId, load);
+    return () => { supabase.removeChannel(ch); };
+  }, [hotelId, load]);
 
-  // Generate a full schedule from wizard
+  const todaySlots = getSlotsForDate(slots, viewDate);
+  // Active = today's pending/in-progress only — future bookings don't count as active yet
+  const pendingReqs = requests.filter(r =>
+    (r.status === 'pending' || r.status === 'assigned' || r.status === 'in_progress') &&
+    r.date === todayStr()
+  );
+  // All upcoming pending (for Requests tab badge — includes future dates)
+  const allPendingReqs = requests.filter(r =>
+    (r.status === 'pending' || r.status === 'assigned' || r.status === 'in_progress') &&
+    (r.date || todayStr()) >= todayStr()
+  );
+
+  // Pickup / dropoff presets
+  const ARRIVAL_PICKUPS = ['Terminal 1', 'Terminal 2', 'Terminal 3', 'Terminal 4', 'Cruise Terminal', 'Port Everglades', 'Curbside', 'Other'];
+  const DEPARTURE_DROPOFFS = ['MIA – Miami Intl', 'FLL – Fort Lauderdale', 'Port Everglades', 'Other'];
+
+  const resetDispatch = () => {
+    setDispatchForm({ guest_name: '', room_number: '', pax: 1, pickup_location: '', destination: '', date: todayStr(), time: nextAvailableHour(), notes: '', driver_id: '', bookingMethod: 'shuttle', guestPhone: '' });
+    setDispatchType('arrival');
+    setDispatchDone(false);
+    resetTC();
+  };
+
+  const handleDispatchSubmit = async () => {
+    const { guest_name, room_number, pax, pickup_location, destination, time, notes, driver_id } = dispatchForm;
+    if (!guest_name.trim() || !room_number.trim()) return;
+    setDispatching(true);
+    try {
+      const pickup = dispatchType === 'arrival' ? pickup_location : 'Hotel Lobby';
+      const dest   = dispatchType === 'departure' ? destination : 'Hotel';
+      await createShuttleRequest({
+        hotel_id: hotelId,
+        guest_name: guest_name.trim(),
+        room_number: room_number.trim(),
+        pickup_location: pickup,
+        destination: dest,
+        date: dispatchForm.date || todayStr(),
+        time: time || undefined,
+        pax,
+        notes: notes.trim(),
+        status: driver_id ? 'assigned' : 'pending',
+        assigned_driver_id: driver_id || undefined,
+      });
+      setDispatchDone(true);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Dispatch failed');
+    }
+    setDispatching(false);
+  };
+
+  const handleUpdateRequest = async (id: string, status: string) => {
+    await updateShuttleRequest(id, { status: status as ShuttleRequest['status'] });
+    await load();
+  };
+
+  const handleReassign = async (id: string) => {
+    await updateShuttleRequest(id, {
+      assigned_driver_id: reassignDriverId || undefined,
+      status: 'assigned',
+    });
+    setReassigningId(null);
+    setReassignDriverId('');
+    await load();
+  };
+
   const handleGenerateSchedule = async () => {
     if (!schedule.routeName.trim() || !schedule.fromTime || !schedule.toTime) return;
     setSetupSaving(true); setSetupMsg(null);
     try {
-      // Create the route
-      const route = await createShuttleRoute({
-        hotel_id: hotelId,
-        name: schedule.routeName.trim(),
-        type: schedule.routeType,
-        price: schedule.price,
-      });
+      const route = await createShuttleRoute({ hotel_id: hotelId, name: schedule.routeName.trim(), type: schedule.routeType, price: schedule.price });
       if (!route) throw new Error('Failed to create route');
-
-      // Generate time slots
       const [fh, fm] = schedule.fromTime.split(':').map(Number);
       const [th, tm] = schedule.toTime.split(':').map(Number);
-      const fromMins = fh * 60 + fm;
-      const toMins   = th * 60 + tm;
+      const fromMins = fh * 60 + fm, toMins = th * 60 + tm;
       let created = 0;
       for (let m = fromMins; m <= toMins; m += schedule.interval) {
         const hh = String(Math.floor(m / 60)).padStart(2, '0');
         const mm = String(m % 60).padStart(2, '0');
-        await createShuttleSlot({
-          route_id: route.id,
-          hotel_id: hotelId,
-          departure_time: `${hh}:${mm}`,
-          days_of_week: schedule.days,
-          capacity: schedule.capacity,
-        });
+        await createShuttleSlot({ route_id: route.id, hotel_id: hotelId, departure_time: `${hh}:${mm}`, days_of_week: schedule.days, capacity: schedule.capacity });
         created++;
       }
       setSetupMsg(`✅ Schedule created — ${created} time slots (${fmt(schedule.fromTime)} – ${fmt(schedule.toTime)})`);
@@ -409,49 +609,26 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
 
   const handleDeleteRoute = async (id: string) => {
     if (!confirm('Delete this route and ALL its time slots?')) return;
-    await deleteShuttleRoute(id);
-    await load();
+    await deleteShuttleRoute(id); await load();
   };
+  const handleDeleteSlot = async (id: string) => { await deleteShuttleSlot(id); await load(); };
 
-  const handleDeleteSlot = async (id: string) => {
-    await deleteShuttleSlot(id);
-    await load();
-  };
+  // Timeline: show requests for the selected view date
+  const todayRequests = requests.filter(r => r.date === viewDate);
+  const filteredRequests = todayRequests.filter(r => {
+    if (filterStatus !== 'all' && r.status !== filterStatus) return false;
+    if (filterDir !== 'all') {
+      const isArrival = !r.destination || r.destination.toLowerCase().includes('hotel');
+      if (filterDir === 'arrival' && !isArrival) return false;
+      if (filterDir === 'departure' && isArrival) return false;
+    }
+    return true;
+  });
 
-  const handleSubmitRequest = async () => {
-    if (!reqForm.guest_name.trim() || !reqForm.room_number.trim() || !reqForm.destination.trim()) return;
-    setReqSaving(true);
-    try {
-      await createShuttleRequest({
-        hotel_id: hotelId,
-        guest_name: reqForm.guest_name.trim(),
-        room_number: reqForm.room_number.trim(),
-        destination: reqForm.destination.trim(),
-        date: reqForm.date || undefined,
-        time: reqForm.time || undefined,
-        pax: reqForm.pax,
-        notes: reqForm.notes.trim(),
-      });
-      setReqDone(true);
-      setReqForm({ guest_name: '', room_number: '', destination: '', date: todayStr(), time: '', pax: 1, notes: '' });
-    } catch (e) { setError(e instanceof Error ? e.message : 'Submit failed'); }
-    setReqSaving(false);
-  };
+  const currentHour = new Date().getHours();
+  const HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 6am–11pm
 
-  const handleUpdateRequest = async (id: string, status: string) => {
-    await updateShuttleRequest(id, { status: status as ShuttleRequest['status'] });
-    await load();
-  };
-
-  const statusColors: Record<string, string> = {
-    pending:     'bg-amber-50 text-amber-700 border-amber-200',
-    assigned:    'bg-blue-50 text-blue-700 border-blue-200',
-    in_progress: 'bg-teal-50 text-teal-700 border-teal-200',
-    completed:   'bg-emerald-50 text-emerald-700 border-emerald-200',
-    cancelled:   'bg-gray-100 text-gray-400 border-gray-200',
-  };
-
-  const pendingReqs = requests.filter(r => r.status === 'pending' || r.status === 'assigned' || r.status === 'in_progress');
+  const driverName = (id: string) => todayDrivers.find(d => d.id === id)?.name || id;
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
@@ -459,15 +636,21 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900 flex items-center gap-2">
-            <Bus size={22} style={{ color: TEAL }} /> Shuttle
+            <Bus size={20} style={{ color: TEAL }} /> Shuttle
           </h1>
-          <p className="text-[13px] text-gray-500">
-            {DAYS_FULL[todayDow()]}, {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-            {todaySlots.length > 0 && <span className="ml-2 text-teal-600 font-semibold">{todaySlots.length} runs today</span>}
-          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-[12px] text-gray-400">
+              {DAYS_FULL[todayDow()]}, {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+            </p>
+            {pendingReqs.length > 0 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200">
+                {pendingReqs.length} active
+              </span>
+            )}
+          </div>
         </div>
-        <button onClick={load} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
-          <RefreshCw size={16} />
+        <button onClick={load} className="p-2 rounded-xl hover:bg-gray-100 text-gray-300 hover:text-gray-500 transition-colors" title="Refresh">
+          <RefreshCw size={15} />
         </button>
       </div>
 
@@ -477,11 +660,18 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
         </div>
       )}
 
+      {/* Quick Dispatch Bar */}
+      <button onClick={() => { resetDispatch(); setShowDispatch(true); }}
+        className="w-full mb-5 py-3.5 rounded-2xl text-white font-bold text-[14px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+        style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.35)' }}>
+        <Plus size={17} strokeWidth={2.5} /> New Trip
+      </button>
+
       {/* Tab bar */}
       <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl">
         {([
-          { key: 'runs',     label: "Today's Runs" },
-          { key: 'requests', label: `Requests${pendingReqs.length > 0 ? ` (${pendingReqs.length})` : ''}` },
+          { key: 'today',    label: 'Today' },
+          { key: 'requests', label: `Requests${allPendingReqs.length > 0 ? ` (${allPendingReqs.length})` : ''}` },
           ...(isAdmin ? [{ key: 'setup', label: '⚙ Setup' }] : []),
         ] as { key: Tab; label: string }[]).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
@@ -497,20 +687,35 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
         </div>
       ) : (
         <>
-          {/* ── TODAY'S RUNS ── */}
-          {tab === 'runs' && (
+          {/* ── TODAY — Hourly Timeline ── */}
+          {tab === 'today' && (
             <div className="space-y-4">
+              {/* Date nav — today by default, staff can browse other days */}
+              <div className="flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3">
+                <button onClick={() => { const d = new Date(viewDate + 'T12:00:00'); d.setDate(d.getDate() - 1); setViewDate(d.toISOString().slice(0, 10)); }}
+                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-[14px]">‹</button>
+                <div className="text-center">
+                  {viewDate === todayStr()
+                    ? <p className="text-[14px] font-extrabold text-gray-900">Today</p>
+                    : <p className="text-[14px] font-extrabold text-gray-900">{new Date(viewDate + 'T12:00:00').toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</p>
+                  }
+                  {viewDate !== todayStr() && (
+                    <button onClick={() => setViewDate(todayStr())} className="text-[10px] text-teal-600 font-bold mt-0.5">Back to Today</button>
+                  )}
+                </div>
+                <button onClick={() => { const d = new Date(viewDate + 'T12:00:00'); d.setDate(d.getDate() + 1); setViewDate(d.toISOString().slice(0, 10)); }}
+                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-[14px]">›</button>
+              </div>
 
-              {/* ── Bouncie Live GPS Widget ── */}
-              <BouncieLiveShuttle hotelId={hotelId} />
+              {/* Live shuttle only shown for today */}
+              {viewDate === todayStr() && <BouncieLiveShuttle hotelId={hotelId} isAdmin={isAdmin} />}
 
-              {/* ── Trip Estimator ── */}
-              {shuttlePos && routes.filter(r => r.destination_lat && r.destination_lng).length > 0 && (
+              {/* Trip estimator — only for today */}
+              {viewDate === todayStr() && shuttlePos && routes.filter(r => r.destination_lat && r.destination_lng).length > 0 && (
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Navigation size={14} style={{ color: TEAL }} />
                     <span className="text-[13px] font-bold text-gray-800">Trip Estimator</span>
-                    <span className="text-[11px] text-gray-400 ml-1">from current shuttle location</span>
                   </div>
                   <div className="space-y-2">
                     {routes.filter(r => r.destination_lat && r.destination_lng).map(route => {
@@ -521,9 +726,7 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                         <div key={route.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2.5">
                           <div>
                             <p className="text-[13px] font-semibold text-gray-900">{route.name}</p>
-                            {route.destination_address && (
-                              <p className="text-[11px] text-gray-400">{route.destination_address}</p>
-                            )}
+                            {route.destination_address && <p className="text-[11px] text-gray-400">{route.destination_address}</p>}
                           </div>
                           <div className="text-right">
                             <p className="text-[14px] font-extrabold" style={{ color: TEAL }}>~{mins} min</p>
@@ -536,134 +739,243 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                 </div>
               )}
 
-              {/* Prompt to add destinations if shuttle is live but no routes have coords */}
-              {shuttlePos && isAdmin && routes.length > 0 && routes.filter(r => r.destination_lat && r.destination_lng).length === 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Timer size={13} className="text-amber-600" />
-                    <span className="text-[12px] font-semibold text-amber-800">Add destination coordinates in Setup to see trip ETAs (airport, cruise port, etc.)</span>
-                  </div>
-                  <button onClick={() => setTab('setup')} className="text-[12px] font-bold text-amber-700 underline ml-2 shrink-0">Setup →</button>
-                </div>
-              )}
-              {todaySlots.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
-                  <Bus size={40} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-[15px] font-semibold text-gray-700 mb-1">No runs scheduled today</p>
-                  {isAdmin && (
-                    <button onClick={() => setTab('setup')} className="mt-2 text-[13px] font-bold text-teal-600 hover:underline">
-                      Set up a schedule →
+              {/* Filters */}
+              <div className="flex gap-2 flex-wrap items-center">
+                <div className="flex gap-0.5 bg-gray-100 p-0.5 rounded-full">
+                  {(['all', 'pending', 'in_progress', 'completed'] as const).map(s => (
+                    <button key={s} onClick={() => setFilterStatus(s)}
+                      className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${filterStatus === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                      {s === 'all' ? 'All' : s === 'in_progress' ? 'En Route' : s.charAt(0).toUpperCase() + s.slice(1)}
                     </button>
-                  )}
-                </div>
-              ) : (
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                  {todaySlots.map(slot => (
-                    <SlotRow key={slot.id} slot={slot} isAdmin={isAdmin} onRefresh={load} />
                   ))}
+                </div>
+                <div className="flex gap-0.5 bg-gray-100 p-0.5 rounded-full">
+                  {(['all', 'arrival', 'departure'] as const).map(d => (
+                    <button key={d} onClick={() => setFilterDir(d)}
+                      className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${filterDir === d ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                      {d === 'all' ? 'All' : d.charAt(0).toUpperCase() + d.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Hourly timeline */}
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                {HOURS.map(h => {
+                  const hourReqs = filteredRequests.filter(r => getReqHour(r) === h);
+                  const isNow = h === currentHour;
+                  return (
+                    <div key={h} className={`flex items-start border-b border-gray-50 last:border-0 ${isNow ? 'bg-teal-50/40' : ''}`}>
+                      {/* Hour label column */}
+                      <div className={`w-14 shrink-0 text-right pr-3 pt-3 pb-3 text-[11px] font-semibold select-none ${isNow ? 'text-teal-600 font-bold' : 'text-gray-300'}`}>
+                        {hourLabel(h)}
+                      </div>
+                      {/* Divider */}
+                      <div className={`w-px self-stretch ${isNow ? 'bg-teal-300' : 'bg-gray-100'}`} />
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 px-3 py-2 space-y-2">
+                        {hourReqs.length === 0 ? (
+                          <div className="h-6 flex items-center">
+                            <div className="w-full h-px bg-gray-100" />
+                          </div>
+                        ) : (
+                          hourReqs.map(r => (
+                            <div key={r.id} className={`rounded-2xl border bg-white shadow-sm border-l-4 px-3 py-2.5 ${statusBorder[r.status] || 'border-l-gray-200'} border-gray-100`}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-[14px] font-bold text-gray-900 leading-snug">{r.guest_name}</p>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${statusColors[r.status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                                      {r.status.replace('_', ' ')}
+                                    </span>
+                                    {r.pax > 1 && <span className="text-[10px] text-gray-400 font-medium">{r.pax} pax</span>}
+                                  </div>
+                                  <p className="text-[11px] text-gray-400 mt-0.5">Rm {r.room_number} · <span className="text-gray-500">{r.pickup_location || '—'} → {r.destination || '—'}</span></p>
+                                  {r.assigned_driver_id && (
+                                    <p className="text-[11px] text-blue-500 font-medium mt-0.5 flex items-center gap-1">
+                                      <User size={10} /> {driverName(r.assigned_driver_id)}
+                                    </p>
+                                  )}
+                                  {r.notes && <p className="text-[11px] text-gray-400 italic mt-0.5">{r.notes}</p>}
+                                </div>
+                              </div>
+                              {r.status !== 'completed' && r.status !== 'cancelled' && (
+                                <div className="mt-2 space-y-1.5">
+                                  <div className="flex gap-1.5 flex-wrap">
+                                    {(r.status === 'pending' || r.status === 'assigned') && (
+                                      <button onClick={() => handleUpdateRequest(r.id, 'in_progress')}
+                                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 hover:bg-teal-100">
+                                        En Route
+                                      </button>
+                                    )}
+                                    <button onClick={() => handleUpdateRequest(r.id, 'completed')}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+                                      ✓ Complete
+                                    </button>
+                                    <button
+                                      onClick={() => { setReassigningId(reassigningId === r.id ? null : r.id); setReassignDriverId(r.assigned_driver_id || ''); }}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 hover:bg-blue-100">
+                                      Reassign
+                                    </button>
+                                    <button onClick={() => handleUpdateRequest(r.id, 'cancelled')}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-gray-50 text-gray-400 hover:bg-gray-100">
+                                      Cancel
+                                    </button>
+                                  </div>
+                                  {reassigningId === r.id && (
+                                    <div className="flex gap-2 items-center bg-blue-50 rounded-xl px-3 py-2">
+                                      <select
+                                        value={reassignDriverId}
+                                        onChange={e => setReassignDriverId(e.target.value)}
+                                        className="flex-1 text-[12px] bg-white border border-blue-200 rounded-lg px-2 py-1.5 outline-none"
+                                      >
+                                        <option value="">— Unassigned —</option>
+                                        {staffList.filter(s => s.active && (s.department === 'drivers' || (s.positions || []).includes('drivers') || s.role === 'driver')).map(s => (
+                                          <option key={s.id} value={s.id}>{s.name}</option>
+                                        ))}
+                                        {staffList.filter(s => s.active && s.department !== 'drivers' && !(s.positions || []).includes('drivers') && s.role !== 'driver').map(s => (
+                                          <option key={s.id} value={s.id}>{s.name} (staff)</option>
+                                        ))}
+                                      </select>
+                                      <button onClick={() => handleReassign(r.id)}
+                                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-600 text-white hover:bg-blue-700">
+                                        Save
+                                      </button>
+                                      <button onClick={() => setReassigningId(null)} className="text-[11px] text-gray-400 px-1">✕</button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Scheduled runs for today */}
+              {todaySlots.length > 0 && (
+                <div>
+                  <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2">Scheduled Runs</h2>
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    {todaySlots.map(slot => (
+                      <SlotRow key={slot.id} slot={slot} isAdmin={isAdmin} onRefresh={load} />
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* Ad-hoc custom request */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-                <h2 className="text-[14px] font-bold mb-3 flex items-center gap-2 text-gray-800">
-                  <MapPin size={14} style={{ color: TEAL }} /> Custom Ride Request
-                </h2>
-                {reqDone ? (
-                  <div className="text-center py-4">
-                    <CheckCircle size={28} className="mx-auto mb-2" style={{ color: TEAL }} />
-                    <p className="text-[13px] font-semibold text-gray-800">Request submitted!</p>
-                    <button onClick={() => setReqDone(false)} className="mt-2 text-[12px] font-bold text-teal-600">+ Another</button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <input value={reqForm.guest_name} onChange={e => setReqForm(f => ({ ...f, guest_name: e.target.value }))}
-                        placeholder="Guest name" className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100" />
-                      <input value={reqForm.room_number} onChange={e => setReqForm(f => ({ ...f, room_number: e.target.value }))}
-                        placeholder="Room" className="w-24 bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 text-center" />
-                    </div>
-                    <input value={reqForm.destination} onChange={e => setReqForm(f => ({ ...f, destination: e.target.value }))}
-                      placeholder="Destination (e.g. MIA Airport)" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100" />
-                    <div className="flex gap-2">
-                      <input type="date" value={reqForm.date} onChange={e => setReqForm(f => ({ ...f, date: e.target.value }))}
-                        className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100" />
-                      <input type="time" value={reqForm.time} onChange={e => setReqForm(f => ({ ...f, time: e.target.value }))}
-                        className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100" />
-                      <input type="number" min={1} value={reqForm.pax} onChange={e => setReqForm(f => ({ ...f, pax: parseInt(e.target.value) || 1 }))}
-                        className="w-16 bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100 text-center" />
-                    </div>
-                    <input value={reqForm.notes} onChange={e => setReqForm(f => ({ ...f, notes: e.target.value }))}
-                      placeholder="Notes (flight #, special needs…)" className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100" />
-                    <button onClick={handleSubmitRequest} disabled={reqSaving || !reqForm.guest_name || !reqForm.room_number || !reqForm.destination}
-                      className="w-full py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                      {reqSaving ? 'Submitting…' : 'Submit Request'}
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
           )}
 
           {/* ── REQUESTS ── */}
           {tab === 'requests' && (
             <div className="space-y-3">
-              {requests.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
-                  <AlertCircle size={40} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-[14px] font-semibold text-gray-600">No shuttle requests</p>
+              {(() => {
+                // Show today + future only — past dates are history, not actionable
+                const upcomingRequests = requests.filter(r => (r.date || todayStr()) >= todayStr());
+                if (upcomingRequests.length === 0) return (
+                  <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
+                    <AlertCircle size={40} className="mx-auto text-gray-300 mb-3" />
+                    <p className="text-[14px] font-semibold text-gray-600">No shuttle requests</p>
                 </div>
-              ) : (
-                requests.map(r => (
-                  <div key={r.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                );
+                return (() => {
+                  const grouped = upcomingRequests.reduce<Record<string, ShuttleRequest[]>>((acc, r) => {
+                    const key = r.date || todayStr();
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(r);
+                    return acc;
+                  }, {});
+                  return Object.keys(grouped).sort().map(date => (
+                    <div key={date}>
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                        {date === todayStr() ? 'Today' : date === tomorrowStr() ? 'Tomorrow' : new Date(date + 'T12:00:00').toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                      </p>
+                      {grouped[date].map(r => (
+                  <div key={r.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden border-l-4 ${statusBorder[r.status] || 'border-l-gray-200'}`}>
+                    <div className="p-4">
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="text-[14px] font-bold text-gray-900">{r.guest_name}</p>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColors[r.status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                          <p className="text-[15px] font-bold text-gray-900">{r.guest_name}</p>
+                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border shrink-0 ${statusColors[r.status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}>
                             {r.status.replace('_', ' ')}
                           </span>
                         </div>
-                        <p className="text-[12px] text-gray-500">Room {r.room_number} · {r.pax} pax</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          <MapPin size={11} className="text-gray-400" />
-                          <p className="text-[12px] text-gray-700 font-medium">{r.destination}</p>
+                        <p className="text-[12px] text-gray-400">Room {r.room_number} · {r.pax} {r.pax === 1 ? 'guest' : 'guests'}</p>
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <MapPin size={11} className="text-gray-300 shrink-0" />
+                          <p className="text-[12px] text-gray-700 font-medium">{r.pickup_location || r.destination}</p>
+                          {r.pickup_location && r.destination && <span className="text-gray-400 text-[11px]">→ {r.destination}</span>}
                         </div>
                         {(r.date || r.time) && (
-                          <p className="text-[11px] text-gray-400 mt-0.5">
-                            {r.date}{r.time ? ` at ${fmt(r.time)}` : ''}
+                          <p className="text-[11px] text-gray-400 mt-0.5">{r.date}{r.time ? ` at ${fmt(r.time)}` : ''}</p>
+                        )}
+                        {r.assigned_driver_id && (
+                          <p className="text-[11px] text-blue-500 font-medium mt-0.5 flex items-center gap-1">
+                            <User size={10} /> {driverName(r.assigned_driver_id)}
                           </p>
                         )}
                         {r.notes && <p className="text-[11px] text-gray-400 italic mt-1">{r.notes}</p>}
                       </div>
                     </div>
-                    {isAdmin && r.status !== 'completed' && r.status !== 'cancelled' && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {r.status === 'pending' && (
-                          <button onClick={() => handleUpdateRequest(r.id, 'assigned')}
+                    {r.status !== 'completed' && r.status !== 'cancelled' && (
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-1.5">
+                          {(r.status === 'assigned' || r.status === 'pending') && (
+                            <button onClick={() => handleUpdateRequest(r.id, 'in_progress')}
+                              className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 hover:bg-teal-100">
+                              Mark En Route
+                            </button>
+                          )}
+                          <button onClick={() => handleUpdateRequest(r.id, 'completed')}
+                            className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+                            ✓ Complete
+                          </button>
+                          <button
+                            onClick={() => { setReassigningId(reassigningId === r.id ? null : r.id); setReassignDriverId(r.assigned_driver_id || ''); }}
                             className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 hover:bg-blue-100">
-                            Assign Driver
+                            Reassign
                           </button>
-                        )}
-                        {(r.status === 'assigned' || r.status === 'pending') && (
-                          <button onClick={() => handleUpdateRequest(r.id, 'in_progress')}
-                            className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 hover:bg-teal-100">
-                            Mark En Route
+                          <button onClick={() => handleUpdateRequest(r.id, 'cancelled')}
+                            className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-gray-50 text-gray-500 hover:bg-gray-100">
+                            Cancel
                           </button>
+                        </div>
+                        {reassigningId === r.id && (
+                          <div className="flex gap-2 items-center bg-blue-50 rounded-xl px-3 py-2.5">
+                            <select
+                              value={reassignDriverId}
+                              onChange={e => setReassignDriverId(e.target.value)}
+                              className="flex-1 text-[12px] bg-white border border-blue-200 rounded-lg px-2 py-1.5 outline-none"
+                            >
+                              <option value="">— Unassigned —</option>
+                              {staffList.filter(s => s.active && (s.department === 'drivers' || (s.positions || []).includes('drivers') || s.role === 'driver')).map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))}
+                              {staffList.filter(s => s.active && s.department !== 'drivers' && !(s.positions || []).includes('drivers') && s.role !== 'driver').map(s => (
+                                <option key={s.id} value={s.id}>{s.name} (staff)</option>
+                              ))}
+                            </select>
+                            <button onClick={() => handleReassign(r.id)}
+                              className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-blue-600 text-white hover:bg-blue-700">
+                              Save
+                            </button>
+                            <button onClick={() => setReassigningId(null)} className="text-[11px] text-gray-400 font-semibold px-1">✕</button>
+                          </div>
                         )}
-                        <button onClick={() => handleUpdateRequest(r.id, 'completed')}
-                          className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
-                          Complete
-                        </button>
-                        <button onClick={() => handleUpdateRequest(r.id, 'cancelled')}
-                          className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-gray-50 text-gray-500 hover:bg-gray-100">
-                          Cancel
-                        </button>
                       </div>
                     )}
+                    </div>
                   </div>
-                ))
-              )}
+                ))}
+                    </div>
+                  ));
+                })();
+              })()}
             </div>
           )}
 
@@ -676,16 +988,12 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                   <button onClick={() => setSetupMsg(null)}><X size={14} /></button>
                 </div>
               )}
-
-              {/* Schedule wizard */}
               <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
                 <h2 className="text-[15px] font-bold mb-1 flex items-center gap-2">
                   <Settings size={15} style={{ color: TEAL }} /> Create a Schedule
                 </h2>
                 <p className="text-[12px] text-gray-400 mb-4">Set your hours and interval — slots generate automatically.</p>
-
                 <div className="space-y-3">
-                  {/* Route name + type */}
                   <div className="flex gap-2">
                     <div className="flex-1">
                       <label className="text-[11px] font-bold text-gray-500 block mb-1">Schedule Name</label>
@@ -703,8 +1011,6 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                       </select>
                     </div>
                   </div>
-
-                  {/* Hours */}
                   <div className="flex gap-2 items-end">
                     <div className="flex-1">
                       <label className="text-[11px] font-bold text-gray-500 block mb-1">Start Time</label>
@@ -727,8 +1033,6 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                       </select>
                     </div>
                   </div>
-
-                  {/* Days */}
                   <div>
                     <label className="text-[11px] font-bold text-gray-500 block mb-1.5">Days of Week</label>
                     <div className="flex gap-1.5 flex-wrap">
@@ -744,8 +1048,6 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                       </button>
                     </div>
                   </div>
-
-                  {/* Capacity + price */}
                   <div className="flex gap-2">
                     <div className="flex-1">
                       <label className="text-[11px] font-bold text-gray-500 block mb-1">Capacity per Run</label>
@@ -761,23 +1063,16 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                       <p className="text-[10px] text-gray-400 mt-0.5">0 = complimentary</p>
                     </div>
                   </div>
-
-                  {/* Vendor partner link */}
                   {partners.length > 0 && (
                     <div>
                       <label className="text-[11px] font-bold text-gray-500 block mb-1">Transport Vendor (optional)</label>
                       <select value={schedule.vendorId} onChange={e => setSchedule(s => ({ ...s, vendorId: e.target.value }))}
                         className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[13px] border border-gray-100">
                         <option value="">— No vendor linked —</option>
-                        {partners.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
+                        {partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Linked vendor sees rides in their partner dashboard.</p>
                     </div>
                   )}
-
-                  {/* Preview */}
                   {schedule.fromTime && schedule.toTime && schedule.interval && (
                     <div className="bg-gray-50 rounded-xl px-4 py-3 text-[12px] text-gray-600">
                       <span className="font-bold text-gray-700">Preview: </span>
@@ -789,7 +1084,6 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                       })()}
                     </div>
                   )}
-
                   <button onClick={handleGenerateSchedule} disabled={setupSaving || !schedule.routeName.trim() || schedule.days.length === 0}
                     className="w-full py-3.5 rounded-xl text-white font-bold text-[14px] disabled:opacity-50 transition-colors" style={{ backgroundColor: TEAL }}>
                     {setupSaving ? 'Generating…' : '🚐 Generate Schedule'}
@@ -797,14 +1091,11 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                 </div>
               </div>
 
-              {/* Existing schedules */}
               {routes.length > 0 && (
                 <div className="space-y-3">
                   <h2 className="text-[13px] font-bold text-gray-500 uppercase tracking-wider">Active Schedules</h2>
                   {routes.map(route => (
-                    <RouteCard
-                      key={route.id}
-                      route={route}
+                    <RouteCard key={route.id} route={route}
                       slots={slots.filter(s => s.route_id === route.id).sort((a, b) => (a.departure_time || '').localeCompare(b.departure_time || ''))}
                       onDelete={() => handleDeleteRoute(route.id)}
                       onDeleteSlot={handleDeleteSlot}
@@ -814,16 +1105,237 @@ export default function ShuttleView({ hotelId, isAdmin }: Props) {
                 </div>
               )}
 
-              {/* Transport vendor info */}
               {partners.length === 0 && (
                 <div className="bg-teal-50 border border-teal-100 rounded-2xl p-4 text-[13px] text-teal-700">
                   <p className="font-bold mb-1">💡 Want to connect a transport vendor?</p>
-                  <p className="text-[12px] text-teal-600">Add a transport company as a partner in the Partners section. Once added, they appear here and can manage their info from their own dashboard.</p>
+                  <p className="text-[12px] text-teal-600">Add a transport company as a partner in the Partners section.</p>
                 </div>
               )}
             </div>
           )}
         </>
+      )}
+
+      {/* ── Dispatch Bottom Sheet ── */}
+      {showDispatch && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <div className="bg-white rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto w-full max-w-lg mx-auto">
+            <div className="sticky top-0 bg-white pt-4 pb-3 px-5 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-lg font-extrabold text-gray-900">New Trip</h2>
+              <button onClick={() => { setShowDispatch(false); resetDispatch(); }}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 text-gray-500">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* ── Shuttle done state ── */}
+            {dispatchDone && dispatchForm.bookingMethod === 'shuttle' ? (
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 rounded-full bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle size={32} style={{ color: TEAL }} />
+                </div>
+                <p className="text-lg font-bold text-gray-900 mb-1">Trip logged!</p>
+                <p className="text-sm text-gray-500 mb-6">Appears on the timeline above.</p>
+                <div className="flex gap-3">
+                  <button onClick={resetDispatch} className="flex-1 py-3.5 rounded-2xl text-white font-bold text-[15px]" style={{ backgroundColor: TEAL }}>+ Another</button>
+                  <button onClick={() => { setShowDispatch(false); resetDispatch(); }} className="flex-1 py-3.5 rounded-2xl bg-gray-100 font-bold text-[15px] text-gray-700">Done</button>
+                </div>
+              </div>
+
+            /* ── TaxiCaller done state ── */
+            ) : tcStep === 'done' && tcConfirm ? (
+              <div className="p-8 text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-teal-50 flex items-center justify-center mx-auto">
+                  <CheckCircle size={32} style={{ color: TEAL }} />
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-gray-900">Ride Dispatched!</p>
+                  <p className="text-sm text-gray-400 mt-0.5">Driver is on the way</p>
+                </div>
+                {tcConfirm.driver_name && (
+                  <div className="bg-gray-50 rounded-2xl p-4 text-left space-y-1">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Driver</p>
+                    <p className="text-[16px] font-extrabold text-gray-900">{tcConfirm.driver_name}</p>
+                    {tcConfirm.driver_phone && <p className="text-[13px] text-gray-500">{tcConfirm.driver_phone}</p>}
+                    {tcConfirm.vehicle_plate && <p className="text-[12px] text-gray-400">Vehicle: {tcConfirm.vehicle_plate}</p>}
+                  </div>
+                )}
+                {tcConfirm.tracking_url && (
+                  <a href={tcConfirm.tracking_url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold text-[14px] text-white"
+                    style={{ backgroundColor: TEAL }}>
+                    <ExternalLink size={15} /> Track Ride
+                  </a>
+                )}
+                <div className="flex gap-3">
+                  <button onClick={resetDispatch} className="flex-1 py-3 rounded-2xl text-white font-bold text-[14px]" style={{ backgroundColor: TEAL }}>+ Another</button>
+                  <button onClick={() => { setShowDispatch(false); resetDispatch(); }} className="flex-1 py-3 rounded-2xl bg-gray-100 font-bold text-[14px] text-gray-700">Done</button>
+                </div>
+              </div>
+
+            /* ── TaxiCaller paying state ── */
+            ) : tcStep === 'paying' ? (
+              <div className="p-10 text-center">
+                <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-3" style={{ borderColor: TEAL }} />
+                <p className="text-[14px] font-semibold text-gray-600">Processing payment & dispatching driver…</p>
+              </div>
+
+            ) : (
+              <div className="px-5 py-4 space-y-4">
+
+                {/* Booking method toggle */}
+                <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+                  <button onClick={() => { setDispatchForm(f => ({ ...f, bookingMethod: 'shuttle' })); resetTC(); }}
+                    className={`flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all flex items-center justify-center gap-1.5 ${dispatchForm.bookingMethod === 'shuttle' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
+                    <Bus size={13} /> Hotel Shuttle
+                  </button>
+                  <button onClick={() => { setDispatchForm(f => ({ ...f, bookingMethod: 'taxicaller' })); resetTC(); }}
+                    className={`flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all flex items-center justify-center gap-1.5 ${dispatchForm.bookingMethod === 'taxicaller' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
+                    <Car size={13} /> TaxiCaller
+                  </button>
+                </div>
+
+                {/* Trip direction toggle (shuttle only) */}
+                {dispatchForm.bookingMethod === 'shuttle' && (
+                  <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+                    {(['arrival', 'departure'] as const).map(t => (
+                      <button key={t} onClick={() => { setDispatchType(t); setDispatchForm(f => ({ ...f, pickup_location: '', destination: '' })); }}
+                        className={`flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all ${dispatchType === t ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'}`}>
+                        {t === 'arrival' ? '✈️ Arrival → Hotel' : '🚗 Hotel → Out'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Guest + Room + Pax */}
+                <div className="flex gap-2">
+                  <input value={dispatchForm.guest_name} onChange={e => setDispatchForm(f => ({ ...f, guest_name: e.target.value }))}
+                    placeholder="Guest name" className="flex-1 bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
+                  <input value={dispatchForm.room_number} onChange={e => setDispatchForm(f => ({ ...f, room_number: e.target.value }))}
+                    placeholder="Rm" className="w-16 bg-gray-50 rounded-xl px-2 py-3 text-sm border border-gray-200 text-center focus:outline-none focus:border-teal-400 transition-colors" />
+                  <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-2">
+                    <button onClick={() => setDispatchForm(f => ({ ...f, pax: Math.max(1, f.pax - 1) }))} className="w-7 h-7 rounded-lg text-gray-500 text-lg font-bold flex items-center justify-center hover:bg-gray-200">−</button>
+                    <span className="text-sm font-bold text-gray-900 w-5 text-center">{dispatchForm.pax}</span>
+                    <button onClick={() => setDispatchForm(f => ({ ...f, pax: f.pax + 1 }))} className="w-7 h-7 rounded-lg text-white text-lg font-bold flex items-center justify-center" style={{ backgroundColor: TEAL }}>+</button>
+                  </div>
+                </div>
+
+                {/* TaxiCaller: phone + free pickup/destination inputs */}
+                {dispatchForm.bookingMethod === 'taxicaller' && (
+                  <>
+                    <input value={dispatchForm.guestPhone} onChange={e => setDispatchForm(f => ({ ...f, guestPhone: e.target.value }))} type="tel"
+                      placeholder="Guest phone (optional)" className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-3">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        <input value={dispatchForm.pickup_location} onChange={e => setDispatchForm(f => ({ ...f, pickup_location: e.target.value }))}
+                          placeholder="Pickup (default: Hotel Lobby)" className="flex-1 bg-transparent text-sm focus:outline-none" />
+                      </div>
+                      <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-3">
+                        <MapPin size={12} style={{ color: TEAL }} className="shrink-0" />
+                        <input value={dispatchForm.destination} onChange={e => setDispatchForm(f => ({ ...f, destination: e.target.value }))}
+                          placeholder="Destination *" className="flex-1 bg-transparent text-sm focus:outline-none" />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Shuttle: chip-based location picker */}
+                {dispatchForm.bookingMethod === 'shuttle' && (
+                  <div>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                      {dispatchType === 'arrival' ? 'Pickup' : 'Dropoff'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(dispatchType === 'arrival' ? ARRIVAL_PICKUPS : DEPARTURE_DROPOFFS).map(loc => {
+                        const active = dispatchType === 'arrival' ? dispatchForm.pickup_location === loc : dispatchForm.destination === loc;
+                        return (
+                          <button key={loc} onClick={() => setDispatchForm(f => dispatchType === 'arrival' ? { ...f, pickup_location: loc } : { ...f, destination: loc })}
+                            className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all ${active ? 'border-teal-500 bg-teal-500 text-white' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
+                            {loc}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Date + Time */}
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Date</p>
+                    <input type="date" value={dispatchForm.date} onChange={e => setDispatchForm(f => ({ ...f, date: e.target.value }))}
+                      className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Time</p>
+                    <input type="time" value={dispatchForm.time} onChange={e => setDispatchForm(f => ({ ...f, time: e.target.value }))}
+                      className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Flight / Notes</p>
+                  <input value={dispatchForm.notes} onChange={e => setDispatchForm(f => ({ ...f, notes: e.target.value }))}
+                    placeholder="AA123, notes…" className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors" />
+                </div>
+
+                {/* Shuttle only: driver assignment */}
+                {dispatchForm.bookingMethod === 'shuttle' && (
+                  <div>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Assign Driver</p>
+                    <select value={dispatchForm.driver_id} onChange={e => setDispatchForm(f => ({ ...f, driver_id: e.target.value }))}
+                      className="w-full bg-gray-50 rounded-xl px-3 py-3 text-sm border border-gray-200 focus:outline-none focus:border-teal-400 transition-colors">
+                      <option value="">— No driver assigned —</option>
+                      {todayDrivers.length > 0 ? todayDrivers.map(d => (
+                        <option key={d.id} value={d.id}>{d.name} · {fmt(d.start_time)}{d.end_time ? `–${fmt(d.end_time)}` : ''}</option>
+                      )) : <option disabled value="">No drivers scheduled today</option>}
+                    </select>
+                  </div>
+                )}
+
+                {/* TaxiCaller: quote preview card */}
+                {dispatchForm.bookingMethod === 'taxicaller' && tcStep === 'quote' && tcQuote && (
+                  <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 space-y-2">
+                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Price Quote</p>
+                    <div className="flex justify-between text-sm text-gray-600"><span>Base fare</span><span>{fmtCents(tcQuote.base_fare_cents)}</span></div>
+                    <div className="flex justify-between text-sm text-gray-600"><span>Service fee (10%)</span><span>{fmtCents(tcQuote.surcharge_cents)}</span></div>
+                    <div className="border-t border-gray-200 pt-2 flex justify-between font-extrabold text-gray-900"><span>Total</span><span>{fmtCents(tcQuote.total_cents)}</span></div>
+                    {tcQuote.estimated_mins > 0 && <p className="text-[11px] text-gray-400">~{tcQuote.estimated_mins} min estimated travel time</p>}
+                  </div>
+                )}
+
+                {tcError && <p className="text-[12px] text-red-500">{tcError}</p>}
+
+                {/* Submit button */}
+                {dispatchForm.bookingMethod === 'shuttle' ? (
+                  <button onClick={handleDispatchSubmit}
+                    disabled={dispatching || !dispatchForm.guest_name.trim() || !dispatchForm.room_number.trim()}
+                    className="w-full py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 active:scale-[0.98] transition-all"
+                    style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
+                    {dispatching ? 'Logging…' : '✅ Log Trip'}
+                  </button>
+                ) : tcStep === 'quote' && tcQuote ? (
+                  <div className="flex gap-2">
+                    <button onClick={resetTC} className="px-5 py-4 rounded-2xl bg-gray-100 font-bold text-[14px] text-gray-700">Back</button>
+                    <button onClick={handleTCConfirmPay} disabled={dispatching}
+                      className="flex-1 py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 flex items-center justify-center gap-2"
+                      style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
+                      <CreditCard size={16} /> Confirm & Pay {fmtCents(tcQuote.total_cents)}
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={handleTCGetQuote}
+                    disabled={dispatching || !dispatchForm.guest_name.trim() || !dispatchForm.room_number.trim() || !dispatchForm.destination.trim()}
+                    className="w-full py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 active:scale-[0.98] transition-all"
+                    style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
+                    {dispatching ? 'Getting price…' : '🚗 Get Price & Book'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

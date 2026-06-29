@@ -53,6 +53,14 @@ export async function exchangeBouncieCode(code: string) {
   };
 }
 
+// Thrown when Bouncie rejects the refresh token (invalid_grant / revoked).
+// The vehicles route catches this to return connected:false so the UI
+// shows a re-authorize prompt instead of a cryptic sync error.
+export class BouncieAuthError extends Error {
+  readonly needsReauth = true;
+  constructor(msg: string) { super(msg); this.name = 'BouncieAuthError'; }
+}
+
 export async function refreshBouncieToken(refreshToken: string) {
   const { clientId, clientSecret } = getBouncieConfig();
 
@@ -72,6 +80,9 @@ export async function refreshBouncieToken(refreshToken: string) {
 
   if (!res.ok) {
     const text = await res.text();
+    if (res.status === 403 || text.includes('invalid_grant')) {
+      throw new BouncieAuthError(`Bouncie token refresh failed: ${res.status} ${text}`);
+    }
     throw new Error(`Bouncie token refresh failed: ${res.status} ${text}`);
   }
 
@@ -132,13 +143,61 @@ export async function bouncieApiRequest<T>(path: string, accessToken: string, op
   return (await res.json()) as T;
 }
 
+// Raw vehicle shape from Bouncie's GET /v1/vehicles. Field names vary by API
+// version/firmware, so every field is optional and we normalize below.
 export interface BouncieVehicle {
-  deviceId: string;
-  name?: string;
-  vin?: string;
   imei?: string;
-  model?: { year?: number; make?: string; model?: string };
-  stats?: { gps?: { lat?: number; lng?: number; speed?: number; heading?: number; accuracy?: number; dt?: string } };
+  vin?: string;
+  deviceId?: string; // not present in the classic API, kept for forward-compat
+  nickName?: string;
+  name?: string;
+  model?: { year?: number; make?: string; name?: string; model?: string };
+  stats?: {
+    lastUpdated?: string;
+    speed?: number;
+    location?: { lat?: number; lon?: number; lng?: number; heading?: number; address?: string };
+    // older/alternate shape some firmware reports
+    gps?: { lat?: number; lng?: number; lon?: number; speed?: number; heading?: number; accuracy?: number; dt?: string };
+  };
+}
+
+export interface NormalizedVehicle {
+  deviceId: string;
+  name: string;
+  gps: { lat: number; lng: number; speed: number; heading: number; accuracy: number; recordedAt: string } | null;
+}
+
+// Bouncie's /vehicles payload uses `imei` as the identifier, `nickName` for the
+// name, and `stats.location.{lat,lon}` for GPS — NOT `deviceId`/`stats.gps`.
+// Normalize across the known variants so the rest of the app sees one shape.
+export function normalizeBouncieVehicle(v: BouncieVehicle): NormalizedVehicle | null {
+  const deviceId = v.imei || v.vin || v.deviceId;
+  if (!deviceId) return null;
+
+  const name =
+    v.nickName ||
+    v.name ||
+    [v.model?.year, v.model?.make, v.model?.name || v.model?.model].filter(Boolean).join(' ') ||
+    deviceId;
+
+  const loc = v.stats?.location;
+  const alt = v.stats?.gps;
+  const lat = loc?.lat ?? alt?.lat;
+  const lng = loc?.lon ?? loc?.lng ?? alt?.lon ?? alt?.lng;
+
+  let gps: NormalizedVehicle['gps'] = null;
+  if (lat !== undefined && lat !== null && lng !== undefined && lng !== null) {
+    gps = {
+      lat,
+      lng,
+      speed: v.stats?.speed ?? alt?.speed ?? 0,
+      heading: loc?.heading ?? alt?.heading ?? 0,
+      accuracy: alt?.accuracy ?? 0,
+      recordedAt: v.stats?.lastUpdated ?? alt?.dt ?? new Date().toISOString(),
+    };
+  }
+
+  return { deviceId, name, gps };
 }
 
 export async function listBouncieVehicles(accessToken: string): Promise<BouncieVehicle[]> {
@@ -181,3 +240,49 @@ export function calculateETA(
 }
 
 export const HOTEL_ARRIVAL_RADIUS_MILES = 0.5;
+
+// Returns compass bearing (0–360°) from point A to point B
+export function bearingBetween(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const toDeg = (r: number) => (r * 180) / Math.PI;
+  const dLng = toRad(lng2 - lng1);
+  const la1 = toRad(lat1);
+  const la2 = toRad(lat2);
+  const y = Math.sin(dLng) * Math.cos(la2);
+  const x = Math.cos(la1) * Math.sin(la2) - Math.sin(la1) * Math.cos(la2) * Math.cos(dLng);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+// Returns the angular difference between two bearings (0–180°)
+function angleDiff(a: number, b: number): number {
+  const diff = Math.abs(a - b) % 360;
+  return diff > 180 ? 360 - diff : diff;
+}
+
+// Detect whether the shuttle is heading toward the destination or back to hotel.
+// When moving, uses GPS heading vs bearing to each endpoint (more accurate).
+// Falls back to proximity when idle or no heading available.
+export function detectShuttleDirection(
+  shuttleLat: number, shuttleLng: number,
+  hotelLat: number, hotelLng: number,
+  destLat: number, destLng: number,
+  heading?: number | null,
+  speedMph = 0,
+): 'to_dest' | 'to_hotel' | 'at_hotel' | 'at_dest' {
+  const dHotel = haversineDistanceMiles(shuttleLat, shuttleLng, hotelLat, hotelLng);
+  const dDest  = haversineDistanceMiles(shuttleLat, shuttleLng, destLat, destLng);
+  if (dHotel <= HOTEL_ARRIVAL_RADIUS_MILES) return 'at_hotel';
+  if (dDest  <= HOTEL_ARRIVAL_RADIUS_MILES) return 'at_dest';
+
+  // Heading-based when actively moving — much more reliable than pure proximity
+  if (speedMph > 2 && heading != null) {
+    const bearingToHotel = bearingBetween(shuttleLat, shuttleLng, hotelLat, hotelLng);
+    const bearingToDest  = bearingBetween(shuttleLat, shuttleLng, destLat, destLng);
+    const diffHotel = angleDiff(heading, bearingToHotel);
+    const diffDest  = angleDiff(heading, bearingToDest);
+    return diffDest < diffHotel ? 'to_dest' : 'to_hotel';
+  }
+
+  // Fallback: proximity (idle or no heading data)
+  return dDest < dHotel ? 'to_dest' : 'to_hotel';
+}

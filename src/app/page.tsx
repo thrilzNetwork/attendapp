@@ -232,6 +232,10 @@ function HotelGuestApp({
           <Globe size={14} className="text-gray-400" />
           <span className="text-[11px] text-gray-400 leading-none">powered by Attenda</span>
         </div>
+        <button onClick={() => (window.location.href = '/account')}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200 shadow-sm active:scale-[0.97]">
+          <span className="text-[11px] font-bold tracking-[0.08em] uppercase" style={{ color: brandColor }}>My Orders</span>
+        </button>
         <button onClick={() => handleClick('message', true)} className="flex items-center gap-2 shrink-0">
           <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: brandColor }}>
             <User size={20} className="text-white" strokeWidth={1.5} />
@@ -324,18 +328,16 @@ function AttendaLandingPage() {
       {/* ANNOUNCEMENT BAR */}
       <div className="bg-gray-900 text-white text-center py-2 px-4 relative">
         <p className="text-[12px] font-semibold">
-          Live GPS shuttle tracking + instant guest requests → now in production
+          New: Hotel↔Airport two-point GPS tracking + guest transport booking → live in production
         </p>
       </div>
 
       {/* NAV */}
       <nav className={`sticky top-0 z-50 transition-all ${scrolled ? 'bg-white/95 backdrop-blur-xl shadow-sm' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
-          <a href="#" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm" style={{ backgroundColor: TEAL }}>
-              <span className="text-white font-black text-[16px] tracking-tight">A</span>
-            </div>
-            <span className="font-bold text-[17px] text-gray-900 tracking-tight">attenda</span>
+          <a href="#" className="flex items-center group">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/logo-primary.svg" alt="Attenda" style={{ height: 36, width: 'auto' }} />
           </a>
           <div className="hidden md:flex items-center gap-7">
             <a href="#platform" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Platform</a>
@@ -370,7 +372,7 @@ function AttendaLandingPage() {
                 <span style={{ color: '#0D9488' }}>Built For Independent Hotels.</span>
               </h1>
               <p className="text-[18px] text-gray-600 leading-relaxed mb-8">
-                Attenda is the all-in-one operating system for independent hotels — instant guest requests, live GPS shuttle tracking, Uber Direct food delivery, and staff operations in one thread. No app. No rip-and-replace.
+                Attenda is the all-in-one operating system for independent hotels — instant guest requests, hotel↔airport live GPS shuttle tracking, guest transport booking, and staff operations in one thread. No app for guests. No rip-and-replace.
               </p>
               <a href="#demo"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-[16px] transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
@@ -466,8 +468,8 @@ function AttendaLandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               { icon: QrCode, title: 'Zero apps for guests', desc: 'Scan the QR — tap to request towels, housekeeping, or maintenance. One tap, instant delivery to the front desk. No download, no account.' },
-              { icon: Bus, title: 'Live GPS shuttle tracking', desc: 'Bouncie integration shows real-time shuttle location, speed, ETA to hotel, and today\'s trip log. Arrival alerts when the shuttle is 0.5 mi away.' },
-              { icon: Truck, title: 'Uber Direct food delivery', desc: 'Partner restaurants, Uber last-mile delivery. Guest picks "Pay via Uber" at checkout. Uber tracks the courier; the hotel earns its share on every order.' },
+              { icon: Bus, title: 'Hotel ↔ Airport GPS tracking', desc: 'Two-point live tracking shows direction (leaving hotel vs. returning), ETA to airport, ETA back — with an inline map. Auto-geocodes the hotel address, no manual coordinates.' },
+              { icon: Truck, title: 'Guest transport booking', desc: 'Guests request airport runs directly from the room QR. No app, no phone call. Staff get notified, driver assigned, and guest gets a confirmation — all in one thread.' },
               { icon: ClipboardList, title: 'One thread for the property', desc: 'Guest request → staff task → vendor job → GM dashboard. No radio calls, no missed handoffs, no sticky notes.' },
               { icon: Users, title: 'Guest identity without PMS', desc: 'Guests enter name + checkout date once. Session persists until checkout. Staff visually verify against PMS with one tap — no integration required.' },
               { icon: Globe, title: 'Works alongside your PMS', desc: 'No rip-and-replace. Attenda runs beside your current system from day one. 11 days from contract to live.' },
@@ -494,8 +496,9 @@ function AttendaLandingPage() {
       <Reveal>
         <section className="py-20 bg-gray-50">
           <div className="max-w-5xl mx-auto px-4 text-center">
-            <h2 className="text-3xl font-bold mb-2">Two new superpowers</h2>
-            <p className="text-gray-500 mb-12">GPS tracking and last-mile delivery — both live, both built in.</p>
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">New in 2025</h2>
+            <p className="text-[28px] md:text-[36px] font-black tracking-tight text-gray-900 mb-2">Two powerful upgrades</p>
+            <p className="text-gray-500 mb-12 text-[15px]">Hotel↔airport two-point GPS tracking and a seamless guest transport booking flow — both live.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 justify-items-center">
               <div className="flex flex-col items-center gap-4">
                 <PhoneFrame width={240}>
@@ -503,7 +506,10 @@ function AttendaLandingPage() {
                     <BouncieGPSMockup />
                   </div>
                 </PhoneFrame>
-                <p className="text-sm text-gray-500 font-medium">Live Shuttle GPS · Bouncie</p>
+                <div className="text-center">
+                  <p className="text-[15px] font-black text-gray-900">Hotel ↔ Airport GPS Tracking</p>
+                  <p className="text-[13px] text-gray-500 mt-1 max-w-[220px]">Direction-aware live map. Know when the shuttle left, where it is, and ETA both ways — auto-refreshing every 30 seconds.</p>
+                </div>
               </div>
               <div className="flex flex-col items-center gap-4">
                 <PhoneFrame width={240}>
@@ -511,7 +517,10 @@ function AttendaLandingPage() {
                     <UberDirectMockup />
                   </div>
                 </PhoneFrame>
-                <p className="text-sm text-gray-500 font-medium">Uber Direct Delivery</p>
+                <div className="text-center">
+                  <p className="text-[15px] font-black text-gray-900">Guest Transport Booking</p>
+                  <p className="text-[13px] text-gray-500 mt-1 max-w-[220px]">Guests book airport runs from their room — no app, no phone call. Staff get notified instantly.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -1332,9 +1341,8 @@ function AttendaLandingPage() {
           </div>
           <div className="pt-8 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: TEAL }}>
-                <span className="text-white font-black text-[12px]">A</span>
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/icon-mark.svg" alt="Attenda" style={{ height: 28, width: 'auto' }} />
               <span className="text-[13px] text-gray-600">attenda &mdash; the operations platform for independent hotels</span>
             </div>
             <div className="text-[12px] text-gray-500">

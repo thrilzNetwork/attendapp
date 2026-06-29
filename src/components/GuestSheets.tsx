@@ -1,25 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import {
-  X, Send, CheckCircle, Wifi, Check, Coffee, Dumbbell, Printer,
+  X, CheckCircle, Wifi, Check, Coffee, Dumbbell, Printer,
   WashingMachine, IceCream, Car, Bus, Flame, AlertTriangle,
   AlarmSmoke, Crosshair, ShieldCheck, Phone, Star, ExternalLink,
-  Plane, UserCheck, MapPin, Utensils, ShoppingBag, Bell, Globe,
+  Plane, MapPin, Utensils, ShoppingBag, Bell, Globe,
   User, Clock, DoorOpen, TrendingUp,
 } from 'lucide-react';
 import {
   supabase, getHotelConfig, HotelConfig,
   FacilitiesAmenity,
-  getAllShuttleSlotsForHotel, bookShuttleSlot, createShuttleRequest,
-  getShuttleRoutes, getCruiseSchedules,
-  ShuttleSlot, ShuttleRoute, CruiseSchedule,
-
+  createShuttleRequest,
 } from '@/lib/supabase';
+import { TaxiCallerRide } from '@/components/TaxiCallerRide';
+import { AirportSchedule } from '@/components/AirportSchedule';
 
 const BURGUNDY = '#6B1D3C';
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /* ── Modal wrapper — centered, same style as check-in modal ── */
 export function GuestSheet({
@@ -215,246 +213,417 @@ export function MessageSheetContent() {
   );
 }
 
-/* ── Transport ─────────────────────────────────────────────── */
+/* ── Transport ────────────────────────────────────────────────────── */
 export function TransportSheetContent() {
-  const [view, setView] = useState<'request' | 'schedule'>('request');
   return (
     <div className="overflow-y-auto flex-1">
       <div className="px-5 pt-2 pb-6">
-        <div className="bg-gray-100 rounded-2xl p-1 flex mb-4">
-          <button onClick={() => setView('request')} className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${view === 'request' ? 'text-white' : 'text-gray-500'}`} style={view === 'request' ? { backgroundColor: BURGUNDY } : undefined}>Request Pickup</button>
-          <button onClick={() => setView('schedule')} className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-colors ${view === 'schedule' ? 'text-white' : 'text-gray-500'}`} style={view === 'schedule' ? { backgroundColor: BURGUNDY } : undefined}>Airport & Cruise</button>
-        </div>
-        {view === 'schedule' ? <ShuttleScheduleInner /> : <OnDemandInner />}
+        <OnDemandInner />
       </div>
     </div>
   );
 }
 
-function ShuttleScheduleInner() {
-  const [hotel, setHotel] = useState<HotelConfig | null>(null);
-  const [slots, setSlots] = useState<ShuttleSlot[]>([]);
-  const [cruises, setCruises] = useState<CruiseSchedule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'shuttle' | 'cruise'>('shuttle');
-  const [bookingForm, setBookingForm] = useState<{ slot_id: string; show: boolean; name: string; room: string; pax: number; notes: string; charge_accepted: boolean }>({ slot_id: '', show: false, name: '', room: '', pax: 1, notes: '', charge_accepted: false });
-  const [booked, setBooked] = useState<string | null>(null);
+
+interface PlaceResult {
+  display_name: string;
+  short_name: string;
+  lat: number;
+  lng: number;
+}
+
+
+
+export function TransportBooker({
+  brandColor = BURGUNDY,
+  defaultFromText = '',
+  defaultToText = '',
+  skipModeScreen = false,
+}: {
+  brandColor?: string;
+  defaultFromText?: string;
+  defaultToText?: string;
+  skipModeScreen?: boolean;
+}) {
+  const [screen, setScreen] = useState<'mode' | 'schedule' | 'address' | 'confirm' | 'done' | 'taxi'>(skipModeScreen ? 'address' : 'mode');
+  const [config, setConfig] = useState<HotelConfig | null>(null);
+
+  // FROM field — fromTouched prevents autocomplete firing on pre-filled default
+  const [fromText, setFromText] = useState(defaultFromText);
+  const [fromTouched, setFromTouched] = useState(false);
+  const [fromPlace, setFromPlace] = useState<PlaceResult | null>(null);
+  const [fromSuggestions, setFromSuggestions] = useState<PlaceResult[]>([]);
+  const [fromLoading, setFromLoading] = useState(false);
+
+  // TO field
+  const [toText, setToText] = useState(defaultToText);
+  const [toPlace, setToPlace] = useState<PlaceResult | null>(null);
+  const [toSuggestions, setToSuggestions] = useState<PlaceResult[]>([]);
+  const [toLoading, setToLoading] = useState(false);
+
+  // Booking details
+  const [guestName, setGuestName] = useState('');
+  const [room, setRoom] = useState('');
+  const [pax, setPax] = useState(1);
+  const [notes, setNotes] = useState('');
+  const [tripDate, setTripDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  });
+  const [tripTime, setTripTime] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  // Properly persisted debounce timers across renders
+  const debounceFrom = useRef<ReturnType<typeof setTimeout>>();
+  const debounceTo = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    (async () => {
-      const h = await getHotelConfig();
-      setHotel(h);
-      if (h?.id) {
-        const [s, c] = await Promise.all([getAllShuttleSlotsForHotel(h.id), getCruiseSchedules(h.id)]);
-        setSlots(s); setCruises(c);
-        if (c.length > 0) setActiveTab('cruise');
-      }
-      // Pre-fill name/room from guest session
-      try {
-        const gs = localStorage.getItem('guestSession');
-        if (gs) { const s = JSON.parse(gs); setBookingForm(f => ({ ...f, name: s.name || '', room: s.room || '' })); }
-      } catch {}
-      setLoading(false);
-    })();
+    getHotelConfig().then(h => {
+      setConfig(h);
+      // Only pre-fill hotel name if no defaultFromText was provided
+      if (!defaultFromText && h?.name) setFromText(h.name);
+    });
+    try {
+      const gs = localStorage.getItem('guestSession');
+      if (gs) { const s = JSON.parse(gs); setGuestName(s.name || ''); setRoom(s.room || ''); }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Autocomplete for FROM — only fires after user has touched the field
+  useEffect(() => {
+    if (!fromTouched || fromText.length < 2 || fromPlace) { setFromSuggestions([]); return; }
+    clearTimeout(debounceFrom.current);
+    debounceFrom.current = setTimeout(async () => {
+      setFromLoading(true);
+      try {
+        const res = await fetch(`/api/places-autocomplete?q=${encodeURIComponent(fromText)}`);
+        setFromSuggestions(await res.json());
+      } catch { setFromSuggestions([]); }
+      finally { setFromLoading(false); }
+    }, 300);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromText, fromPlace, fromTouched]);
+
+  // Autocomplete for TO
+  useEffect(() => {
+    if (toText.length < 2 || toPlace) { setToSuggestions([]); return; }
+    clearTimeout(debounceTo.current);
+    debounceTo.current = setTimeout(async () => {
+      setToLoading(true);
+      try {
+        const res = await fetch(`/api/places-autocomplete?q=${encodeURIComponent(toText)}`);
+        setToSuggestions(await res.json());
+      } catch { setToSuggestions([]); }
+      finally { setToLoading(false); }
+    }, 300);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toText, toPlace]);
+
   const handleBook = async () => {
-    if (!bookingForm.name || !bookingForm.room) return;
-    const slot = slots.find(s => s.id === bookingForm.slot_id);
-    const pricePer = slot?.override_price ?? slot?.route_price ?? 0;
-    await bookShuttleSlot({ slot_id: bookingForm.slot_id, guest_name: bookingForm.name, room_number: bookingForm.room, pax: bookingForm.pax, notes: bookingForm.notes, price_charged: pricePer * bookingForm.pax, charge_accepted: bookingForm.charge_accepted });
-    setBooked(bookingForm.slot_id);
-    setBookingForm(f => ({ ...f, slot_id: '', show: false }));
-    if (hotel?.id) setSlots(await getAllShuttleSlotsForHotel(hotel.id));
+    if (!guestName || !room) { setError('Name and room number are required.'); return; }
+    if (fromText.length < 3) { setError('Please enter a pickup location.'); return; }
+    if (!toPlace && toText.length < 3) { setError('Please enter a destination.'); return; }
+    setSubmitting(true); setError('');
+    try {
+      await createShuttleRequest({
+        hotel_id: config?.id || '',
+        guest_name: guestName,
+        room_number: room,
+        pickup_location: fromPlace?.display_name || fromText,
+        destination: toPlace?.display_name || toText,
+        date: tripDate,
+        time: tripTime || undefined,
+        pax,
+        notes: notes || undefined,
+        status: 'pending',
+      });
+      setScreen('done');
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Failed to book.'); }
+    finally { setSubmitting(false); }
   };
 
-  const byRoute: Record<string, ShuttleSlot[]> = {};
-  slots.forEach(s => { const k = s.route_name || 'Unknown'; if (!byRoute[k]) byRoute[k] = []; byRoute[k].push(s); });
+  const thirdParty = config?.transportContent?.third_party_name && config?.transportContent?.third_party_url
+    ? { name: config.transportContent.third_party_name, url: config.transportContent.third_party_url, description: config.transportContent.third_party_description || '' }
+    : null;
 
-  if (loading) return <div className="text-center py-8"><div className="w-6 h-6 border-2 border-[#6B1D3C] border-t-transparent rounded-full animate-spin mx-auto" /></div>;
-
-  if (slots.length === 0 && cruises.length === 0) return (
-    <div className="bg-gray-50 rounded-2xl p-6 text-center">
-      <Bus size={36} className="text-gray-300 mx-auto mb-2" />
-      <p className="text-[13px] text-gray-500">No shuttle schedule available yet.</p>
-      <p className="text-[12px] text-gray-400 mt-1">Check with the front desk for current times.</p>
+  // Screen: mode selection
+  if (screen === 'mode') return (
+    <div className="space-y-3">
+      <p className="text-sm text-gray-500 text-center">How would you like to travel?</p>
+      <button
+        onClick={() => setScreen('schedule')}
+        className="w-full bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left"
+      >
+        <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+          <Bus size={26} className="text-emerald-600" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold text-gray-900">Complementary Airport Shuttle</span>
+            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">FREE</span>
+          </div>
+          <p className="text-[13px] text-gray-400 mt-1">Free hotel shuttle · Staff confirms your spot</p>
+        </div>
+      </button>
+      <button
+        onClick={() => setScreen('taxi')}
+        className="w-full bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left"
+      >
+        <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${brandColor}18` }}>
+          <Car size={26} style={{ color: brandColor }} />
+        </div>
+        <div className="flex-1">
+          <span className="text-base font-bold text-gray-900">Book an Attenda Taxi</span>
+          <p className="text-[13px] text-gray-400 mt-1">On-demand · Get a price &amp; pay online</p>
+        </div>
+      </button>
+      {thirdParty && (
+        <div className="space-y-2">
+          <a
+            href={thirdParty.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 active:scale-[0.98] transition-transform text-left block"
+          >
+            <div className="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+              <ExternalLink size={26} className="text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-gray-900">{thirdParty.name}</span>
+                <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">External</span>
+              </div>
+              <p className="text-[13px] text-gray-400 mt-1">{thirdParty.description || 'Third-party transport partner'}</p>
+            </div>
+            <ExternalLink size={16} className="text-gray-300 shrink-0" />
+          </a>
+          <p className="text-[11px] text-gray-400 text-center px-4">
+            ⚠️ {thirdParty.name} is an independent company — booking is managed outside Attenda and subject to their own terms.
+          </p>
+        </div>
+      )}
     </div>
   );
 
-  return (
-    <div className="space-y-4">
-      {cruises.length > 0 && (
-        <div className="bg-gray-100 rounded-2xl p-1 flex">
-          <button onClick={() => setActiveTab('cruise')} className={`flex-1 py-2 rounded-xl text-[12px] font-bold ${activeTab === 'cruise' ? 'text-white' : 'text-gray-500'}`} style={activeTab === 'cruise' ? { backgroundColor: BURGUNDY } : undefined}>🚢 Cruise Schedule</button>
-          <button onClick={() => setActiveTab('shuttle')} className={`flex-1 py-2 rounded-xl text-[12px] font-bold ${activeTab === 'shuttle' ? 'text-white' : 'text-gray-500'}`} style={activeTab === 'shuttle' ? { backgroundColor: BURGUNDY } : undefined}>✈️ Shuttle Times</button>
-        </div>
+  // Screen: hotel shuttle schedule (time slot picker)
+  if (screen === 'schedule') return (
+    <div>
+      <button onClick={() => setScreen('mode')} className="text-sm font-semibold flex items-center gap-1 mb-3" style={{ color: brandColor }}>
+        ← Back
+      </button>
+      <AirportSchedule brandColor={brandColor} config={config} />
+    </div>
+  );
+
+  // Screen: TaxiCaller on-demand
+  if (screen === 'taxi') return (
+    <TaxiCallerRide
+      brandColor={brandColor}
+      config={config}
+      title="Book a Taxi"
+      pickupDefault={config?.address || ''}
+      onBack={() => setScreen('mode')}
+    />
+  );
+
+  // Screen: address picker
+  if (screen === 'address') return (
+    <div className="space-y-3">
+      {!skipModeScreen && (
+        <button onClick={() => setScreen('mode')} className="text-sm font-semibold flex items-center gap-1" style={{ color: brandColor }}>
+          ← Back
+        </button>
       )}
-      {activeTab === 'cruise' && cruises.map(c => (
-        <div key={c.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <div className="flex items-start justify-between gap-3">
+
+      {/* FROM card */}
+      <div className="bg-white rounded-2xl px-4 py-4 shadow-sm border border-gray-100 relative">
+        <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded-full bg-emerald-500" /> From
+        </label>
+        <input
+          value={fromText}
+          onChange={e => { setFromText(e.target.value); setFromTouched(true); setFromPlace(null); }}
+          placeholder="Pickup address"
+          className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none text-gray-800 focus:border-gray-400 transition-colors"
+        />
+        {fromLoading && (
+          <div className="absolute right-5 bottom-5">
+            <span className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin inline-block" />
+          </div>
+        )}
+        {fromSuggestions.length > 0 && !fromPlace && (
+          <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-20 overflow-hidden">
+            {fromSuggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => { setFromPlace(s); setFromText(s.short_name); setFromSuggestions([]); }}
+                className="w-full px-4 py-3.5 text-left border-b border-gray-50 last:border-0 active:bg-gray-50 hover:bg-gray-50"
+              >
+                <p className="text-sm font-semibold text-gray-900">{s.short_name}</p>
+                <p className="text-[12px] text-gray-400 mt-0.5 truncate">{s.display_name}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Arrow connector */}
+      <div className="flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center">
+          <MapPin size={14} className="text-red-400" />
+        </div>
+      </div>
+
+      {/* TO card */}
+      <div className="bg-white rounded-2xl px-4 py-4 shadow-sm border border-gray-100 relative">
+        <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded-full bg-red-400" /> To
+        </label>
+        <input
+          value={toText}
+          onChange={e => { setToText(e.target.value); setToPlace(null); }}
+          placeholder="Where are you going?"
+          className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none text-gray-800 focus:border-gray-400 transition-colors"
+        />
+        {toLoading && (
+          <div className="absolute right-5 bottom-5">
+            <span className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin inline-block" />
+          </div>
+        )}
+        {toSuggestions.length > 0 && !toPlace && (
+          <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-10 overflow-hidden">
+            {toSuggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => { setToPlace(s); setToText(s.short_name); setToSuggestions([]); }}
+                className="w-full px-4 py-3.5 text-left border-b border-gray-50 last:border-0 active:bg-gray-50 hover:bg-gray-50"
+              >
+                <p className="text-sm font-semibold text-gray-900">{s.short_name}</p>
+                <p className="text-[12px] text-gray-400 mt-0.5 truncate">{s.display_name}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {(toPlace || toText.length > 3) && fromText.length > 3 && (
+        <button
+          onClick={() => setScreen('confirm')}
+          className="w-full py-4 rounded-xl text-white font-bold text-[15px]"
+          style={{ backgroundColor: brandColor }}
+        >
+          Continue →
+        </button>
+      )}
+    </div>
+  );
+
+  // Screen: confirm booking
+  if (screen === 'confirm') return (
+    <div className="space-y-3">
+      <button onClick={() => setScreen('address')} className="text-sm font-semibold flex items-center gap-1" style={{ color: brandColor }}>
+        ← Back
+      </button>
+
+      {/* Route card */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div className="flex items-start gap-3">
+          <div className="flex flex-col items-center gap-1 pt-0.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <div className="w-0.5 h-6 bg-gray-200" />
+            <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+          </div>
+          <div className="flex-1 space-y-3">
             <div>
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{c.cruise_line || 'Cruise'}</span>
-                {c.terminal && <span className="text-[10px] text-gray-400">{c.terminal}</span>}
-              </div>
-              <p className="text-[16px] font-extrabold text-gray-900">{c.ship_name}</p>
-              <p className="text-[13px] text-gray-600">{new Date(c.departure_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-              <p className="text-[13px] font-semibold" style={{ color: BURGUNDY }}>Departs {c.departure_time.slice(0, 5)}</p>
-              {c.notes && <p className="text-[11px] text-gray-400 mt-0.5">{c.notes}</p>}
+              <p className="text-[11px] font-bold text-gray-400 uppercase mb-0.5">From</p>
+              <p className="text-sm font-semibold text-gray-800">{fromPlace?.short_name || fromText}</p>
             </div>
-            <button onClick={() => setActiveTab('shuttle')} className="shrink-0 px-3 py-2 rounded-xl text-[11px] font-bold text-white" style={{ backgroundColor: BURGUNDY }}>Book Shuttle</button>
+            <div>
+              <p className="text-[11px] font-bold text-gray-400 uppercase mb-0.5">To</p>
+              <p className="text-sm font-semibold text-gray-800">{toPlace?.short_name || toText}</p>
+            </div>
           </div>
         </div>
-      ))}
-      {activeTab === 'shuttle' && Object.entries(byRoute).map(([routeName, routeSlots]) => (
-        <div key={routeName} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-            <Bus size={15} style={{ color: BURGUNDY }} />
-            <h3 className="font-extrabold text-[14px] text-gray-900">{routeName}</h3>
+      </div>
+
+      {/* Service row */}
+      <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shrink-0">
+          <Bus size={18} className="text-emerald-600" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-bold text-gray-800">Hotel Transportation</p>
+          <p className="text-[12px] text-gray-500">Our team will confirm and reach out with details.</p>
+        </div>
+        <span className="text-[12px] font-bold text-emerald-700 bg-white px-2.5 py-1 rounded-full shrink-0">FREE</span>
+      </div>
+
+      {/* Guest details */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 block">Name</label>
+            <input value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="Your name" className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors" />
           </div>
-          <div className="divide-y divide-gray-50">
-            {routeSlots.map(slot => {
-              const dayNames = (slot.days_of_week || []).map((d: number) => DAYS[d - 1]).join(', ');
-              const full = slot.capacity > 0 && (slot.bookings_count || 0) >= slot.capacity;
-              const isBooked = booked === slot.id;
-              const showingForm = bookingForm.show && bookingForm.slot_id === slot.id;
-              return (
-                <div key={slot.id}>
-                  <div className="px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="text-center min-w-[48px]">
-                        <p className="text-[18px] font-extrabold text-gray-900">{slot.departure_time?.slice(0, 5)}</p>
-                        <p className="text-[9px] text-gray-400">{slot.event_label || dayNames || (slot.date ? new Date(slot.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Daily')}</p>
-                      </div>
-                      <div>
-                        {(() => { const p = slot.override_price ?? slot.route_price ?? 0; return p > 0 ? <p className="text-[10px] font-semibold text-amber-700">${p}/person</p> : null; })()}
-                        {slot.capacity > 0 && <p className={`text-[10px] font-semibold ${full ? 'text-red-500' : 'text-emerald-600'}`}>{full ? 'Full' : `${slot.capacity - (slot.bookings_count || 0)} spots left`}</p>}
-                      </div>
-                    </div>
-                    {isBooked ? (
-                      <span className="flex items-center gap-1 text-[12px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full"><UserCheck size={12} /> Booked</span>
-                    ) : full ? (
-                      <span className="text-[12px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full">Full</span>
-                    ) : showingForm ? (
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setBookingForm(f => ({ ...f, show: false, slot_id: '' }))} className="text-gray-400"><X size={16} /></button>
-                        <button onClick={handleBook} className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: BURGUNDY }}>Confirm</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setBookingForm(f => ({ ...f, slot_id: slot.id, show: true }))} className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: BURGUNDY }}>Sign Up</button>
-                    )}
-                  </div>
-                  {showingForm && (
-                    <div className="px-4 pb-4 space-y-2 bg-gray-50">
-                      <input placeholder="Your name" value={bookingForm.name} onChange={e => setBookingForm(f => ({ ...f, name: e.target.value }))} className="w-full bg-white rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-                      <div className="flex gap-2">
-                        <input placeholder="Room" value={bookingForm.room} onChange={e => setBookingForm(f => ({ ...f, room: e.target.value }))} className="flex-1 bg-white rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-                        <input type="number" min={1} max={10} value={bookingForm.pax} onChange={e => setBookingForm(f => ({ ...f, pax: parseInt(e.target.value) || 1 }))} className="w-16 bg-white rounded-xl px-2 py-2.5 border border-gray-200 text-[13px] outline-none text-center" />
-                      </div>
-                      {(() => { const p = (slot.override_price ?? slot.route_price ?? 0); const total = p * bookingForm.pax; return total > 0 ? (
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1.5">
-                          <div className="flex justify-between text-[12px]"><span className="text-amber-800">${p} × {bookingForm.pax}</span><span className="font-extrabold text-amber-900">${total.toFixed(2)}</span></div>
-                          <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={bookingForm.charge_accepted} onChange={e => setBookingForm(f => ({ ...f, charge_accepted: e.target.checked }))} className="w-4 h-4 accent-[#6B1D3C]" /><span className="text-[11px] text-amber-900 font-semibold">I accept this charge to my final bill</span></label>
-                        </div>
-                      ) : null; })()}
-                      <textarea placeholder="Notes (optional)" value={bookingForm.notes} onChange={e => setBookingForm(f => ({ ...f, notes: e.target.value }))} className="w-full bg-white rounded-xl px-3 py-2 border border-gray-200 text-[13px] outline-none resize-none h-14" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="w-24">
+            <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 block">Room</label>
+            <input value={room} onChange={e => setRoom(e.target.value)} placeholder="201" className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors" />
           </div>
         </div>
-      ))}
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 block">Date</label>
+            <input type="date" value={tripDate} onChange={e => setTripDate(e.target.value)} className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors" />
+          </div>
+          <div className="flex-1">
+            <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 block">Time (optional)</label>
+            <input type="time" value={tripTime} onChange={e => setTripTime(e.target.value)} className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors" />
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-bold text-gray-600">Party size</label>
+          <div className="flex items-center gap-3 ml-auto">
+            <button onClick={() => setPax(Math.max(1, pax - 1))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-bold text-lg">−</button>
+            <span className="w-6 text-center text-base font-bold">{pax}</span>
+            <button onClick={() => setPax(Math.min(20, pax + 1))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-bold text-lg">+</button>
+          </div>
+        </div>
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes — flight number, special needs, etc." className="w-full bg-gray-50 rounded-xl px-3 py-3 border border-gray-200 text-sm outline-none resize-none h-16 focus:border-gray-400 transition-colors" />
+      </div>
+
+      {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 text-center">{error}</p>}
+
+      <button onClick={handleBook} disabled={submitting} className="w-full py-4 rounded-xl text-white font-bold text-[15px] flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundColor: brandColor }}>
+        {submitting ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting…</> : 'Submit Request'}
+      </button>
+    </div>
+  );
+
+  // Screen: done
+  return (
+    <div className="bg-gray-50 rounded-2xl p-8 text-center space-y-4">
+      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+        <CheckCircle size={28} className="text-green-600" />
+      </div>
+      <div>
+        <h2 className="text-lg font-extrabold text-black">Request submitted!</h2>
+        <p className="text-sm text-gray-500 mt-2">Our team will confirm your transportation and reach out with details. Contact the front desk for immediate assistance.</p>
+      </div>
+      <button onClick={() => { setScreen(skipModeScreen ? 'address' : 'mode'); setToText(''); setToPlace(null); setFromPlace(null); setFromTouched(false); setFromText(defaultFromText); setError(''); }}
+        className="text-sm font-semibold" style={{ color: brandColor }}>
+        New Request
+      </button>
     </div>
   );
 }
 
 function OnDemandInner() {
-  const [direction, setDirection] = useState<'arrival' | 'departure'>('departure');
-  const [form, setForm] = useState({ guestName: '', room: '', date: '', time: '', airline: '', flight: '', destination: '', pax: 1, notes: '' });
-  const [config, setConfig] = useState<HotelConfig | null>(null);
-  const [routes, setRoutes] = useState<ShuttleRoute[]>([]);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    getHotelConfig().then(async h => {
-      setConfig(h);
-      if (h?.id) { const r = await getShuttleRoutes(h.id); setRoutes(r); if (r.length > 0) setForm(f => ({ ...f, destination: r[0].name })); }
-    });
-    try {
-      const gs = localStorage.getItem('guestSession');
-      if (gs) { const s = JSON.parse(gs); setForm(f => ({ ...f, guestName: s.name || '', room: s.room || '' })); }
-    } catch {}
-  }, []);
-
-  const handleSubmit = async () => {
-    if (!form.guestName || !form.room) { setError('Name and room number are required.'); return; }
-    setSubmitting(true); setError('');
-    try {
-      const hotel = await getHotelConfig();
-      await createShuttleRequest({ hotel_id: hotel?.id || '', guest_name: form.guestName, room_number: form.room, pickup_location: direction === 'departure' ? 'Hotel Lobby' : form.destination, destination: direction === 'arrival' ? 'Hotel' : form.destination, date: form.date || undefined, time: form.time || undefined, pax: form.pax, notes: [form.airline ? `Airline: ${form.airline}${form.flight ? ` ${form.flight}` : ''}` : '', form.notes].filter(Boolean).join('. ') });
-      setSent(true);
-    } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Failed to submit.'); }
-    finally { setSubmitting(false); }
-  };
-
-  if (sent) return (
-    <div className="bg-gray-50 rounded-2xl p-6 text-center">
-      <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3"><Send size={20} className="text-green-600" /></div>
-      <h2 className="text-[16px] font-bold text-black mb-1">Request Sent!</h2>
-      <p className="text-[13px] text-gray-500">Our team will confirm your transport shortly.</p>
-      <button onClick={() => setSent(false)} className="mt-4 text-[13px] font-semibold" style={{ color: BURGUNDY }}>New Request</button>
-    </div>
-  );
-
-  return (
-    <div className="space-y-3">
-      <div className="bg-gray-100 rounded-2xl p-1 flex">
-        <button onClick={() => setDirection('arrival')} className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-1.5 ${direction === 'arrival' ? 'text-white' : 'text-gray-500'}`} style={direction === 'arrival' ? { backgroundColor: BURGUNDY } : undefined}><Plane size={13} /> Arrival</button>
-        <button onClick={() => setDirection('departure')} className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-1.5 ${direction === 'departure' ? 'text-white' : 'text-gray-500'}`} style={direction === 'departure' ? { backgroundColor: BURGUNDY } : undefined}>Departure <Plane size={13} /></button>
-      </div>
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
-        <div className="flex gap-2">
-          <div className="flex-1"><label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Guest Name</label><input placeholder="Your name" value={form.guestName} onChange={e => setForm(f => ({ ...f, guestName: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" /></div>
-          <div className="w-24"><label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Room</label><input placeholder="201" value={form.room} onChange={e => setForm(f => ({ ...f, room: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" /></div>
-        </div>
-        <div className="flex gap-2">
-          <div className="flex-1"><label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Date</label><input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" /></div>
-          <div className="flex-1"><label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Time</label><input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" /></div>
-        </div>
-        {direction === 'arrival' && (
-          <div className="flex gap-2">
-            <input placeholder="Airline / Cruise line" value={form.airline} onChange={e => setForm(f => ({ ...f, airline: e.target.value }))} className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-            <input placeholder="Flight #" value={form.flight} onChange={e => setForm(f => ({ ...f, flight: e.target.value }))} className="w-24 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-          </div>
-        )}
-        {routes.length > 0 ? (
-          <select value={form.destination} onChange={e => setForm(f => ({ ...f, destination: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none">
-            {routes.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-          </select>
-        ) : (
-          <input placeholder="Destination (Airport, Downtown, etc.)" value={form.destination} onChange={e => setForm(f => ({ ...f, destination: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none" />
-        )}
-        <div className="flex gap-2 items-end">
-          <div className="w-20"><label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Pax</label><input type="number" min={1} max={20} value={form.pax} onChange={e => setForm(f => ({ ...f, pax: parseInt(e.target.value) || 1 }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none text-center" /></div>
-          <div className="flex-1"><textarea placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="w-full bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none resize-none h-[42px]" /></div>
-        </div>
-      </div>
-      {error && <p className="text-[12px] text-red-600 bg-red-50 rounded-xl px-4 py-2.5 text-center">{error}</p>}
-      <button onClick={handleSubmit} disabled={submitting} className="w-full py-3.5 rounded-xl text-white font-bold text-[14px] flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundColor: BURGUNDY }}>
-        {submitting ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting…</> : 'Submit Request'}
-      </button>
-      <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-        <p className="text-[11px] text-amber-700">{config?.transportContent?.pickup_note || 'Pickup requests are confirmed by staff. Contact front desk at ext. 0 for immediate needs.'}</p>
-      </div>
-    </div>
-  );
+  return <TransportBooker brandColor={BURGUNDY} />;
 }
 
-/* ── Facilities ────────────────────────────────────────────── */
+/* ── Facilities ──────────────────────────────────────────────────── */
 export function FacilitiesSheetContent() {
   const [copied, setCopied] = useState(false);
   const [config, setConfig] = useState<HotelConfig | null>(null);
@@ -543,7 +712,7 @@ export function FacilitiesSheetContent() {
   );
 }
 
-/* ── Safety ────────────────────────────────────────────────── */
+/* ── Safety ──────────────────────────────────────────────────────── */
 const DEFAULT_EMERGENCY_MSG = "Remain calm. Call 911 for immediate emergency response, then notify the front desk at";
 const DEFAULT_CONTACTS: { label: string; number: string }[] = [
   { label: 'Emergency (Police, Fire, Medical)', number: '911' },
@@ -627,7 +796,7 @@ export function SafetySheetContent() {
   );
 }
 
-/* ── Welcome Letter ────────────────────────────────────────── */
+/* ── Welcome Letter ──────────────────────────────────────────────────── */
 export function WelcomeSheetContent() {
   const [config, setConfig] = useState<HotelConfig | null>(null);
   useEffect(() => { getHotelConfig().then(setConfig); }, []);
@@ -652,7 +821,7 @@ export function WelcomeSheetContent() {
   );
 }
 
-/* ── Review ────────────────────────────────────────────────── */
+/* ── Review ────────────────────────────────────────────────────────── */
 export function ReviewSheetContent({ onClose: closeSheet }: { onClose: () => void }) {
   const [step, setStep] = useState<'rating' | 'feedback' | 'done'>('rating');
   const [rating, setRating] = useState(0);

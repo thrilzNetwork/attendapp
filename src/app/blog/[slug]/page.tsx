@@ -217,10 +217,9 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
       <footer className="py-10 px-5 border-t border-gray-200 bg-white">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-teal-600">
-                <span className="text-white font-black text-[12px]">A</span>
-              </div>
+            <Link href="/" className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/icon-mark.svg" alt="Attenda" style={{ height: 28, width: 'auto' }} />
               <span className="text-[13px] text-gray-600">Attenda</span>
             </Link>
           </div>

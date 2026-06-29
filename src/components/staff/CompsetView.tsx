@@ -400,52 +400,110 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
       )}
 
       {!showHistory && hotels.length > 0 && callTimes.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          <table className="w-full text-[13px]">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left px-5 py-3 font-bold text-gray-500 text-[11px] uppercase tracking-wider">Hotel</th>
-                {callTimes.map(t => (
-                  <th key={t.id} className="text-center px-3 py-3 font-bold text-gray-500 text-[11px] uppercase tracking-wider">{formatTime(t.call_time)}</th>
+        <>
+          {/* Desktop table */}
+          <div className="hidden md:block bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="text-left px-5 py-3 font-bold text-gray-500 text-[11px] uppercase tracking-wider">Hotel</th>
+                  {callTimes.map(t => (
+                    <th key={t.id} className="text-center px-3 py-3 font-bold text-gray-500 text-[11px] uppercase tracking-wider">{formatTime(t.call_time)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {hotels.map(h => (
+                  <tr key={h.id} className="border-b border-gray-50 last:border-0">
+                    <td className="px-5 py-4 min-w-[160px]">
+                      <p className="font-bold text-gray-900 text-[14px]">{h.name}</p>
+                      <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
+                        {h.phone && <span className="flex items-center gap-1"><Phone size={10} />{h.phone}</span>}
+                        {h.phone && ' · '}{h.room_keys || 0} keys
+                      </p>
+                    </td>
+                    {callTimes.map(t => {
+                      const e = entryFor(h.id, t.call_time);
+                      return (
+                        <td key={t.id} className="text-center px-3 py-3">
+                          <button onClick={() => openSlot(h.id, t.call_time)}
+                            className={`w-full rounded-xl px-3 py-3 transition-colors ${e ? 'bg-teal-50 hover:bg-teal-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                            {e ? (
+                              <span className="flex flex-col items-center gap-1">
+                                <span className="flex items-center gap-1">
+                                  <CheckCircle2 size={12} className="text-teal-500 flex-shrink-0" />
+                                  <span className="text-[22px] font-extrabold text-gray-900 leading-none">${e.rate ?? '—'}</span>
+                                </span>
+                                {e.occupancy_pct != null && (
+                                  <span className="text-[13px] font-bold text-teal-600">{e.occupancy_pct}%</span>
+                                )}
+                                {e.rooms_sold != null && (
+                                  <span className="text-[11px] text-gray-400">{e.rooms_sold}/{e.rooms_total ?? h.room_keys ?? '—'} rooms</span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="flex items-center justify-center gap-1 text-[12px] font-semibold text-gray-400">
+                                <Circle size={12} /> Log call
+                              </span>
+                            )}
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {hotels.map(h => (
-                <tr key={h.id} className="border-b border-gray-50 last:border-0">
-                  <td className="px-5 py-3">
-                    <p className="font-bold text-gray-900">{h.name}</p>
-                    <p className="text-[11px] text-gray-400 flex items-center gap-1">
-                      {h.phone && <span className="flex items-center gap-1"><Phone size={10} />{h.phone}</span>}
-                      {h.phone && ' · '}{h.room_keys || 0} room keys
-                    </p>
-                  </td>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-4">
+            {hotels.map(h => (
+              <div key={h.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-gray-900 text-[15px]">{h.name}</p>
+                    {h.phone && (
+                      <p className="text-[12px] text-gray-400 flex items-center gap-1 mt-0.5">
+                        <Phone size={11} />{h.phone}
+                        <span className="text-gray-300">·</span>{h.room_keys || 0} keys
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="divide-y divide-gray-50">
                   {callTimes.map(t => {
                     const e = entryFor(h.id, t.call_time);
                     return (
-                      <td key={t.id} className="text-center px-3 py-3">
-                        <button onClick={() => openSlot(h.id, t.call_time)}
-                          className={`w-full rounded-lg px-2 py-2 text-[11px] font-semibold ${e ? 'bg-teal-50 text-teal-700' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}>
-                          {e ? (
-                            <span className="flex flex-col items-center gap-0.5">
-                              <span className="flex items-center gap-1"><CheckCircle2 size={11} /> ${e.rate}</span>
-                              <span className="text-[10px] text-teal-500">
-                                {e.occupancy_pct != null ? `${e.occupancy_pct}%` : ''}
-                                {e.rooms_sold != null ? ` · ${e.rooms_sold}/${e.rooms_total ?? h.room_keys ?? '—'}` : ''}
-                              </span>
+                      <button key={t.id} onClick={() => openSlot(h.id, t.call_time)}
+                        className="w-full flex items-center justify-between px-4 py-3.5 text-left active:bg-gray-50">
+                        <span className="text-[13px] font-semibold text-gray-500">{formatTime(t.call_time)}</span>
+                        {e ? (
+                          <span className="flex items-center gap-3">
+                            <span className="text-[24px] font-extrabold text-gray-900 leading-none">${e.rate ?? '—'}</span>
+                            <span className="flex flex-col items-end">
+                              {e.occupancy_pct != null && (
+                                <span className="text-[14px] font-bold text-teal-600">{e.occupancy_pct}%</span>
+                              )}
+                              {e.rooms_sold != null && (
+                                <span className="text-[11px] text-gray-400">{e.rooms_sold}/{e.rooms_total ?? h.room_keys ?? '—'} rooms</span>
+                              )}
                             </span>
-                          ) : (
-                            <span className="flex items-center justify-center gap-1"><Circle size={11} /> Log call</span>
-                          )}
-                        </button>
-                      </td>
+                            <CheckCircle2 size={16} className="text-teal-500" />
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-[12px] font-semibold text-gray-400 bg-gray-100 rounded-lg px-3 py-1.5">
+                            <Circle size={12} /> Log call
+                          </span>
+                        )}
+                      </button>
                     );
                   })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {showHistory && (

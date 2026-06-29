@@ -11,6 +11,8 @@ export default function BankCountView({ hotelId }: { hotelId: string }) {
   const [date, setDate] = useState(today);
   const [form, setForm] = useState({ shift: 'AM', counted_by: '', cash_total: 0, card_total: 0, room_charges: 0, discrepancies: '', notes: '' });
   const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = async () => setCounts(await getBankCounts(hotelId, date));
   useEffect(() => { load(); // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -18,10 +20,16 @@ export default function BankCountView({ hotelId }: { hotelId: string }) {
 
   const handleCreate = async () => {
     if (!form.counted_by) return;
-    await createBankCount({ hotel_id: hotelId, count_date: date, ...form });
-    setForm({ shift: 'AM', counted_by: '', cash_total: 0, card_total: 0, room_charges: 0, discrepancies: '', notes: '' });
-    setShowForm(false);
-    load();
+    setSaving(true); setError(null);
+    try {
+      await createBankCount({ hotel_id: hotelId, count_date: date, ...form });
+      setForm({ shift: 'AM', counted_by: '', cash_total: 0, card_total: 0, room_charges: 0, discrepancies: '', notes: '' });
+      setShowForm(false);
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save bank count');
+    }
+    setSaving(false);
   };
 
   return (
@@ -72,9 +80,10 @@ export default function BankCountView({ hotelId }: { hotelId: string }) {
               Total: ${(form.cash_total + form.card_total + form.room_charges).toFixed(2)}
             </div>
           ) : null}
+          {error && <div className="mt-3 bg-red-50 border border-red-200 text-red-700 text-[12px] rounded-xl px-3 py-2">{error}</div>}
           <div className="flex gap-2 mt-4 justify-end">
-            <button onClick={() => { setShowForm(false); }} className="px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600">Cancel</button>
-            <button onClick={handleCreate} disabled={!form.counted_by} className="px-5 py-2 rounded-xl text-white text-[13px] font-bold disabled:opacity-40" style={{ backgroundColor: TEAL }}>Save Count</button>
+            <button onClick={() => { setShowForm(false); setError(null); }} className="px-4 py-2 rounded-xl text-[13px] font-semibold bg-gray-100 text-gray-600">Cancel</button>
+            <button onClick={handleCreate} disabled={!form.counted_by || saving} className="px-5 py-2 rounded-xl text-white text-[13px] font-bold disabled:opacity-40" style={{ backgroundColor: TEAL }}>{saving ? 'Saving…' : 'Save Count'}</button>
           </div>
         </div>
       )}

@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 import { getCaller, resolveHotelScope, getSupabaseAdmin } from '@/lib/supabase-admin';
 
+// Handle CORS preflight — required because the client sends x-superadmin-key header
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, x-superadmin-key, Authorization',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
+
 interface ForecastRow {
   hotel_id: string;
   week_start: string;
@@ -61,7 +74,7 @@ export async function POST(req: NextRequest) {
             prev_night_occ: f.prev_night_occ,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: 'hotel_id,date' }
+          { onConflict: 'hotel_id, date' }
         );
 
       results.push({ date: f.date, ok: !error });
@@ -71,7 +84,8 @@ export async function POST(req: NextRequest) {
     }
 
     const allOk = results.every((r) => r.ok);
-    return NextResponse.json({ ok: allOk, results });
+    const failed = results.filter(r => !r.ok).map(r => r.date);
+    return NextResponse.json({ ok: allOk, results, ...(failed.length ? { error: `Failed to save dates: ${failed.join(', ')}` } : {}) });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Server error';
     console.error('upsert-forecast error:', msg);

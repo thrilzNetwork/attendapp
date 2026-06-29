@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase, getWeeklyForecasts, authedApiHeaders, type WeeklyForecast } from '@/lib/supabase';
+import { supabase, getWeeklyForecasts, type WeeklyForecast } from '@/lib/supabase';
 import { TrendingUp, Save, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
 interface DayData {
@@ -27,7 +27,7 @@ function getWeekDates(ref: Date): { date: string; label: string }[] {
 function getMonday(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '00')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function getTodayInTimezone(tz: string): string {
@@ -91,6 +91,8 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
 
   const loadWeek = async (offset: number) => {
     setLoading(true);
+    setWeekDays([]);
+    setSaveError('');
     const todayLocal = getTodayInTimezone(resolvedTimezone);
     const ref = new Date(todayLocal + 'T12:00:00');
     ref.setDate(ref.getDate() + offset * 7);
@@ -167,27 +169,26 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
 
   const handleSave = async () => {
     if (!resolvedHotelId) { setSaveError('Hotel not loaded yet — please wait.'); return; }
+    if (!mondayStr) { setSaveError('Week not loaded yet — please wait.'); return; }
+    if (weekDays.length === 0) { setSaveError('No data to save.'); return; }
     setSaving(true); setSaveError('');
-    const monday = weekDays.length > 0 ? getMonday(weekDays[0].date) : mondayStr;
+    const monday = mondayStr;
     try {
       const forecasts = weekDays.map(day => ({
         hotel_id: resolvedHotelId,
         week_start: monday,
         date: day.date,
-        occupancy_pct: day.occupancyPct,
-        arrivals: day.arrivals,
-        rooms_occupied: day.roomsOccupied,
-        departures: day.departures,
-        total_rooms: resolvedTotalRooms,
-        prev_night_occ: prevNightOcc,
+        occupancy_pct: Math.round(day.occupancyPct),
+        arrivals: Math.round(day.arrivals),
+        rooms_occupied: Math.round(day.roomsOccupied),
+        departures: Math.round(day.departures),
+        total_rooms: Math.round(resolvedTotalRooms),
+        prev_night_occ: Math.round(prevNightOcc),
       }));
-      const res = await fetch('/api/upsert-forecast', {
-        method: 'POST',
-        headers: await authedApiHeaders(),
-        body: JSON.stringify({ forecasts }),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'Save failed');
+      const { error } = await supabase
+        .from('weekly_forecasts')
+        .upsert(forecasts, { onConflict: 'hotel_id,date' });
+      if (error) throw new Error(error.message || 'Save failed');
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e: unknown) {
@@ -219,7 +220,7 @@ export default function ForecastView({ hotelId, totalRooms, timezone }: Forecast
           </button>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || loading}
             className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors"
           >
             <Save size={12} /> {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}

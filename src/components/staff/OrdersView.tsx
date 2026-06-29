@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { RefreshCw, Check, X, UserCheck, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, Check, X, UserCheck, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface Request {
@@ -16,6 +16,12 @@ interface Request {
   guest_verified?: boolean;
 }
 
+interface StaffMember {
+  id?: string;
+  name: string;
+  active?: boolean;
+}
+
 interface OrdersViewProps {
   requests: Request[];
   messages: unknown[];
@@ -23,6 +29,12 @@ interface OrdersViewProps {
   onDelete: (id: string) => void;
   onRefresh: () => void;
   staffName: string;
+  staffList?: StaffMember[];
+}
+
+// Use local calendar date, not UTC — UTC rolls over ~8pm ET and makes today's requests vanish
+function localDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 const STATUS_PALETTE: Record<string, { bg: string; border: string; badge: string; badgeText: string; label: string }> = {
@@ -57,18 +69,40 @@ const STATUS_PALETTE: Record<string, { bg: string; border: string; badge: string
 };
 
 function OrdersView({
-  requests: initialRequests, onStatusChange, onDelete, onRefresh, staffName,
+  requests: initialRequests, onStatusChange, onDelete, onRefresh, staffName, staffList = [],
 }: OrdersViewProps) {
   const [requests, setRequests] = useState<Request[]>(initialRequests);
   const [selected, setSelected] = useState<Request | null>(null);
   const [showAllOpen, setShowAllOpen] = useState(false);
+  const [reassigning, setReassigning] = useState(false);
+  const [reassignTo, setReassignTo] = useState('');
+  const [viewDate, setViewDate] = useState(() => localDateStr(new Date()));
 
   useEffect(() => { setRequests(initialRequests); }, [initialRequests]);
 
-  const pending = requests.filter(r => r.status === 'pending');
-  const inProgress = requests.filter(r => r.status === 'in-progress');
-  const completed = requests.filter(r => r.status === 'completed');
-  const closed = requests.filter(r => r.status === 'closed');
+  const todayStr = localDateStr(new Date());
+  const isToday = viewDate === todayStr;
+
+  const shiftDate = (delta: number) => {
+    const d = new Date(viewDate + 'T12:00:00');
+    d.setDate(d.getDate() + delta);
+    setViewDate(localDateStr(d));
+  };
+
+  const formatViewDate = (iso: string) => {
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  // Shuttle Booking requests live in the Transport tab — exclude them here to keep Requests clean
+  const viewed = requests.filter(r =>
+    localDateStr(new Date(r.created_at)) === viewDate && r.type !== 'Shuttle Booking'
+  );
+
+  const pending = viewed.filter(r => r.status === 'pending');
+  const inProgress = viewed.filter(r => r.status === 'in-progress');
+  const completed = viewed.filter(r => r.status === 'completed');
+  const closed = viewed.filter(r => r.status === 'closed');
   const open = [...pending, ...inProgress];
 
   const handleAccept = async (req: Request) => {
@@ -95,7 +129,15 @@ function OrdersView({
     await supabase.from('requests').update({ guest_verified: true }).eq('id', req.id);
   };
 
-  const handleTap = (req: Request) => setSelected(req);
+  const handleReassign = async (req: Request, toName: string) => {
+    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, assigned_to: toName, status: 'in-progress' } : r));
+    setSelected(prev => prev?.id === req.id ? { ...prev, assigned_to: toName, status: 'in-progress' } : prev);
+    await onStatusChange(req.id, 'in-progress', toName);
+    setReassigning(false);
+    setReassignTo('');
+  };
+
+  const handleTap = (req: Request) => { setReassigning(false); setReassignTo(''); setSelected(req); };
 
   const isAssignedToMe = (req: Request) => req.assigned_to === staffName;
 
@@ -163,11 +205,62 @@ function OrdersView({
               </div>
             </div>
 
-            {req.assigned_to && (
-              <div className="flex items-center gap-2 bg-blue-50 rounded-xl px-3 py-2 border border-blue-100">
-                <UserCheck size={14} className="text-blue-600" />
-                <span className="text-[12px] font-semibold text-blue-800">Assigned to {req.assigned_to}</span>
+            {req.assigned_to && !reassigning && (
+              <div className="flex items-center justify-between bg-blue-50 rounded-xl px-3 py-2 border border-blue-100">
+                <div className="flex items-center gap-2">
+                  <UserCheck size={14} className="text-blue-600" />
+                  <span className="text-[12px] font-semibold text-blue-800">Assigned to {req.assigned_to}</span>
+                </div>
+                {(req.status === 'pending' || req.status === 'in-progress') && (
+                  <button
+                    onClick={() => { setReassigning(true); setReassignTo(req.assigned_to || ''); }}
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 px-2 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    Reassign
+                  </button>
+                )}
               </div>
+            )}
+
+            {reassigning && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-3 space-y-2">
+                <p className="text-[11px] font-bold text-indigo-700 uppercase tracking-wide">Reassign to</p>
+                <select
+                  value={reassignTo}
+                  onChange={e => setReassignTo(e.target.value)}
+                  className="w-full text-[13px] border border-indigo-200 rounded-lg px-2.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                >
+                  <option value="">— select staff —</option>
+                  {staffList.filter(s => s.name !== req.assigned_to).map(s => (
+                    <option key={s.id} value={s.name}>{s.name}</option>
+                  ))}
+                  {staffList.length === 0 && <option value={staffName}>{staffName} (me)</option>}
+                </select>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => reassignTo && handleReassign(req, reassignTo)}
+                    disabled={!reassignTo}
+                    className="flex-1 py-2 rounded-lg bg-indigo-600 text-white text-[12px] font-bold disabled:opacity-40 active:scale-95 transition-all"
+                  >
+                    Confirm Reassign
+                  </button>
+                  <button
+                    onClick={() => { setReassigning(false); setReassignTo(''); }}
+                    className="px-3 py-2 rounded-lg bg-gray-100 text-gray-600 text-[12px] font-semibold active:scale-95 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!req.assigned_to && !reassigning && (req.status === 'pending' || req.status === 'in-progress') && staffList.length > 0 && (
+              <button
+                onClick={() => setReassigning(true)}
+                className="w-full py-2 rounded-xl border border-dashed border-indigo-300 text-indigo-600 text-[12px] font-semibold hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <UserCheck size={13} /> Assign to staff
+              </button>
             )}
           </div>
 
@@ -231,7 +324,7 @@ function OrdersView({
   return (
     <div className="p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-[26px] font-extrabold text-gray-900">
             Requests
@@ -250,9 +343,32 @@ function OrdersView({
         </button>
       </div>
 
-      {requests.length === 0 ? (
+      {/* Date Nav */}
+      <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-3 py-2 mb-6 shadow-sm">
+        <button onClick={() => shiftDate(-1)} className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all">
+          <ChevronLeft size={18} className="text-gray-600" />
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-[14px] font-bold text-gray-800">{formatViewDate(viewDate)}</span>
+          {isToday && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">Today</span>}
+        </div>
+        <div className="flex items-center gap-1">
+          {!isToday && (
+            <button onClick={() => setViewDate(todayStr)} className="text-[11px] font-semibold text-teal-600 hover:text-teal-800 px-2 py-1 rounded-lg hover:bg-teal-50 transition-colors mr-1">
+              Today
+            </button>
+          )}
+          <button onClick={() => shiftDate(1)} className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all">
+            <ChevronRight size={18} className="text-gray-600" />
+          </button>
+        </div>
+      </div>
+
+      {viewed.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <p className="text-[15px] text-gray-400">No requests yet. Guest interactions will show here only when they request something.</p>
+          <p className="text-[15px] text-gray-400">
+            {isToday ? 'No requests yet today. Guest interactions will show here when they request something.' : `No requests on ${formatViewDate(viewDate)}.`}
+          </p>
         </div>
       ) : (
         <>

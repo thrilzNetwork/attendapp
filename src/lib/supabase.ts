@@ -35,6 +35,9 @@ export interface SafetyContent {
 
 export interface TransportContent {
   pickup_note?: string;
+  third_party_name?: string;
+  third_party_url?: string;
+  third_party_description?: string;
 }
 
 export interface FoodContent {
@@ -139,6 +142,7 @@ export interface StaffAccount {
   pto_used?: number;      // PTO days used this year
   min_hours?: number;     // Minimum weekly hours expected
   employment_type?: string; // 'full_time' | 'part_time'
+  positions?: string[];    // All positions held, e.g. ['front_desk', 'drivers']
 }
 
 export interface RequestItem {
@@ -156,7 +160,7 @@ export interface RequestItem {
 export async function getHotelConfig(slug?: string): Promise<HotelConfig | null> {
   const hotelSlug = slug
     || (typeof window !== 'undefined' ? localStorage.getItem('attenda_hotel_slug') : null)
-    || 'miami-airport';
+    || 'fort-lauderdale-airport-cruise-port';
   const { data, error } = await supabase
     .from('hotels')
     .select('*')
@@ -212,7 +216,7 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
   const { data, error } = await supabase
     .from('hotels')
     .upsert({
-      slug: config.slug || 'miami-airport',
+      slug: config.slug || 'fort-lauderdale-airport-cruise-port',
       name: config.name,
       address: config.address,
       wifi_name: config.wifiName,
@@ -236,6 +240,14 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       brand: config.propertyType || 'Hotel',
       gm_notes: config.gmNotes || '',
       week_starts_on: config.weekStartsOn || 'Sunday',
+      timezone: config.timezone || 'America/New_York',
+      has_free_shuttle: config.hasFreeShuttle ?? false,
+      shuttle_start_time: config.shuttleStartTime || null,
+      shuttle_end_time: config.shuttleEndTime || null,
+      shuttle_days: config.shuttleDays || [1,2,3,4,5,6,7],
+      shuttle_capacity: config.shuttleCapacity || 8,
+      shuttle_pickup_location: config.shuttlePickupLocation || '',
+      shuttle_notes: config.shuttleNotes || '',
       payment_type: config.paymentType || '',
       last_payment: config.lastPayment || '',
       facilities_content: config.facilitiesContent || [],
@@ -405,6 +417,14 @@ export function subscribeToRequests(hotelId: string | null, callback: (payload: 
   return channel;
 }
 
+export function subscribeToShuttleRequests(hotelId: string, callback: () => void) {
+  const channel = supabase.channel(`shuttle-requests-${hotelId}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (channel as any).on('postgres_changes', { event: '*', schema: 'public', table: 'shuttle_requests', filter: `hotel_id=eq.${hotelId}` }, callback);
+  channel.subscribe();
+  return channel;
+}
+
 export function subscribeToMessages(hotelId: string | null, callback: (payload?: Record<string, unknown>) => void) {
   const channelName = hotelId ? `messages-live-${hotelId}` : 'messages-live-all';
   const channel = supabase
@@ -449,53 +469,91 @@ export interface PartnerMenuItem {
   name: string;
   description: string;
   price: number;
+  image_url?: string;
   is_active: boolean;
   category?: string;
   sort_order?: number;
 }
 
 export async function getPartners(hotelId: string): Promise<Partner[]> {
-  const { data } = await supabase
-    .from('partners').select('*')
-    .eq('hotel_id', hotelId).eq('is_active', true)
-    .order('category').order('name');
-  return data || [];
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'get_partners', data: { hotel_id: hotelId } }),
+  });
+  const json = await res.json();
+  return json.data || [];
 }
 
 export async function getPartnerById(id: string): Promise<Partner | null> {
-  const { data } = await supabase.from('partners').select('*').eq('id', id).single();
+  // Explicit public column list — never select financial/secret columns
+  // (stripe_account_id, payout_email, clover_*, fee margins) on the anon client.
+  const { data } = await supabase
+    .from('partners')
+    .select('id, hotel_id, name, category, description, image_url, phone, address, hours, distance, rating, has_ordering, is_active, email, google_place_id, delivery_providers')
+    .eq('id', id)
+    .single();
   return data || null;
 }
 
 export async function createPartner(partner: Omit<Partner, 'id' | 'is_active'>): Promise<Partner | null> {
-  const { data } = await supabase.from('partners').insert({ ...partner, is_active: true }).select().single();
-  return data;
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'create_partner', data: partner }),
+  });
+  const json = await res.json();
+  return json.data || null;
 }
 
 export async function updatePartner(id: string, updates: Partial<Partner>): Promise<void> {
-  const { error } = await supabase.from('partners').update(updates).eq('id', id);
-  if (error) throw error;
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'update_partner', data: { id, updates } }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'updatePartner failed');
 }
 
 export async function deletePartner(id: string): Promise<void> {
-  const { error } = await supabase.from('partners').delete().eq('id', id);
-  if (error) throw error;
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'delete_partner', data: { id } }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'deletePartner failed');
 }
 
 export async function getPartnerMenuItems(partnerId: string): Promise<PartnerMenuItem[]> {
-  const { data } = await supabase.from('partner_menu_items').select('*')
-    .eq('partner_id', partnerId).eq('is_active', true);
+  const { data } = await supabase
+    .from('partner_menu_items')
+    .select('*')
+    .eq('partner_id', partnerId)
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
   return data || [];
 }
 
-export async function createPartnerMenuItem(item: { partner_id: string; name: string; description: string; price: number; category?: string; sort_order?: number }): Promise<void> {
-  const { error } = await supabase.from('partner_menu_items').insert({ ...item, is_active: true });
-  if (error) throw error;
+export async function createPartnerMenuItem(item: { partner_id: string; name: string; description: string; price: number; image_url?: string; category?: string; sort_order?: number }): Promise<void> {
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'create_menu_item', data: item }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'createPartnerMenuItem failed');
 }
 
 export async function deletePartnerMenuItem(id: string): Promise<void> {
-  const { error } = await supabase.from('partner_menu_items').delete().eq('id', id);
-  if (error) throw error;
+  const res = await fetch('/api/partners', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'delete_menu_item', data: { id } }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'deletePartnerMenuItem failed');
 }
 
 // ─── Compset (competitive rate shop) ──────────────────────────
@@ -534,6 +592,7 @@ export interface CompsetEntry {
 }
 
 export async function getCompsetHotels(hotelId: string): Promise<CompsetHotel[]> {
+  if (!isUuid(hotelId)) return [];
   const { data, error } = await supabase
     .from('compset_hotels').select('*')
     .eq('hotel_id', hotelId).eq('is_active', true)
@@ -559,6 +618,7 @@ export async function deleteCompsetHotel(id: string): Promise<void> {
 }
 
 export async function getCompsetCallTimes(hotelId: string): Promise<CompsetCallTime[]> {
+  if (!isUuid(hotelId)) return [];
   const { data, error } = await supabase
     .from('compset_call_times').select('*')
     .eq('hotel_id', hotelId)
@@ -583,6 +643,7 @@ export async function deleteCompsetCallTime(id: string): Promise<void> {
 }
 
 export async function getCompsetEntries(hotelId: string, date: string): Promise<CompsetEntry[]> {
+  if (!isUuid(hotelId)) return [];
   const { data, error } = await supabase
     .from('compset_entries').select('*')
     .eq('hotel_id', hotelId).eq('call_date', date);
@@ -591,6 +652,7 @@ export async function getCompsetEntries(hotelId: string, date: string): Promise<
 }
 
 export async function getCompsetEntriesRange(hotelId: string, startDate: string, endDate: string): Promise<CompsetEntry[]> {
+  if (!isUuid(hotelId)) return [];
   const { data, error } = await supabase
     .from('compset_entries').select('*')
     .eq('hotel_id', hotelId).gte('call_date', startDate).lte('call_date', endDate)
@@ -774,6 +836,10 @@ export interface ShuttleRequest {
   assigned_driver_id: string | null;
   assigned_driver_name?: string;
   created_at: string;
+  uber_delivery_id?: string | null;
+  uber_tracking_url?: string | null;
+  uber_status?: string | null;
+  uber_fee_cents?: number | null;
 }
 
 // ─── Shuttle CRUD ───────────────────────────────────────────
@@ -911,26 +977,21 @@ export async function cancelShuttleBooking(id: string) {
 export async function createShuttleRequest(req: {
   hotel_id: string; guest_name: string; room_number: string;
   destination: string; pickup_location?: string; date?: string; time?: string;
-  pax?: number; notes?: string;
+  pax?: number; notes?: string; status?: string; assigned_driver_id?: string;
 }) {
-  const { data } = await supabase.from('shuttle_requests').insert({
+  if (!req.hotel_id || req.hotel_id === '') {
+    // Try to resolve hotel_id from config when caller didn't have it yet
+    const cfg = await getHotelConfig();
+    if (!cfg?.id) throw new Error('Hotel not identified — cannot save request.');
+    req = { ...req, hotel_id: cfg.id };
+  }
+
+  const { data, error } = await supabase.from('shuttle_requests').insert({
     ...req, pickup_location: req.pickup_location || 'Hotel Lobby',
     pax: req.pax || 1, notes: req.notes || '',
   }).select().single();
 
-  // Also insert into requests table so it appears in Live Orders
-  if (data) {
-    const details = `Shuttle to ${req.destination}${req.date ? ` on ${req.date}` : ''}${req.time ? ` at ${req.time}` : ''}${req.pax && req.pax > 1 ? ` (${req.pax} guests)` : ''}${req.notes ? ` — ${req.notes}` : ''}`;
-    await supabase.from('requests').insert({
-      hotel_id: req.hotel_id,
-      guest_name: req.guest_name,
-      room: req.room_number,
-      type: 'Shuttle Booking',
-      details: details.trim(),
-      status: 'pending',
-      created_at: new Date().toISOString(),
-    });
-  }
+  if (error) throw new Error(error.message);
 
   return data;
 }
@@ -1036,7 +1097,7 @@ export async function updateStaffPermissions(id: string, permissions: string[]) 
 
 export async function updateStaffDetails(id: string, updates: {
   name?: string; email?: string; phone?: string; permissions?: string[]; active?: boolean;
-  department?: string; hire_date?: string; pto_used?: number; min_hours?: number; employment_type?: string;
+  department?: string; positions?: string[]; hire_date?: string; pto_used?: number; min_hours?: number; employment_type?: string;
 }) {
   await callStaffApi({ action: 'update', staffId: id, updates });
 }
@@ -1353,7 +1414,7 @@ export async function getStaffSchedulesRange(hotelId: string, from: string, to: 
 
 export async function createStaffSchedule(schedule: {
   hotel_id: string; staff_id?: string; staff_name: string;
-  shift_date: string; start_time: string; end_time: string;
+  shift_date: string; start_time: string; end_time?: string;
   role?: string; notes?: string; created_by?: string;
 }) {
   const res = await fetch('/api/ops-data', {
@@ -1376,6 +1437,16 @@ export async function deleteStaffSchedule(id: string) {
   if (!json.ok) throw new Error(json.error || 'Failed to delete schedule');
 }
 
+export async function updateStaffSchedule(id: string, patch: { end_time?: string; start_time?: string; shift_date?: string; role?: string; notes?: string }) {
+  const res = await fetch('/api/ops-data', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'update_schedule', scheduleId: id, patch }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Failed to update schedule');
+}
+
 // ─── Daily Recap ────────────────────────────────────────────
 export async function getDailyRecap(hotelId: string): Promise<{
   requestsToday: number; completedToday: number; pendingNow: number;
@@ -1388,7 +1459,7 @@ export async function getDailyRecap(hotelId: string): Promise<{
 
   const [reqRes, msgRes, shuttleRes, staffRes, checklistRes] = await Promise.all([
     // Exclude ops-store rows (room='STAFF') that share the `requests` table — only count real guest requests
-    supabase.from('requests').select('status, created_at').eq('hotel_id', hotelId).neq('room', 'STAFF').gte('created_at', today),
+    supabase.from('requests').select('status, created_at').eq('hotel_id', hotelId).neq('room', 'STAFF').neq('type', 'Shuttle Booking').gte('created_at', today),
     supabase.from('messages').select('id, created_at').eq('hotel_id', hotelId).gte('created_at', today),
     supabase.from('shuttle_bookings')
       .select('id, created_at, status, shuttle_slots!inner(shuttle_routes!inner(hotel_id))')
@@ -1663,8 +1734,13 @@ export async function getBankCounts(hotelId: string, date?: string): Promise<Ban
 }
 
 export async function createBankCount(bc: Omit<BankCount, 'id' | 'created_at'>): Promise<void> {
-  const { error } = await supabase.from('bank_counts').insert(bc);
-  if (error) throw error;
+  const res = await fetch('/api/ops-data', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'create_bank_count', bankCount: bc }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Failed to save bank count');
 }
 
 // ─── Daily Property Snapshot ──────────────────────────
@@ -2022,6 +2098,7 @@ export async function createInstance(inst: {
     hotel_id: inst.hotel_id, template_id: inst.template_id,
     staff_id: inst.staff_id, staff_name: inst.staff_name,
     shift: inst.shift || 'AM', status: 'in_progress',
+    shift_date: localDate(), // use client local date, not DB server UTC default
   }).select().single();
   if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
@@ -2030,6 +2107,20 @@ export async function createInstance(inst: {
 export async function completeInstance(id: string) {
   const { error } = await supabase.from('position_todo_instances').update({
     status: 'completed', completed_at: new Date().toISOString(),
+  }).eq('id', id);
+  if (error) throw new Error(error.message || JSON.stringify(error));
+}
+
+export async function deleteInstance(id: string) {
+  await supabase.from('position_todo_responses').delete().eq('instance_id', id);
+  const { error } = await supabase.from('position_todo_instances').delete().eq('id', id);
+  if (error) throw new Error(error.message || JSON.stringify(error));
+}
+
+export async function resetInstance(id: string) {
+  await supabase.from('position_todo_responses').delete().eq('instance_id', id);
+  const { error } = await supabase.from('position_todo_instances').update({
+    status: 'in_progress', completed_at: null,
   }).eq('id', id);
   if (error) throw new Error(error.message || JSON.stringify(error));
 }

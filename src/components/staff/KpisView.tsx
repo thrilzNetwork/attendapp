@@ -357,6 +357,17 @@ export default function KpisView({ hotelId, isAdmin, userName }: { hotelId: stri
             </div>
           </div>
 
+          {/* Save button */}
+          {hasPendingEdits && (
+            <button
+              onClick={handleSaveAll}
+              disabled={submitting}
+              className="w-full mb-4 py-3 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-bold rounded-xl text-[14px] shadow-sm transition-colors"
+            >
+              <Save size={16} /> {submitting ? 'Saving…' : 'Save KPI Values'}
+            </button>
+          )}
+
           {/* Summary chips */}
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-teal-50 border border-teal-200 rounded-xl px-3 py-2.5">
