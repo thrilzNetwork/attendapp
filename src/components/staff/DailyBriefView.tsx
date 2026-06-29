@@ -15,6 +15,8 @@ import {
   getCruiseSchedulesAll,
   getPositionTodoTemplates,
   getTodayInstances,
+  fetchVendorEvents,
+  eventFallsOnDate,
   type HotelConfig,
   type ShuttleSlot,
   type ShuttleRoute,
@@ -22,6 +24,7 @@ import {
   type Checklist,
   type ChecklistInstance,
   type CruiseSchedule,
+  type VendorEvent,
 } from '@/lib/supabase';
 import {
   listShuttleSlots,
@@ -55,7 +58,8 @@ type WidgetId =
   | 'checklists'
   | 'forecast_14'
   | 'shuttle'
-  | 'cruise';
+  | 'cruise'
+  | 'vendor_events';
 
 interface WidgetDef {
   id: WidgetId;
@@ -75,6 +79,7 @@ const ALL_WIDGETS: WidgetDef[] = [
   { id: 'forecast_14',  label: 'Forecast',            description: 'Next 7 days occupancy, arrivals & departures', icon: '📈' },
   { id: 'shuttle',      label: "Today's Shuttle",   description: 'Shuttle trips scheduled for today',     icon: '🚌' },
   { id: 'cruise',       label: 'Cruise Ships',      description: 'Upcoming cruise ship arrivals',         icon: '🚢' },
+  { id: 'vendor_events', label: 'Vendor Events',     description: "Today's vendor deliveries and services",  icon: '🚚' },
 ];
 
 const DEFAULT_WIDGETS: WidgetId[] = ['gm_notes', 'quick_stats', 'my_shift', 'my_todos', 'kpis', 'forecast_14', 'shuttle', 'cruise'];
@@ -128,6 +133,7 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
   const [posTodoTemplates, setPosTodoTemplates] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [posTodoInstances, setPosTodoInstances] = useState<any[]>([]);
+  const [vendorEvents, setVendorEvents] = useState<VendorEvent[]>([]);
 
   // Widget customizer state
   const [enabledWidgets, setEnabledWidgets] = useState<WidgetId[]>(DEFAULT_WIDGETS);
@@ -161,7 +167,7 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
     (async () => {
       const thisWeekStart = today(); // getWeeklyForecasts handles the range
       const nextWeekStart = addDaysStr(today(), 7);
-      const [r, slots, routes, monthSlots, schedules, templates, instances, kpiDefs, kpiLogs, posTpls, posInsts, fw1, fw2] = await Promise.all([
+      const [r, slots, routes, monthSlots, schedules, templates, instances, kpiDefs, kpiLogs, posTpls, posInsts, fw1, fw2, vEvs] = await Promise.all([
         getDailyRecap(hotelId),
         getAllShuttleSlotsForHotel(hotelId),
         getShuttleRoutes(hotelId),
@@ -175,6 +181,7 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
         getTodayInstances(hotelId),
         getWeeklyForecasts(hotelId, thisWeekStart).catch(() => []),
         getWeeklyForecasts(hotelId, nextWeekStart).catch(() => []),
+        fetchVendorEvents(hotelId).catch(() => []),
       ]);
       setRecap(r);
       setTodayShuttleSlots(slots);
@@ -187,6 +194,7 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
       setChecklistInstances(instances || []);
       setPosTodoTemplates(posTpls || []);
       setPosTodoInstances(posInsts || []);
+      setVendorEvents(vEvs || []);
       // Filter to score-related KPIs only — exclude checklist completion counts and parking items
       const SCORE_KEYWORDS = ['score', 'satisfaction', 'rating', 'review', 'nps', 'tripadvisor', 'google'];
       const EXCLUDE_KEYWORDS = ['checklist', 'parking', 'completion'];
@@ -760,8 +768,40 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
             </div>
           )}
 
+          {/* Vendor Events Today */}
+          {on('vendor_events') && (() => {
+            const todayEvts = vendorEvents.filter(e => eventFallsOnDate(e, todayStr));
+            return (
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[16px]">🚚</span>
+                  <h3 className="text-[13px] font-bold text-gray-900">Vendor Events Today</h3>
+                  <span className="text-[11px] text-gray-400">{todayEvts.length} scheduled</span>
+                </div>
+                {todayEvts.length === 0 ? (
+                  <p className="text-[12px] text-gray-400">No vendor deliveries or services scheduled today.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {todayEvts.map(ev => (
+                      <div key={ev.id} className="flex items-center gap-3 bg-gray-50 rounded-lg p-2.5">
+                        <span className="text-[14px]">{ev.event_type === 'delivery' ? '📦' : ev.event_type === 'service' ? '🔧' : ev.event_type === 'maintenance' ? '🛠️' : ev.event_type === 'inspection' ? '🔍' : ev.event_type === 'pickup' ? '🚚' : '📝'}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium text-gray-800 truncate">{ev.title}</p>
+                          {ev.description && <p className="text-[11px] text-gray-400 truncate">{ev.description}</p>}
+                        </div>
+                        {ev.estimated_cost > 0 && (
+                          <span className="text-[12px] font-bold text-teal-600">${ev.estimated_cost}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Empty right column hint when most widgets are off */}
-          {!on('shuttle') && !on('cruise') && (
+          {!on('shuttle') && !on('cruise') && !on('vendor_events') && (
             <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-6 text-center">
               <p className="text-[12px] text-gray-400">Enable more widgets via <span className="font-bold">Customize</span></p>
             </div>

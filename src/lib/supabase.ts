@@ -2145,4 +2145,315 @@ export async function upsertResponse(resp: {
   if (error) throw new Error(error.message || JSON.stringify(error));
 }
 
+/* ── Vendor Management ──────────────────────────────── */
+
+export interface Vendor {
+  id: string;
+  hotel_id: string;
+  name: string;
+  category: string;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  schedule: string | null;
+  payment_terms: string | null;
+  rate: string | null;
+  status: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorOrderGuideItem {
+  id: string;
+  vendor_id: string;
+  item_name: string;
+  description: string | null;
+  unit: string;
+  unit_price: number;
+  category: string | null;
+  min_order_qty: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorOrder {
+  id: string;
+  hotel_id: string;
+  vendor_id: string;
+  order_date: string;
+  service_date: string | null;
+  status: string;
+  total_amount: number;
+  logged_by: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorOrderItem {
+  id: string;
+  order_id: string;
+  vendor_id: string | null;
+  item_name: string;
+  description: string | null;
+  qty: number;
+  unit: string;
+  unit_price: number;
+  line_total: number;
+  created_at: string;
+}
+
+/* Vendors CRUD */
+export async function fetchVendors(hotelId: string): Promise<Vendor[]> {
+  if (!isUuid(hotelId)) return [];
+  const { data, error } = await supabase.from('vendors').select('*').eq('hotel_id', hotelId).order('name');
+  if (error) throw new Error(error.message);
+  return (data || []) as Vendor[];
+}
+
+export async function createVendor(v: {
+  hotel_id: string; name: string; category?: string; contact_name?: string;
+  email?: string; phone?: string; address?: string; schedule?: string;
+  payment_terms?: string; rate?: string; status?: string; notes?: string;
+}): Promise<Vendor> {
+  const { data, error } = await supabase.from('vendors').insert({
+    hotel_id: v.hotel_id, name: v.name, category: v.category || 'general',
+    contact_name: v.contact_name || null, email: v.email || null,
+    phone: v.phone || null, address: v.address || null, schedule: v.schedule || null,
+    payment_terms: v.payment_terms || null, rate: v.rate || null,
+    status: v.status || 'active', notes: v.notes || null,
+  }).select().single();
+  if (error) throw new Error(error.message);
+  return data as Vendor;
+}
+
+export async function updateVendor(id: string, updates: Partial<Vendor>): Promise<void> {
+  const { error } = await supabase.from('vendors').update(updates).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteVendor(id: string): Promise<void> {
+  const { error } = await supabase.from('vendors').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/* Order Guide CRUD */
+export async function fetchVendorOrderGuide(vendorId: string): Promise<VendorOrderGuideItem[]> {
+  const { data, error } = await supabase.from('vendor_order_guide').select('*').eq('vendor_id', vendorId).order('item_name');
+  if (error) throw new Error(error.message);
+  return (data || []) as VendorOrderGuideItem[];
+}
+
+export async function createVendorOrderGuideItem(item: {
+  vendor_id: string; item_name: string; description?: string; unit?: string;
+  unit_price: number; category?: string; min_order_qty?: number; is_active?: boolean;
+}): Promise<VendorOrderGuideItem> {
+  const { data, error } = await supabase.from('vendor_order_guide').insert({
+    vendor_id: item.vendor_id, item_name: item.item_name,
+    description: item.description || null, unit: item.unit || 'each',
+    unit_price: item.unit_price, category: item.category || null,
+    min_order_qty: item.min_order_qty || 1, is_active: item.is_active ?? true,
+  }).select().single();
+  if (error) throw new Error(error.message);
+  return data as VendorOrderGuideItem;
+}
+
+export async function updateVendorOrderGuideItem(id: string, updates: Partial<VendorOrderGuideItem>): Promise<void> {
+  const { error } = await supabase.from('vendor_order_guide').update(updates).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteVendorOrderGuideItem(id: string): Promise<void> {
+  const { error } = await supabase.from('vendor_order_guide').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/* Orders CRUD */
+export async function fetchVendorOrders(hotelId: string): Promise<VendorOrder[]> {
+  if (!isUuid(hotelId)) return [];
+  const { data, error } = await supabase.from('vendor_orders').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []) as VendorOrder[];
+}
+
+export async function createVendorOrder(o: {
+  hotel_id: string; vendor_id: string; order_date?: string; service_date?: string;
+  status?: string; total_amount?: number; logged_by?: string; notes?: string;
+}): Promise<VendorOrder> {
+  const { data, error } = await supabase.from('vendor_orders').insert({
+    hotel_id: o.hotel_id, vendor_id: o.vendor_id,
+    order_date: o.order_date || localDate(), service_date: o.service_date || null,
+    status: o.status || 'draft', total_amount: o.total_amount || 0,
+    logged_by: o.logged_by || null, notes: o.notes || null,
+  }).select().single();
+  if (error) throw new Error(error.message);
+  return data as VendorOrder;
+}
+
+export async function updateVendorOrder(id: string, updates: Partial<VendorOrder>): Promise<void> {
+  const { error } = await supabase.from('vendor_orders').update(updates).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteVendorOrder(id: string): Promise<void> {
+  const { error } = await supabase.from('vendor_orders').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/* Order Items CRUD */
+export async function fetchVendorOrderItems(orderId: string): Promise<VendorOrderItem[]> {
+  const { data, error } = await supabase.from('vendor_order_items').select('*').eq('order_id', orderId).order('created_at');
+  if (error) throw new Error(error.message);
+  return (data || []) as VendorOrderItem[];
+}
+
+export async function createVendorOrderItems(items: {
+  order_id: string; vendor_id?: string; item_name: string; description?: string;
+  qty: number; unit?: string; unit_price: number;
+}[]): Promise<void> {
+  const rows = items.map(i => ({
+    order_id: i.order_id, vendor_id: i.vendor_id || null, item_name: i.item_name,
+    description: i.description || null, qty: i.qty, unit: i.unit || 'each', unit_price: i.unit_price,
+  }));
+  const { error } = await supabase.from('vendor_order_items').insert(rows);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteVendorOrderItem(id: string): Promise<void> {
+  const { error } = await supabase.from('vendor_order_items').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/* ── Vendor Events (recurring + one-time) ──────────── */
+
+export interface VendorEvent {
+  id: string;
+  hotel_id: string;
+  vendor_id: string;
+  title: string;
+  description: string | null;
+  event_type: string;
+  recurrence: string;
+  day_of_week: number | null;
+  week_of_month: number | null;
+  specific_date: string | null;
+  estimated_cost: number;
+  category: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchVendorEvents(hotelId: string): Promise<VendorEvent[]> {
+  if (!isUuid(hotelId)) return [];
+  const { data, error } = await supabase.from('vendor_events').select('*').eq('hotel_id', hotelId).order('created_at');
+  if (error) throw new Error(error.message);
+  return (data || []) as VendorEvent[];
+}
+
+export async function createVendorEvent(e: {
+  hotel_id: string; vendor_id: string; title: string; description?: string;
+  event_type?: string; recurrence?: string; day_of_week?: number; week_of_month?: number;
+  specific_date?: string; estimated_cost?: number; category?: string; is_active?: boolean;
+}): Promise<VendorEvent> {
+  const { data, error } = await supabase.from('vendor_events').insert({
+    hotel_id: e.hotel_id, vendor_id: e.vendor_id, title: e.title,
+    description: e.description || null, event_type: e.event_type || 'delivery',
+    recurrence: e.recurrence || 'one_time', day_of_week: e.day_of_week ?? null,
+    week_of_month: e.week_of_month ?? null, specific_date: e.specific_date || null,
+    estimated_cost: e.estimated_cost || 0, category: e.category || null,
+    is_active: e.is_active ?? true,
+  }).select().single();
+  if (error) throw new Error(error.message);
+  return data as VendorEvent;
+}
+
+export async function updateVendorEvent(id: string, updates: Partial<VendorEvent>): Promise<void> {
+  const { error } = await supabase.from('vendor_events').update(updates).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteVendorEvent(id: string): Promise<void> {
+  const { error } = await supabase.from('vendor_events').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/* Check if a recurring event falls on a given date (YYYY-MM-DD) */
+export function eventFallsOnDate(ev: VendorEvent, dateStr: string): boolean {
+  if (!ev.is_active) return false;
+  const date = new Date(dateStr + 'T12:00:00');
+  const dow = date.getDay();
+  if (ev.recurrence === 'one_time') return ev.specific_date === dateStr;
+  if (ev.recurrence === 'weekly') return ev.day_of_week === dow;
+  if (ev.recurrence === 'biweekly') {
+    // every 2 weeks on day_of_week — use week number parity
+    if (ev.day_of_week !== dow) return false;
+    const epoch = new Date('2024-01-01T12:00:00');
+    const weeksSince = Math.floor((date.getTime() - epoch.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    return weeksSince % 2 === 0;
+  }
+  if (ev.recurrence === 'monthly') {
+    if (ev.day_of_week !== dow) return false;
+    if (ev.week_of_month) {
+      const dayOfMonth = date.getDate();
+      const weekNum = Math.ceil(dayOfMonth / 7);
+      return weekNum === ev.week_of_month;
+    }
+    return true; // any matching day_of_week in the month
+  }
+  return false;
+}
+
+/* ── Vendor Expenses (COGS / spending) ────────────── */
+
+export interface VendorExpense {
+  id: string;
+  hotel_id: string;
+  vendor_id: string | null;
+  vendor_order_id: string | null;
+  amount: number;
+  category: string;
+  description: string | null;
+  expense_date: string;
+  logged_by: string | null;
+  expense_type: string;
+  created_at: string;
+}
+
+export async function fetchVendorExpenses(hotelId: string, monthStr?: string): Promise<VendorExpense[]> {
+  if (!isUuid(hotelId)) return [];
+  let q = supabase.from('vendor_expenses').select('*').eq('hotel_id', hotelId);
+  if (monthStr) {
+    const start = monthStr + '-01';
+    const end = monthStr + '-31';
+    q = q.gte('expense_date', start).lte('expense_date', end);
+  }
+  const { data, error } = await q.order('expense_date', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []) as VendorExpense[];
+}
+
+export async function createVendorExpense(e: {
+  hotel_id: string; vendor_id?: string; vendor_order_id?: string;
+  amount: number; category?: string; description?: string;
+  expense_date?: string; logged_by?: string; expense_type?: string;
+}): Promise<VendorExpense> {
+  const { data, error } = await supabase.from('vendor_expenses').insert({
+    hotel_id: e.hotel_id, vendor_id: e.vendor_id || null, vendor_order_id: e.vendor_order_id || null,
+    amount: e.amount, category: e.category || 'general', description: e.description || null,
+    expense_date: e.expense_date || localDate(), logged_by: e.logged_by || null,
+    expense_type: e.expense_type || 'order',
+  }).select().single();
+  if (error) throw new Error(error.message);
+  return data as VendorExpense;
+}
+
+export async function deleteVendorExpense(id: string): Promise<void> {
+  const { error } = await supabase.from('vendor_expenses').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
 export default supabase;
