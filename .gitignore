@@ -28,6 +28,11 @@ yarn-error.log*
 # local env files
 .env*.local
 .env.supabase
+NEXT_PUBLIC_SUPERADMIN_API_KEY
+SUPABASE_SERVICE_KEY
+envs.json
+ATTENDA_SALE_PREP_PLAN.md
+podcast-interview-prep.md
 .env.vercel
 
 # vercel
