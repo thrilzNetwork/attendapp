@@ -2,15 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, Trash2, Save, Pencil, X as XIcon, Truck, Phone, Clock,
-  ChevronRight, ShoppingCart, ArrowLeft, CalendarDays, DollarSign,
-  TrendingUp, Package, Repeat,
+  Plus, Trash2, Save, Pencil, X as XIcon, Truck, Phone,
+  ChevronRight, ShoppingCart, ArrowLeft, DollarSign,
 } from 'lucide-react';
 import {
   fetchVendors, createVendor, updateVendor, deleteVendor,
   fetchVendorOrderGuide, createVendorOrderGuideItem, updateVendorOrderGuideItem, deleteVendorOrderGuideItem,
   fetchVendorOrders, createVendorOrder, updateVendorOrder, deleteVendorOrder,
-  fetchVendorOrderItems, createVendorOrderItems, deleteVendorOrderItem,
+  fetchVendorOrderItems, createVendorOrderItems,
   fetchVendorEvents, createVendorEvent, updateVendorEvent, deleteVendorEvent, eventFallsOnDate,
   fetchVendorExpenses, createVendorExpense, deleteVendorExpense,
   type Vendor, type VendorOrderGuideItem, type VendorOrder, type VendorOrderItem,
@@ -98,9 +97,9 @@ function SelectField({ label, value, onChange, options }: {
 }
 
 /* ── Vendor List with Monthly Summary ───────────────── */
-function VendorList({ vendors, loading, error, onSelect, onAdd, hotelId, expenses }: {
+function VendorList({ vendors, loading, error, onSelect, onAdd, expenses }: {
   vendors: Vendor[]; loading: boolean; error: string | null;
-  onSelect: (v: Vendor) => void; onAdd: () => void; hotelId: string;
+  onSelect: (v: Vendor) => void; onAdd: () => void;
   expenses: VendorExpense[];
 }) {
   const [filterCat, setFilterCat] = useState('all');
@@ -159,7 +158,7 @@ function VendorList({ vendors, loading, error, onSelect, onAdd, hotelId, expense
 
       {/* Cards */}
       {filtered.length === 0 ? (
-        <div className="text-center py-12 text-gray-400 text-[14px]">No vendors found. Click "Add Vendor" to get started.</div>
+        <div className="text-center py-12 text-gray-400 text-[14px]">No vendors found. Click &ldquo;Add Vendor&rdquo; to get started.</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(v => {
@@ -240,7 +239,7 @@ function VendorForm({ hotelId, onSave, onCancel, editing }: {
       {err && <div className="bg-red-50 rounded-xl p-3 text-red-600 text-[13px]">{err}</div>}
       <div className="grid grid-cols-2 gap-4">
         <Field label="Vendor Name" value={form.name} onChange={v => setForm({ ...form, name: v })} placeholder="Sysco" />
-        <SelectField label="Category" value={form.category} onChange={v => setForm({ ...form, category: v })} options={CATEGORIES as any} />
+        <SelectField label="Category" value={form.category} onChange={v => setForm({ ...form, category: v })} options={CATEGORIES.map(c => ({ key: c, label: c }))} />
         <Field label="Contact Name" value={form.contact_name} onChange={v => setForm({ ...form, contact_name: v })} />
         <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
         <Field label="Phone" value={form.phone} onChange={v => setForm({ ...form, phone: v })} />
@@ -569,7 +568,7 @@ function EventsTab({ vendor, hotelId }: { vendor: Vendor; hotelId: string }) {
 }
 
 /* ── Order History Tab ────────────────────────────────── */
-function OrderHistoryTab({ vendorId, hotelId, userName }: { vendorId: string; hotelId: string; userName: string }) {
+function OrderHistoryTab({ vendorId, hotelId }: { vendorId: string; hotelId: string }) {
   const [orders, setOrders] = useState<VendorOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -594,7 +593,7 @@ function OrderHistoryTab({ vendorId, hotelId, userName }: { vendorId: string; ho
       try {
         const data = await fetchVendorOrderItems(orderId);
         setItems(prev => ({ ...prev, [orderId]: data }));
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
     }
   };
 
@@ -970,7 +969,7 @@ function SpendingTab({ hotelId, userName, vendors }: { hotelId: string; userName
               </select>
             </div>
             <Field label="Amount" value={newExp.amount} onChange={v => setNewExp({ ...newExp, amount: v })} type="number" />
-            <SelectField label="Category" value={newExp.category} onChange={v => setNewExp({ ...newExp, category: v })} options={CATEGORIES as any} />
+            <SelectField label="Category" value={newExp.category} onChange={v => setNewExp({ ...newExp, category: v })} options={CATEGORIES.map(c => ({ key: c, label: c }))} />
             <SelectField label="Type" value={newExp.expense_type} onChange={v => setNewExp({ ...newExp, expense_type: v })}
               options={[{ key: 'order', label: 'Order' }, { key: 'utility', label: 'Utility' }, { key: 'misc', label: 'Miscellaneous' }]} />
             <Field label="Date" value={newExp.expense_date} onChange={v => setNewExp({ ...newExp, expense_date: v })} type="date" />
@@ -1124,7 +1123,7 @@ function VendorDetail({ vendor, hotelId, userName, onBack }: {
 
       {subTab === 'guide' && <OrderGuideTab vendorId={vendor.id} />}
       {subTab === 'events' && <EventsTab vendor={vendor} hotelId={hotelId} />}
-      {subTab === 'orders' && <OrderHistoryTab vendorId={vendor.id} hotelId={hotelId} userName={userName} />}
+      {subTab === 'orders' && <OrderHistoryTab vendorId={vendor.id} hotelId={hotelId} />}
       {subTab === 'new_order' && <NewOrderFlow vendor={vendor} hotelId={hotelId} userName={userName} onDone={() => setSubTab('orders')} />}
     </div>
   );
@@ -1161,6 +1160,7 @@ export default function VendorsView({ hotelId, userName }: { hotelId: string; us
   /* Compute today's events count for the tab badge */
   const todayStr = localDate();
   const todayEventCount = events.filter(e => eventFallsOnDate(e, todayStr)).length;
+  void todayEventCount;
 
   if (selected) {
     return <VendorDetail vendor={selected} hotelId={hotelId} userName={userName || ''} onBack={() => { setSelected(null); load(); }} />;
@@ -1206,7 +1206,6 @@ export default function VendorsView({ hotelId, userName }: { hotelId: string; us
           error={error}
           onSelect={setSelected}
           onAdd={() => setShowForm(true)}
-          hotelId={hotelId}
           expenses={expenses}
         />
       )}
