@@ -602,6 +602,9 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                 <button onClick={() => setShowNew(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
                   <Plus size={14} /> New To-Do
                 </button>
+                <button onClick={() => setShowNewPos(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: '#6366F1' }}>
+                  <Plus size={14} /> New Position
+                </button>
               </div>
             )}
           </div>
