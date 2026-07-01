@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import {
-  supabase,
   getPositionTodoTemplates, createPositionTodoTemplate, updatePositionTodoTemplate, deletePositionTodoTemplate,
   getTemplateItems, createTemplateItem, deleteTemplateItem,
   getTodayInstances, createInstance, completeInstance, deleteInstance,
@@ -217,11 +216,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [inlineNewPosName, setInlineNewPosName] = useState('');
   const [inlineNewPosDept, setInlineNewPosDept] = useState('front_desk');
   const [inlineNewPosShift, setInlineNewPosShift] = useState('');
-
-  // New simple checklist form
-  const [newChecklistName, setNewChecklistName] = useState('');
-  const [newChecklistDept, setNewChecklistDept] = useState('front_desk');
-  const [newChecklistItems, setNewChecklistItems] = useState('');
 
   // Item editing
   const [newItemLabel, setNewItemLabel] = useState('');
