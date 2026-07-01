@@ -27,7 +27,24 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'create_hotel') {
-      const { data, error } = await supabaseAdmin.from('hotels').insert(params).select().single();
+      const insert: Record<string, unknown> = {};
+      const cols: Record<string, unknown> = {
+        slug: params.slug,
+        name: params.name,
+        website_url: params.websiteUrl || params.website_url,
+        admin_phone: params.adminPhone || params.admin_phone,
+        room_count: params.roomCount || params.room_count || 0,
+        address: params.address,
+        notification_email: params.adminEmail || params.notificationEmail || params.notification_email,
+        google_review_url: params.googleReviewUrl || params.google_review_url,
+        tripadvisor_url: params.tripadvisorUrl || params.tripadvisor_url,
+        yelp_url: params.yelpUrl || params.yelp_url,
+        brand: params.propertyType || params.brand || 'Hotel',
+      };
+      for (const [k, v] of Object.entries(cols)) {
+        if (v !== null && v !== undefined && v !== '') insert[k] = v;
+      }
+      const { data, error } = await supabaseAdmin.from('hotels').insert(insert).select().single();
       if (error) throw new Error(error.message || JSON.stringify(error));
       return NextResponse.json({ data });
     }

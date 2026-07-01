@@ -119,38 +119,54 @@ function VendorList({ vendors, loading, error, onSelect, onAdd, expenses }: {
   if (error) return <div className="p-6 bg-red-50 rounded-xl text-red-600 text-[13px]">{error}</div>;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-          <div className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Active Vendors</div>
-          <div className="text-2xl font-bold text-gray-800 mt-1">{activeCount}</div>
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center shrink-0">
+            <Truck size={20} style={{ color: TEAL }} />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Active Vendors</div>
+            <div className="text-2xl font-bold text-gray-800">{activeCount}</div>
+          </div>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-          <div className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Total Vendors</div>
-          <div className="text-2xl font-bold text-gray-800 mt-1">{vendors.length}</div>
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+            <Plus size={20} className="text-gray-400" />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Total Vendors</div>
+            <div className="text-2xl font-bold text-gray-800">{vendors.length}</div>
+          </div>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-          <div className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Spend This Month</div>
-          <div className="text-2xl font-bold mt-1" style={{ color: TEAL }}>${monthSpend.toFixed(0)}</div>
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center shrink-0">
+            <DollarSign size={20} style={{ color: TEAL }} />
+          </div>
+          <div>
+            <div className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Spend This Month</div>
+            <div className="text-2xl font-bold" style={{ color: TEAL }}>${monthSpend.toFixed(0)}</div>
+          </div>
         </div>
       </div>
 
       {/* Filters + Add */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[12px] font-medium text-gray-400 uppercase tracking-wider mr-1">Filter</span>
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-          className="bg-white rounded-xl px-3 py-2 text-[13px] border border-gray-200">
+          className="bg-white rounded-xl px-3 py-2 text-[13px] border border-gray-200 focus:outline-none focus:border-teal-300 cursor-pointer">
           <option value="all">All Categories</option>
           {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          className="bg-white rounded-xl px-3 py-2 text-[13px] border border-gray-200">
+          className="bg-white rounded-xl px-3 py-2 text-[13px] border border-gray-200 focus:outline-none focus:border-teal-300 cursor-pointer">
           <option value="all">All Statuses</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
         <button onClick={onAdd}
-          className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-[13px] font-medium"
+          className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-[13px] font-medium hover:opacity-90 transition-opacity"
           style={{ background: TEAL }}>
           <Plus size={16} /> Add Vendor
         </button>
@@ -158,7 +174,18 @@ function VendorList({ vendors, loading, error, onSelect, onAdd, expenses }: {
 
       {/* Cards */}
       {filtered.length === 0 ? (
-        <div className="text-center py-12 text-gray-400 text-[14px]">No vendors found. Click &ldquo;Add Vendor&rdquo; to get started.</div>
+        <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
+          <div className="w-16 h-16 rounded-2xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+            <Truck size={32} style={{ color: TEAL }} />
+          </div>
+          <div className="text-[15px] font-medium text-gray-600 mb-1">No vendors yet</div>
+          <div className="text-[13px] text-gray-400 mb-4">Add your first vendor to start tracking orders, deliveries, and spending.</div>
+          <button onClick={onAdd}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-[13px] font-medium"
+            style={{ background: TEAL }}>
+            <Plus size={16} /> Add Your First Vendor
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(v => {
@@ -363,7 +390,10 @@ function OrderGuideTab({ vendorId }: { vendorId: string }) {
       )}
 
       {items.length === 0 && !showForm ? (
-        <div className="text-center py-8 text-gray-400 text-[13px]">No items in order guide yet.</div>
+        <div className="text-center py-10 bg-white rounded-2xl border border-gray-100">
+          <div className="text-[13px] font-medium text-gray-500 mb-1">No items in order guide yet</div>
+          <div className="text-[12px] text-gray-400">Add products with prices so staff can quickly build orders.</div>
+        </div>
       ) : (
         <div className="space-y-2">
           {items.map(item => (
@@ -535,7 +565,10 @@ function EventsTab({ vendor, hotelId }: { vendor: Vendor; hotelId: string }) {
 
       {/* Event List */}
       {events.length === 0 && !showForm ? (
-        <div className="text-center py-8 text-gray-400 text-[13px]">No scheduled events. Add recurring deliveries, services, or one-time visits.</div>
+        <div className="text-center py-10 bg-white rounded-2xl border border-gray-100">
+          <div className="text-[13px] font-medium text-gray-500 mb-1">No scheduled events</div>
+          <div className="text-[12px] text-gray-400">Add recurring deliveries, services, or one-time visits.</div>
+        </div>
       ) : (
         <div className="space-y-2">
           {events.map(ev => (
@@ -615,7 +648,10 @@ function OrderHistoryTab({ vendorId, hotelId }: { vendorId: string; hotelId: str
       {error && <div className="bg-red-50 rounded-xl p-3 text-red-600 text-[13px]">{error}</div>}
       <h4 className="font-medium text-[14px] text-gray-700">Order History ({orders.length})</h4>
       {orders.length === 0 ? (
-        <div className="text-center py-8 text-gray-400 text-[13px]">No orders yet.</div>
+        <div className="text-center py-10 bg-white rounded-2xl border border-gray-100">
+          <div className="text-[14px] font-medium text-gray-500 mb-1">No orders yet</div>
+          <div className="text-[12px] text-gray-400">Click &ldquo;New Order&rdquo; to create your first purchase order.</div>
+        </div>
       ) : (
         <div className="space-y-2">
           {orders.map(o => (
@@ -908,7 +944,7 @@ function SpendingTab({ hotelId, userName, vendors }: { hotelId: string; userName
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
         <h4 className="font-medium text-[14px] text-gray-700 mb-3">Spending by Category (This Month)</h4>
         {catEntries.length === 0 ? (
-          <div className="text-[13px] text-gray-400 text-center py-4">No expenses logged this month.</div>
+          <div className="text-[13px] text-gray-400 text-center py-6">No expenses logged this month. Add an expense to see category breakdown.</div>
         ) : (
           <div className="space-y-2">
             {catEntries.map(([cat, amt]) => (
@@ -928,7 +964,7 @@ function SpendingTab({ hotelId, userName, vendors }: { hotelId: string; userName
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
         <h4 className="font-medium text-[14px] text-gray-700 mb-3">Top Vendors by Spend (This Month)</h4>
         {vendorEntries.length === 0 ? (
-          <div className="text-[13px] text-gray-400 text-center py-4">No vendor expenses this month.</div>
+          <div className="text-[13px] text-gray-400 text-center py-6">No vendor expenses this month. Submit an order to auto-log spending.</div>
         ) : (
           <div className="space-y-1.5">
             {vendorEntries.map(([vid, amt]) => {
@@ -988,7 +1024,10 @@ function SpendingTab({ hotelId, userName, vendors }: { hotelId: string; userName
 
       {/* Expense list */}
       {expenses.length === 0 ? (
-        <div className="text-center py-8 text-gray-400 text-[13px]">No expenses logged yet.</div>
+        <div className="text-center py-10 bg-white rounded-2xl border border-gray-100">
+          <div className="text-[13px] font-medium text-gray-500 mb-1">No expenses logged yet</div>
+          <div className="text-[12px] text-gray-400">Track COGS, utilities, and one-off purchases here.</div>
+        </div>
       ) : (
         <div className="space-y-1.5">
           {expenses.slice(0, 30).map(e => {
@@ -1177,10 +1216,13 @@ export default function VendorsView({ hotelId, userName }: { hotelId: string; us
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 mb-1">
-        <Truck size={22} style={{ color: TEAL }} />
-        <h2 className="text-[18px] font-bold text-gray-800">Vendor Management</h2>
+    <div className="space-y-5">
+      <div>
+        <div className="flex items-center gap-2">
+          <Truck size={22} style={{ color: TEAL }} />
+          <h2 className="text-[18px] font-bold text-gray-800">Vendor Management</h2>
+        </div>
+        <p className="text-[13px] text-gray-400 mt-1 ml-7">Track suppliers, order guides, delivery schedules, and spending in one place.</p>
       </div>
 
       {/* Main tabs */}
