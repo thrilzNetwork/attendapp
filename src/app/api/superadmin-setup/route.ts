@@ -191,6 +191,7 @@ export async function POST(req: NextRequest) {
         ['role', params.role || 'staff'],
         ['email', params.email || ''],
         ['phone', params.phone || ''],
+        ['pin_code', params.pin_code || '0000'],
         ['permissions', params.permissions || ['orders', 'messages', 'shuttle']],
         ['vendor_type', params.vendor_type || null],
         ['hire_date', params.hire_date || null],
