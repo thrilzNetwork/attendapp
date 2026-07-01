@@ -3598,6 +3598,7 @@ function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boo
   const [instances, setInstances] = useState<ChecklistInstance[]>([]);
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newItems, setNewItems] = useState('');
   const [newDept, setNewDept] = useState<DepartmentKey>('front_desk');
   const [openDept, setOpenDept] = useState<DepartmentKey | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -3615,16 +3616,17 @@ function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boo
   const create = async () => {
     if (!newName.trim()) return;
     setSubmitting(true); setError(null);
+    const items = newItems.split('\n').filter(Boolean).map((label, i) => ({ id: `item-${i}`, label: label.trim() }));
     const { error: err } = await supabase.from('staff_checklists').insert({
       hotel_id: hotelId,
       name: newName.trim(),
-      items: [],
+      items,
       department: newDept,
       is_active: true,
       assigned_role: 'staff',
     });
     if (err) { setError(err.message); setSubmitting(false); return; }
-    setNewName(''); setNewDept('front_desk'); setShowNew(false);
+    setNewName(''); setNewItems(''); setNewDept('front_desk'); setShowNew(false);
     await load();
     setSubmitting(false);
   };
@@ -3812,6 +3814,10 @@ function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boo
               <select value={newDept} onChange={e => setNewDept(e.target.value as DepartmentKey)} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100">
                 {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
               </select>
+              <div>
+                <p className="text-[11px] text-gray-400 mb-1 font-medium">Items (one per line)</p>
+                <textarea value={newItems} onChange={e => setNewItems(e.target.value)} placeholder="Verify breakfast setup&#10;Inspect pool area&#10;Restock amenities" rows={4} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none resize-none" />
+              </div>
               <div className="flex gap-2 pt-1">
                 <button onClick={create} disabled={submitting} className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>{submitting ? 'Saving…' : 'Create'}</button>
                 <button onClick={() => setShowNew(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
