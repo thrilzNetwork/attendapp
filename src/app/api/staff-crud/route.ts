@@ -13,14 +13,16 @@ function stripPin(record: Record<string, unknown> | null): Record<string, unknow
 export async function POST(req: NextRequest) {
   try {
     // Require shared API key
-    if (!validateApiKey(req)) {
+    const hasValidKey = validateApiKey(req);
+    if (!hasValidKey) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Origin check
+    // Origin check — soft gate against non-browser clients.
+    // Skip if API key is valid (the key is the real auth).
     const origin = req.headers.get('origin');
     const referer = req.headers.get('referer');
-    if (!isAllowedOrigin(origin, referer)) {
+    if (!hasValidKey && !isAllowedOrigin(origin, referer)) {
       return originBlocked();
     }
 
