@@ -129,7 +129,8 @@ export default function RoomsView({ hotelId, hotelName }: { hotelId: string; hot
 
   const parseExcel = async (file: File): Promise<{ room_number: string; room_type: string; floor: number }[]> => {
     const readXlsxFile = (await import('read-excel-file/browser')).default;
-    const rows = (await readXlsxFile(file)) as unknown as (string | number | null)[][];
+    const sheets = await readXlsxFile(file);
+    const rows = (sheets[0]?.rows || []) as unknown as (string | number | null)[][];
 
     const results: { room_number: string; room_type: string; floor: number }[] = [];
 
