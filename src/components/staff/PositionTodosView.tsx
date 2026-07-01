@@ -219,7 +219,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [inlineNewPosShift, setInlineNewPosShift] = useState('');
 
   // New simple checklist form
-  const [showNewChecklist, setShowNewChecklist] = useState(false);
   const [newChecklistName, setNewChecklistName] = useState('');
   const [newChecklistDept, setNewChecklistDept] = useState('front_desk');
   const [newChecklistItems, setNewChecklistItems] = useState('');
@@ -289,29 +288,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       await loadAll();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create template');
-    }
-    setSubmitting(false);
-  };
-
-  const createSimpleChecklist = async () => {
-    if (!newChecklistName.trim()) return;
-    setSubmitting(true); setError(null);
-    try {
-      const items = newChecklistItems.split('\n').filter(Boolean).map((label, i) => ({ id: `item-${i}`, label: label.trim() }));
-      const { error: err } = await supabase.from('staff_checklists').insert({
-        hotel_id: hotelId,
-        name: newChecklistName.trim(),
-        items,
-        department: newChecklistDept,
-        is_active: true,
-        assigned_role: 'staff',
-      });
-      if (err) throw err;
-      setNewChecklistName(''); setNewChecklistItems(''); setNewChecklistDept('front_desk');
-      setShowNewChecklist(false);
-      await loadAll();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create checklist');
     }
     setSubmitting(false);
   };
@@ -625,9 +601,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
               <div className="flex items-center gap-2">
                 <button onClick={() => setShowNew(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
                   <Plus size={14} /> New To-Do
-                </button>
-                <button onClick={() => setShowNewChecklist(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: '#6366F1' }}>
-                  <Plus size={14} /> New Checklist
                 </button>
               </div>
             )}
