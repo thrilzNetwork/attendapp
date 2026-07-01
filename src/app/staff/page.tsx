@@ -207,7 +207,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'staff_mgmt',      label: 'Staff Management',    icon: Users,           roles: ['admin', 'superadmin'], section: 'Admin' },
   { tab: 'partners',        label: 'Partners & Menu',     icon: Store,           roles: ['admin', 'superadmin'], section: 'Admin' },
   { tab: 'vendors',         label: 'Vendors',            icon: Truck,           roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
-  { tab: 'qrcodes',         label: 'QR Codes',            icon: QrCodeIcon,      roles: ['admin', 'superadmin'], section: 'Admin' },
+  { tab: 'qrcodes',         label: 'QR Codes',            icon: QrCodeIcon,      roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'rooms',           label: 'Room Management',     icon: DoorOpen,        roles: ['admin', 'superadmin'], section: 'Admin' },
 
   // ── PLATFORM — superadmin only ──
