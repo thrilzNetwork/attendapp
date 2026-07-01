@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import {
+  supabase,
   getPositionTodoTemplates, createPositionTodoTemplate, updatePositionTodoTemplate, deletePositionTodoTemplate,
   getTemplateItems, createTemplateItem, deleteTemplateItem,
   getTodayInstances, createInstance, completeInstance, deleteInstance,
@@ -211,6 +212,18 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [newDept, setNewDept] = useState('front_desk');
   const [newPos, setNewPos] = useState('');
 
+  // Inline new position inside the New Checklist modal
+  const [showInlineNewPos, setShowInlineNewPos] = useState(false);
+  const [inlineNewPosName, setInlineNewPosName] = useState('');
+  const [inlineNewPosDept, setInlineNewPosDept] = useState('front_desk');
+  const [inlineNewPosShift, setInlineNewPosShift] = useState('');
+
+  // New simple checklist form
+  const [showNewChecklist, setShowNewChecklist] = useState(false);
+  const [newChecklistName, setNewChecklistName] = useState('');
+  const [newChecklistDept, setNewChecklistDept] = useState('front_desk');
+  const [newChecklistItems, setNewChecklistItems] = useState('');
+
   // Item editing
   const [newItemLabel, setNewItemLabel] = useState('');
   const [newItemType, setNewItemType] = useState('checkbox');
@@ -280,6 +293,29 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     setSubmitting(false);
   };
 
+  const createSimpleChecklist = async () => {
+    if (!newChecklistName.trim()) return;
+    setSubmitting(true); setError(null);
+    try {
+      const items = newChecklistItems.split('\n').filter(Boolean).map((label, i) => ({ id: `item-${i}`, label: label.trim() }));
+      const { error: err } = await supabase.from('staff_checklists').insert({
+        hotel_id: hotelId,
+        name: newChecklistName.trim(),
+        items,
+        department: newChecklistDept,
+        is_active: true,
+        assigned_role: 'staff',
+      });
+      if (err) throw err;
+      setNewChecklistName(''); setNewChecklistItems(''); setNewChecklistDept('front_desk');
+      setShowNewChecklist(false);
+      await loadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create checklist');
+    }
+    setSubmitting(false);
+  };
+
   const installCommunityTemplate = async (ct: CommunityTemplate) => {
     setSubmitting(true); setError(null);
     try {
@@ -320,6 +356,26 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       });
       setNewPosName(''); setNewPosShift('');
       setShowNewPos(false);
+      await loadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create position');
+    }
+    setSubmitting(false);
+  };
+
+  const handleInlineCreatePosition = async () => {
+    if (!inlineNewPosName.trim()) return;
+    setSubmitting(true); setError(null);
+    try {
+      await createStaffPosition({
+        hotel_id: hotelId,
+        name: inlineNewPosName.trim(),
+        department: inlineNewPosDept,
+        shift: inlineNewPosShift,
+      });
+      setNewPos(inlineNewPosName.trim());
+      setInlineNewPosName(''); setInlineNewPosShift(''); setInlineNewPosDept('front_desk');
+      setShowInlineNewPos(false);
       await loadAll();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create position');
@@ -566,9 +622,14 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
               {viewMode === 'builder' ? '👁️ Staff View' : '⚙️ Builder'}
             </button>
             {viewMode === 'builder' && builderTab === 'my-templates' && (
-              <button onClick={() => setShowNew(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
-                <Plus size={14} /> New
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setShowNew(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
+                  <Plus size={14} /> New To-Do
+                </button>
+                <button onClick={() => setShowNewChecklist(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: '#6366F1' }}>
+                  <Plus size={14} /> New Checklist
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -938,10 +999,40 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                     <select value={newDept} onChange={e => setNewDept(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
                       {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
                     </select>
-                    <select value={newPos} onChange={e => setNewPos(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
+                    <select value={newPos} onChange={e => {
+                      if (e.target.value === '__add_new__') {
+                        setShowInlineNewPos(true);
+                      } else {
+                        setNewPos(e.target.value);
+                      }
+                    }} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
                       <option value="">All positions in department</option>
                       {positions.map(p => <option key={p.id} value={p.name}>{p.name}{p.shift ? ` (${p.shift})` : ''}</option>)}
+                      <option value="__add_new__" className="text-teal-600 font-semibold">+ Add New Position</option>
                     </select>
+                    {showInlineNewPos && (
+                      <div className="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                        <p className="text-[12px] font-bold text-gray-600">New Position</p>
+                        <input value={inlineNewPosName} onChange={e => setInlineNewPosName(e.target.value)} placeholder="Position name (e.g. Front Desk AM)" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]" />
+                        <select value={inlineNewPosDept} onChange={e => setInlineNewPosDept(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
+                          {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
+                        </select>
+                        <select value={inlineNewPosShift} onChange={e => setInlineNewPosShift(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
+                          <option value="">No specific shift</option>
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                          <option value="Night">Night</option>
+                        </select>
+                        <div className="flex gap-2">
+                          <button onClick={handleInlineCreatePosition} disabled={submitting || !inlineNewPosName.trim()} className="flex-1 py-2.5 rounded-xl text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                            Add & Select
+                          </button>
+                          <button onClick={() => { setShowInlineNewPos(false); setInlineNewPosName(''); }} className="py-2.5 px-4 rounded-xl border border-gray-200 bg-white text-gray-500 text-[12px] font-bold">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <button onClick={createTemplate} disabled={submitting || !newName.trim()} className="w-full py-3 rounded-xl text-white font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
                       Create Checklist
                     </button>
