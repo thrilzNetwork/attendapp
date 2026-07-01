@@ -324,9 +324,13 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
         department: newPosDept,
         shift: newPosShift,
       });
+      const createdName = newPosName.trim();
       setNewPosName(''); setNewPosShift('');
       setShowNewPos(false);
       await loadAll();
+      // After creating the position, open the New To-Do modal with it pre-selected
+      setNewPos(createdName);
+      setShowNew(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create position');
     }
