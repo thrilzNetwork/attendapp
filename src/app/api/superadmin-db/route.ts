@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
         ['department', data.department],
         ['vendor_type', data.vendor_type],
         ['partner_id', data.partner_id],
+        ['positions', data.positions],
         ['hire_date', data.hire_date],
         ['min_hours', data.min_hours || 0],
         ['employment_type', data.employment_type],
