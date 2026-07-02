@@ -185,6 +185,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
   const [responsesByInstance, setResponsesByInstance] = useState<Record<string, PositionTodoResponse[]>>({});
   const [loading, setLoading] = useState(true);
   const [openDept, setOpenDept] = useState<string | null>(null);
+  const [openInstall, setOpenInstall] = useState<string | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -854,12 +855,12 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                               {templates.length > 0 && (
                                 <div className="relative">
                                   <button
-                                    onClick={() => setOpenDept(openDept === `install:${pos.id}` ? null : `install:${pos.id}`)}
+                                    onClick={() => setOpenInstall(openInstall === pos.id ? null : pos.id)}
                                     className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50/30 text-[12px] font-bold transition-colors"
                                   >
                                     <Download size={14} /> Install Existing To-Do
                                   </button>
-                                  {openDept === `install:${pos.id}` && (
+                                  {openInstall === pos.id && (
                                     <div className="mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
                                       {templates.map(tpl => {
                                         const alreadyAssigned = tpl.assigned_position === pos.name;
@@ -875,7 +876,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                                                 setError(e instanceof Error ? e.message : 'Failed to assign');
                                               }
                                               setSubmitting(false);
-                                              setOpenDept(null);
+                                              setOpenInstall(null);
                                             }}
                                             disabled={submitting}
                                             className={`w-full text-left px-3 py-2.5 text-[12px] hover:bg-gray-50 border-b border-gray-100 last:border-0 flex items-center gap-2 ${alreadyAssigned ? 'text-gray-400' : 'text-gray-700'}`}
