@@ -324,25 +324,6 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
     setSubmitting(false);
   };
 
-  const handleCreateTemplate = async () => {
-    if (!newTplName.trim()) return;
-    setSubmitting(true); setError(null);
-    try {
-      await createPositionTodoTemplate({
-        hotel_id: hotelId,
-        name: newTplName.trim(),
-        department: newTplDept,
-        assigned_position: newTplPosition || undefined,
-      });
-      setNewTplName(''); setNewTplPosition('');
-      setShowNewTpl(false);
-      await loadAll();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create template');
-    }
-    setSubmitting(false);
-  };
-
   const addNewTplItem = () => {
     if (!newItemLabel.trim()) return;
     setNewTplItems(prev => [...prev, { label: newItemLabel.trim(), item_type: newItemType }]);
