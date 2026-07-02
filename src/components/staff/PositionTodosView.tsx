@@ -718,7 +718,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                       const posTpls = templates.filter(t => t.assigned_position === pos.name);
                       const dept = DEPARTMENTS.find(d => d.key === pos.department);
                       groups.push({
-                        key: `pos:${pos.name}`,
+                        key: `pos:${pos.id}`,
                         label: pos.name,
                         icon: dept?.icon || '👤',
                         templates: posTpls,
@@ -1001,7 +1001,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                       }
                       const dept = DEPARTMENTS.find(d => d.key === pos.department);
                       groups.push({
-                        key: `pos:${pos.name}`,
+                        key: `pos:${pos.id}`,
                         label: pos.name,
                         icon: dept?.icon || '👤',
                         templates: posTpls,
