@@ -215,7 +215,7 @@ export default function SchedulesView({
       await updateStaffSchedule(editForm.id, {
         shift_date: editForm.shift_date,
         start_time: editForm.start_time,
-        end_time: editForm.end_time_open ? undefined : editForm.end_time || undefined,
+        end_time: editForm.end_time_open ? null : editForm.end_time || null,
         role: editForm.role || undefined,
         notes: editForm.notes || undefined,
       });
