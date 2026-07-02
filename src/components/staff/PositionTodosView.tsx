@@ -193,6 +193,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
   const [renamingTemplate, setRenamingTemplate] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [previewInstance, setPreviewInstance] = useState<PositionTodoInstance | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<CommunityTemplate | null>(null);
   const [shiftPicker, setShiftPicker] = useState<{ tplId: string; tplName: string } | null>(null);
 
   // Position management state
@@ -702,20 +703,96 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                             </div>
                           </div>
                         </div>
-                        <button
-                          onClick={() => installCommunityTemplate(ct)}
-                          disabled={submitting}
-                          className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold disabled:opacity-50 transition-colors ${alreadyInstalled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'text-white'}`}
-                          style={alreadyInstalled ? {} : { backgroundColor: TEAL }}
-                        >
-                          {alreadyInstalled ? '✓ Installed' : <><Download size={12} /> Install</>}
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => setPreviewTemplate(ct)}
+                            className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-xl text-[11px] font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                          >
+                            <BookOpen size={12} /> Preview
+                          </button>
+                          <button
+                            onClick={() => installCommunityTemplate(ct)}
+                            disabled={submitting}
+                            className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold disabled:opacity-50 transition-colors ${alreadyInstalled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'text-white'}`}
+                            style={alreadyInstalled ? {} : { backgroundColor: TEAL }}
+                          >
+                            {alreadyInstalled ? '✓ Installed' : <><Download size={12} /> Install</>}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
               <p className="text-center text-[11px] text-gray-400 mt-6">More templates coming as the community grows. Build your own and share it with other properties.</p>
+            </div>
+          )}
+
+          {/* Template preview modal */}
+          {previewTemplate && (
+            <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setPreviewTemplate(null)}>
+              <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto p-5" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[28px]">{previewTemplate.emoji}</span>
+                    <div>
+                      <p className="text-[15px] font-bold text-gray-900">{previewTemplate.name}</p>
+                      <p className="text-[11px] text-gray-500">{previewTemplate.description}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setPreviewTemplate(null)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={14} /></button>
+                </div>
+                <div className="space-y-1.5">
+                  {previewTemplate.items.map((item, i) => {
+                    const typeInfo = ITEM_TYPES.find(t => t.key === item.item_type);
+                    return (
+                      <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
+                        <div className="w-5 h-5 rounded border-2 border-gray-300 flex items-center justify-center shrink-0">
+                          {typeInfo?.icon && <span className="text-gray-400">{typeInfo.icon}</span>}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[13px] text-gray-700">{item.label}</p>
+                          {item.item_type === 'number' && (
+                            <div className="mt-1 h-8 bg-white border border-gray-200 rounded-lg px-3 flex items-center">
+                              <span className="text-[11px] text-gray-400">{String((item.config as Record<string, string>)?.placeholder || 'Enter value...')}</span>
+                            </div>
+                          )}
+                          {item.item_type === 'text' && (
+                            <div className="mt-1 h-8 bg-white border border-gray-200 rounded-lg px-3 flex items-center">
+                              <span className="text-[11px] text-gray-400">{String((item.config as Record<string, string>)?.placeholder || 'Type answer...')}</span>
+                            </div>
+                          )}
+                          {item.item_type === 'time' && (
+                            <div className="mt-1 h-8 bg-white border border-gray-200 rounded-lg px-3 flex items-center">
+                              <span className="text-[11px] text-gray-400">--:--</span>
+                            </div>
+                          )}
+                          {item.item_type === 'bank_count' && (
+                            <div className="mt-1 flex items-center gap-1 text-[11px] text-gray-400">
+                              <span>$100 × __</span> <span className="text-gray-300">|</span> <span>$50 × __</span> <span className="text-gray-300">|</span> <span>$20 × __</span> <span className="text-gray-300">...</span>
+                            </div>
+                          )}
+                          {item.item_type === 'room_move' && (
+                            <div className="mt-1 text-[11px] text-gray-400">Guest Name → Room X → Room Y</div>
+                          )}
+                          {item.item_type === 'no_show' && (
+                            <div className="mt-1 text-[11px] text-gray-400">Guest Name · Room #</div>
+                          )}
+                        </div>
+                        <span className="text-[9px] text-gray-400 bg-white border border-gray-100 rounded-lg px-1.5 py-0.5 shrink-0">{typeInfo?.label || item.item_type}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => { installCommunityTemplate(previewTemplate); setPreviewTemplate(null); }}
+                  disabled={submitting}
+                  className="w-full mt-4 py-3 rounded-xl text-white text-[13px] font-bold disabled:opacity-50"
+                  style={{ backgroundColor: TEAL }}
+                >
+                  <Download size={14} className="inline mr-1.5" /> Install This Template
+                </button>
+              </div>
             </div>
           )}
 
