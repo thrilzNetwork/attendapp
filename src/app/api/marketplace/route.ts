@@ -141,6 +141,34 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (!existingInstall) {
+        const items = (Array.isArray(pack.items) ? pack.items : JSON.parse(pack.items || '[]')) as {
+          label?: string; item_type?: string; required?: boolean; sort_order?: number;
+          config?: Record<string, unknown>; position?: string; position_dept?: string;
+        }[];
+
+        // Collect unique positions from pack items
+        const positionsToCreate = new Map<string, string>();
+        for (const item of items) {
+          if (item.position) {
+            positionsToCreate.set(item.position, item.position_dept || 'front_desk');
+          }
+        }
+
+        // Create positions first (skip if already exist)
+        for (const [posName, posDept] of positionsToCreate) {
+          const { data: existingPos } = await db
+            .from('staff_positions')
+            .select('id')
+            .eq('hotel_id', scopedHotelId)
+            .eq('name', posName)
+            .maybeSingle();
+          if (!existingPos) {
+            await db.from('staff_positions').insert({
+              hotel_id: scopedHotelId, name: posName, department: posDept, shift: 'all', is_active: true,
+            });
+          }
+        }
+
         // Create template
         const { data: template } = await db
           .from('position_todo_templates')
@@ -149,13 +177,13 @@ export async function POST(req: NextRequest) {
             name: pack.name,
             description: pack.description || '',
             department: pack.department || 'front_desk',
+            assigned_position: pack.assigned_position || '',
             is_active: true,
           })
           .select()
           .single();
 
         if (template) {
-          const items = (Array.isArray(pack.items) ? pack.items : JSON.parse(pack.items || '[]')) as { label?: string; item_type?: string; required?: boolean; sort_order?: number; config?: Record<string, unknown> }[];
           for (const item of items) {
             await db.from('position_todo_items').insert({
               template_id: template.id,

@@ -2123,9 +2123,12 @@ export async function deleteTemplateItem(id: string) {
 
 // Instances
 export async function getTodayInstances(hotelId: string, staffId?: string): Promise<PositionTodoInstance[]> {
-  const today = localDate();
+  return getInstancesByDate(hotelId, localDate(), staffId);
+}
+
+export async function getInstancesByDate(hotelId: string, date: string, staffId?: string): Promise<PositionTodoInstance[]> {
   let q = supabase.from('position_todo_instances').select('*')
-    .eq('hotel_id', hotelId).eq('shift_date', today).order('created_at');
+    .eq('hotel_id', hotelId).eq('shift_date', date).order('created_at');
   if (staffId) q = q.eq('staff_id', staffId);
   const { data } = await q;
   return (data || []) as PositionTodoInstance[];

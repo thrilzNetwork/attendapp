@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   getPositionTodoTemplates, createPositionTodoTemplate, updatePositionTodoTemplate, deletePositionTodoTemplate,
   getTemplateItems, createTemplateItem, deleteTemplateItem,
-  getTodayInstances, createInstance, completeInstance, deleteInstance,
+  getTodayInstances, getInstancesByDate, createInstance, completeInstance, deleteInstance,
   getInstanceResponses, upsertResponse,
   createRoomMove, createNoShow, createBankCount,
   getStaffPositions, createStaffPosition,
@@ -200,6 +200,13 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [newPosDept, setNewPosDept] = useState('front_desk');
   const [newPosShift, setNewPosShift] = useState('');
 
+  // Date navigation
+  const [selectedDate, setSelectedDate] = useState(localDateStr());
+  const [showNewTpl, setShowNewTpl] = useState(false);
+  const [newTplName, setNewTplName] = useState('');
+  const [newTplDept, setNewTplDept] = useState('front_desk');
+  const [newTplPosition, setNewTplPosition] = useState('');
+
   // Item editing
   const [newItemLabel, setNewItemLabel] = useState('');
   const [newItemType, setNewItemType] = useState('checkbox');
@@ -227,7 +234,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       setItemsByTemplate(itemsMap);
 
       // Admin loads all staff instances; staff loads only their own
-      const insts = await getTodayInstances(hotelId, isAdmin ? undefined : staffId);
+      const insts = await getInstancesByDate(hotelId, selectedDate, isAdmin ? undefined : staffId);
       setInstances(insts);
 
       const respMap: Record<string, PositionTodoResponse[]> = {};
@@ -241,7 +248,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     setLoading(false);
   };
 
-  useEffect(() => { loadAll(); }, [hotelId, staffId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadAll(); }, [hotelId, staffId, selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const templatesByDept: Record<string, PositionTodoTemplate[]> = {};
   templates.forEach(t => {
@@ -297,6 +304,25 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       setViewMode('staff');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create position');
+    }
+    setSubmitting(false);
+  };
+
+  const handleCreateTemplate = async () => {
+    if (!newTplName.trim()) return;
+    setSubmitting(true); setError(null);
+    try {
+      await createPositionTodoTemplate({
+        hotel_id: hotelId,
+        name: newTplName.trim(),
+        department: newTplDept,
+        assigned_position: newTplPosition || undefined,
+      });
+      setNewTplName(''); setNewTplPosition('');
+      setShowNewTpl(false);
+      await loadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create template');
     }
     setSubmitting(false);
   };
@@ -503,26 +529,51 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
               : totalCount > 0 ? `${completedCount}/${totalCount} done today` : 'Start your shift tasks'}
           </p>
         </div>
-        {isAdmin && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {/* Date navigation */}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-xl px-2 py-1.5">
             <button
-              onClick={() => setViewMode(viewMode === 'builder' ? 'staff' : 'builder')}
-              className={`text-[11px] font-bold px-3 py-2 rounded-xl border transition-colors ${viewMode === 'builder' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
-            >
-              {viewMode === 'builder' ? '👁️ Staff View' : '⚙️ Builder'}
-            </button>
-            {viewMode === 'builder' && builderTab === 'my-templates' && (
-              <div className="flex items-center gap-2">
-                <button onClick={() => setViewMode('staff')} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
-                  <Plus size={14} /> New To-Do
-                </button>
-                <button onClick={() => setShowNewPos(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: '#6366F1' }}>
-                  <Plus size={14} /> New Position
-                </button>
-              </div>
-            )}
+              onClick={() => {
+                const d = new Date(selectedDate);
+                d.setDate(d.getDate() - 1);
+                setSelectedDate(localDateStr(d));
+              }}
+              className="p-1 rounded-lg hover:bg-gray-200 text-gray-500"
+            >‹</button>
+            <span className="text-[11px] font-bold text-gray-600 min-w-[80px] text-center">
+              {selectedDate === localDateStr() ? 'Today' : selectedDate}
+            </span>
+            <button
+              onClick={() => {
+                const d = new Date(selectedDate);
+                d.setDate(d.getDate() + 1);
+                setSelectedDate(localDateStr(d));
+              }}
+              disabled={selectedDate >= localDateStr()}
+              className="p-1 rounded-lg hover:bg-gray-200 text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed"
+            >›</button>
           </div>
-        )}
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => setViewMode(viewMode === 'builder' ? 'staff' : 'builder')}
+                className={`text-[11px] font-bold px-3 py-2 rounded-xl border transition-colors ${viewMode === 'builder' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
+              >
+                {viewMode === 'builder' ? '👁️ Staff View' : '⚙️ Builder'}
+              </button>
+              {viewMode === 'builder' && builderTab === 'my-templates' && (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setShowNewTpl(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
+                    <Plus size={14} /> New To-Do
+                  </button>
+                  <button onClick={() => setShowNewPos(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: '#6366F1' }}>
+                    <Plus size={14} /> New Position
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] rounded-xl px-4 py-3 mb-4">{error}<button onClick={() => setError(null)} className="ml-2 font-bold">✕</button></div>}
@@ -814,6 +865,29 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                 </select>
                 <button onClick={handleCreatePosition} disabled={submitting || !newPosName.trim()} className="w-full py-3 rounded-xl text-white font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
                   Create Position
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* New To-Do modal */}
+          {showNewTpl && (
+            <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center p-4">
+              <div className="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[15px] font-bold text-gray-900">New To-Do Checklist</p>
+                  <button onClick={() => setShowNewTpl(false)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={14} /></button>
+                </div>
+                <input value={newTplName} onChange={e => setNewTplName(e.target.value)} placeholder="Checklist name (e.g. Morning Opening)" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px]" />
+                <select value={newTplDept} onChange={e => setNewTplDept(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
+                  {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
+                </select>
+                <select value={newTplPosition} onChange={e => setNewTplPosition(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
+                  <option value="">No specific position</option>
+                  {positions.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                </select>
+                <button onClick={handleCreateTemplate} disabled={submitting || !newTplName.trim()} className="w-full py-3 rounded-xl text-white font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                  Create Checklist
                 </button>
               </div>
             </div>

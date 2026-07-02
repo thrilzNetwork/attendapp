@@ -26,6 +26,8 @@ interface Pack {
   author_name: string;
   items: PackItem[];
   install_count: number;
+  department?: string;
+  assigned_position?: string;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -162,6 +164,11 @@ export default function MarketplaceView({ hotelId, isAdmin }: { hotelId: string;
                           <Users size={11} /> {pack.install_count || 0} hotels
                         </span>
                         <span className="text-[11px] text-gray-400">{pack.items?.length || 0} items</span>
+                        {pack.assigned_position && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
+                            {pack.assigned_position}
+                          </span>
+                        )}
                         {pack.tags?.slice(0, 2).map(tag => (
                           <span key={tag} className="flex items-center gap-0.5 text-[10px] text-gray-400">
                             <Tag size={9} /> {tag}
