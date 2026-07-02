@@ -53,6 +53,7 @@ export default function KpisView({ hotelId, isAdmin, userName }: { hotelId: stri
   const [submitting, setSubmitting] = useState(false);
   const [todayStr, setTodayStr] = useState(localDateStr());
   const [whyOpen, setWhyOpen] = useState<string | null>(null);
+  const [viewDate, setViewDate] = useState(localDateStr());
 
   useEffect(() => {
     setTodayStr(localDateStr());
@@ -66,7 +67,7 @@ export default function KpisView({ hotelId, isAdmin, userName }: { hotelId: stri
     })();
   }, [hotelId]);
 
-  const dates = getDateRange(todayStr, 7);
+  const dates = getDateRange(viewDate, 7);
   const today = todayStr;
 
   // Build lookup: logs keyed by `${kpiId}|${date}`
@@ -145,6 +146,31 @@ export default function KpisView({ hotelId, isAdmin, userName }: { hotelId: stri
           <h1 className="text-[18px] font-extrabold text-gray-900">KPIs</h1>
         </div>
         <div className="flex items-center gap-2">
+          {/* Date navigation */}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg px-2 py-1">
+            <button
+              onClick={() => {
+                const d = new Date(viewDate);
+                d.setDate(d.getDate() - 7);
+                setViewDate(localDateStr(d));
+              }}
+              className="p-0.5 rounded hover:bg-gray-200 text-gray-500"
+            >‹</button>
+            <span className="text-[10px] font-bold text-gray-600 min-w-[60px] text-center">
+              {viewDate === todayStr ? 'This Week' : `${shortDate(dates[0])} - ${shortDate(dates[6])}`}
+            </span>
+            <button
+              onClick={() => {
+                const d = new Date(viewDate);
+                d.setDate(d.getDate() + 7);
+                const next = localDateStr(d);
+                if (next > todayStr) return;
+                setViewDate(next);
+              }}
+              disabled={viewDate >= todayStr}
+              className="p-0.5 rounded hover:bg-gray-200 text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed"
+            >›</button>
+          </div>
           {isAdmin && (
             <button
               onClick={() => setShowManage(v => !v)}
