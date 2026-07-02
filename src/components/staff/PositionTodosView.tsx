@@ -895,7 +895,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                                         await updateStaffPosition(pos.id, {
                                           name: editPosName.trim(),
                                           department: editPosDept,
-                                          shift: editPosShift || null,
+                                          shift: editPosShift || undefined,
                                         });
                                         setEditingPos(null);
                                         await loadAll();
