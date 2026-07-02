@@ -805,17 +805,54 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                     </div>
                   </button>
 
-                  {DEPARTMENTS.map(dept => {
-                    const deptTpls = templatesByDept[dept.key] || [];
-                    if (deptTpls.length === 0) return null;
-                    const open = openDept === dept.key || (!!editingTemplate && deptTpls.some(t => t.id === editingTemplate));
+                  {(() => {
+                    // Group templates by assigned_position first, then fall back to department
+                    const groups: { key: string; label: string; icon: string; templates: PositionTodoTemplate[] }[] = [];
+
+                    // Collect all position names that have templates
+                    const positionNames = new Set<string>();
+                    templates.forEach(t => {
+                      if (t.assigned_position) positionNames.add(t.assigned_position);
+                    });
+
+                    // For each position, create a group
+                    for (const posName of positionNames) {
+                      const posTpls = templates.filter(t => t.assigned_position === posName);
+                      if (posTpls.length === 0) continue;
+                      const pos = positions.find(p => p.name === posName);
+                      const dept = pos ? DEPARTMENTS.find(d => d.key === pos.department) : undefined;
+                      groups.push({
+                        key: `pos:${posName}`,
+                        label: posName,
+                        icon: dept?.icon || '👤',
+                        templates: posTpls,
+                      });
+                    }
+
+                    // For templates without an assigned_position, group by department
+                    const unassigned = templates.filter(t => !t.assigned_position);
+                    for (const dept of DEPARTMENTS) {
+                      const deptTpls = unassigned.filter(t => t.department === dept.key);
+                      if (deptTpls.length === 0) continue;
+                      groups.push({
+                        key: `dept:${dept.key}`,
+                        label: dept.label,
+                        icon: dept.icon,
+                        templates: deptTpls,
+                      });
+                    }
+
+                    return <>{groups.map(group => {
+                    const deptTpls = group.templates;
+                    const groupKey = group.key;
+                    const open = openDept === groupKey || (!!editingTemplate && deptTpls.some(t => t.id === editingTemplate));
                     return (
-                      <div key={dept.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                        <button onClick={() => setOpenDept(open ? null : dept.key)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                      <div key={group.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                        <button onClick={() => setOpenDept(open ? null : group.key)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
                           <div className="flex items-center gap-2">
-                            <span className="text-[20px]">{dept.icon}</span>
+                            <span className="text-[20px]">{group.icon}</span>
                             <div className="text-left">
-                              <p className="text-[14px] font-bold text-gray-900">{dept.label}</p>
+                              <p className="text-[14px] font-bold text-gray-900">{group.label}</p>
                               <p className="text-[11px] text-gray-500">{deptTpls.length} checklist{deptTpls.length !== 1 ? 's' : ''}</p>
                             </div>
                           </div>
@@ -904,7 +941,8 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                         )}
                       </div>
                     );
-                  })}
+                    })}</>
+                  })()}
                 </div>
               )}
 
