@@ -149,6 +149,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // ─── Feature flags ──────────────────────────────────────────
+    if (action === 'get_hotel_features') {
+      const { data } = await supabaseAdmin.from('hotels').select('features').eq('id', params.hotelId).single();
+      return NextResponse.json({ data: data?.features || {} });
+    }
+
+    if (action === 'update_hotel_features') {
+      await supabaseAdmin.from('hotels').update({ features: params.features }).eq('id', params.hotelId);
+      return NextResponse.json({ ok: true });
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Server error';

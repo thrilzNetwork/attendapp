@@ -406,11 +406,13 @@ function HotelCard({
   metrics,
   onManage,
   onToggleActive,
+  onFeatures,
 }: {
   hotel: Hotel;
   metrics: HotelMetrics | undefined;
   onManage: () => void;
   onToggleActive: (id: string, active: boolean) => void;
+  onFeatures: () => void;
 }) {
   const [copied, setCopied] = useState<string | null>(null);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -518,6 +520,14 @@ function HotelCard({
             Manage <ArrowRight size={12} />
           </button>
           <button
+            onClick={onFeatures}
+            title="Manage feature flags"
+            className="flex items-center gap-1 px-3 py-2 rounded-xl text-[11px] font-bold border border-gray-200 text-gray-500 hover:border-teal-200 hover:text-teal-600 hover:bg-teal-50 transition-all"
+          >
+            <Zap size={11} />
+            Features
+          </button>
+          <button
             onClick={() => onToggleActive(hotel.id, !isActive)}
             title={isActive ? 'Pause property' : 'Activate property'}
             className={`flex items-center gap-1 px-3 py-2 rounded-xl text-[11px] font-bold border transition-all ${
@@ -544,6 +554,7 @@ export default function SuperAdminView({ onSwitchHotel }: { onSwitchHotel: (slug
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [featuresHotel, setFeaturesHotel] = useState<Hotel | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -669,6 +680,7 @@ export default function SuperAdminView({ onSwitchHotel }: { onSwitchHotel: (slug
                   metrics={metrics[hotel.id]}
                   onManage={() => onSwitchHotel(hotel.slug)}
                   onToggleActive={handleToggleActive}
+                  onFeatures={() => setFeaturesHotel(hotel)}
                 />
               ))}
             </div>
@@ -682,6 +694,169 @@ export default function SuperAdminView({ onSwitchHotel }: { onSwitchHotel: (slug
           onCreated={() => { loadData(); setShowWizard(false); }}
         />
       )}
+
+      {featuresHotel && (
+        <FeaturesModal
+          hotel={featuresHotel}
+          onClose={() => setFeaturesHotel(null)}
+          onSaved={() => { loadData(); setFeaturesHotel(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FEATURES MODAL
+═══════════════════════════════════════════════════════════ */
+const FEATURE_GROUPS: { label: string; keys: string[] }[] = [
+  { label: 'Today', keys: ['orders', 'messages', 'todos', 'kpis', 'schedules'] },
+  { label: 'Operations', keys: ['shuttle', 'compset', 'forecast', 'culture', 'knowledge', 'learning_hr', 'marketplace'] },
+  { label: 'Admin', keys: ['revenue', 'reports', 'callouts', 'vendors', 'qrcodes', 'rooms', 'leaderboard'] },
+];
+
+const FEATURE_LABELS: Record<string, string> = {
+  orders: 'Requests',
+  messages: 'Messages',
+  todos: 'To-Dos',
+  kpis: 'KPIs',
+  schedules: 'Schedules',
+  shuttle: 'Transportation',
+  compset: 'Compset',
+  forecast: 'Forecast',
+  culture: 'Culture',
+  knowledge: 'Right Answers',
+  learning_hr: 'Learning & HR',
+  marketplace: 'Marketplace',
+  revenue: 'Revenue',
+  reports: 'Reports',
+  callouts: 'Staff Callouts',
+  vendors: 'Vendors',
+  qrcodes: 'QR Codes',
+  rooms: 'Room Management',
+  leaderboard: 'Leaderboard',
+};
+
+function FeaturesModal({
+  hotel,
+  onClose,
+  onSaved,
+}: {
+  hotel: Hotel;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [features, setFeatures] = useState<Record<string, boolean> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    adminFetch('get_hotel_features', { hotelId: hotel.id })
+      .then(res => setFeatures(res.data || {}))
+      .catch(() => setFeatures({}));
+  }, [hotel.id]);
+
+  const toggle = (key: string) => {
+    setFeatures(f => f ? { ...f, [key]: !f[key] } : f);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await adminFetch('update_hotel_features', { hotelId: hotel.id, features });
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!features) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+        <div className="bg-white rounded-2xl w-full max-w-lg p-8 text-center" onClick={e => e.stopPropagation()}>
+          <RefreshCw size={20} className="animate-spin mx-auto text-gray-400" />
+          <p className="text-[13px] text-gray-500 mt-3">Loading features...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-gray-100 shrink-0">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-[18px] font-black text-gray-900">Feature Flags</h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-[18px] font-light">✕</button>
+          </div>
+          <p className="text-[12px] text-gray-500">
+            Toggle features on/off for <span className="font-bold text-gray-800">{hotel.name}</span>
+          </p>
+          <p className="text-[10px] text-gray-400 mt-1">
+            Disabled features are hidden from this property&apos;s staff dashboard. No data is affected.
+          </p>
+        </div>
+
+        {/* Feature toggles */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+          {FEATURE_GROUPS.map(group => (
+            <div key={group.label}>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">{group.label}</p>
+              <div className="space-y-1">
+                {group.keys.map(key => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => toggle(key)}
+                  >
+                    <span className="text-[13px] font-semibold text-gray-800">
+                      {FEATURE_LABELS[key] || key}
+                    </span>
+                    <div
+                      className={`w-10 h-5 rounded-full relative transition-colors ${
+                        features[key] !== false ? 'bg-teal-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                          features[key] !== false ? 'translate-x-5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 shrink-0">
+          {error && (
+            <p className="text-[11px] text-red-600 font-semibold mb-2 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+          )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-gray-500 border border-gray-200 hover:border-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+              style={{ backgroundColor: TEAL }}
+            >
+              {saving ? <><RefreshCw size={13} className="animate-spin" /> Saving...</> : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

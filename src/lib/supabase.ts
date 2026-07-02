@@ -87,6 +87,7 @@ export interface HotelConfig {
   foodContent?: FoodContent;
   nearbyIntro?: NearbyIntro;
   positionBudgets?: PositionBudget[];
+  features?: Record<string, boolean>;
 
   id?: string;
   slug: string;
@@ -209,6 +210,7 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     foodContent: data.food_content || {},
     nearbyIntro: data.nearby_intro || {},
     positionBudgets: data.position_budgets || [],
+    features: data.features || {},
   };
 }
 

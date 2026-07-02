@@ -593,6 +593,8 @@ function DashboardInner() {
       const requiredPerm = TAB_PERMS[n.tab];
       if (requiredPerm && !sessionPerms.includes(requiredPerm)) return false;
     }
+    // Check hotel feature flags — if a feature is explicitly disabled, hide the tab
+    if (config?.features && config.features[n.tab] === false) return false;
     return true;
   });
   const isAdmin = s.role === 'admin' || s.role === 'superadmin';
