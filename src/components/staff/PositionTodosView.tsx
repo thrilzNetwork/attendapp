@@ -7,7 +7,7 @@ import {
   getTodayInstances, createInstance, completeInstance, deleteInstance,
   getInstanceResponses, upsertResponse,
   createRoomMove, createNoShow, createBankCount,
-  getStaffPositions, createStaffPosition, updateStaffPosition, deleteStaffPosition,
+  getStaffPositions, createStaffPosition,
   type PositionTodoTemplate, type PositionTodoItem,
   type PositionTodoInstance, type PositionTodoResponse,
   type StaffPosition,
@@ -199,10 +199,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [newPosName, setNewPosName] = useState('');
   const [newPosDept, setNewPosDept] = useState('front_desk');
   const [newPosShift, setNewPosShift] = useState('');
-  const [editingPos, setEditingPos] = useState<string | null>(null);
-  const [editPosName, setEditPosName] = useState('');
-  const [editPosDept, setEditPosDept] = useState('front_desk');
-  const [editPosShift, setEditPosShift] = useState('');
 
   // Item editing
   const [newItemLabel, setNewItemLabel] = useState('');
@@ -305,34 +301,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     setSubmitting(false);
   };
 
-  const handleUpdatePosition = async (posId: string) => {
-    if (!editPosName.trim()) return;
-    setSubmitting(true); setError(null);
-    try {
-      await updateStaffPosition(posId, {
-        name: editPosName.trim(),
-        department: editPosDept,
-        shift: editPosShift,
-      });
-      setEditingPos(null);
-      await loadAll();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update position');
-    }
-    setSubmitting(false);
-  };
-
-  const handleDeletePosition = async (posId: string) => {
-    if (!confirm('Delete this position? Templates assigned to it will fall back to their department.')) return;
-    setSubmitting(true); setError(null);
-    try {
-      await deleteStaffPosition(posId);
-      await loadAll();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete position');
-    }
-    setSubmitting(false);
-  };
   const confirmRenameTpl = async (tplId: string) => {
     if (!renameValue.trim()) return;
     setSubmitting(true);
