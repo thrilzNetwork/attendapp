@@ -185,7 +185,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [loading, setLoading] = useState(true);
   const [openDept, setOpenDept] = useState<string | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
-  const [showNew, setShowNew] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [installedId, setInstalledId] = useState<string | null>(null);
@@ -269,23 +268,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
     (templatesByDept[k] = templatesByDept[k] || []).push(t);
   });
 
-  const createTemplate = async () => {
-    if (!newName.trim()) return;
-    setSubmitting(true); setError(null);
-    try {
-      await createPositionTodoTemplate({
-        hotel_id: hotelId, name: newName.trim(), description: newDesc.trim(),
-        department: newDept, assigned_position: newPos,
-      });
-      setNewName(''); setNewDesc(''); setNewPos('');
-      setShowNew(false);
-      await loadAll();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create template');
-    }
-    setSubmitting(false);
-  };
-
   const installCommunityTemplate = async (ct: CommunityTemplate) => {
     setSubmitting(true); setError(null);
     try {
@@ -328,9 +310,8 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       setNewPosName(''); setNewPosShift('');
       setShowNewPos(false);
       await loadAll();
-      // After creating the position, open the New To-Do modal with it pre-selected
-      setNewPos(createdName);
-      setShowNew(true);
+      // After creating the position, switch to staff view to see active templates
+      setViewMode('staff');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create position');
     }
@@ -597,7 +578,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
             </button>
             {viewMode === 'builder' && builderTab === 'my-templates' && (
               <div className="flex items-center gap-2">
-                <button onClick={() => setShowNew(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
+                <button onClick={() => setViewMode('staff')} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
                   <Plus size={14} /> New To-Do
                 </button>
                 <button onClick={() => setShowNewPos(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: '#6366F1' }}>
@@ -840,7 +821,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                   <p className="text-[15px] font-semibold text-gray-700 mb-1">No templates yet</p>
                   <p className="text-[12px] text-gray-500 mb-4">Create your own or install one from the Template Library.</p>
                   <div className="flex items-center justify-center gap-2">
-                    <button onClick={() => setShowNew(true)} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}><Plus size={14} /> Create Custom</button>
                     <button onClick={() => setBuilderTab('library')} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-600 text-[12px] font-bold"><BookOpen size={14} /> Browse Library</button>
                   </div>
                 </div>
@@ -961,58 +941,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
               )}
 
               {/* New template form */}
-              {showNew && (
-                <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center p-4">
-                  <div className="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[15px] font-bold text-gray-900">New Checklist</p>
-                      <button onClick={() => setShowNew(false)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={14} /></button>
-                    </div>
-                    <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Checklist name" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px]" />
-                    <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Description (optional)" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px] text-gray-600" />
-                    <select value={newDept} onChange={e => setNewDept(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
-                      {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
-                    </select>
-                    <select value={newPos} onChange={e => {
-                      if (e.target.value === '__add_new__') {
-                        setShowInlineNewPos(true);
-                      } else {
-                        setNewPos(e.target.value);
-                      }
-                    }} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
-                      <option value="">All positions in department</option>
-                      {positions.map(p => <option key={p.id} value={p.name}>{p.name}{p.shift ? ` (${p.shift})` : ''}</option>)}
-                      <option value="__add_new__" className="text-teal-600 font-semibold">+ Add New Position</option>
-                    </select>
-                    {showInlineNewPos && (
-                      <div className="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                        <p className="text-[12px] font-bold text-gray-600">New Position</p>
-                        <input value={inlineNewPosName} onChange={e => setInlineNewPosName(e.target.value)} placeholder="Position name (e.g. Front Desk AM)" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]" />
-                        <select value={inlineNewPosDept} onChange={e => setInlineNewPosDept(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
-                          {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
-                        </select>
-                        <select value={inlineNewPosShift} onChange={e => setInlineNewPosShift(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
-                          <option value="">No specific shift</option>
-                          <option value="AM">AM</option>
-                          <option value="PM">PM</option>
-                          <option value="Night">Night</option>
-                        </select>
-                        <div className="flex gap-2">
-                          <button onClick={handleInlineCreatePosition} disabled={submitting || !inlineNewPosName.trim()} className="flex-1 py-2.5 rounded-xl text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                            Add & Select
-                          </button>
-                          <button onClick={() => { setShowInlineNewPos(false); setInlineNewPosName(''); }} className="py-2.5 px-4 rounded-xl border border-gray-200 bg-white text-gray-500 text-[12px] font-bold">
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    <button onClick={createTemplate} disabled={submitting || !newName.trim()} className="w-full py-3 rounded-xl text-white font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                      Create Checklist
-                    </button>
-                  </div>
-                </div>
-              )}
             </>
           )}
 
