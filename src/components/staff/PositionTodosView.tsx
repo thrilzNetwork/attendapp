@@ -212,6 +212,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
   const [newItemLabel, setNewItemLabel] = useState('');
   const [newItemType, setNewItemType] = useState('checkbox');
   const [newItemConfig, setNewItemConfig] = useState('');
+  const [newTplItems, setNewTplItems] = useState<{ label: string; item_type: string; config?: Record<string, unknown> }[]>([]);
 
   // Inline form state for operational input types
   const [opsForm, setOpsForm] = useState<Record<string, Record<string, string>>>({});
@@ -336,6 +337,39 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
       await loadAll();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create template');
+    }
+    setSubmitting(false);
+  };
+
+  const addNewTplItem = () => {
+    if (!newItemLabel.trim()) return;
+    setNewTplItems(prev => [...prev, { label: newItemLabel.trim(), item_type: newItemType }]);
+    setNewItemLabel('');
+    setNewItemType('checkbox');
+  };
+
+  const handleCreateTemplateWithItems = async () => {
+    if (!newTplName.trim()) return;
+    setSubmitting(true); setError(null);
+    try {
+      const tpl = await createPositionTodoTemplate({
+        hotel_id: hotelId,
+        name: newTplName.trim(),
+        department: newTplDept,
+        assigned_position: newTplPosition || undefined,
+      });
+      for (let i = 0; i < newTplItems.length; i++) {
+        await createTemplateItem({
+          template_id: tpl.id, label: newTplItems[i].label,
+          item_type: newTplItems[i].item_type, sort_order: i,
+          config: newTplItems[i].config || {},
+        });
+      }
+      setNewTplName(''); setNewTplPosition(''); setNewTplItems([]);
+      setShowNewTpl(false);
+      await loadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create checklist');
     }
     setSubmitting(false);
   };
@@ -875,10 +909,10 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
             </div>
           )}
 
-          {/* New To-Do modal */}
+          {/* New To-Do modal — with inline item creation */}
           {showNewTpl && (
             <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center p-4">
-              <div className="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
+              <div className="bg-white rounded-2xl w-full max-w-md p-5 space-y-3 max-h-[85vh] overflow-y-auto">
                 <div className="flex items-center justify-between">
                   <p className="text-[15px] font-bold text-gray-900">New To-Do Checklist</p>
                   <button onClick={() => setShowNewTpl(false)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={14} /></button>
@@ -891,8 +925,36 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                   <option value="">No specific position</option>
                   {positions.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
                 </select>
-                <button onClick={handleCreateTemplate} disabled={submitting || !newTplName.trim()} className="w-full py-3 rounded-xl text-white font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                  Create Checklist
+
+                {/* Inline items to add during creation */}
+                <div className="border-t border-gray-100 pt-3">
+                  <p className="text-[12px] font-bold text-gray-500 uppercase tracking-wider mb-2">Add Items</p>
+                  <div className="space-y-1.5 mb-3">
+                    {newTplItems.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                        <span className="text-gray-400 shrink-0">{ITEM_TYPES.find(t => t.key === item.item_type)?.icon || <CheckSquare size={14} />}</span>
+                        <span className="flex-1 text-[12px] text-gray-700 truncate">{item.label}</span>
+                        <button onClick={() => setNewTplItems(prev => prev.filter((_, j) => j !== i))} className="p-1 rounded-lg text-red-400 hover:bg-red-50"><XIcon size={12} /></button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <input
+                      value={newItemLabel}
+                      onChange={e => setNewItemLabel(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNewTplItem(); } }}
+                      placeholder="Item label..."
+                      className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px]"
+                    />
+                    <select value={newItemType} onChange={e => setNewItemType(e.target.value)} className="bg-white border border-gray-200 rounded-xl px-2 py-2 text-[11px]">
+                      {ITEM_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                    </select>
+                    <button onClick={addNewTplItem} disabled={!newItemLabel.trim()} className="px-3 py-2 rounded-xl text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}><Plus size={14} /></button>
+                  </div>
+                </div>
+
+                <button onClick={handleCreateTemplateWithItems} disabled={submitting || !newTplName.trim()} className="w-full py-3 rounded-xl text-white font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                  {newTplItems.length > 0 ? `Create Checklist (${newTplItems.length} item${newTplItems.length !== 1 ? 's' : ''})` : 'Create Empty Checklist'}
                 </button>
               </div>
             </div>
