@@ -420,11 +420,10 @@ export default function SchedulesView({
     return (
       <div>
         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">End</label>
-        {open ? (
-          <div className="mt-1 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-[12px] text-amber-700 font-semibold">TBD — supervisor sets daily</div>
-        ) : (
-          <input type="time" value={value} onChange={e => onChange(e.target.value)}
-            className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
+        <input type="time" value={value} onChange={e => onChange(e.target.value)}
+          className={`w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border outline-none mt-1 ${open ? 'border-amber-200 opacity-60' : 'border-gray-100'}`} />
+        {open && (
+          <p className="text-[10px] text-amber-600 mt-0.5">TBD — time entered above won't be saved while checked</p>
         )}
         <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
           <input type="checkbox" checked={open} onChange={e => onOpenChange(e.target.checked)} className="accent-amber-500 w-4 h-4" />
