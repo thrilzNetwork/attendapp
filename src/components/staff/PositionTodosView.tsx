@@ -851,7 +851,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                               >
                                 <Plus size={14} /> New Blank To-Do
                               </button>
-                              {templates.filter(t => t.assigned_position !== pos.name).length > 0 && (
+                              {templates.length > 0 && (
                                 <div className="relative">
                                   <button
                                     onClick={() => setOpenDept(openDept === `install:${pos.id}` ? null : `install:${pos.id}`)}
@@ -861,30 +861,33 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                                   </button>
                                   {openDept === `install:${pos.id}` && (
                                     <div className="mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                                      {templates.filter(t => t.assigned_position !== pos.name).map(tpl => (
-                                        <button
-                                          key={tpl.id}
-                                          onClick={async () => {
-                                            setSubmitting(true);
-                                            try {
-                                              await updatePositionTodoTemplate(tpl.id, { assigned_position: pos.name });
-                                              await loadAll();
-                                            } catch (e) {
-                                              setError(e instanceof Error ? e.message : 'Failed to assign');
-                                            }
-                                            setSubmitting(false);
-                                            setOpenDept(null);
-                                          }}
-                                          disabled={submitting}
-                                          className="w-full text-left px-3 py-2.5 text-[12px] text-gray-700 hover:bg-gray-50 border-b border-gray-100 last:border-0 flex items-center gap-2"
-                                        >
-                                          <span className="text-gray-400 shrink-0">{tpl.assigned_position ? `📋` : `📄`}</span>
-                                          <span className="truncate">{tpl.name}</span>
-                                          {tpl.assigned_position && (
-                                            <span className="text-[10px] text-gray-400 ml-auto shrink-0">({tpl.assigned_position})</span>
-                                          )}
-                                        </button>
-                                      ))}
+                                      {templates.map(tpl => {
+                                        const alreadyAssigned = tpl.assigned_position === pos.name;
+                                        return (
+                                          <button
+                                            key={tpl.id}
+                                            onClick={async () => {
+                                              setSubmitting(true);
+                                              try {
+                                                await updatePositionTodoTemplate(tpl.id, { assigned_position: pos.name });
+                                                await loadAll();
+                                              } catch (e) {
+                                                setError(e instanceof Error ? e.message : 'Failed to assign');
+                                              }
+                                              setSubmitting(false);
+                                              setOpenDept(null);
+                                            }}
+                                            disabled={submitting}
+                                            className={`w-full text-left px-3 py-2.5 text-[12px] hover:bg-gray-50 border-b border-gray-100 last:border-0 flex items-center gap-2 ${alreadyAssigned ? 'text-gray-400' : 'text-gray-700'}`}
+                                          >
+                                            <span className="shrink-0">{alreadyAssigned ? '📋' : '📄'}</span>
+                                            <span className="truncate flex-1">{tpl.name}</span>
+                                            {alreadyAssigned && (
+                                              <span className="text-[10px] text-teal-600 shrink-0">✓ assigned</span>
+                                            )}
+                                          </button>
+                                        );
+                                      })}
                                     </div>
                                   )}
                                 </div>
