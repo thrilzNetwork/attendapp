@@ -212,10 +212,12 @@ export default function SchedulesView({
   const handleSaveEdit = async () => {
     setEditSubmitting(true); setError(null);
     try {
+      // If user typed an end time, save it — ignore checkbox if there's a value
+      const hasEndTime = !!(editForm.end_time && editForm.end_time.trim());
       await updateStaffSchedule(editForm.id, {
         shift_date: editForm.shift_date,
         start_time: editForm.start_time,
-        end_time: editForm.end_time_open ? null : editForm.end_time || null,
+        end_time: hasEndTime ? editForm.end_time : undefined,
         role: editForm.role || undefined,
         notes: editForm.notes || undefined,
       });
