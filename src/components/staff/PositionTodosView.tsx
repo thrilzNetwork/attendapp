@@ -661,21 +661,13 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                     // Group templates by assigned_position first, then fall back to department
                     const groups: { key: string; label: string; icon: string; templates: PositionTodoTemplate[] }[] = [];
 
-                    // Collect all position names that have templates
-                    const positionNames = new Set<string>();
-                    templates.forEach(t => {
-                      if (t.assigned_position) positionNames.add(t.assigned_position);
-                    });
-
-                    // For each position, create a group
-                    for (const posName of positionNames) {
-                      const posTpls = templates.filter(t => t.assigned_position === posName);
-                      if (posTpls.length === 0) continue;
-                      const pos = positions.find(p => p.name === posName);
-                      const dept = pos ? DEPARTMENTS.find(d => d.key === pos.department) : undefined;
+                    // For each position, create a group (show all positions, even with 0 templates)
+                    for (const pos of positions) {
+                      const posTpls = templates.filter(t => t.assigned_position === pos.name);
+                      const dept = DEPARTMENTS.find(d => d.key === pos.department);
                       groups.push({
-                        key: `pos:${posName}`,
-                        label: posName,
+                        key: `pos:${pos.name}`,
+                        label: pos.name,
                         icon: dept?.icon || '👤',
                         templates: posTpls,
                       });
@@ -926,24 +918,16 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                     // Group templates by assigned_position first, then fall back to department
                     const groups: { key: string; label: string; icon: string; templates: PositionTodoTemplate[] }[] = [];
 
-                    // Collect all position names that have templates
-                    const positionNames = new Set<string>();
-                    templates.forEach(t => {
-                      if (t.assigned_position) positionNames.add(t.assigned_position);
-                    });
-
-                    // For each position, create a group
-                    for (const posName of positionNames) {
-                      const posTpls = templates.filter(t => t.assigned_position === posName);
+                    // For each position, create a group (show all positions, even with 0 templates)
+                    for (const pos of positions) {
+                      const posTpls = templates.filter(t => t.assigned_position === pos.name);
                       if (!isAdmin && department) {
                         if (!posTpls.some(t => t.department === department)) continue;
                       }
-                      if (posTpls.length === 0) continue;
-                      const pos = positions.find(p => p.name === posName);
-                      const dept = pos ? DEPARTMENTS.find(d => d.key === pos.department) : undefined;
+                      const dept = DEPARTMENTS.find(d => d.key === pos.department);
                       groups.push({
-                        key: `pos:${posName}`,
-                        label: posName,
+                        key: `pos:${pos.name}`,
+                        label: pos.name,
                         icon: dept?.icon || '👤',
                         templates: posTpls,
                       });
