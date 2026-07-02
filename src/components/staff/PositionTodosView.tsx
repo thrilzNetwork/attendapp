@@ -7,7 +7,7 @@ import {
   getInstancesByDate, createInstance, completeInstance, deleteInstance,
   getInstanceResponses, upsertResponse,
   createRoomMove, createNoShow, createBankCount,
-  getStaffPositions, createStaffPosition,
+  getStaffPositions, createStaffPosition, deleteStaffPosition,
   type PositionTodoTemplate, type PositionTodoItem,
   type PositionTodoInstance, type PositionTodoResponse,
   type StaffPosition,
@@ -755,7 +755,32 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                               <p className="text-[11px] text-gray-500">{posTpls.length} to-do{posTpls.length !== 1 ? 's' : ''} · {dept?.label || pos.department} · {pos.shift || 'All shifts'}</p>
                             </div>
                           </div>
-                          <ChevronDown size={18} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!confirm(`Delete position "${pos.name}"? This will also remove all to-dos assigned to it.`)) return;
+                                setSubmitting(true);
+                                try {
+                                  // Unassign all templates from this position first
+                                  for (const tpl of posTpls) {
+                                    await updatePositionTodoTemplate(tpl.id, { assigned_position: '' });
+                                  }
+                                  await deleteStaffPosition(pos.id);
+                                  await loadAll();
+                                } catch (e) {
+                                  setError(e instanceof Error ? e.message : 'Failed to delete position');
+                                }
+                                setSubmitting(false);
+                              }}
+                              disabled={submitting}
+                              title="Delete position"
+                              className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                            <ChevronDown size={18} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+                          </div>
                         </button>
 
                         {open && (
