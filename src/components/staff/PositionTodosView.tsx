@@ -263,6 +263,18 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
   const installCommunityTemplate = async (ct: CommunityTemplate) => {
     setSubmitting(true); setError(null);
     try {
+      // Create the position if it doesn't exist and the template is assigned to one
+      if (ct.assigned_position) {
+        const existingPos = positions.find(p => p.name === ct.assigned_position);
+        if (!existingPos) {
+          await createStaffPosition({
+            hotel_id: hotelId,
+            name: ct.assigned_position,
+            department: ct.department,
+            shift: 'all',
+          });
+        }
+      }
       const tpl = await createPositionTodoTemplate({
         hotel_id: hotelId, name: ct.name, description: ct.description,
         department: ct.department, assigned_position: ct.assigned_position || '',
@@ -564,9 +576,6 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
               </button>
               {viewMode === 'builder' && builderTab === 'my-templates' && (
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setShowNewTpl(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
-                    <Plus size={14} /> New To-Do
-                  </button>
                   <button onClick={() => setShowNewPos(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: '#6366F1' }}>
                     <Plus size={14} /> New Position
                   </button>
@@ -678,18 +687,16 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
           {/* ── BUILDER: My Templates ── */}
           {canManage && viewMode === 'builder' && builderTab === 'my-templates' && (
             <>
-              {templates.length === 0 && (
+              {positions.length === 0 && (
                 <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
                   <ClipboardList size={48} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-[15px] font-semibold text-gray-700 mb-1">No templates yet</p>
-                  <p className="text-[12px] text-gray-500 mb-4">Create your own or install one from the Template Library.</p>
-                  <div className="flex items-center justify-center gap-2">
-                    <button onClick={() => setBuilderTab('library')} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-600 text-[12px] font-bold"><BookOpen size={14} /> Browse Library</button>
-                  </div>
+                  <p className="text-[15px] font-semibold text-gray-700 mb-1">No positions yet</p>
+                  <p className="text-[12px] text-gray-500 mb-4">Create a position first, then add to-dos inside it.</p>
+                  <button onClick={() => setShowNewPos(true)} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: '#6366F1' }}><Plus size={14} /> New Position</button>
                 </div>
               )}
 
-              {templates.length > 0 && (
+              {positions.length > 0 && (
                 <div className="space-y-4">
                   {/* Library shortcut banner */}
                   <button onClick={() => setBuilderTab('library')} className="w-full flex items-center gap-3 px-4 py-3 bg-teal-50 border border-teal-100 rounded-2xl hover:bg-teal-100 transition-colors text-left">
@@ -700,149 +707,108 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                     </div>
                   </button>
 
-                  {/* New Position button */}
-                  <button onClick={() => setShowNewPos(true)} className="w-full flex items-center gap-3 px-4 py-3 bg-white border-2 border-dashed border-gray-200 rounded-2xl hover:border-teal-300 hover:bg-teal-50/30 transition-colors text-left">
-                    <Plus size={18} className="text-teal-500 shrink-0" />
-                    <div>
-                      <p className="text-[12px] font-bold text-teal-700">New Position</p>
-                      <p className="text-[11px] text-gray-500">Create a staff position like &ldquo;Front Desk AM&rdquo; to group checklists by role</p>
-                    </div>
-                  </button>
-
-                  {(() => {
-                    // Group templates by assigned_position first, then fall back to department
-                    const groups: { key: string; label: string; icon: string; templates: PositionTodoTemplate[] }[] = [];
-
-                    // For each position, create a group (show all positions, even with 0 templates)
-                    for (const pos of positions) {
-                      const posTpls = templates.filter(t => t.assigned_position === pos.name);
-                      const dept = DEPARTMENTS.find(d => d.key === pos.department);
-                      groups.push({
-                        key: `pos:${pos.id}`,
-                        label: pos.name,
-                        icon: dept?.icon || '👤',
-                        templates: posTpls,
-                      });
-                    }
-
-                    // For templates without an assigned_position, group by department
-                    const unassigned = templates.filter(t => !t.assigned_position);
-                    for (const dept of DEPARTMENTS) {
-                      const deptTpls = unassigned.filter(t => t.department === dept.key);
-                      if (deptTpls.length === 0) continue;
-                      groups.push({
-                        key: `dept:${dept.key}`,
-                        label: dept.label,
-                        icon: dept.icon,
-                        templates: deptTpls,
-                      });
-                    }
-
-                    return <>{groups.map(group => {
-                    const deptTpls = group.templates;
-                    const groupKey = group.key;
-                    const open = openDept === groupKey || (!!editingTemplate && deptTpls.some(t => t.id === editingTemplate));
+                  {positions.map(pos => {
+                    const dept = DEPARTMENTS.find(d => d.key === pos.department);
+                    const posTpls = templates.filter(t => t.assigned_position === pos.name);
+                    const open = openDept === pos.id;
                     return (
-                      <div key={group.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                        <button onClick={() => setOpenDept(open ? null : group.key)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                      <div key={pos.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                        <button onClick={() => setOpenDept(open ? null : pos.id)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
                           <div className="flex items-center gap-2">
-                            <span className="text-[20px]">{group.icon}</span>
+                            <span className="text-[20px]">{dept?.icon || '👤'}</span>
                             <div className="text-left">
-                              <p className="text-[14px] font-bold text-gray-900">{group.label}</p>
-                              <p className="text-[11px] text-gray-500">{deptTpls.length} checklist{deptTpls.length !== 1 ? 's' : ''}</p>
+                              <p className="text-[14px] font-bold text-gray-900">{pos.name}</p>
+                              <p className="text-[11px] text-gray-500">{posTpls.length} to-do{posTpls.length !== 1 ? 's' : ''} · {dept?.label || pos.department} · {pos.shift || 'All shifts'}</p>
                             </div>
                           </div>
                           <ChevronDown size={18} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
                         </button>
 
                         {open && (
-                          <div className="border-t border-gray-100 divide-y divide-gray-100">
-                            {deptTpls.map(tpl => {
-                              const items = itemsByTemplate[tpl.id] || [];
-                              return (
-                                <div key={tpl.id} className="px-4 py-3">
-                                  <div className="flex items-start justify-between gap-2 mb-2">
-                                    <div className="flex-1 min-w-0">
-                                      {renamingTemplate === tpl.id ? (
-                                        <div className="flex items-center gap-1.5">
-                                          <input
-                                            autoFocus
-                                            value={renameValue}
-                                            onChange={e => setRenameValue(e.target.value)}
-                                            onKeyDown={e => { if (e.key === 'Enter') confirmRenameTpl(tpl.id); if (e.key === 'Escape') setRenamingTemplate(null); }}
-                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] font-semibold"
-                                          />
-                                          <button onClick={() => confirmRenameTpl(tpl.id)} disabled={submitting} className="p-1.5 rounded-lg text-white text-[11px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}><Save size={13} /></button>
-                                          <button onClick={() => setRenamingTemplate(null)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={13} /></button>
+                          <div className="border-t border-gray-100">
+                            {/* To-do list */}
+                            {posTpls.length > 0 && (
+                              <div className="divide-y divide-gray-100">
+                                {posTpls.map(tpl => {
+                                  const items = itemsByTemplate[tpl.id] || [];
+                                  return (
+                                    <div key={tpl.id} className="px-4 py-3">
+                                      <div className="flex items-start justify-between gap-2 mb-2">
+                                        <div className="flex-1 min-w-0">
+                                          {renamingTemplate === tpl.id ? (
+                                            <div className="flex items-center gap-1.5">
+                                              <input autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') confirmRenameTpl(tpl.id); if (e.key === 'Escape') setRenamingTemplate(null); }} className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] font-semibold" />
+                                              <button onClick={() => confirmRenameTpl(tpl.id)} disabled={submitting} className="p-1.5 rounded-lg text-white text-[11px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}><Save size={13} /></button>
+                                              <button onClick={() => setRenamingTemplate(null)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={13} /></button>
+                                            </div>
+                                          ) : (
+                                            <p className="text-[13px] font-semibold text-gray-900">{tpl.name}</p>
+                                          )}
+                                          <p className="text-[11px] text-gray-500 mt-0.5">{items.length} item{items.length !== 1 ? 's' : ''}</p>
                                         </div>
-                                      ) : (
-                                        <p className="text-[13px] font-semibold text-gray-900">{tpl.name}</p>
-                                      )}
-                                      <p className="text-[11px] text-gray-500 mt-0.5">{items.length} item{items.length !== 1 ? 's' : ''}</p>
-                                    </div>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      <button onClick={() => startRenameTpl(tpl)} title="Rename" className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100"><Edit3 size={13} /></button>
-                                      <button onClick={() => deleteTpl(tpl.id)} title="Delete" className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100"><Trash2 size={13} /></button>
-                                      <button
-                                        onClick={() => setEditingTemplate(editingTemplate === tpl.id ? null : tpl.id)}
-                                        className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100"
-                                        title="Edit items"
-                                      >
-                                        <ChevronDown size={13} className={editingTemplate === tpl.id ? 'rotate-180' : ''} />
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {editingTemplate === tpl.id && (
-                                    <div className="mt-2 space-y-1.5">
-                                      {items.sort((a, b) => a.sort_order - b.sort_order).map(item => (
-                                        <div key={item.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-                                          <GripVertical size={14} className="text-gray-300 shrink-0" />
-                                          <span className="flex-1 text-[12px] text-gray-700">{item.label}</span>
-                                          <span className="text-[10px] text-gray-400 bg-white border border-gray-100 rounded-lg px-1.5 py-0.5">{ITEM_TYPES.find(t => t.key === item.item_type)?.label || item.item_type}</span>
-                                          <button onClick={() => removeItem(item.id, tpl.id)} className="p-1 rounded-lg text-red-400 hover:bg-red-50"><Trash2 size={12} /></button>
-                                        </div>
-                                      ))}
-                                      <div className="pt-2 border-t border-gray-100 space-y-1.5">
-                                        <input
-                                          value={newItemLabel}
-                                          onChange={e => setNewItemLabel(e.target.value)}
-                                          placeholder="New item label..."
-                                          className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px]"
-                                        />
-                                        <div className="flex gap-1.5">
-                                          <select
-                                            value={newItemType}
-                                            onChange={e => setNewItemType(e.target.value)}
-                                            className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px]"
-                                          >
-                                            {ITEM_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
-                                          </select>
-                                          <button
-                                            onClick={() => addItem(tpl.id)}
-                                            disabled={submitting || !newItemLabel.trim()}
-                                            className="px-3 py-2 rounded-xl text-white text-[12px] font-bold disabled:opacity-50"
-                                            style={{ backgroundColor: TEAL }}
-                                          >
-                                            <Plus size={14} />
-                                          </button>
+                                        <div className="flex items-center gap-1 shrink-0">
+                                          <button onClick={() => startRenameTpl(tpl)} title="Rename" className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100"><Edit3 size={13} /></button>
+                                          <button onClick={() => deleteTpl(tpl.id)} title="Delete" className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100"><Trash2 size={13} /></button>
+                                          <button onClick={() => setEditingTemplate(editingTemplate === tpl.id ? null : tpl.id)} className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100" title="Edit items"><ChevronDown size={13} className={editingTemplate === tpl.id ? 'rotate-180' : ''} /></button>
                                         </div>
                                       </div>
+
+                                      {editingTemplate === tpl.id && (
+                                        <div className="mt-2 space-y-1.5">
+                                          {items.sort((a, b) => a.sort_order - b.sort_order).map(item => (
+                                            <div key={item.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                                              <GripVertical size={14} className="text-gray-300 shrink-0" />
+                                              <span className="flex-1 text-[12px] text-gray-700">{item.label}</span>
+                                              <span className="text-[10px] text-gray-400 bg-white border border-gray-100 rounded-lg px-1.5 py-0.5">{ITEM_TYPES.find(t => t.key === item.item_type)?.label || item.item_type}</span>
+                                              <button onClick={() => removeItem(item.id, tpl.id)} className="p-1 rounded-lg text-red-400 hover:bg-red-50"><Trash2 size={12} /></button>
+                                            </div>
+                                          ))}
+                                          <div className="pt-2 border-t border-gray-100 space-y-1.5">
+                                            <input value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} placeholder="New item label..." className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px]" />
+                                            <div className="flex gap-1.5">
+                                              <select value={newItemType} onChange={e => setNewItemType(e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px]">
+                                                {ITEM_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                                              </select>
+                                              <button onClick={() => addItem(tpl.id)} disabled={submitting || !newItemLabel.trim()} className="px-3 py-2 rounded-xl text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}><Plus size={14} /></button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
-                              );
-                            })}
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* Add To-Do button inside position */}
+                            <div className="px-4 py-3 border-t border-dashed border-gray-200">
+                              <button
+                                onClick={() => {
+                                  setNewTplDept(pos.department);
+                                  setNewTplPosition(pos.name);
+                                  setShowNewTpl(true);
+                                }}
+                                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50/30 text-[12px] font-bold transition-colors"
+                              >
+                                <Plus size={14} /> Add To-Do
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
                     );
-                    })}</>
-                  })()}
+                  })}
+
+                  {/* New Position button at bottom */}
+                  <button onClick={() => setShowNewPos(true)} className="w-full flex items-center gap-3 px-4 py-3 bg-white border-2 border-dashed border-gray-200 rounded-2xl hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors text-left">
+                    <Plus size={18} className="text-indigo-500 shrink-0" />
+                    <div>
+                      <p className="text-[12px] font-bold text-indigo-700">New Position</p>
+                      <p className="text-[11px] text-gray-500">Create a staff position like &ldquo;Front Desk AM&rdquo; to group checklists by role</p>
+                    </div>
+                  </button>
                 </div>
               )}
-
-              {/* New template form */}
             </>
           )}
 
