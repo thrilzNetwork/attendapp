@@ -680,6 +680,15 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
                     </div>
                   </button>
 
+                  {/* New Position button */}
+                  <button onClick={() => setShowNewPos(true)} className="w-full flex items-center gap-3 px-4 py-3 bg-white border-2 border-dashed border-gray-200 rounded-2xl hover:border-teal-300 hover:bg-teal-50/30 transition-colors text-left">
+                    <Plus size={18} className="text-teal-500 shrink-0" />
+                    <div>
+                      <p className="text-[12px] font-bold text-teal-700">New Position</p>
+                      <p className="text-[11px] text-gray-500">Create a staff position like &ldquo;Front Desk AM&rdquo; to group checklists by role</p>
+                    </div>
+                  </button>
+
                   {(() => {
                     // Group templates by assigned_position first, then fall back to department
                     const groups: { key: string; label: string; icon: string; templates: PositionTodoTemplate[] }[] = [];
@@ -823,6 +832,31 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
 
               {/* New template form */}
             </>
+          )}
+
+          {/* New position modal */}
+          {showNewPos && (
+            <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center p-4">
+              <div className="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[15px] font-bold text-gray-900">New Position</p>
+                  <button onClick={() => setShowNewPos(false)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={14} /></button>
+                </div>
+                <input value={newPosName} onChange={e => setNewPosName(e.target.value)} placeholder="Position name (e.g. Front Desk AM)" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px]" />
+                <select value={newPosDept} onChange={e => setNewPosDept(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
+                  {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
+                </select>
+                <select value={newPosShift} onChange={e => setNewPosShift(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
+                  <option value="">No specific shift</option>
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                  <option value="Night">Night</option>
+                </select>
+                <button onClick={handleCreatePosition} disabled={submitting || !newPosName.trim()} className="w-full py-3 rounded-xl text-white font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                  Create Position
+                </button>
+              </div>
+            </div>
           )}
 
           {/* ── STAFF VIEW ── */}
