@@ -12,7 +12,7 @@ import {
   type PositionTodoInstance, type PositionTodoResponse,
   type StaffPosition,
 } from '@/lib/supabase';
-import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList, Move, UserX, DollarSign, BookOpen, Download, Users } from 'lucide-react';
+import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList, Move, UserX, DollarSign, BookOpen, Download } from 'lucide-react';
 
 const TEAL = '#0D9488';
 
@@ -165,7 +165,7 @@ const COMMUNITY_TEMPLATES: CommunityTemplate[] = [
 // POSITIONS are now dynamic — managed by admin via staff_positions table
 
 type ViewMode = 'staff' | 'builder';
-type BuilderTab = 'my-templates' | 'library' | 'positions';
+type BuilderTab = 'my-templates' | 'library';
 
 interface Props {
   hotelId: string;
@@ -592,12 +592,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
             <ClipboardList size={13} /> My Templates
           </button>
           <button
-            onClick={() => setBuilderTab('positions')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-bold transition-colors ${builderTab === 'positions' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            <Users size={13} /> Positions
-          </button>
-          <button
             onClick={() => setBuilderTab('library')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-bold transition-colors ${builderTab === 'library' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
@@ -610,125 +604,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
         <div className="text-center py-12 text-gray-400 text-[14px]">Loading...</div>
       ) : (
         <>
-          {/* ── BUILDER: Positions ── */}
-          {isAdmin && viewMode === 'builder' && builderTab === 'positions' && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-[13px] text-gray-500">Create staff positions (e.g. Front Desk AM, Night Auditor) to group checklists by role and shift.</p>
-                <button onClick={() => setShowNewPos(true)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
-                  <Plus size={14} /> New Position
-                </button>
-              </div>
-
-              {positions.length === 0 && (
-                <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
-                  <Users size={48} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-[15px] font-semibold text-gray-700 mb-1">No positions yet</p>
-                  <p className="text-[12px] text-gray-500 mb-4">Create positions like &ldquo;Front Desk AM&rdquo; or &ldquo;Night Auditor&rdquo; to organize checklists by role.</p>
-                  <button onClick={() => setShowNewPos(true)} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold" style={{ backgroundColor: TEAL }}>
-                    <Plus size={14} /> Create Position
-                  </button>
-                </div>
-              )}
-
-              {positions.length > 0 && (
-                <div className="space-y-2">
-                  {positions.map(pos => {
-                    const posTpls = templates.filter(t => t.assigned_position === pos.name);
-                    const dept = DEPARTMENTS.find(d => d.key === pos.department);
-                    const isEditing = editingPos === pos.id;
-                    return (
-                      <div key={pos.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-                        {isEditing ? (
-                          <div className="space-y-2">
-                            <input
-                              autoFocus
-                              value={editPosName}
-                              onChange={e => setEditPosName(e.target.value)}
-                              placeholder="Position name"
-                              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-[14px]"
-                            />
-                            <select value={editPosDept} onChange={e => setEditPosDept(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-[13px]">
-                              {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
-                            </select>
-                            <select value={editPosShift} onChange={e => setEditPosShift(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-[13px]">
-                              <option value="">No specific shift</option>
-                              <option value="AM">AM</option>
-                              <option value="PM">PM</option>
-                              <option value="Night">Night</option>
-                            </select>
-                            <div className="flex gap-2">
-                              <button onClick={() => handleUpdatePosition(pos.id)} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                                Save
-                              </button>
-                              <button onClick={() => setEditingPos(null)} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-500 text-[12px] font-bold">
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <span className="text-[20px]">{dept?.icon || '👤'}</span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[14px] font-bold text-gray-900">{pos.name}</p>
-                                <p className="text-[11px] text-gray-500">
-                                  {dept?.label || pos.department}{pos.shift ? ` · ${pos.shift} shift` : ''} · {posTpls.length} checklist{posTpls.length !== 1 ? 's' : ''}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                onClick={() => { setEditingPos(pos.id); setEditPosName(pos.name); setEditPosDept(pos.department); setEditPosShift(pos.shift || ''); }}
-                                title="Edit"
-                                className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100"
-                              >
-                                <Edit3 size={13} />
-                              </button>
-                              <button
-                                onClick={() => handleDeletePosition(pos.id)}
-                                title="Delete"
-                                className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-            </div>
-          )}
-
-          {/* New position modal — outside tab condition so it works from any tab */}
-          {showNewPos && (
-            <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center p-4">
-              <div className="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-[15px] font-bold text-gray-900">New Position</p>
-                  <button onClick={() => setShowNewPos(false)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500"><XIcon size={14} /></button>
-                </div>
-                <input value={newPosName} onChange={e => setNewPosName(e.target.value)} placeholder="Position name (e.g. Front Desk AM)" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[14px]" />
-                <select value={newPosDept} onChange={e => setNewPosDept(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
-                  {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.icon} {d.label}</option>)}
-                </select>
-                <select value={newPosShift} onChange={e => setNewPosShift(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px]">
-                  <option value="">No specific shift</option>
-                  <option value="AM">AM</option>
-                  <option value="PM">PM</option>
-                  <option value="Night">Night</option>
-                </select>
-                <button onClick={handleCreatePosition} disabled={submitting || !newPosName.trim()} className="w-full py-3 rounded-xl text-white font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                  Create Position
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* ── BUILDER: Template Library ── */}
           {isAdmin && viewMode === 'builder' && builderTab === 'library' && (
             <div>
