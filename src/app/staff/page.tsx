@@ -596,7 +596,7 @@ function DashboardInner() {
     return true;
   });
   const isAdmin = s.role === 'admin' || s.role === 'superadmin';
-  const canManageTodos = isAdmin || s.role === 'manager' || s.role === 'supervisor';
+  const canManageTodos = true; // All tenants can manage to-dos
   const isSupervisor = s.role === 'supervisor';
   // Vendors land on their manifest tab
   const effectiveTab = (effectiveRole === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab;
