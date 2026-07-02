@@ -411,35 +411,7 @@ export default function SchedulesView({
     });
   };
 
-  // ── Shared form fields ────────────────────────────────────────────────────
-  const EndTimeField = ({ value, open, onChange, onOpenChange, forStaff }: {
-    value: string; open: boolean;
-    onChange: (v: string) => void; onOpenChange: (v: boolean) => void;
-    forStaff: string;
-  }) => {
-    const dept = staffList.find(s => s.name === forStaff)?.department?.toLowerCase();
-    const isHousekeeping = dept === 'housekeeping' || dept === 'housekeepers';
-    return (
-      <div>
-        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">End</label>
-        <input type="time" value={value} onChange={e => {
-          onChange(e.target.value);
-          if (open && e.target.value) onOpenChange(false);
-        }}
-          className={`w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border outline-none mt-1 ${open ? 'border-amber-200 opacity-60' : 'border-gray-100'}`} />
-        {open && (
-          <p className="text-[10px] text-amber-600 mt-0.5">TBD — type a time above to auto-uncheck</p>
-        )}
-        <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
-          <input type="checkbox" checked={open} onChange={e => onOpenChange(e.target.checked)} className="accent-amber-500 w-4 h-4" />
-          <span className={`text-[11px] font-medium ${isHousekeeping ? 'text-amber-700' : 'text-gray-500'}`}>
-            Open end time (supervisor fills daily)
-          </span>
-        </label>
-      </div>
-    );
-  };
-
+  // ── Staff lookup helpers ──────────────────────────────────────────────────
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       {/* Header */}
@@ -660,10 +632,21 @@ export default function SchedulesView({
                   <input type="time" value={addForm.start_time} onChange={e => setAddForm(p => ({ ...p, start_time: e.target.value }))}
                     className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
                 </div>
-                <EndTimeField value={addForm.end_time} open={addForm.end_time_open}
-                  onChange={v => setAddForm(p => ({ ...p, end_time: v }))}
-                  onOpenChange={v => setAddForm(p => ({ ...p, end_time_open: v }))}
-                  forStaff={addForm.staff_name} />
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">End</label>
+                  <input type="time" value={addForm.end_time} onChange={e => {
+                    setAddForm(p => ({ ...p, end_time: e.target.value }));
+                    if (addForm.end_time_open && e.target.value) setAddForm(p => ({ ...p, end_time_open: false }));
+                  }}
+                    className={`w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border outline-none mt-1 ${addForm.end_time_open ? 'border-amber-200 opacity-60' : 'border-gray-100'}`} />
+                  {addForm.end_time_open && (
+                    <p className="text-[10px] text-amber-600 mt-0.5">TBD — type a time above to auto-uncheck</p>
+                  )}
+                  <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                    <input type="checkbox" checked={addForm.end_time_open} onChange={e => setAddForm(p => ({ ...p, end_time_open: e.target.checked }))} className="accent-amber-500 w-4 h-4" />
+                    <span className="text-[11px] font-medium text-gray-500">Open end time (supervisor fills daily)</span>
+                  </label>
+                </div>
               </div>
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Notes (optional)</label>
@@ -707,10 +690,21 @@ export default function SchedulesView({
                   <input type="time" value={editForm.start_time} onChange={e => setEditForm(p => ({ ...p, start_time: e.target.value }))}
                     className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 outline-none mt-1" />
                 </div>
-                <EndTimeField value={editForm.end_time} open={editForm.end_time_open}
-                  onChange={v => setEditForm(p => ({ ...p, end_time: v }))}
-                  onOpenChange={v => setEditForm(p => ({ ...p, end_time_open: v }))}
-                  forStaff={editForm.staff_name} />
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">End</label>
+                  <input type="time" value={editForm.end_time} onChange={e => {
+                    setEditForm(p => ({ ...p, end_time: e.target.value }));
+                    if (editForm.end_time_open && e.target.value) setEditForm(p => ({ ...p, end_time_open: false }));
+                  }}
+                    className={`w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border outline-none mt-1 ${editForm.end_time_open ? 'border-amber-200 opacity-60' : 'border-gray-100'}`} />
+                  {editForm.end_time_open && (
+                    <p className="text-[10px] text-amber-600 mt-0.5">TBD — type a time above to auto-uncheck</p>
+                  )}
+                  <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                    <input type="checkbox" checked={editForm.end_time_open} onChange={e => setEditForm(p => ({ ...p, end_time_open: e.target.checked }))} className="accent-amber-500 w-4 h-4" />
+                    <span className="text-[11px] font-medium text-gray-500">Open end time (supervisor fills daily)</span>
+                  </label>
+                </div>
               </div>
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Notes</label>
