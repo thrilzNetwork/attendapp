@@ -7,7 +7,7 @@ import {
   getInstancesByDate, createInstance, completeInstance, deleteInstance,
   getInstanceResponses, upsertResponse,
   createRoomMove, createNoShow, createBankCount,
-  getStaffPositions, createStaffPosition, deleteStaffPosition,
+  getStaffPositions, createStaffPosition, updateStaffPosition, deleteStaffPosition,
   type PositionTodoTemplate, type PositionTodoItem,
   type PositionTodoInstance, type PositionTodoResponse,
   type StaffPosition,
@@ -202,6 +202,10 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
   const [newPosName, setNewPosName] = useState('');
   const [newPosDept, setNewPosDept] = useState('front_desk');
   const [newPosShift, setNewPosShift] = useState('');
+  const [editingPos, setEditingPos] = useState<string | null>(null);
+  const [editPosName, setEditPosName] = useState('');
+  const [editPosDept, setEditPosDept] = useState('front_desk');
+  const [editPosShift, setEditPosShift] = useState('');
 
   // Date navigation
   const [selectedDate, setSelectedDate] = useState(localDateStr());
@@ -816,6 +820,21 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingPos(editingPos === pos.id ? null : pos.id);
+                                if (editingPos !== pos.id) {
+                                  setEditPosName(pos.name);
+                                  setEditPosDept(pos.department);
+                                  setEditPosShift(pos.shift || '');
+                                }
+                              }}
+                              title="Edit position"
+                              className="p-1.5 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100 transition-colors"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                            <button
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 if (!confirm(`Delete position "${pos.name}"? This will also remove all to-dos assigned to it.`)) return;
@@ -844,6 +863,60 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
 
                         {open && (
                           <div className="border-t border-gray-100">
+                            {/* Inline edit form */}
+                            {editingPos === pos.id && (
+                              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="flex-1">
+                                    <input
+                                      autoFocus
+                                      value={editPosName}
+                                      onChange={e => setEditPosName(e.target.value)}
+                                      placeholder="Position name"
+                                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-[13px] font-semibold"
+                                    />
+                                  </div>
+                                  <select value={editPosDept} onChange={e => setEditPosDept(e.target.value)} className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px]">
+                                    {DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
+                                  </select>
+                                  <input
+                                    value={editPosShift}
+                                    onChange={e => setEditPosShift(e.target.value)}
+                                    placeholder="Shift (e.g. AM)"
+                                    className="w-20 bg-white border border-gray-200 rounded-lg px-3 py-2 text-[12px]"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={async () => {
+                                      if (!editPosName.trim()) return;
+                                      setSubmitting(true);
+                                      try {
+                                        await updateStaffPosition(pos.id, {
+                                          name: editPosName.trim(),
+                                          department: editPosDept,
+                                          shift: editPosShift || null,
+                                        });
+                                        setEditingPos(null);
+                                        await loadAll();
+                                      } catch (e) {
+                                        setError(e instanceof Error ? e.message : 'Failed to update position');
+                                      }
+                                      setSubmitting(false);
+                                    }}
+                                    disabled={submitting}
+                                    className="px-3 py-1.5 rounded-lg text-white text-[11px] font-bold disabled:opacity-50"
+                                    style={{ backgroundColor: TEAL }}
+                                  >
+                                    <Save size={13} className="inline mr-1" /> Save
+                                  </button>
+                                  <button onClick={() => setEditingPos(null)} className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-600 text-[11px] font-bold">
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
                             {/* To-do list */}
                             {posTpls.length > 0 && (
                               <div className="divide-y divide-gray-100">
