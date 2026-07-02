@@ -781,7 +781,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                             )}
 
                             {/* Add To-Do button inside position */}
-                            <div className="px-4 py-3 border-t border-dashed border-gray-200">
+                            <div className="px-4 py-3 border-t border-dashed border-gray-200 space-y-2">
                               <button
                                 onClick={() => {
                                   setNewTplDept(pos.department);
@@ -790,8 +790,46 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                                 }}
                                 className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50/30 text-[12px] font-bold transition-colors"
                               >
-                                <Plus size={14} /> Add To-Do
+                                <Plus size={14} /> New Blank To-Do
                               </button>
+                              {templates.filter(t => t.assigned_position !== pos.name).length > 0 && (
+                                <div className="relative">
+                                  <button
+                                    onClick={() => setOpenDept(openDept === `install:${pos.id}` ? null : `install:${pos.id}`)}
+                                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50/30 text-[12px] font-bold transition-colors"
+                                  >
+                                    <Download size={14} /> Install Existing To-Do
+                                  </button>
+                                  {openDept === `install:${pos.id}` && (
+                                    <div className="mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                      {templates.filter(t => t.assigned_position !== pos.name).map(tpl => (
+                                        <button
+                                          key={tpl.id}
+                                          onClick={async () => {
+                                            setSubmitting(true);
+                                            try {
+                                              await updatePositionTodoTemplate(tpl.id, { assigned_position: pos.name });
+                                              await loadAll();
+                                            } catch (e) {
+                                              setError(e instanceof Error ? e.message : 'Failed to assign');
+                                            }
+                                            setSubmitting(false);
+                                            setOpenDept(null);
+                                          }}
+                                          disabled={submitting}
+                                          className="w-full text-left px-3 py-2.5 text-[12px] text-gray-700 hover:bg-gray-50 border-b border-gray-100 last:border-0 flex items-center gap-2"
+                                        >
+                                          <span className="text-gray-400 shrink-0">{tpl.assigned_position ? `📋` : `📄`}</span>
+                                          <span className="truncate">{tpl.name}</span>
+                                          {tpl.assigned_position && (
+                                            <span className="text-[10px] text-gray-400 ml-auto shrink-0">({tpl.assigned_position})</span>
+                                          )}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
