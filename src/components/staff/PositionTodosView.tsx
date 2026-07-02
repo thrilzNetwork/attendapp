@@ -1143,15 +1143,15 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
               {templates.length > 0 && (
                 <div className="space-y-4">
                   {(() => {
-                    // Group templates by assigned_position first, then fall back to department
+                    // Group templates by assigned_position only — no department fallback
                     const groups: { key: string; label: string; icon: string; templates: PositionTodoTemplate[] }[] = [];
 
-                    // For each position, create a group (show all positions, even with 0 templates)
                     for (const pos of positions) {
                       const posTpls = templates.filter(t => t.assigned_position === pos.name);
                       if (!isAdmin && department) {
                         if (!posTpls.some(t => t.department === department)) continue;
                       }
+                      if (posTpls.length === 0) continue;
                       const dept = DEPARTMENTS.find(d => d.key === pos.department);
                       groups.push({
                         key: `pos:${pos.id}`,
@@ -1161,17 +1161,14 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                       });
                     }
 
-                    // For templates without an assigned_position, group by department
+                    // Templates without a position — show under "Other"
                     const unassigned = templates.filter(t => !t.assigned_position);
-                    for (const dept of DEPARTMENTS) {
-                      const deptTpls = unassigned.filter(t => t.department === dept.key);
-                      if (!isAdmin && department && dept.key !== department) continue;
-                      if (deptTpls.length === 0) continue;
+                    if (unassigned.length > 0) {
                       groups.push({
-                        key: `dept:${dept.key}`,
-                        label: dept.label,
-                        icon: dept.icon,
-                        templates: deptTpls,
+                        key: 'unassigned',
+                        label: 'Other',
+                        icon: '📋',
+                        templates: unassigned,
                       });
                     }
 
