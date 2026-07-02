@@ -3,6 +3,11 @@
 -- Run this in Supabase Dashboard → SQL Editor
 -- Only includes tables that actually exist in the DB
 -- ============================================================
+-- ⚠️ CRITICAL: Every table with a hotel_id column MUST have a
+-- SELECT policy that filters by hotel_id. Never create a
+-- default_select USING (true) policy on a table with hotel_id —
+-- it will OR with any good policy and defeat isolation.
+-- ============================================================
 
 -- 0. Helper functions
 CREATE OR REPLACE FUNCTION public.get_user_hotel_id()
@@ -115,25 +120,41 @@ CREATE POLICY partners_insert ON public.partners
 CREATE POLICY partners_update ON public.partners
   FOR UPDATE USING (false);
 
+-- Tables with hotel_id — tenant-isolated SELECT policies
+-- ⚠️ NEVER add a default_select USING (true) on these tables
+CREATE POLICY staff_schedules_select ON public.staff_schedules
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+CREATE POLICY weekly_forecasts_select ON public.weekly_forecasts
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+CREATE POLICY staff_checklists_select ON public.staff_checklists
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+CREATE POLICY staff_checklist_instances_select ON public.staff_checklist_instances
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+CREATE POLICY hotel_knowledge_base_select ON public.hotel_knowledge_base
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+CREATE POLICY cruise_schedules_select ON public.cruise_schedules
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+CREATE POLICY shuttle_routes_select ON public.shuttle_routes
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+CREATE POLICY shuttle_slots_select ON public.shuttle_slots
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR EXISTS (SELECT 1 FROM shuttle_routes r WHERE r.id = shuttle_slots.route_id AND (r.hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()))));
+CREATE POLICY shuttle_bookings_select ON public.shuttle_bookings
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+CREATE POLICY shuttle_requests_select ON public.shuttle_requests
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+CREATE POLICY hotel_ops_tools_select ON public.hotel_ops_tools
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+CREATE POLICY hotel_rooms_select ON public.hotel_rooms
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+CREATE POLICY qr_codes_select ON public.qr_codes
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+CREATE POLICY attenda_fees_select ON public.attenda_fees
+  FOR SELECT USING (auth.role() = 'authenticated' AND (public.is_superadmin() OR hotel_id::text = public.get_user_hotel_id()));
+
 -- Tables without hotel_id — permissive reads, no public writes
-CREATE POLICY default_select ON public.partner_menu_items FOR SELECT USING (true);
-CREATE POLICY default_select ON public.qr_codes FOR SELECT USING (
-  auth.role() = 'authenticated' AND (public.is_superadmin() OR true)
-);
-CREATE POLICY default_select ON public.hotel_rooms FOR SELECT USING (
-  auth.role() = 'authenticated' AND (public.is_superadmin() OR true)
-);
-CREATE POLICY default_select ON public.shuttle_routes FOR SELECT USING (true);
-CREATE POLICY default_select ON public.shuttle_slots FOR SELECT USING (true);
-CREATE POLICY default_select ON public.shuttle_bookings FOR SELECT USING (false);
-CREATE POLICY default_select ON public.shuttle_requests FOR SELECT USING (false);
-CREATE POLICY default_select ON public.cruise_schedules FOR SELECT USING (true);
-CREATE POLICY default_select ON public.staff_schedules FOR SELECT USING (true);
-CREATE POLICY default_select ON public.weekly_forecasts FOR SELECT USING (true);
-CREATE POLICY default_select ON public.hotel_ops_tools FOR SELECT USING (true);
-CREATE POLICY default_select ON public.ops_tools FOR SELECT USING (true);
-CREATE POLICY default_select ON public.superadmin_config FOR SELECT USING (false);
-CREATE POLICY default_select ON public.attenda_fees FOR SELECT USING (false);
-CREATE POLICY default_select ON public.staff_checklists FOR SELECT USING (true);
-CREATE POLICY default_select ON public.staff_checklist_instances FOR SELECT USING (true);
-CREATE POLICY default_select ON public.hotel_knowledge_base FOR SELECT USING (true);
+CREATE POLICY partner_menu_items_select ON public.partner_menu_items FOR SELECT USING (true);
+CREATE POLICY ops_tools_select ON public.ops_tools FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Superadmin config: only superadmins can read
+CREATE POLICY superadmin_config_select ON public.superadmin_config
+  FOR SELECT USING (auth.role() = 'authenticated' AND public.is_superadmin());

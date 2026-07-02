@@ -170,12 +170,13 @@ type BuilderTab = 'my-templates' | 'library';
 interface Props {
   hotelId: string;
   isAdmin: boolean;
+  canManage?: boolean;
   staffName?: string;
   staffId?: string;
   department?: string;
 }
 
-export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId, department }: Props) {
+export default function PositionTodosView({ hotelId, isAdmin, canManage, staffName, staffId, department }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('staff');
   const [builderTab, setBuilderTab] = useState<BuilderTab>('my-templates');
   const [templates, setTemplates] = useState<PositionTodoTemplate[]>([]);
@@ -553,7 +554,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
               className="p-1 rounded-lg hover:bg-gray-200 text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed"
             >›</button>
           </div>
-          {isAdmin && (
+          {canManage && (
             <>
               <button
                 onClick={() => setViewMode(viewMode === 'builder' ? 'staff' : 'builder')}
@@ -602,7 +603,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       })()}
 
       {/* Builder tab bar */}
-      {isAdmin && viewMode === 'builder' && (
+      {canManage && viewMode === 'builder' && (
         <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl">
           <button
             onClick={() => setBuilderTab('my-templates')}
@@ -624,7 +625,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
       ) : (
         <>
           {/* ── BUILDER: Template Library ── */}
-          {isAdmin && viewMode === 'builder' && builderTab === 'library' && (
+          {canManage && viewMode === 'builder' && builderTab === 'library' && (
             <div>
               <div className="mb-4">
                 <p className="text-[13px] text-gray-500">Ready-to-use To-Do templates from the community. Install any to your hotel in one click — you can customize them after.</p>
@@ -675,7 +676,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
           )}
 
           {/* ── BUILDER: My Templates ── */}
-          {isAdmin && viewMode === 'builder' && builderTab === 'my-templates' && (
+          {canManage && viewMode === 'builder' && builderTab === 'my-templates' && (
             <>
               {templates.length === 0 && (
                 <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
@@ -894,7 +895,7 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
           )}
 
           {/* ── STAFF VIEW ── */}
-          {(!isAdmin || viewMode === 'staff') && (
+          {(!canManage || viewMode === 'staff') && (
             <>
               {/* Admin preview instance modal */}
               {isAdmin && previewInstance && (

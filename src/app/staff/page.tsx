@@ -596,6 +596,7 @@ function DashboardInner() {
     return true;
   });
   const isAdmin = s.role === 'admin' || s.role === 'superadmin';
+  const canManageTodos = isAdmin || s.role === 'manager' || s.role === 'supervisor';
   const isSupervisor = s.role === 'supervisor';
   // Vendors land on their manifest tab
   const effectiveTab = (effectiveRole === 'vendor' && tab === 'orders') ? 'vendor_manifest' : tab;
@@ -895,7 +896,7 @@ function DashboardInner() {
           <ForecastView hotelId={config?.id || ''} totalRooms={config?.roomCount || 0} timezone={config?.timezone} />
         )}
         {tabPanel('todos', true,
-          <PositionTodosView hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} department={s.department} />
+          <PositionTodosView hotelId={config?.id || ''} isAdmin={isAdmin} canManage={canManageTodos} staffName={s.name} department={s.department} />
         )}
         {tabPanel('vendor_manifest', true,
           <VendorDashboard hotelId={config?.id || ''} vendorType={s.vendorType || 'shuttle'} vendorName={s.name} />
