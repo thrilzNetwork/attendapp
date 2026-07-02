@@ -204,18 +204,6 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
   const [editPosDept, setEditPosDept] = useState('front_desk');
   const [editPosShift, setEditPosShift] = useState('');
 
-  // New template form
-  const [newName, setNewName] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [newDept, setNewDept] = useState('front_desk');
-  const [newPos, setNewPos] = useState('');
-
-  // Inline new position inside the New Checklist modal
-  const [showInlineNewPos, setShowInlineNewPos] = useState(false);
-  const [inlineNewPosName, setInlineNewPosName] = useState('');
-  const [inlineNewPosDept, setInlineNewPosDept] = useState('front_desk');
-  const [inlineNewPosShift, setInlineNewPosShift] = useState('');
-
   // Item editing
   const [newItemLabel, setNewItemLabel] = useState('');
   const [newItemType, setNewItemType] = useState('checkbox');
@@ -306,32 +294,11 @@ export default function PositionTodosView({ hotelId, isAdmin, staffName, staffId
         department: newPosDept,
         shift: newPosShift,
       });
-      const createdName = newPosName.trim();
       setNewPosName(''); setNewPosShift('');
       setShowNewPos(false);
       await loadAll();
       // After creating the position, switch to staff view to see active templates
       setViewMode('staff');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create position');
-    }
-    setSubmitting(false);
-  };
-
-  const handleInlineCreatePosition = async () => {
-    if (!inlineNewPosName.trim()) return;
-    setSubmitting(true); setError(null);
-    try {
-      await createStaffPosition({
-        hotel_id: hotelId,
-        name: inlineNewPosName.trim(),
-        department: inlineNewPosDept,
-        shift: inlineNewPosShift,
-      });
-      setNewPos(inlineNewPosName.trim());
-      setInlineNewPosName(''); setInlineNewPosShift(''); setInlineNewPosDept('front_desk');
-      setShowInlineNewPos(false);
-      await loadAll();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create position');
     }
