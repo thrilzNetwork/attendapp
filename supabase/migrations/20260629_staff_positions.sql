@@ -8,8 +8,7 @@ create table if not exists public.staff_positions (
   sort_order int not null default 0,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique(hotel_id, name)
+  updated_at timestamptz not null default now()
 );
 
 -- RLS
