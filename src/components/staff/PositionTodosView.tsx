@@ -418,6 +418,12 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
   const isCashDrawerTemplate = (tplId: string) =>
     (itemsByTemplate[tplId] || []).some(i => i.item_type === 'bank_count');
 
+  const isJournalTemplate = (tplId: string) =>
+    (itemsByTemplate[tplId] || []).some(i => i.config?.multiline);
+
+  const isShiftPickerTemplate = (tplId: string) =>
+    isCashDrawerTemplate(tplId) || isJournalTemplate(tplId);
+
   const startInstance = async (tplId: string, shift: string) => {
     setSubmitting(true);
     setError(null);
@@ -1281,8 +1287,8 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                               const completedInst = instances.find(i => i.template_id === tpl.id && i.status === 'completed' && (i.staff_id === staffId || i.staff_name === staffName));
                               // All instances for this template (admin view)
                               const allInsts = isAdmin ? instances.filter(i => i.template_id === tpl.id) : [];
-                              // For cash drawer: show all my instances (one per shift); otherwise just the active one
-                              const myInsts = isCashDrawerTemplate(tpl.id)
+                              // For cash drawer & journal: show all my instances (one per shift); otherwise just the active one
+                              const myInsts = isShiftPickerTemplate(tpl.id)
                                 ? instances.filter(i => i.template_id === tpl.id && (i.staff_id === staffId || i.staff_name === staffName))
                                 : myInst ? [myInst] : [];
 
@@ -1329,12 +1335,12 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                                           ><Trash2 size={13} /></button>
                                         </>
                                       )}
-                                      {renamingTemplate !== tpl.id && (completedInst && !isCashDrawerTemplate(tpl.id) ? (
+                                      {renamingTemplate !== tpl.id && (completedInst && !isShiftPickerTemplate(tpl.id) ? (
                                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✅ Done</span>
-                                      ) : myInst && !isCashDrawerTemplate(tpl.id) ? (
+                                      ) : myInst && !isShiftPickerTemplate(tpl.id) ? (
                                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ In Progress</span>
                                       ) : staffName ? (
-                                        isCashDrawerTemplate(tpl.id) ? (
+                                        isShiftPickerTemplate(tpl.id) ? (
                                           shiftPicker?.tplId === tpl.id ? (
                                             <div className="flex items-center gap-1">
                                               {['AM', 'PM', 'Night'].map(s => (
@@ -1344,7 +1350,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                                             </div>
                                           ) : (
                                             <button onClick={() => setShiftPicker({ tplId: tpl.id, tplName: tpl.name })} disabled={submitting} className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: TEAL }}>
-                                              + New Count
+                                              {isJournalTemplate(tpl.id) ? '+ New Entry' : '+ New Count'}
                                             </button>
                                           )
                                         ) : (
