@@ -160,6 +160,17 @@ const COMMUNITY_TEMPLATES: CommunityTemplate[] = [
       { label: 'Safe drop completed', item_type: 'checkbox' },
     ],
   },
+  {
+    id: 'daily-journal',
+    name: 'Daily Journal',
+    description: 'End-of-shift report in your own words. What happened today, any issues, guest interactions, and notes for the next shift.',
+    department: 'front_desk',
+    emoji: '📓',
+    tag: 'Daily Ops',
+    items: [
+      { label: "Today's Report", item_type: 'text', config: { placeholder: 'Write your shift report here — what happened, any issues, guest interactions, notes for the next shift...', multiline: true } },
+    ],
+  },
 ];
 
 // POSITIONS are now dynamic — managed by admin via staff_positions table
@@ -743,7 +754,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                             </div>
                           )}
                           {item.item_type === 'text' && (
-                            <div className="mt-1 h-8 bg-white border border-gray-200 rounded-lg px-3 flex items-center">
+                            <div className="mt-1 bg-white border border-gray-200 rounded-lg px-3 flex items-center" style={item.config?.multiline ? { minHeight: '80px', alignItems: 'flex-start', paddingTop: '8px' } : { height: '32px' }}>
                               <span className="text-[11px] text-gray-400">{String((item.config as Record<string, string>)?.placeholder || 'Type answer...')}</span>
                             </div>
                           )}
@@ -1381,7 +1392,11 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                                               {item.item_type === 'text' && (
                                                 <div className="flex-1">
                                                   <p className="text-[13px] text-gray-700 mb-1">{item.label}</p>
-                                                  <input type="text" value={resp?.text_value || ''} onChange={e => handleText(inst.id, item.id, e.target.value)} placeholder={item.config?.placeholder || 'Type answer...'} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
+                                                  {item.config?.multiline ? (
+                                                    <textarea value={resp?.text_value || ''} onChange={e => handleText(inst.id, item.id, e.target.value)} placeholder={item.config?.placeholder || 'Type answer...'} rows={5} className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-100 resize-y" />
+                                                  ) : (
+                                                    <input type="text" value={resp?.text_value || ''} onChange={e => handleText(inst.id, item.id, e.target.value)} placeholder={item.config?.placeholder || 'Type answer...'} className="w-full bg-gray-50 rounded-xl px-4 py-2.5 text-[14px] border border-gray-100" />
+                                                  )}
                                                 </div>
                                               )}
                                               {item.item_type === 'time' && (

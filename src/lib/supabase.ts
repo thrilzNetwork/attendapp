@@ -2001,6 +2001,7 @@ export interface PositionTodoItem {
     kpi_key?: string;
     placeholder?: string;
     link_path?: string;
+    multiline?: boolean;
   };
 }
 
