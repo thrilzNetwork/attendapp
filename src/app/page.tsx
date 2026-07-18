@@ -475,13 +475,15 @@ function AttendaLandingPage() {
             ].map((item, i) => {
               const ItemIcon = item.icon;
               return (
-                <div key={i} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ backgroundColor: `${TEAL}10` }}>
-                    <ItemIcon size={20} style={{ color: TEAL }} />
+                <Reveal key={i} direction="up" delay={(i % 3) * 100}>
+                  <div className="hover-lift h-full bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-lg">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ backgroundColor: `${TEAL}10` }}>
+                      <ItemIcon size={20} style={{ color: TEAL }} />
+                    </div>
+                    <h4 className="text-[16px] font-black text-gray-900 mb-2">{item.title}</h4>
+                    <p className="text-[14px] text-gray-600 leading-relaxed">{item.desc}</p>
                   </div>
-                  <h4 className="text-[16px] font-black text-gray-900 mb-2">{item.title}</h4>
-                  <p className="text-[14px] text-gray-600 leading-relaxed">{item.desc}</p>
-                </div>
+                </Reveal>
               );
             })}
           </div>
@@ -498,22 +500,26 @@ function AttendaLandingPage() {
             <h2 className="text-3xl font-bold mb-2">Two new superpowers</h2>
             <p className="text-gray-500 mb-12">GPS tracking and last-mile delivery — both live, both built in.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 justify-items-center">
-              <div className="flex flex-col items-center gap-4">
-                <PhoneFrame width={240}>
-                  <div className="h-[476px] overflow-hidden">
-                    <BouncieGPSMockup />
-                  </div>
-                </PhoneFrame>
+              <Reveal direction="up" delay={0} className="flex flex-col items-center gap-4">
+                <div className="animate-float-slow">
+                  <PhoneFrame width={240}>
+                    <div className="h-[476px] overflow-hidden">
+                      <BouncieGPSMockup />
+                    </div>
+                  </PhoneFrame>
+                </div>
                 <p className="text-sm text-gray-500 font-medium">Live Shuttle GPS · Bouncie</p>
-              </div>
-              <div className="flex flex-col items-center gap-4">
-                <PhoneFrame width={240}>
-                  <div className="h-[476px] overflow-hidden">
-                    <UberDirectMockup />
-                  </div>
-                </PhoneFrame>
+              </Reveal>
+              <Reveal direction="up" delay={150} className="flex flex-col items-center gap-4">
+                <div className="animate-float">
+                  <PhoneFrame width={240}>
+                    <div className="h-[476px] overflow-hidden">
+                      <UberDirectMockup />
+                    </div>
+                  </PhoneFrame>
+                </div>
                 <p className="text-sm text-gray-500 font-medium">Uber Direct Delivery</p>
-              </div>
+              </Reveal>
             </div>
           </div>
         </section>
@@ -986,23 +992,9 @@ function AttendaLandingPage() {
                         <div className="text-[9px] text-gray-400">Feb &ndash; May</div>
                       </div>
                       <div className="text-[10px] text-gray-400 mb-3">Attributable to Attenda</div>
-                      <div className="text-[48px] font-black leading-none mb-1" style={{ color: TEAL }}>$16,247</div>
+                      <CountUpStat value={16247} prefix="$" duration={2200} className="text-[48px] font-black leading-none mb-1" style={{ color: TEAL }} />
                       <div className="text-[12px] text-gray-500 mb-5">+ partner orders + late checkout + shuttle</div>
-                      <div className="grid grid-cols-4 gap-2 h-24 mb-4">
-                        {[
-                          { m: 'Feb', v: 0.45, val: '$2.1K' },
-                          { m: 'Mar', v: 0.62, val: '$3.4K' },
-                          { m: 'Apr', v: 0.85, val: '$4.8K' },
-                          { m: 'May', v: 1.0, val: '$5.9K' },
-                        ].map((b, i) => (
-                          <div key={i} className="flex flex-col items-center justify-end">
-                            <div className="text-[8px] text-gray-500 font-bold mb-1">{b.val}</div>
-                            <div className="w-full rounded-t transition-all duration-1000"
-                              style={{ height: `${b.v * 100}%`, backgroundColor: TEAL, opacity: 0.7 + i * 0.1 }} />
-                            <div className="text-[9px] font-bold text-gray-500 mt-1">{b.m}</div>
-                          </div>
-                        ))}
-                      </div>
+                      <CaseStudyBars />
                       <div className="border-t border-gray-100 pt-3 space-y-1.5">
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-gray-600">Shuttle & transport</span>
@@ -1182,7 +1174,7 @@ function AttendaLandingPage() {
               { num: '06', cat: 'Reviews', catColor: '#10B981', title: 'From 3.8 to 4.7 stars: a six-month turnaround', slug: 'from-3-8-to-4-7-stars-a-six-month-turnaround', problem: 'The problem was never the rooms. It was the gap between &ldquo;I need towels&rdquo; and &ldquo;towels arrived.&rdquo; The fix, the timeline, the metric to watch.', readingTime: '5 min' },
             ].map((topic, i) => (
               <a key={i} href={`/blog/${topic.slug}`}
-                className="group bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg transition-all flex flex-col relative overflow-hidden">
+                className="group hover-lift bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg flex flex-col relative overflow-hidden">
                 <div className="absolute top-3 right-4 text-[64px] font-black text-gray-100 leading-none pointer-events-none select-none">{topic.num}</div>
                 <div className="flex items-center justify-between mb-3 relative">
                   <span className="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase text-white" style={{ backgroundColor: topic.catColor }}>{topic.cat}</span>
@@ -1540,9 +1532,48 @@ function PlatformTabs() {
    KPI tile dark (Proven Results strip)
    ──────────────────────────────────────────────────────────── */
 
+const HERO_TOASTS = [
+  { title: 'New request · Room 214', sub: 'Extra towels · just now', dot: 'bg-green-500', ping: 'bg-green-400' },
+  { title: 'Shuttle booked · Room 301', sub: 'MIA Airport · 3:30 PM', dot: 'bg-blue-500', ping: 'bg-blue-400' },
+  { title: 'Order placed · Room 108', sub: 'Marina Grill · $24.50', dot: 'bg-amber-500', ping: 'bg-amber-400' },
+  { title: 'Late checkout · Room 412', sub: 'Approved · +$40 captured', dot: 'bg-emerald-500', ping: 'bg-emerald-400' },
+];
+
 function HeaderMockup() {
+  const parallaxRef = useRef<HTMLDivElement>(null);
+  const [toastIdx, setToastIdx] = useState(0);
+
+  // Cycle "live" incoming activity through the toast card
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const id = setInterval(() => setToastIdx(i => (i + 1) % HERO_TOASTS.length), 4000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Subtle scroll parallax on the whole mockup (transform-only, rAF-throttled)
+  useEffect(() => {
+    const el = parallaxRef.current;
+    if (!el || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect();
+        const p = (r.top + r.height / 2 - window.innerHeight / 2) / window.innerHeight;
+        el.style.transform = `translateY(${(p * 26).toFixed(1)}px)`;
+      });
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  const toast = HERO_TOASTS[toastIdx];
   return (
-    <div className="relative w-full">
+    <div ref={parallaxRef} className="relative w-full" style={{ willChange: 'transform' }}>
       {/* brand glow */}
       <div
         className="pointer-events-none absolute -inset-10 -z-10 opacity-50"
@@ -1561,16 +1592,16 @@ function HeaderMockup() {
         </BrowserFrame>
       </div>
 
-      {/* floating live-request card — bottom left */}
-      <div className="absolute -bottom-5 -left-4 hidden sm:block animate-float">
-        <div className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white px-3.5 py-2.5 shadow-xl">
+      {/* floating live-activity toast — bottom left (cycles through incoming events) */}
+      <div className="absolute -bottom-5 -left-4 hidden sm:block">
+        <div key={toastIdx} className="animate-toast-cycle flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white px-3.5 py-2.5 shadow-xl">
           <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+            <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${toast.ping}`} />
+            <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${toast.dot}`} />
           </span>
           <div className="leading-tight">
-            <div className="text-[11px] font-black text-gray-900">New request · Room 214</div>
-            <div className="text-[10px] text-gray-500">Extra towels · just now</div>
+            <div className="text-[11px] font-black text-gray-900">{toast.title}</div>
+            <div className="text-[10px] text-gray-500">{toast.sub}</div>
           </div>
         </div>
       </div>
@@ -1610,6 +1641,10 @@ function useCountUp(target: number, duration = 1800): [number, React.RefObject<H
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setCount(target);
+      return;
+    }
     const obs = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && !started.current) {
         started.current = true;
@@ -1627,6 +1662,64 @@ function useCountUp(target: number, duration = 1800): [number, React.RefObject<H
     return () => obs.disconnect();
   }, [target, duration]);
   return [count, ref];
+}
+
+/* ── Animated stat (counts up when scrolled into view) ───────── */
+function CountUpStat({
+  value, prefix = '', suffix = '', className = '', style, duration,
+}: {
+  value: number;
+  prefix?: string;
+  suffix?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  duration?: number;
+}) {
+  const [count, ref] = useCountUp(value, duration);
+  return (
+    <div ref={ref} className={className} style={style}>
+      {prefix}{count.toLocaleString('en-US')}{suffix}
+    </div>
+  );
+}
+
+/* ── Case-study bars (grow with stagger when scrolled into view) ── */
+function CaseStudyBars() {
+  const [grown, setGrown] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setGrown(true);
+      return;
+    }
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setGrown(true);
+        obs.disconnect();
+      }
+    }, { threshold: 0.4 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="grid grid-cols-4 gap-2 h-24 mb-4">
+      {[
+        { m: 'Feb', v: 0.45, val: '$2.1K' },
+        { m: 'Mar', v: 0.62, val: '$3.4K' },
+        { m: 'Apr', v: 0.85, val: '$4.8K' },
+        { m: 'May', v: 1.0, val: '$5.9K' },
+      ].map((b, i) => (
+        <div key={i} className="flex flex-col items-center justify-end">
+          <div className="text-[8px] text-gray-500 font-bold mb-1 transition-opacity duration-500" style={{ opacity: grown ? 1 : 0, transitionDelay: `${300 + i * 140}ms` }}>{b.val}</div>
+          <div className="w-full rounded-t transition-all duration-1000 ease-out"
+            style={{ height: grown ? `${b.v * 100}%` : '4%', backgroundColor: TEAL, opacity: 0.7 + i * 0.1, transitionDelay: `${i * 140}ms` }} />
+          <div className="text-[9px] font-bold text-gray-500 mt-1">{b.m}</div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /* ── KPI tile dark (Proven Results strip) ────────────────────── */

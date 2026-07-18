@@ -27,6 +27,37 @@ function PulsingDot({ color = '#22c55e' }: { color?: string }) {
   );
 }
 
+/* ─── iOS-style status bar (time · signal · wifi · battery) ──── */
+export function PhoneStatusBar({ dark = false }: { dark?: boolean }) {
+  return (
+    <div className={`flex items-center justify-between px-5 pt-2.5 pb-1 shrink-0 text-[9px] font-bold tracking-tight ${dark ? 'text-white' : 'text-gray-900'}`}>
+      <span>9:41</span>
+      <div className="flex items-center gap-1">
+        {/* signal */}
+        <svg width="12" height="8" viewBox="0 0 13 9" fill="currentColor" aria-hidden>
+          <rect x="0" y="6" width="2" height="3" rx="0.5" />
+          <rect x="3.5" y="4" width="2" height="5" rx="0.5" />
+          <rect x="7" y="2" width="2" height="7" rx="0.5" />
+          <rect x="10.5" y="0" width="2" height="9" rx="0.5" />
+        </svg>
+        {/* wifi */}
+        <svg width="11" height="8" viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
+          <path d="M2 6.5C8 1 16 1 22 6.5" />
+          <path d="M6 10.5c4-3.5 8-3.5 12 0" />
+          <path d="M10.5 14.5c1-1 2-1 3 0" />
+        </svg>
+        {/* battery */}
+        <div className="flex items-center">
+          <div className={`h-[8px] w-[16px] rounded-[2.5px] border p-[1.5px] ${dark ? 'border-white/60' : 'border-gray-400'}`}>
+            <div className="h-full w-[78%] rounded-[1px] bg-current" />
+          </div>
+          <div className={`ml-[1px] h-[3px] w-[1.5px] rounded-r-sm ${dark ? 'bg-white/60' : 'bg-gray-400'}`} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Top nav bar shared by all staff screens ─────────────────── */
 function MobileTopBar({
   hotel = 'Sandor Hotel',
@@ -43,6 +74,7 @@ function MobileTopBar({
 }) {
   return (
     <div className="bg-white border-b border-gray-200 shrink-0">
+      <PhoneStatusBar />
       <div className="flex items-center justify-between px-3 py-2">
         <div>
           <p className="text-[11px] font-bold text-gray-900 leading-tight">{hotel}</p>
@@ -97,10 +129,16 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
 
 export function RequestsScreenMockup() {
   const [active, setActive] = useState<number | null>(null);
+  const [incoming, setIncoming] = useState(false);
 
   useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setIncoming(true);
+      return;
+    }
     const id = setInterval(() => setActive(v => (v === null ? 0 : v === 4 ? null : v + 1)), 1800);
-    return () => clearInterval(id);
+    const t = setTimeout(() => setIncoming(true), 2400);
+    return () => { clearInterval(id); clearTimeout(t); };
   }, []);
 
   const TABS = [
@@ -117,7 +155,7 @@ export function RequestsScreenMockup() {
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-2 px-3 py-2.5 bg-white border-b border-gray-100">
         {[
-          { label: 'Pending', value: '2', color: '#D97706' },
+          { label: 'Pending', value: incoming ? '3' : '2', color: '#D97706' },
           { label: 'Active', value: '1', color: TEAL },
           { label: 'Resolved', value: '8', color: '#16A34A' },
         ].map(s => (
@@ -143,6 +181,32 @@ export function RequestsScreenMockup() {
 
       {/* Request list */}
       <div className="flex-1 overflow-hidden px-3 pb-3 space-y-2">
+        {incoming && (
+          <div className="animate-row-in bg-white rounded-xl border p-2.5 shadow-sm" style={{ borderColor: TEAL, boxShadow: `0 0 0 1px ${TEAL}25, 0 4px 10px -4px ${TEAL}30` }}>
+            <div className="flex items-start gap-2">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[8px] font-black shrink-0" style={{ backgroundColor: TEAL }}>
+                AN
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] font-black text-gray-900 flex items-center gap-1">
+                    Room 118 <PulsingDot color="#D97706" />
+                  </span>
+                  <span className="text-[7px] font-bold px-1.5 py-0.5 rounded-full" style={{ color: '#D97706', backgroundColor: '#FEF3C7' }}>
+                    New
+                  </span>
+                </div>
+                <p className="text-[9px] text-gray-700 leading-snug mt-0.5 truncate">Ice bucket + extra pillows</p>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[8px] text-gray-400">Ana N. · just now</span>
+                  <button className="text-[7px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: TEAL }}>
+                    Accept
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {REQUESTS.map((r, i) => {
           const meta = STATUS_META[r.status];
           return (
@@ -542,8 +606,9 @@ const REQUEST_BUTTONS = [
 export function GuestRequestsMockup() {
   return (
     <div className="flex flex-col h-full bg-white text-left overflow-hidden">
+      <PhoneStatusBar />
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 pt-4 pb-3">
+      <div className="bg-white border-b border-gray-100 px-4 pt-2 pb-3">
         <p className="text-[18px] font-black text-gray-900 leading-tight">Request Now</p>
         <p className="text-[10px] text-gray-400 font-medium mt-0.5">Tap once to send</p>
       </div>
@@ -562,7 +627,7 @@ export function GuestRequestsMockup() {
               }}
             >
               {btn.sent && (
-                <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                <div className="animate-pop-in absolute top-2 right-2 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center shadow-sm" style={{ animationDelay: '0.8s' }}>
                   <span className="text-white text-[8px] font-black">✓</span>
                 </div>
               )}
@@ -581,9 +646,16 @@ export function GuestRequestsMockup() {
         })}
       </div>
 
-      {/* Footer note */}
-      <div className="shrink-0 px-4 pb-4 text-center">
-        <p className="text-[9px] text-gray-400 font-medium">Request saved to your session · No app needed</p>
+      {/* Footer: live confirmation toast + note */}
+      <div className="shrink-0 px-3 pb-3 space-y-1.5">
+        <div className="animate-row-in flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 shadow-sm" style={{ animationDelay: '1.4s' }}>
+          <PulsingDot />
+          <div className="leading-tight">
+            <p className="text-[9px] font-black text-green-800">Front desk notified</p>
+            <p className="text-[8px] text-green-600 font-medium">Towels on the way · ~4 min</p>
+          </div>
+        </div>
+        <p className="text-[9px] text-gray-400 font-medium text-center">Request saved to your session · No app needed</p>
       </div>
     </div>
   );
@@ -596,8 +668,11 @@ export function GuestRequestsMockup() {
 export function BouncieGPSMockup() {
   return (
     <div className="flex flex-col h-full bg-[#F9FAFB] overflow-hidden text-left">
+      <div className="bg-white shrink-0">
+        <PhoneStatusBar />
+      </div>
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-3 py-3 flex items-center gap-2">
+      <div className="bg-white border-b border-gray-100 px-3 pb-2.5 pt-1 flex items-center gap-2">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#0D948815' }}>
           <Bus size={14} style={{ color: '#0D9488' }} />
         </div>
@@ -607,6 +682,45 @@ export function BouncieGPSMockup() {
       </div>
 
       <div className="flex-1 overflow-hidden px-3 py-2.5 space-y-2.5">
+        {/* Live map */}
+        <div className="relative h-[108px] rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-[#EAF3EE]">
+          {/* street grid */}
+          <div
+            className="absolute inset-0 opacity-90"
+            style={{
+              backgroundImage: 'linear-gradient(#ffffff 2px, transparent 2px), linear-gradient(90deg, #ffffff 2px, transparent 2px)',
+              backgroundSize: '26px 26px',
+            }}
+          />
+          {/* park + water blocks */}
+          <div className="absolute left-[12%] top-[14%] h-7 w-10 rounded-md bg-[#CBE8D6]" />
+          <div className="absolute -bottom-6 -right-5 h-20 w-24 rounded-full bg-[#BFDDEB]" />
+          {/* route */}
+          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 200 108" fill="none" preserveAspectRatio="none" aria-hidden>
+            <path d="M12 92 C 50 88, 62 60, 100 54 S 168 30, 186 16" stroke="#0D9488" strokeOpacity="0.25" strokeWidth="5" strokeLinecap="round" />
+            <path d="M12 92 C 50 88, 62 60, 100 54 S 168 30, 186 16" stroke="#0D9488" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="7 9" className="animate-route-dash" />
+          </svg>
+          {/* hotel pin */}
+          <div className="absolute right-[4%] top-[6%] flex flex-col items-center">
+            <div className="flex h-4 w-4 items-center justify-center rounded-full border-2 bg-white shadow" style={{ borderColor: '#0D9488' }}>
+              <Home size={8} style={{ color: '#0D9488' }} />
+            </div>
+            <span className="mt-0.5 rounded bg-white/90 px-1 text-[6px] font-black text-gray-700 shadow-sm">HOTEL</span>
+          </div>
+          {/* shuttle marker driving the route */}
+          <div
+            className="animate-shuttle-drive absolute flex h-5 w-5 items-center justify-center rounded-full text-white shadow-md ring-2 ring-white"
+            style={{ backgroundColor: '#0D9488', offsetPath: "path('M12 92 C 50 88, 62 60, 100 54 S 168 30, 186 16')", offsetRotate: '0deg' }}
+          >
+            <Bus size={11} color="white" />
+          </div>
+          {/* live badge */}
+          <div className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-white/95 px-1.5 py-0.5 shadow-sm">
+            <PulsingDot />
+            <span className="text-[7px] font-black tracking-wide text-gray-700">LIVE GPS</span>
+          </div>
+        </div>
+
         {/* GPS card */}
         <div className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
           <div className="flex items-center gap-1.5 mb-2">
@@ -654,7 +768,6 @@ export function BouncieGPSMockup() {
             {[
               { label: 'Trip 1', time: '7:00 AM', dist: '12.1 mi' },
               { label: 'Trip 2', time: '10:30 AM', dist: '9.4 mi' },
-              { label: 'Trip 3', time: '1:00 PM', dist: '11.7 mi' },
             ].map((t, i) => (
               <div key={i} className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
@@ -686,8 +799,9 @@ export function BouncieGPSMockup() {
 export function UberDirectMockup() {
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden text-left">
+      <PhoneStatusBar />
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 pt-4 pb-3">
+      <div className="bg-white border-b border-gray-100 px-4 pt-2 pb-3">
         <p className="text-[13px] font-black text-gray-900">Your Order</p>
         <p className="text-[9px] text-gray-400 mt-0.5">2 items · $24.50</p>
       </div>
@@ -727,6 +841,24 @@ export function UberDirectMockup() {
               </div>
               <span className="text-[8px] font-normal opacity-70">$4.99 · ~25 min</span>
             </button>
+          </div>
+        </div>
+
+        {/* Live courier tracking strip */}
+        <div className="rounded-xl bg-gray-900 p-3 shadow-sm">
+          <div className="mb-1.5 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <PulsingDot color="#4ade80" />
+              <span className="text-[9px] font-black text-white">Courier en route</span>
+            </div>
+            <span className="text-[8px] font-bold text-gray-400">~12 min</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-700">
+            <div className="animate-fill-x h-full w-[62%] rounded-full bg-[#22c55e]" style={{ animationDelay: '0.5s' }} />
+          </div>
+          <div className="mt-1 flex justify-between text-[7px] font-semibold text-gray-400">
+            <span>Marina Grill</span>
+            <span>Hotel · Room 214</span>
           </div>
         </div>
 
