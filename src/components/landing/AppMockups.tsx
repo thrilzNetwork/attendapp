@@ -11,7 +11,7 @@ import {
   Bell, Bus, ChevronRight, Clock, DollarSign,
   Home, LayoutDashboard, LogOut, MessageSquare,
   Star, Users, Calendar, ClipboardList,
-  TrendingUp, Wrench, Utensils, ShoppingBag, Phone, Layers, MapPin,
+  TrendingUp, Wrench, Utensils, ShoppingBag, Phone, Layers, Truck, MapPin,
 } from 'lucide-react';
 
 const TEAL = '#0D9488';
@@ -24,6 +24,37 @@ function PulsingDot({ color = '#22c55e' }: { color?: string }) {
       <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ backgroundColor: color }} />
       <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
     </span>
+  );
+}
+
+/* ─── iOS-style status bar (time · signal · wifi · battery) ──── */
+export function PhoneStatusBar({ dark = false }: { dark?: boolean }) {
+  return (
+    <div className={`flex items-center justify-between px-5 pt-2.5 pb-1 shrink-0 text-[9px] font-bold tracking-tight ${dark ? 'text-white' : 'text-gray-900'}`}>
+      <span>9:41</span>
+      <div className="flex items-center gap-1">
+        {/* signal */}
+        <svg width="12" height="8" viewBox="0 0 13 9" fill="currentColor" aria-hidden>
+          <rect x="0" y="6" width="2" height="3" rx="0.5" />
+          <rect x="3.5" y="4" width="2" height="5" rx="0.5" />
+          <rect x="7" y="2" width="2" height="7" rx="0.5" />
+          <rect x="10.5" y="0" width="2" height="9" rx="0.5" />
+        </svg>
+        {/* wifi */}
+        <svg width="11" height="8" viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
+          <path d="M2 6.5C8 1 16 1 22 6.5" />
+          <path d="M6 10.5c4-3.5 8-3.5 12 0" />
+          <path d="M10.5 14.5c1-1 2-1 3 0" />
+        </svg>
+        {/* battery */}
+        <div className="flex items-center">
+          <div className={`h-[8px] w-[16px] rounded-[2.5px] border p-[1.5px] ${dark ? 'border-white/60' : 'border-gray-400'}`}>
+            <div className="h-full w-[78%] rounded-[1px] bg-current" />
+          </div>
+          <div className={`ml-[1px] h-[3px] w-[1.5px] rounded-r-sm ${dark ? 'bg-white/60' : 'bg-gray-400'}`} />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -43,6 +74,7 @@ function MobileTopBar({
 }) {
   return (
     <div className="bg-white border-b border-gray-200 shrink-0">
+      <PhoneStatusBar />
       <div className="flex items-center justify-between px-3 py-2">
         <div>
           <p className="text-[11px] font-bold text-gray-900 leading-tight">{hotel}</p>
@@ -97,10 +129,16 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
 
 export function RequestsScreenMockup() {
   const [active, setActive] = useState<number | null>(null);
+  const [incoming, setIncoming] = useState(false);
 
   useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setIncoming(true);
+      return;
+    }
     const id = setInterval(() => setActive(v => (v === null ? 0 : v === 4 ? null : v + 1)), 1800);
-    return () => clearInterval(id);
+    const t = setTimeout(() => setIncoming(true), 2400);
+    return () => { clearInterval(id); clearTimeout(t); };
   }, []);
 
   const TABS = [
@@ -117,7 +155,7 @@ export function RequestsScreenMockup() {
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-2 px-3 py-2.5 bg-white border-b border-gray-100">
         {[
-          { label: 'Pending', value: '2', color: '#D97706' },
+          { label: 'Pending', value: incoming ? '3' : '2', color: '#D97706' },
           { label: 'Active', value: '1', color: TEAL },
           { label: 'Resolved', value: '8', color: '#16A34A' },
         ].map(s => (
@@ -143,6 +181,32 @@ export function RequestsScreenMockup() {
 
       {/* Request list */}
       <div className="flex-1 overflow-hidden px-3 pb-3 space-y-2">
+        {incoming && (
+          <div className="animate-row-in bg-white rounded-xl border p-2.5 shadow-sm" style={{ borderColor: TEAL, boxShadow: `0 0 0 1px ${TEAL}25, 0 4px 10px -4px ${TEAL}30` }}>
+            <div className="flex items-start gap-2">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[8px] font-black shrink-0" style={{ backgroundColor: TEAL }}>
+                AN
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] font-black text-gray-900 flex items-center gap-1">
+                    Room 118 <PulsingDot color="#D97706" />
+                  </span>
+                  <span className="text-[7px] font-bold px-1.5 py-0.5 rounded-full" style={{ color: '#D97706', backgroundColor: '#FEF3C7' }}>
+                    New
+                  </span>
+                </div>
+                <p className="text-[9px] text-gray-700 leading-snug mt-0.5 truncate">Ice bucket + extra pillows</p>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[8px] text-gray-400">Ana N. · just now</span>
+                  <button className="text-[7px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: TEAL }}>
+                    Accept
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {REQUESTS.map((r, i) => {
           const meta = STATUS_META[r.status];
           return (
@@ -542,8 +606,9 @@ const REQUEST_BUTTONS = [
 export function GuestRequestsMockup() {
   return (
     <div className="flex flex-col h-full bg-white text-left overflow-hidden">
+      <PhoneStatusBar />
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 pt-4 pb-3">
+      <div className="bg-white border-b border-gray-100 px-4 pt-2 pb-3">
         <p className="text-[18px] font-black text-gray-900 leading-tight">Request Now</p>
         <p className="text-[10px] text-gray-400 font-medium mt-0.5">Tap once to send</p>
       </div>
@@ -562,7 +627,7 @@ export function GuestRequestsMockup() {
               }}
             >
               {btn.sent && (
-                <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                <div className="animate-pop-in absolute top-2 right-2 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center shadow-sm" style={{ animationDelay: '0.8s' }}>
                   <span className="text-white text-[8px] font-black">✓</span>
                 </div>
               )}
@@ -581,269 +646,234 @@ export function GuestRequestsMockup() {
         })}
       </div>
 
-      {/* Footer note */}
-      <div className="shrink-0 px-4 pb-4 text-center">
-        <p className="text-[9px] text-gray-400 font-medium">Request saved to your session · No app needed</p>
+      {/* Footer: live confirmation toast + note */}
+      <div className="shrink-0 px-3 pb-3 space-y-1.5">
+        <div className="animate-row-in flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 shadow-sm" style={{ animationDelay: '1.4s' }}>
+          <PulsingDot />
+          <div className="leading-tight">
+            <p className="text-[9px] font-black text-green-800">Front desk notified</p>
+            <p className="text-[8px] text-green-600 font-medium">Towels on the way · ~4 min</p>
+          </div>
+        </div>
+        <p className="text-[9px] text-gray-400 font-medium text-center">Request saved to your session · No app needed</p>
       </div>
     </div>
   );
 }
 
 /* ════════════════════════════════════════════════════════════════
-   7.  BOUNCIE GPS MOCKUP — two-point tracking (hotel ↔ airport)
+   7.  BOUNCIE GPS MOCKUP (phone screen)
    ════════════════════════════════════════════════════════════════ */
 
 export function BouncieGPSMockup() {
-  const [dir, setDir] = useState<'to_dest' | 'to_hotel'>('to_dest');
-
-  useEffect(() => {
-    const id = setInterval(() => setDir(d => d === 'to_dest' ? 'to_hotel' : 'to_dest'), 3000);
-    return () => clearInterval(id);
-  }, []);
-
-  const toAirport = dir === 'to_dest';
-
   return (
     <div className="flex flex-col h-full bg-[#F9FAFB] overflow-hidden text-left">
+      <div className="bg-white shrink-0">
+        <PhoneStatusBar />
+      </div>
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-3 py-2.5 flex items-center gap-2">
+      <div className="bg-white border-b border-gray-100 px-3 pb-2.5 pt-1 flex items-center gap-2">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#0D948815' }}>
           <Bus size={14} style={{ color: '#0D9488' }} />
         </div>
-        <div>
-          <span className="text-[11px] font-black text-gray-900 block leading-tight">Live Shuttle</span>
-          <span className="text-[8px] text-gray-400">Best Western 10272 · Bouncie GPS</span>
-        </div>
-        <div className="ml-auto flex items-center gap-1">
-          <PulsingDot />
-          <span className="text-[8px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: '#0D9488' }}>On Trip</span>
-        </div>
+        <span className="text-[11px] font-black text-gray-900">Live Shuttle</span>
+        <PulsingDot />
+        <span className="ml-auto text-[8px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: '#0D9488' }}>On Trip</span>
       </div>
 
-      <div className="flex-1 overflow-hidden px-3 py-2 space-y-2">
-        {/* Direction banner */}
-        <div className={`rounded-xl px-3 py-2 text-[11px] font-bold flex items-center gap-1.5 transition-all ${
-          toAirport
-            ? 'bg-sky-50 text-sky-800 border border-sky-200'
-            : 'bg-orange-50 text-orange-800 border border-orange-200'
-        }`}>
-          {toAirport
-            ? <>🏨 → ✈️ Heading to FLL Airport · ~12 min</>
-            : <>✈️ → 🏨 Returning to hotel · ~8 min</>
-          }
+      <div className="flex-1 overflow-hidden px-3 py-2.5 space-y-2.5">
+        {/* Live map */}
+        <div className="relative h-[108px] rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-[#EAF3EE]">
+          {/* street grid */}
+          <div
+            className="absolute inset-0 opacity-90"
+            style={{
+              backgroundImage: 'linear-gradient(#ffffff 2px, transparent 2px), linear-gradient(90deg, #ffffff 2px, transparent 2px)',
+              backgroundSize: '26px 26px',
+            }}
+          />
+          {/* park + water blocks */}
+          <div className="absolute left-[12%] top-[14%] h-7 w-10 rounded-md bg-[#CBE8D6]" />
+          <div className="absolute -bottom-6 -right-5 h-20 w-24 rounded-full bg-[#BFDDEB]" />
+          {/* route */}
+          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 200 108" fill="none" preserveAspectRatio="none" aria-hidden>
+            <path d="M12 92 C 50 88, 62 60, 100 54 S 168 30, 186 16" stroke="#0D9488" strokeOpacity="0.25" strokeWidth="5" strokeLinecap="round" />
+            <path d="M12 92 C 50 88, 62 60, 100 54 S 168 30, 186 16" stroke="#0D9488" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="7 9" className="animate-route-dash" />
+          </svg>
+          {/* hotel pin */}
+          <div className="absolute right-[4%] top-[6%] flex flex-col items-center">
+            <div className="flex h-4 w-4 items-center justify-center rounded-full border-2 bg-white shadow" style={{ borderColor: '#0D9488' }}>
+              <Home size={8} style={{ color: '#0D9488' }} />
+            </div>
+            <span className="mt-0.5 rounded bg-white/90 px-1 text-[6px] font-black text-gray-700 shadow-sm">HOTEL</span>
+          </div>
+          {/* shuttle marker driving the route */}
+          <div
+            className="animate-shuttle-drive absolute flex h-5 w-5 items-center justify-center rounded-full text-white shadow-md ring-2 ring-white"
+            style={{ backgroundColor: '#0D9488', offsetPath: "path('M12 92 C 50 88, 62 60, 100 54 S 168 30, 186 16')", offsetRotate: '0deg' }}
+          >
+            <Bus size={11} color="white" />
+          </div>
+          {/* live badge */}
+          <div className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-white/95 px-1.5 py-0.5 shadow-sm">
+            <PulsingDot />
+            <span className="text-[7px] font-black tracking-wide text-gray-700">LIVE GPS</span>
+          </div>
         </div>
 
-        {/* Speed / updated */}
-        <div className="bg-white rounded-xl border border-gray-100 p-2.5 shadow-sm">
-          <div className="grid grid-cols-3 gap-2">
+        {/* GPS card */}
+        <div className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
+          <div className="flex items-center gap-1.5 mb-2">
+            <MapPin size={10} style={{ color: '#0D9488' }} />
+            <span className="text-[9px] font-bold text-gray-700">Current Position</span>
+          </div>
+          <p className="text-[10px] font-mono text-gray-900 font-bold">27.9506° N, 82.4572° W</p>
+          <div className="grid grid-cols-2 gap-2 mt-2">
             <div>
-              <p className="text-[7px] text-gray-400 uppercase tracking-wide font-semibold">Speed</p>
-              <p className="text-[9px] font-bold text-gray-800">38 mph</p>
-            </div>
-            <div>
-              <p className="text-[7px] text-gray-400 uppercase tracking-wide font-semibold">Heading</p>
-              <p className="text-[9px] font-bold text-gray-800">145°</p>
+              <p className="text-[7px] text-gray-400 uppercase tracking-wide font-semibold">Speed / Heading</p>
+              <p className="text-[9px] font-bold text-gray-800">32 mph · 145°</p>
             </div>
             <div>
               <p className="text-[7px] text-gray-400 uppercase tracking-wide font-semibold">Updated</p>
-              <p className="text-[9px] font-bold text-gray-800">30s ago</p>
+              <p className="text-[9px] font-bold text-gray-800">1m ago</p>
             </div>
-          </div>
-          {/* Dual ETA */}
-          <div className="border-t border-gray-100 mt-2 pt-2 space-y-1">
-            <div className="flex items-center justify-between text-[9px]">
-              <span className="text-sky-600 font-semibold flex items-center gap-1">✈️ ETA to FLL Airport</span>
-              <span className={`font-bold ${toAirport ? 'text-sky-700' : 'text-gray-400'}`}>{toAirport ? '~12 min · 7.1 mi' : '—'}</span>
+            <div>
+              <p className="text-[7px] text-gray-400 uppercase tracking-wide font-semibold">ETA to Hotel</p>
+              <p className="text-[9px] font-bold text-gray-800">~8 min · 4.2 mi</p>
             </div>
-            <div className="flex items-center justify-between text-[9px]">
-              <span className="text-orange-600 font-semibold flex items-center gap-1">🏨 ETA to hotel</span>
-              <span className={`font-bold ${!toAirport ? 'text-orange-700' : 'text-gray-400'}`}>{!toAirport ? '~8 min · 4.2 mi' : '—'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Inline map */}
-        <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-100">
-          <div className="h-24 relative flex items-center justify-center">
-            {/* simplified route line graphic */}
-            <div className="absolute inset-0 flex items-center justify-center px-6">
-              <div className="w-full flex items-center gap-1">
-                <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center text-white text-[7px] font-black shrink-0">H</div>
-                <div className="flex-1 relative h-1 bg-gray-300 rounded">
-                  <div className={`absolute top-0 h-full rounded bg-teal-500 transition-all duration-1000 ${toAirport ? 'w-3/5 left-0' : 'w-2/5 right-0'}`} />
-                  <div className={`absolute -top-2 w-5 h-5 transition-all duration-1000 ${toAirport ? 'left-[55%]' : 'left-[35%]'}`}>
-                    <Bus size={12} className="text-teal-700" />
-                  </div>
-                </div>
-                <div className="w-5 h-5 rounded-full bg-sky-500 flex items-center justify-center text-white text-[7px] font-black shrink-0">✈</div>
-              </div>
-            </div>
-          </div>
-          <div className="px-3 py-1.5 bg-gray-50 flex items-center justify-between text-[9px]">
-            <span className="text-gray-500 flex items-center gap-1"><MapPin size={9} className="text-teal-600" /> Live · 30s ago</span>
-            <span className="font-bold text-teal-700">Open map →</span>
           </div>
         </div>
 
         {/* Active trip */}
-        <div className="rounded-xl border border-emerald-200 p-2.5" style={{ backgroundColor: '#F0FDF4' }}>
-          <p className="text-[8px] font-black text-emerald-700 mb-1 uppercase tracking-wide">Active Trip</p>
+        <div className="rounded-xl border border-green-200 p-3" style={{ backgroundColor: '#F0FDF4' }}>
+          <p className="text-[9px] font-black text-green-700 mb-1.5">Active Trip</p>
           <div className="grid grid-cols-3 gap-1">
             {[
               { label: 'Departed', value: '2:15 PM' },
-              { label: 'Duration', value: '23m 14s' },
+              { label: 'Duration', value: '00:23:14' },
               { label: 'Distance', value: '8.3 mi' },
             ].map(item => (
               <div key={item.label}>
-                <p className="text-[7px] text-emerald-600 uppercase tracking-wide font-semibold">{item.label}</p>
-                <p className="text-[9px] font-black text-emerald-800">{item.value}</p>
+                <p className="text-[7px] text-green-600 uppercase tracking-wide font-semibold">{item.label}</p>
+                <p className="text-[9px] font-black text-green-800">{item.value}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Trip log */}
-        <div className="bg-white rounded-xl border border-gray-100 p-2.5 shadow-sm">
-          <p className="text-[8px] font-black text-gray-700 mb-1.5">Today&apos;s Trips</p>
-          <div className="space-y-1">
+        <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
+          <p className="text-[9px] font-black text-gray-700 mb-2">Today&apos;s Trips</p>
+          <div className="space-y-1.5">
             {[
-              { time: '7:00 AM → 7:31 AM', dist: '12.1 mi' },
-              { time: '10:30 AM → 11:02 AM', dist: '9.4 mi' },
+              { label: 'Trip 1', time: '7:00 AM', dist: '12.1 mi' },
+              { label: 'Trip 2', time: '10:30 AM', dist: '9.4 mi' },
             ].map((t, i) => (
               <div key={i} className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <span className="text-[8px] font-semibold text-gray-700">{t.time}</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                  <span className="text-[8px] font-semibold text-gray-700">{t.label} · {t.time}</span>
                 </div>
                 <span className="text-[8px] text-gray-400">{t.dist}</span>
               </div>
             ))}
           </div>
         </div>
+
+        {/* Track button */}
+        <button
+          className="w-full py-2.5 rounded-xl text-[10px] font-bold text-white text-center"
+          style={{ backgroundColor: '#0D9488' }}
+        >
+          Track on Google Maps →
+        </button>
       </div>
     </div>
   );
 }
 
 /* ════════════════════════════════════════════════════════════════
-   8.  TRANSPORT BOOKER MOCKUP (guest transport booking)
+   8.  UBER DIRECT MOCKUP (phone screen)
    ════════════════════════════════════════════════════════════════ */
 
 export function UberDirectMockup() {
-  const [step, setStep] = useState(0); // 0=mode, 1=addresses, 2=confirm, 3=done
-
-  useEffect(() => {
-    const id = setInterval(() => setStep(s => (s + 1) % 4), 2200);
-    return () => clearInterval(id);
-  }, []);
-
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden text-left">
+      <PhoneStatusBar />
       {/* Header */}
-      <div className="border-b border-gray-100 px-4 pt-4 pb-3">
-        <p className="text-[13px] font-black text-gray-900">Book Transport</p>
-        <p className="text-[9px] text-gray-400 mt-0.5">Hotel shuttle or arrange your own</p>
+      <div className="bg-white border-b border-gray-100 px-4 pt-2 pb-3">
+        <p className="text-[13px] font-black text-gray-900">Your Order</p>
+        <p className="text-[9px] text-gray-400 mt-0.5">2 items · $24.50</p>
       </div>
 
-      <div className="flex-1 px-3 py-3 space-y-3 overflow-hidden">
-        {step === 0 && (
-          <>
-            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Choose transport type</p>
-            {[
-              { label: 'Hotel Shuttle', sub: 'Free · Staff arranged', color: '#0D9488', icon: '🚌' },
-              { label: 'Third-Party Taxi', sub: 'External booking', color: '#6B7280', icon: '🚕' },
-            ].map((opt, i) => (
-              <div key={i} className="rounded-2xl border-2 p-4 flex items-center gap-3 transition-all"
-                style={{ borderColor: i === 0 ? opt.color : '#E5E7EB', backgroundColor: i === 0 ? `${opt.color}08` : 'white' }}>
-                <span className="text-2xl">{opt.icon}</span>
-                <div>
-                  <p className="text-[11px] font-black text-gray-900">{opt.label}</p>
-                  <p className="text-[9px] text-gray-500">{opt.sub}</p>
-                </div>
-                {i === 0 && <div className="ml-auto w-4 h-4 rounded-full border-2 flex items-center justify-center" style={{ borderColor: opt.color }}>
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: opt.color }} />
-                </div>}
-              </div>
-            ))}
-          </>
-        )}
-
-        {step === 1 && (
-          <>
-            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Where to?</p>
-            {/* FROM */}
-            <div className="rounded-2xl border-2 border-teal-200 bg-teal-50 p-3">
-              <p className="text-[8px] text-teal-600 font-bold uppercase mb-1">FROM</p>
-              <p className="text-[11px] font-bold text-gray-900">Best Western Fort Lauderdale</p>
-              <p className="text-[8px] text-gray-500">4860 W Oakland Park Blvd</p>
+      <div className="flex-1 px-3 py-3 space-y-3">
+        {/* Cart summary */}
+        <div className="bg-gray-50 rounded-xl border border-gray-100 p-3">
+          {[
+            { name: 'Grilled Salmon', price: '$18.00' },
+            { name: 'House Salad', price: '$6.50' },
+          ].map((item, i) => (
+            <div key={i} className="flex justify-between items-center py-1">
+              <span className="text-[10px] font-semibold text-gray-800">{item.name}</span>
+              <span className="text-[10px] font-bold text-gray-900">{item.price}</span>
             </div>
-            {/* TO */}
-            <div className="rounded-2xl border-2 border-gray-200 bg-white p-3">
-              <p className="text-[8px] text-gray-400 font-bold uppercase mb-1">TO</p>
-              <p className="text-[11px] font-bold text-gray-900">Fort Lauderdale Airport (FLL)</p>
-              <p className="text-[8px] text-gray-400">100 Terminal Dr, Fort Lauderdale</p>
-            </div>
-            <button className="w-full py-2.5 rounded-xl text-[10px] font-black text-white" style={{ backgroundColor: '#0D9488' }}>
-              Continue →
-            </button>
-          </>
-        )}
-
-        {step === 2 && (
-          <>
-            <div className="bg-gray-50 rounded-2xl border border-gray-100 p-3 space-y-2">
-              <p className="text-[9px] font-black text-gray-700">Trip Summary</p>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0" />
-                <p className="text-[9px] text-gray-700">Best Western Fort Lauderdale</p>
-              </div>
-              <div className="ml-[3px] w-px h-3 bg-gray-300" />
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
-                <p className="text-[9px] text-gray-700">FLL Airport</p>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-[9px]">
-                <span className="text-gray-500">Guests</span>
-                <span className="font-bold text-gray-900">2 adults</span>
-              </div>
-              <div className="flex justify-between text-[9px]">
-                <span className="text-gray-500">Type</span>
-                <span className="font-bold text-gray-900">Hotel Shuttle</span>
-              </div>
-              <div className="flex justify-between text-[9px]">
-                <span className="text-gray-500">Cost</span>
-                <span className="font-bold text-teal-600">Free</span>
-              </div>
-            </div>
-            <button className="w-full py-2.5 rounded-xl text-[10px] font-black text-white" style={{ backgroundColor: '#0D9488' }}>
-              Confirm Booking
-            </button>
-          </>
-        )}
-
-        {step === 3 && (
-          <div className="flex flex-col items-center justify-center h-full gap-3 py-6">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: '#0D9488' }}>
-              <span className="text-white text-3xl">✓</span>
-            </div>
-            <p className="text-[13px] font-black text-gray-900">Booking Confirmed!</p>
-            <p className="text-[10px] text-gray-500 text-center max-w-[180px]">Our team will confirm your pickup time. Check messages for updates.</p>
-            <div className="bg-teal-50 border border-teal-100 rounded-xl px-4 py-2 text-center">
-              <p className="text-[8px] text-teal-600 font-bold uppercase tracking-wide">Request sent to</p>
-              <p className="text-[10px] font-black text-teal-800">Front Desk</p>
-            </div>
+          ))}
+          <div className="border-t border-gray-200 mt-1 pt-1 flex justify-between">
+            <span className="text-[10px] font-black text-gray-900">Total</span>
+            <span className="text-[10px] font-black text-gray-900">$24.50</span>
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Step dots */}
-      <div className="shrink-0 flex justify-center gap-1.5 pb-3">
-        {[0,1,2,3].map(i => (
-          <div key={i} className="w-1.5 h-1.5 rounded-full transition-all"
-            style={{ backgroundColor: i === step ? '#0D9488' : '#D1D5DB' }} />
-        ))}
+        {/* Delivery method toggle */}
+        <div>
+          <p className="text-[9px] font-bold text-gray-600 mb-2 uppercase tracking-wide">Delivery Method</p>
+          <div className="flex gap-2">
+            <button className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-[9px] font-bold text-gray-500 bg-white">
+              Bill to Room
+            </button>
+            <button
+              className="flex-1 py-2.5 rounded-xl border-2 text-[9px] font-bold text-white flex flex-col items-center gap-0.5"
+              style={{ backgroundColor: '#111827', borderColor: '#111827' }}
+            >
+              <div className="flex items-center gap-1">
+                <Truck size={9} color="white" />
+                <span>Pay via Uber</span>
+              </div>
+              <span className="text-[8px] font-normal opacity-70">$4.99 · ~25 min</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Live courier tracking strip */}
+        <div className="rounded-xl bg-gray-900 p-3 shadow-sm">
+          <div className="mb-1.5 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <PulsingDot color="#4ade80" />
+              <span className="text-[9px] font-black text-white">Courier en route</span>
+            </div>
+            <span className="text-[8px] font-bold text-gray-400">~12 min</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-700">
+            <div className="animate-fill-x h-full w-[62%] rounded-full bg-[#22c55e]" style={{ animationDelay: '0.5s' }} />
+          </div>
+          <div className="mt-1 flex justify-between text-[7px] font-semibold text-gray-400">
+            <span>Marina Grill</span>
+            <span>Hotel · Room 214</span>
+          </div>
+        </div>
+
+        {/* Disclaimer */}
+        <p className="text-[9px] text-gray-400 leading-relaxed">
+          Uber courier delivers from restaurant to your room. You pay Uber directly.
+        </p>
+
+        {/* Place order button */}
+        <button
+          className="w-full py-3 rounded-xl text-[12px] font-black text-white text-center"
+          style={{ backgroundColor: '#16A34A' }}
+        >
+          Place Order
+        </button>
       </div>
     </div>
   );

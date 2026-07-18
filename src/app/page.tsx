@@ -328,7 +328,7 @@ function AttendaLandingPage() {
       {/* ANNOUNCEMENT BAR */}
       <div className="bg-gray-900 text-white text-center py-2 px-4 relative">
         <p className="text-[12px] font-semibold">
-          New: Hotel↔Airport two-point GPS tracking + guest transport booking → live in production
+          Live GPS shuttle tracking + instant guest requests → now in production
         </p>
       </div>
 
@@ -336,8 +336,7 @@ function AttendaLandingPage() {
       <nav className={`sticky top-0 z-50 transition-all ${scrolled ? 'bg-white/95 backdrop-blur-xl shadow-sm' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
           <a href="#" className="flex items-center group">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/logo-primary.svg" alt="Attenda" style={{ height: 36, width: 'auto' }} />
+            <img src="/brand/logo-primary.svg" alt="Attenda" height={36} style={{ height: 36, width: 'auto' }} />
           </a>
           <div className="hidden md:flex items-center gap-7">
             <a href="#platform" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Platform</a>
@@ -372,7 +371,7 @@ function AttendaLandingPage() {
                 <span style={{ color: '#0D9488' }}>Built For Independent Hotels.</span>
               </h1>
               <p className="text-[18px] text-gray-600 leading-relaxed mb-8">
-                Attenda is the all-in-one operating system for independent hotels — instant guest requests, hotel↔airport live GPS shuttle tracking, guest transport booking, and staff operations in one thread. No app for guests. No rip-and-replace.
+                Attenda is the all-in-one operating system for independent hotels — instant guest requests, live GPS shuttle tracking, Uber Direct food delivery, and staff operations in one thread. No app. No rip-and-replace.
               </p>
               <a href="#demo"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-[16px] transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
@@ -468,21 +467,23 @@ function AttendaLandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               { icon: QrCode, title: 'Zero apps for guests', desc: 'Scan the QR — tap to request towels, housekeeping, or maintenance. One tap, instant delivery to the front desk. No download, no account.' },
-              { icon: Bus, title: 'Hotel ↔ Airport GPS tracking', desc: 'Two-point live tracking shows direction (leaving hotel vs. returning), ETA to airport, ETA back — with an inline map. Auto-geocodes the hotel address, no manual coordinates.' },
-              { icon: Truck, title: 'Guest transport booking', desc: 'Guests request airport runs directly from the room QR. No app, no phone call. Staff get notified, driver assigned, and guest gets a confirmation — all in one thread.' },
+              { icon: Bus, title: 'Live GPS shuttle tracking', desc: 'Bouncie integration shows real-time shuttle location, speed, ETA to hotel, and today\'s trip log. Arrival alerts when the shuttle is 0.5 mi away.' },
+              { icon: Truck, title: 'Uber Direct food delivery', desc: 'Partner restaurants, Uber last-mile delivery. Guest picks "Pay via Uber" at checkout. Uber tracks the courier; the hotel earns its share on every order.' },
               { icon: ClipboardList, title: 'One thread for the property', desc: 'Guest request → staff task → vendor job → GM dashboard. No radio calls, no missed handoffs, no sticky notes.' },
               { icon: Users, title: 'Guest identity without PMS', desc: 'Guests enter name + checkout date once. Session persists until checkout. Staff visually verify against PMS with one tap — no integration required.' },
               { icon: Globe, title: 'Works alongside your PMS', desc: 'No rip-and-replace. Attenda runs beside your current system from day one. 11 days from contract to live.' },
             ].map((item, i) => {
               const ItemIcon = item.icon;
               return (
-                <div key={i} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ backgroundColor: `${TEAL}10` }}>
-                    <ItemIcon size={20} style={{ color: TEAL }} />
+                <Reveal key={i} direction="up" delay={(i % 3) * 100}>
+                  <div className="hover-lift h-full bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-lg">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ backgroundColor: `${TEAL}10` }}>
+                      <ItemIcon size={20} style={{ color: TEAL }} />
+                    </div>
+                    <h4 className="text-[16px] font-black text-gray-900 mb-2">{item.title}</h4>
+                    <p className="text-[14px] text-gray-600 leading-relaxed">{item.desc}</p>
                   </div>
-                  <h4 className="text-[16px] font-black text-gray-900 mb-2">{item.title}</h4>
-                  <p className="text-[14px] text-gray-600 leading-relaxed">{item.desc}</p>
-                </div>
+                </Reveal>
               );
             })}
           </div>
@@ -496,32 +497,29 @@ function AttendaLandingPage() {
       <Reveal>
         <section className="py-20 bg-gray-50">
           <div className="max-w-5xl mx-auto px-4 text-center">
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">New in 2025</h2>
-            <p className="text-[28px] md:text-[36px] font-black tracking-tight text-gray-900 mb-2">Two powerful upgrades</p>
-            <p className="text-gray-500 mb-12 text-[15px]">Hotel↔airport two-point GPS tracking and a seamless guest transport booking flow — both live.</p>
+            <h2 className="text-3xl font-bold mb-2">Two new superpowers</h2>
+            <p className="text-gray-500 mb-12">GPS tracking and last-mile delivery — both live, both built in.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 justify-items-center">
-              <div className="flex flex-col items-center gap-4">
-                <PhoneFrame width={240}>
-                  <div className="h-[476px] overflow-hidden">
-                    <BouncieGPSMockup />
-                  </div>
-                </PhoneFrame>
-                <div className="text-center">
-                  <p className="text-[15px] font-black text-gray-900">Hotel ↔ Airport GPS Tracking</p>
-                  <p className="text-[13px] text-gray-500 mt-1 max-w-[220px]">Direction-aware live map. Know when the shuttle left, where it is, and ETA both ways — auto-refreshing every 30 seconds.</p>
+              <Reveal direction="up" delay={0} className="flex flex-col items-center gap-4">
+                <div className="animate-float-slow">
+                  <PhoneFrame width={240}>
+                    <div className="h-[476px] overflow-hidden">
+                      <BouncieGPSMockup />
+                    </div>
+                  </PhoneFrame>
                 </div>
-              </div>
-              <div className="flex flex-col items-center gap-4">
-                <PhoneFrame width={240}>
-                  <div className="h-[476px] overflow-hidden">
-                    <UberDirectMockup />
-                  </div>
-                </PhoneFrame>
-                <div className="text-center">
-                  <p className="text-[15px] font-black text-gray-900">Guest Transport Booking</p>
-                  <p className="text-[13px] text-gray-500 mt-1 max-w-[220px]">Guests book airport runs from their room — no app, no phone call. Staff get notified instantly.</p>
+                <p className="text-sm text-gray-500 font-medium">Live Shuttle GPS · Bouncie</p>
+              </Reveal>
+              <Reveal direction="up" delay={150} className="flex flex-col items-center gap-4">
+                <div className="animate-float">
+                  <PhoneFrame width={240}>
+                    <div className="h-[476px] overflow-hidden">
+                      <UberDirectMockup />
+                    </div>
+                  </PhoneFrame>
                 </div>
-              </div>
+                <p className="text-sm text-gray-500 font-medium">Uber Direct Delivery</p>
+              </Reveal>
             </div>
           </div>
         </section>
@@ -994,23 +992,9 @@ function AttendaLandingPage() {
                         <div className="text-[9px] text-gray-400">Feb &ndash; May</div>
                       </div>
                       <div className="text-[10px] text-gray-400 mb-3">Attributable to Attenda</div>
-                      <div className="text-[48px] font-black leading-none mb-1" style={{ color: TEAL }}>$16,247</div>
+                      <CountUpStat value={16247} prefix="$" duration={2200} className="text-[48px] font-black leading-none mb-1" style={{ color: TEAL }} />
                       <div className="text-[12px] text-gray-500 mb-5">+ partner orders + late checkout + shuttle</div>
-                      <div className="grid grid-cols-4 gap-2 h-24 mb-4">
-                        {[
-                          { m: 'Feb', v: 0.45, val: '$2.1K' },
-                          { m: 'Mar', v: 0.62, val: '$3.4K' },
-                          { m: 'Apr', v: 0.85, val: '$4.8K' },
-                          { m: 'May', v: 1.0, val: '$5.9K' },
-                        ].map((b, i) => (
-                          <div key={i} className="flex flex-col items-center justify-end">
-                            <div className="text-[8px] text-gray-500 font-bold mb-1">{b.val}</div>
-                            <div className="w-full rounded-t transition-all duration-1000"
-                              style={{ height: `${b.v * 100}%`, backgroundColor: TEAL, opacity: 0.7 + i * 0.1 }} />
-                            <div className="text-[9px] font-bold text-gray-500 mt-1">{b.m}</div>
-                          </div>
-                        ))}
-                      </div>
+                      <CaseStudyBars />
                       <div className="border-t border-gray-100 pt-3 space-y-1.5">
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-gray-600">Shuttle & transport</span>
@@ -1190,7 +1174,7 @@ function AttendaLandingPage() {
               { num: '06', cat: 'Reviews', catColor: '#10B981', title: 'From 3.8 to 4.7 stars: a six-month turnaround', slug: 'from-3-8-to-4-7-stars-a-six-month-turnaround', problem: 'The problem was never the rooms. It was the gap between &ldquo;I need towels&rdquo; and &ldquo;towels arrived.&rdquo; The fix, the timeline, the metric to watch.', readingTime: '5 min' },
             ].map((topic, i) => (
               <a key={i} href={`/blog/${topic.slug}`}
-                className="group bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg transition-all flex flex-col relative overflow-hidden">
+                className="group hover-lift bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg flex flex-col relative overflow-hidden">
                 <div className="absolute top-3 right-4 text-[64px] font-black text-gray-100 leading-none pointer-events-none select-none">{topic.num}</div>
                 <div className="flex items-center justify-between mb-3 relative">
                   <span className="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase text-white" style={{ backgroundColor: topic.catColor }}>{topic.cat}</span>
@@ -1341,7 +1325,6 @@ function AttendaLandingPage() {
           </div>
           <div className="pt-8 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/icon-mark.svg" alt="Attenda" style={{ height: 28, width: 'auto' }} />
               <span className="text-[13px] text-gray-600">attenda &mdash; the operations platform for independent hotels</span>
             </div>
@@ -1549,9 +1532,48 @@ function PlatformTabs() {
    KPI tile dark (Proven Results strip)
    ──────────────────────────────────────────────────────────── */
 
+const HERO_TOASTS = [
+  { title: 'New request · Room 214', sub: 'Extra towels · just now', dot: 'bg-green-500', ping: 'bg-green-400' },
+  { title: 'Shuttle booked · Room 301', sub: 'MIA Airport · 3:30 PM', dot: 'bg-blue-500', ping: 'bg-blue-400' },
+  { title: 'Order placed · Room 108', sub: 'Marina Grill · $24.50', dot: 'bg-amber-500', ping: 'bg-amber-400' },
+  { title: 'Late checkout · Room 412', sub: 'Approved · +$40 captured', dot: 'bg-emerald-500', ping: 'bg-emerald-400' },
+];
+
 function HeaderMockup() {
+  const parallaxRef = useRef<HTMLDivElement>(null);
+  const [toastIdx, setToastIdx] = useState(0);
+
+  // Cycle "live" incoming activity through the toast card
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const id = setInterval(() => setToastIdx(i => (i + 1) % HERO_TOASTS.length), 4000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Subtle scroll parallax on the whole mockup (transform-only, rAF-throttled)
+  useEffect(() => {
+    const el = parallaxRef.current;
+    if (!el || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect();
+        const p = (r.top + r.height / 2 - window.innerHeight / 2) / window.innerHeight;
+        el.style.transform = `translateY(${(p * 26).toFixed(1)}px)`;
+      });
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  const toast = HERO_TOASTS[toastIdx];
   return (
-    <div className="relative w-full">
+    <div ref={parallaxRef} className="relative w-full" style={{ willChange: 'transform' }}>
       {/* brand glow */}
       <div
         className="pointer-events-none absolute -inset-10 -z-10 opacity-50"
@@ -1570,16 +1592,16 @@ function HeaderMockup() {
         </BrowserFrame>
       </div>
 
-      {/* floating live-request card — bottom left */}
-      <div className="absolute -bottom-5 -left-4 hidden sm:block animate-float">
-        <div className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white px-3.5 py-2.5 shadow-xl">
+      {/* floating live-activity toast — bottom left (cycles through incoming events) */}
+      <div className="absolute -bottom-5 -left-4 hidden sm:block">
+        <div key={toastIdx} className="animate-toast-cycle flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white px-3.5 py-2.5 shadow-xl">
           <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+            <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${toast.ping}`} />
+            <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${toast.dot}`} />
           </span>
           <div className="leading-tight">
-            <div className="text-[11px] font-black text-gray-900">New request · Room 214</div>
-            <div className="text-[10px] text-gray-500">Extra towels · just now</div>
+            <div className="text-[11px] font-black text-gray-900">{toast.title}</div>
+            <div className="text-[10px] text-gray-500">{toast.sub}</div>
           </div>
         </div>
       </div>
@@ -1619,6 +1641,10 @@ function useCountUp(target: number, duration = 1800): [number, React.RefObject<H
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setCount(target);
+      return;
+    }
     const obs = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && !started.current) {
         started.current = true;
@@ -1636,6 +1662,64 @@ function useCountUp(target: number, duration = 1800): [number, React.RefObject<H
     return () => obs.disconnect();
   }, [target, duration]);
   return [count, ref];
+}
+
+/* ── Animated stat (counts up when scrolled into view) ───────── */
+function CountUpStat({
+  value, prefix = '', suffix = '', className = '', style, duration,
+}: {
+  value: number;
+  prefix?: string;
+  suffix?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  duration?: number;
+}) {
+  const [count, ref] = useCountUp(value, duration);
+  return (
+    <div ref={ref} className={className} style={style}>
+      {prefix}{count.toLocaleString('en-US')}{suffix}
+    </div>
+  );
+}
+
+/* ── Case-study bars (grow with stagger when scrolled into view) ── */
+function CaseStudyBars() {
+  const [grown, setGrown] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setGrown(true);
+      return;
+    }
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setGrown(true);
+        obs.disconnect();
+      }
+    }, { threshold: 0.4 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="grid grid-cols-4 gap-2 h-24 mb-4">
+      {[
+        { m: 'Feb', v: 0.45, val: '$2.1K' },
+        { m: 'Mar', v: 0.62, val: '$3.4K' },
+        { m: 'Apr', v: 0.85, val: '$4.8K' },
+        { m: 'May', v: 1.0, val: '$5.9K' },
+      ].map((b, i) => (
+        <div key={i} className="flex flex-col items-center justify-end">
+          <div className="text-[8px] text-gray-500 font-bold mb-1 transition-opacity duration-500" style={{ opacity: grown ? 1 : 0, transitionDelay: `${300 + i * 140}ms` }}>{b.val}</div>
+          <div className="w-full rounded-t transition-all duration-1000 ease-out"
+            style={{ height: grown ? `${b.v * 100}%` : '4%', backgroundColor: TEAL, opacity: 0.7 + i * 0.1, transitionDelay: `${i * 140}ms` }} />
+          <div className="text-[9px] font-bold text-gray-500 mt-1">{b.m}</div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /* ── KPI tile dark (Proven Results strip) ────────────────────── */
@@ -1699,28 +1783,28 @@ function EnrollForm() {
     if (!form.propertyName || !form.email || !form.contactName) return;
     setStatus('sending');
     try {
-      const res = await fetch('/api/hotel-onboard', {
+      const res = await fetch('/api/email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
         body: JSON.stringify({
-          propertyName: form.propertyName,
-          contactName: form.contactName,
-          email: form.email,
-          phone: form.phone,
-          rooms: form.rooms,
-          message: form.message,
+          type: 'enrollment_inquiry',
+          data: {
+            contactName: form.contactName,
+            contactEmail: form.email,
+            contactPhone: form.phone,
+            propertyName: form.propertyName,
+            propertyType: 'Property',
+            rooms: form.rooms || 'Not specified',
+            city: '',
+            message: form.message,
+          },
         }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error((data as { error?: string }).error || 'Onboarding failed');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'Email failed');
       }
-      // Redirect to staff setup — they'll set their password and land in their dashboard
-      if (data.setupUrl) {
-        window.location.href = data.setupUrl;
-      } else {
-        setStatus('sent');
-      }
+      setStatus('sent');
     } catch (err) {
       console.error('Enrollment submission error:', err);
       setStatus('error');
@@ -1733,8 +1817,8 @@ function EnrollForm() {
         <div className="w-16 h-16 rounded-full bg-teal-500/20 flex items-center justify-center mx-auto mb-4">
           <CheckCircle size={32} className="text-teal-600" />
         </div>
-        <h3 className="text-[20px] font-bold text-gray-900 mb-2">Your property is being set up!</h3>
-        <p className="text-[14px] text-gray-600">Redirecting you to complete your account…</p>
+        <h3 className="text-[20px] font-bold text-gray-900 mb-2">We&apos;ll be in touch!</h3>
+        <p className="text-[14px] text-gray-600">Expect a reply within one business day with a personalized demo for your property.</p>
       </div>
     );
   }
@@ -1764,7 +1848,7 @@ function EnrollForm() {
       <button onClick={handleSubmit} disabled={status === 'sending'}
         className="w-full py-4 rounded-xl text-white font-bold text-[15px] disabled:opacity-50 shadow-sm"
         style={{ backgroundColor: TEAL }}>
-        {status === 'sending' ? 'Setting up…' : 'Get my property live →'}
+        {status === 'sending' ? 'Sending...' : 'Show me on my property →'}
       </button>
       <div className="grid grid-cols-3 gap-3 pt-2">
         <div className="text-center">
