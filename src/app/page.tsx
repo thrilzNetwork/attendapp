@@ -451,6 +451,66 @@ function AttendaLandingPage() {
         </div>
       </section>
 
+      {/* QR ONBOARDING — real photo showcase */}
+      <section className="py-20 md:py-28 px-5 overflow-hidden relative">
+        <div className="absolute inset-0 opacity-[0.2] pointer-events-none"
+          style={{ backgroundImage: 'radial-gradient(circle, #d0d5dd 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+        <div className="relative max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <div className="relative">
+              <Image 
+                src="/images/qr-code-scan.jpg" 
+                alt="Guest scanning QR code in hotel room"
+                width={540} 
+                height={670} 
+                className="rounded-3xl shadow-premium object-cover"
+              />
+              <div className="absolute -bottom-6 -right-6 glass rounded-2xl px-5 py-4 shadow-premium hidden lg:block">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, #0D948820 0%, #0D948810 100%)` }}>
+                    <QrCode size={20} style={{ color: '#0D9488' }} />
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-bold text-gray-900">Instant Access</p>
+                    <p className="text-[11px] text-gray-500">No download required</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="lg:pl-4">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border border-teal-200 bg-teal-50/50">
+                <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+                <span className="text-[12px] font-bold text-teal-700 tracking-wide uppercase">Zero Friction Onboarding</span>
+              </div>
+              <h2 className="text-[32px] md:text-[42px] font-black tracking-tight text-gray-900 mb-5 leading-[1.1]">
+                One scan.<br />
+                <span className="shimmer-text">Everything in their browser.</span>
+              </h2>
+              <p className="text-[17px] text-gray-600 leading-relaxed mb-8">
+                Guests scan a QR code in the room and instantly access the full hotel experience — requests, shuttle booking, food ordering, and local recommendations. No app store. No download. No account creation.
+              </p>
+              <div className="space-y-4">
+                {[
+                  { num: '01', title: 'Scan the QR', desc: 'One tap opens the mobile web app instantly in their browser.' },
+                  { num: '02', title: 'Enter checkout date', desc: 'Name + checkout date entered once. Session persists until check-out.' },
+                  { num: '03', title: 'Access everything', desc: 'Requests, shuttle, food, and local tips — all in one thread.' },
+                ].map((step, i) => (
+                  <div key={i} className="flex items-start gap-4 group">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors" style={{ backgroundColor: `${TEAL}15` }}>
+                      <span className="text-[11px] font-black" style={{ color: TEAL }}>{step.num}</span>
+                    </div>
+                    <div>
+                      <p className="text-[15px] font-bold text-gray-900 group-hover:text-teal-700 transition-colors">{step.title}</p>
+                      <p className="text-[13px] text-gray-500">{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* SEE IT FROM EVERY ANGLE — role mockups */}
       <section className="py-16 md:py-24 px-5 bg-gradient-to-b from-white to-gray-50 overflow-hidden">
         <div className="max-w-6xl mx-auto">
@@ -564,20 +624,32 @@ function AttendaLandingPage() {
       <Reveal>
         <section className="py-20 bg-gray-50">
           <div className="max-w-5xl mx-auto px-4 text-center">
-            <h2 className="text-3xl font-bold mb-2">Two new superpowers</h2>
-            <p className="text-gray-500 mb-12">GPS tracking and last-mile delivery — both live, both built in.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 justify-items-center">
-              <Reveal direction="up" delay={0} className="flex flex-col items-center gap-4">
-                <div className="animate-float-slow">
-                  <PhoneFrame width={240}>
-                    <div className="h-[476px] overflow-hidden">
-                      <BouncieGPSMockup />
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-teal-200 bg-teal-50/50 mb-4">
+              <span className="text-[11px] font-bold text-teal-700 uppercase tracking-wider">Live Features</span>
+            </div>
+            <h2 className="text-[32px] md:text-[42px] font-black tracking-tight text-gray-900 mb-3">Two new superpowers</h2>
+            <p className="text-[16px] text-gray-500 mb-14 max-w-lg mx-auto">GPS tracking and last-mile delivery — both live, both built in.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 justify-items-center">
+              <Reveal direction="up" delay={0} className="flex flex-col items-center gap-5 w-full">
+                <div className="relative rounded-2xl overflow-hidden shadow-premium hover:shadow-premium-hover transition-all duration-500 group">
+                  <Image 
+                    src="/images/shuttle-tracking.jpg" 
+                    alt="Guest tracking hotel shuttle with live GPS on their phone"
+                    width={540} 
+                    height={300} 
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <div className="glass rounded-xl px-4 py-2.5 inline-flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[12px] font-bold text-gray-900">Live GPS · Bouncie Connected</span>
                     </div>
-                  </PhoneFrame>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-500 font-medium">Live Shuttle GPS · Bouncie</p>
+                <p className="text-[14px] font-semibold text-gray-700">Shuttle tracking in real time</p>
               </Reveal>
-              <Reveal direction="up" delay={150} className="flex flex-col items-center gap-4">
+              <Reveal direction="up" delay={150} className="flex flex-col items-center gap-5 w-full">
                 <div className="animate-float">
                   <PhoneFrame width={240}>
                     <div className="h-[476px] overflow-hidden">
@@ -585,7 +657,7 @@ function AttendaLandingPage() {
                     </div>
                   </PhoneFrame>
                 </div>
-                <p className="text-sm text-gray-500 font-medium">Uber Direct Delivery</p>
+                <p className="text-[14px] font-semibold text-gray-700">Uber Direct Delivery</p>
               </Reveal>
             </div>
           </div>
@@ -678,12 +750,15 @@ function AttendaLandingPage() {
                     <span>Zero apps for the guest</span>
                   </div>
                 </div>
-                <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <PhoneFrame width={240}>
-                    <div className="h-[476px] overflow-hidden">
-                      <GuestRequestsMockup />
-                    </div>
-                  </PhoneFrame>
+                <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center relative overflow-hidden">
+                  <Image 
+                    src="/images/guest-on-phone-hero.jpg" 
+                    alt="Guest using Attenda on their phone in a hotel room"
+                    width={480} 
+                    height={600} 
+                    className="rounded-2xl shadow-premium object-cover animate-float-slow"
+                    style={{ maxHeight: 520 }}
+                  />
                 </div>
               </div>
             </div>
