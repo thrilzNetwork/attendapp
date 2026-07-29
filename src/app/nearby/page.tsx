@@ -77,6 +77,7 @@ function NearbyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab') || 'attractions';
+  const hotelSlug = searchParams.get('hotel') || '';
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [brandColor, setBrandColor] = useState('#6B1D3C');
@@ -84,7 +85,7 @@ function NearbyContent() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const hotel = await getHotelConfig();
+      const hotel = await getHotelConfig(hotelSlug || undefined);
       if (cancelled) return;
       if (hotel?.id) {
         const data = await getPartners(hotel.id);
