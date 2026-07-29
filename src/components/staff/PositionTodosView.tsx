@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   getPositionTodoTemplates, createPositionTodoTemplate, updatePositionTodoTemplate, deletePositionTodoTemplate,
   getTemplateItems, createTemplateItem, deleteTemplateItem,
@@ -12,7 +12,7 @@ import {
   type PositionTodoInstance, type PositionTodoResponse,
   type StaffPosition,
 } from '@/lib/supabase';
-import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList, Move, UserX, DollarSign, BookOpen, Download } from 'lucide-react';
+import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList, Move, UserX, DollarSign, BookOpen, Download, CalendarClock } from 'lucide-react';
 
 const TEAL = '#0D9488';
 
@@ -220,6 +220,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
 
   // Date navigation
   const [selectedDate, setSelectedDate] = useState(localDateStr());
+  const todayRef = useRef<HTMLDivElement>(null);
   const [showNewTpl, setShowNewTpl] = useState(false);
   const [newTplName, setNewTplName] = useState('');
   const [newTplDept, setNewTplDept] = useState('front_desk');
@@ -604,6 +605,21 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
               className="p-1 rounded-lg hover:bg-gray-200 text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed"
             >›</button>
           </div>
+          <button
+            onClick={() => {
+              setSelectedDate(localDateStr());
+              setTimeout(() => {
+                todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 50);
+            }}
+            disabled={selectedDate === localDateStr()}
+            className="flex items-center gap-1 text-white px-3 py-2 rounded-xl text-[11px] font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            style={{ backgroundColor: TEAL }}
+            title="Scroll to today"
+          >
+            <CalendarClock size={14} />
+            Today
+          </button>
           {canManage && (
             <>
               <button
@@ -1231,7 +1247,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
               )}
 
               {templates.length > 0 && (
-                <div className="space-y-4">
+                <div ref={todayRef} className="space-y-4">
                   {(() => {
                     // Group templates by assigned_position only — no department fallback
                     const groups: { key: string; label: string; icon: string; templates: PositionTodoTemplate[] }[] = [];

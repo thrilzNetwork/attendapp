@@ -411,6 +411,65 @@ export default function SchedulesView({
     });
   };
 
+  // ── Staffing requirements vs forecast ─────────────────────────────────────
+  type StaffingStatus = 'matched' | 'over' | 'under' | 'unknown';
+
+  const STAFFING_GUIDELINES: { dept: DepartmentKey; label: string; rule: string }[] = [
+    { dept: 'management', label: 'Management', rule: '1 always present during operating hours' },
+    { dept: 'front_desk', label: 'Front Desk', rule: '1 if occ<50%, 2 if 50-80%, 3 if >80%' },
+    { dept: 'housekeeping', label: 'Housekeeping', rule: '1 per 15 rooms occupied' },
+    { dept: 'maintenance', label: 'Maintenance', rule: '1 if any rooms occupied' },
+    { dept: 'security', label: 'Security', rule: '1 if occ>50%, else 0' },
+    { dept: 'drivers', label: 'Drivers', rule: '1 per 10 arrivals' },
+  ];
+
+  const EMPTY_STAFFING: Record<DepartmentKey, number> = { management: 0, front_desk: 0, housekeeping: 0, maintenance: 0, security: 0, drivers: 0 };
+
+  const requiredStaffing = (f: WeeklyForecast | undefined): Record<DepartmentKey, number> => {
+    if (!f) return { ...EMPTY_STAFFING };
+    const occ = f.total_rooms > 0 ? (f.rooms_occupied / f.total_rooms) * 100 : 0;
+    return {
+      management: 1,
+      front_desk: occ < 50 ? 1 : occ <= 80 ? 2 : 3,
+      housekeeping: Math.ceil(Math.max(f.rooms_occupied, 0) / 15),
+      maintenance: f.rooms_occupied > 0 ? 1 : 0,
+      security: occ > 50 ? 1 : 0,
+      drivers: Math.ceil(Math.max(f.arrivals, 0) / 10),
+    };
+  };
+
+  const scheduledStaffByDept = (date: string): Record<DepartmentKey, number> => {
+    const counts: Record<DepartmentKey, number> = { ...EMPTY_STAFFING };
+    const seen = new Set<string>();
+    schedules.filter(s => s.shift_date === date).forEach(s => {
+      if (seen.has(s.staff_name)) return;
+      seen.add(s.staff_name);
+      const dept = staffDept(s.staff_name) as DepartmentKey;
+      if (dept && dept in counts) counts[dept]++;
+    });
+    return counts;
+  };
+
+  const staffingStatus = (required: number, scheduled: number): StaffingStatus => {
+    if (required === 0 && scheduled === 0) return 'unknown';
+    if (scheduled > required) return 'over';
+    if (scheduled < required) return 'under';
+    return 'matched';
+  };
+
+  const statusBadge: Record<StaffingStatus, string> = {
+    matched: 'bg-green-100 border-green-400 text-green-700',
+    over: 'bg-red-100 border-red-400 text-red-700',
+    under: 'bg-amber-100 border-amber-400 text-amber-700',
+    unknown: 'bg-gray-50 border-gray-200 text-gray-400',
+  };
+  const statusDot: Record<StaffingStatus, string> = {
+    matched: 'bg-green-500',
+    over: 'bg-red-500',
+    under: 'bg-amber-500',
+    unknown: 'bg-gray-300',
+  };
+
   // ── Staff lookup helpers ──────────────────────────────────────────────────
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -576,11 +635,32 @@ export default function SchedulesView({
                   })
                 )}
               </div>
-              {dayStaff.length > 0 && (
-                <div className="px-3 py-1 border-t border-gray-100 bg-gray-50 text-center">
-                  <span className="text-[9px] font-semibold text-gray-500">{dayStaff.length} staff</span>
-                </div>
-              )}
+              {/* Staffing status footer */}
+              {(() => {
+                const req = requiredStaffing(forecast);
+                const sched = scheduledStaffByDept(date);
+                const statuses = DEPARTMENTS.map(d => ({ dept: d.key, label: d.label, req: req[d.key], sched: sched[d.key], status: staffingStatus(req[d.key], sched[d.key]) }));
+                const anyFlagged = statuses.some(s => s.status === 'over' || s.status === 'under');
+                return (
+                  <div className={`px-2 py-1.5 border-t border-gray-100 ${anyFlagged ? 'bg-red-50/40' : 'bg-green-50/30'}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">Staffing</span>
+                      <span className={`text-[8px] font-bold ${anyFlagged ? 'text-red-600' : 'text-green-600'}`}>
+                        {anyFlagged ? '⚠ Review' : '✓ OK'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-0.5">
+                      {statuses.map(({ dept, req: r, sched: sc, status }) => (
+                        <div key={dept} className={`flex items-center gap-1 px-1 py-0.5 rounded border text-[8px] font-semibold ${statusBadge[status]}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${statusDot[status]}`} />
+                          <span className="truncate">{dept.replace('_', '')}</span>
+                          <span className="ml-auto">{sc}/{r}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
@@ -593,6 +673,90 @@ export default function SchedulesView({
           <span key={d.key} className={`px-2 py-0.5 rounded-lg border ${shiftColor(d.key)} flex items-center gap-1`}>{d.icon} {d.label}</span>
         ))}
         {isAdmin && <span className="ml-auto text-gray-400 flex items-center gap-1"><Pencil size={9} /> Click pencil to edit</span>}
+      </div>
+
+      {/* ── Manager Staffing Guidance ─────────────────────────────────────────── */}
+      <div className="mt-4 p-4 border border-gray-200 rounded-xl bg-white">
+        <h3 className="text-[13px] font-bold text-gray-800 mb-2 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-teal-500" /> Manager Staffing Guidance
+        </h3>
+
+        {/* Staffing rules reference */}
+        <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {STAFFING_GUIDELINES.map(g => {
+            const deptLabel = DEPARTMENTS.find(d => d.key === g.dept)?.label || g.label;
+            const deptIcon = DEPARTMENTS.find(d => d.key === g.dept)?.icon || '';
+            return (
+              <div key={g.dept} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
+                <span className="text-sm">{deptIcon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold text-gray-700">{deptLabel}</p>
+                  <p className="text-[9px] text-gray-500 truncate">{g.rule}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Color legend */}
+        <div className="mb-3 flex flex-wrap items-center gap-3 text-[10px]">
+          <span className="font-bold text-gray-500 uppercase">Status:</span>
+          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg border bg-green-100 border-green-400 text-green-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Matched
+          </span>
+          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg border bg-red-100 border-red-400 text-red-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Overstaffed
+          </span>
+          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg border bg-amber-100 border-amber-400 text-amber-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Understaffed
+          </span>
+          <span className="text-gray-400 ml-2">Format: scheduled / required</span>
+        </div>
+
+        {/* Per-day alerts */}
+        <div className="border-t border-gray-100 pt-3">
+          <p className="text-[11px] font-bold text-gray-600 mb-2">This week's staffing issues:</p>
+          <div className="space-y-1.5">
+            {weekDates.map(date => {
+              const f = forecasts.find(x => x.date === date);
+              if (!f) {
+                return (
+                  <div key={date} className="flex items-center gap-2 text-[10px] text-gray-400">
+                    <span className="font-bold w-14">{dayName(date)}</span>
+                    <span>No forecast data — cannot evaluate staffing</span>
+                  </div>
+                );
+              }
+              const req = requiredStaffing(f);
+              const sched = scheduledStaffByDept(date);
+              const issues = DEPARTMENTS
+                .map(d => ({ dept: d, req: req[d.key], sched: sched[d.key], status: staffingStatus(req[d.key], sched[d.key]) }))
+                .filter(s => s.status === 'over' || s.status === 'under');
+              const occ = f.total_rooms > 0 ? Math.round((f.rooms_occupied / f.total_rooms) * 100) : 0;
+              if (issues.length === 0) {
+                return (
+                  <div key={date} className="flex items-center gap-2 text-[10px] text-green-700">
+                    <span className="font-bold w-14">{dayName(date)}</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />All departments matched ({occ}% occ, {f.arrivals} arrivals)</span>
+                  </div>
+                );
+              }
+              return (
+                <div key={date} className="flex items-start gap-2 text-[10px]">
+                  <span className="font-bold w-14 text-gray-700">{dayName(date)}</span>
+                  <div className="flex-1 flex flex-wrap gap-1.5">
+                    {issues.map(({ dept, req: r, sched: sc, status }) => (
+                      <span key={dept.key} className={`px-2 py-0.5 rounded border ${statusBadge[status]}`}>
+                        {dept.icon} {dept.label}: {sc}/{r} {status === 'over' ? '— cut 1' : '— add 1'}
+                      </span>
+                    ))}
+                    <span className="text-gray-400 px-1 py-0.5">({occ}% occ, {f.arrivals} arrivals)</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* ── Add Shift Modal ── */}

@@ -5,6 +5,7 @@
 
 const ALLOWED_ORIGINS = [
   'https://attendaapp.com',
+  'https://attenda-app.netlify.app',
   'https://attenda-iy8602ip4-thrilzs-projects.vercel.app',
   'https://attenda-74jdba86g-thrilzs-projects.vercel.app',
   'https://attenda-8k8tx6gnb-thrilzs-projects.vercel.app',

@@ -7,6 +7,7 @@ import {
   RefreshCw, Trash2, SendHorizontal,
 } from 'lucide-react';
 import {
+  supabase,
   getDailyRecap,
   getChecklists, createChecklist, deleteChecklist,
   getChecklistInstances, createChecklistInstance, updateChecklistInstance,
@@ -14,10 +15,12 @@ import {
   getAllKnowledgeBase,
   getAllShuttleSlotsForHotel, getShuttleRoutes, createShuttleSlot,
   getAllOpsTools, getHotelOpsTools,
+  getWeeklyForecasts,
   type HotelConfig,
   type Checklist, type ChecklistInstance,
   type StaffSchedule, type KnowledgeEntry,
   type ShuttleSlot, type ShuttleRoute,
+  type WeeklyForecast,
 } from '@/lib/supabase';
 import type { OpsTool } from '@/lib/supabase';
 import CallAroundView from '@/components/ops-tools/CallAroundView';
@@ -40,6 +43,8 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
   const [tab, setTab] = useState<string>('recap');
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
   const [recap, setRecap] = useState<{ requestsToday: number; completedToday: number; pendingNow: number; messagesToday: number; shuttleBookingsToday: number; avgResponseMin: number; staffOnDuty: number; checklistsCompleted: number; checklistsTotal: number } | null>(null);
+  const [todayForecast, setTodayForecast] = useState<WeeklyForecast | null>(null);
+  const [stayovers, setStayovers] = useState<number>(0);
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [instances, setInstances] = useState<ChecklistInstance[]>([]);
   const [showNewChecklist, setShowNewChecklist] = useState(false);
@@ -85,14 +90,24 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
   useEffect(() => { loadData(); }, [hotelId, tab, scheduleDate]);
   const loadData = async () => {
     if (!hotelId) return;
-    const [r, c, ci, s, kb, slots, routes] = await Promise.all([
+    const [r, c, ci, s, kb, slots, routes, forecasts] = await Promise.all([
       getDailyRecap(hotelId), getChecklists(hotelId),
       getChecklistInstances(hotelId, today), getStaffSchedules(hotelId, scheduleDate),
       getAllKnowledgeBase(hotelId), getAllShuttleSlotsForHotel(hotelId),
       getShuttleRoutes(hotelId),
+      getWeeklyForecasts(hotelId, today),
     ]);
     setRecap(r); setChecklists(c); setInstances(ci); setSchedules(s);
     setKbEntries(kb); setTodayShuttleSlots(slots); setTodayShuttleRoutes(routes);
+    // Find today's forecast
+    const tf = (forecasts || []).find(f => f.date === today) || null;
+    setTodayForecast(tf);
+    // Calculate stayovers = rooms_occupied - arrivals (people already in house)
+    if (tf) {
+      const occ = tf.rooms_occupied || Math.round((tf.occupancy_pct / 100) * (tf.total_rooms || 54));
+      const arr = tf.arrivals || 0;
+      setStayovers(Math.max(0, occ - arr));
+    }
   };
 
   const handleCreateChecklist = async () => {
@@ -266,6 +281,104 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
             </div>
           )}
           {!recap && (<div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm"><p className="text-[13px] text-gray-500">{'Loading today\u2019s data...'}</p></div>)}
+
+          {/* ── Today's KPIs inside the box ─────────────────────────────────────── */}
+          {todayForecast && (() => {
+            const occ = todayForecast.rooms_occupied || Math.round((todayForecast.occupancy_pct / 100) * (todayForecast.total_rooms || 54));
+            const arr = todayForecast.arrivals || 0;
+            const dep = todayForecast.departures || 0;
+            const occPct = todayForecast.occupancy_pct || Math.round((occ / (todayForecast.total_rooms || 54)) * 100);
+            const stay = stayovers;
+            const roomsToClean = stay + arr; // stayovers + arrivals = total rooms to clean
+            // Auto-calculator: Housekeeping
+            const hkRoomsPerPerson = 12; // avg rooms per HK person
+            const hkStaffNeeded = Math.max(1, Math.ceil(roomsToClean / hkRoomsPerPerson));
+            const hkAvgHours = 6; // avg hours per person
+            const hkStartTime = '09:00';
+            const hkEndTime = (() => {
+              const [h, m] = hkStartTime.split(':').map(Number);
+              const endH = h + hkAvgHours;
+              return `${String(endH % 24).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+            })();
+            // Auto-calculator: Front Desk based on occupancy
+            const fdStaffNeeded = occPct >= 80 ? 3 : occPct >= 50 ? 2 : 1;
+            // Auto-calculator: Maintenance based on rooms
+            const maintStaffNeeded = occ >= 40 ? 2 : 1;
+            // ADR
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const _f: any = todayForecast;
+            const adr: number = _f.adr || (_f.revenue && occ > 0 ? Math.round(_f.revenue / occ) : 0);
+
+            return (
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm mt-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <ClipboardList size={16} className="text-teal-600" />
+                  <h2 className="text-[15px] font-extrabold text-gray-900">Today&rsquo;s Shift KPIs</h2>
+                  <span className="text-[11px] text-gray-400 ml-auto">{today}</span>
+                </div>
+
+                {/* KPI row — compact, inside the box */}
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
+                  <div className="text-center"><p className="text-[9px] text-gray-400 uppercase font-bold">Occ %</p><p className="text-[18px] font-extrabold text-teal-600">{occPct}%</p></div>
+                  <div className="text-center"><p className="text-[9px] text-gray-400 uppercase font-bold">Arrivals</p><p className="text-[18px] font-extrabold text-blue-600">{arr}</p></div>
+                  <div className="text-center"><p className="text-[9px] text-gray-400 uppercase font-bold">Stayovers</p><p className="text-[18px] font-extrabold text-violet-600">{stay}</p></div>
+                  <div className="text-center"><p className="text-[9px] text-gray-400 uppercase font-bold">Departures</p><p className="text-[18px] font-extrabold text-amber-600">{dep}</p></div>
+                  <div className="text-center"><p className="text-[9px] text-gray-400 uppercase font-bold">ADR</p><p className="text-[18px] font-extrabold text-emerald-600">${adr}</p></div>
+                  <div className="text-center"><p className="text-[9px] text-gray-400 uppercase font-bold">Rooms</p><p className="text-[18px] font-extrabold text-gray-700">{occ}/{todayForecast.total_rooms || 54}</p></div>
+                </div>
+
+                {/* Auto-calculator inside the same box */}
+                <div className="border-t border-gray-100 pt-3">
+                  <p className="text-[11px] font-bold text-gray-500 uppercase mb-2">Staffing Calculator</p>
+                  <div className="space-y-2">
+                    {/* Housekeeping */}
+                    <div className="flex items-center justify-between bg-emerald-50 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[16px]">🧹</span>
+                        <div>
+                          <p className="text-[12px] font-bold text-gray-800">Housekeeping</p>
+                          <p className="text-[10px] text-gray-500">{roomsToClean} rooms to clean ({stay} stay + {arr} arr)</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[14px] font-extrabold text-emerald-700">{hkStaffNeeded} people</p>
+                        <p className="text-[10px] text-gray-500">{hkStartTime}–{hkEndTime} ({hkAvgHours}h avg)</p>
+                      </div>
+                    </div>
+                    {/* Front Desk */}
+                    <div className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[16px]">🛎️</span>
+                        <div>
+                          <p className="text-[12px] font-bold text-gray-800">Front Desk</p>
+                          <p className="text-[10px] text-gray-500">{occPct}% occupancy {occPct >= 80 ? '(high)' : occPct >= 50 ? '(medium)' : '(low)'}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[14px] font-extrabold text-blue-700">{fdStaffNeeded} {fdStaffNeeded === 1 ? 'person' : 'people'}</p>
+                        <p className="text-[10px] text-gray-500">per shift</p>
+                      </div>
+                    </div>
+                    {/* Maintenance */}
+                    <div className="flex items-center justify-between bg-amber-50 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[16px]">🔧</span>
+                        <div>
+                          <p className="text-[12px] font-bold text-gray-800">Maintenance</p>
+                          <p className="text-[10px] text-gray-500">{occ} rooms occupied</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[14px] font-extrabold text-amber-700">{maintStaffNeeded} {maintStaffNeeded === 1 ? 'person' : 'people'}</p>
+                        <p className="text-[10px] text-gray-500">per shift</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-gray-300 mt-2 text-center">Auto-calculated from today&rsquo;s forecast. Adjust staff as needed.</p>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Today's Shuttle Overview — only if hotel has free shuttle enabled */}
           <div className="mt-6">

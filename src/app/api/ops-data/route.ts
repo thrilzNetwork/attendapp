@@ -36,8 +36,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action, hotelId, weekStart, from, to, forecast } = body;
 
+    // Fallback: some actions (create_schedule) send hotel_id inside the payload object
+    const resolvedHotelId = hotelId || body.schedule?.hotel_id || body.forecast?.hotel_id || null;
+
     // Effective hotel: staff are pinned to their own; superadmins use the requested one.
-    const scopedHotelId = resolveHotelScope(caller, hotelId);
+    const scopedHotelId = resolveHotelScope(caller, resolvedHotelId);
 
     if (action === 'get_forecasts') {
       // Get forecasts for a hotel for a week range

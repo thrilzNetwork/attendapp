@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getDailyLogs, createDailyLog, type DailyLogEntry } from '@/lib/supabase';
+import { CalendarClock } from 'lucide-react';
 
 const TEAL = '#0D9488';
 const CATEGORIES = ['General', 'Maintenance', 'Incident', 'Guest Feedback', 'Housekeeping', 'Front Desk', 'Other'];
@@ -13,6 +14,7 @@ export default function DailyLogsView({ hotelId }: { hotelId: string }) {
   const [date, setDate] = useState(today);
   const [form, setForm] = useState({ author: '', shift: 'AM', category: 'General', content: '' });
   const [showForm, setShowForm] = useState(false);
+  const logsRef = useRef<HTMLDivElement>(null);
 
   const load = async () => setLogs(await getDailyLogs(hotelId, date));
   useEffect(() => { load(); // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -30,6 +32,21 @@ export default function DailyLogsView({ hotelId }: { hotelId: string }) {
     <div>
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-white rounded-xl border border-gray-200 px-4 py-2 text-[14px] outline-none" />
+        <button
+          onClick={() => {
+            setDate(today);
+            setTimeout(() => {
+              logsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
+          }}
+          disabled={date === today}
+          className="flex items-center gap-1.5 text-white px-4 py-2 rounded-xl text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          style={{ backgroundColor: TEAL }}
+          title="Scroll to today"
+        >
+          <CalendarClock size={14} />
+          Today
+        </button>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 text-white px-4 py-2 rounded-xl text-[13px] font-bold" style={{ backgroundColor: TEAL }}>+ New Log Entry</button>
       </div>
 
@@ -67,7 +84,7 @@ export default function DailyLogsView({ hotelId }: { hotelId: string }) {
           <p className="text-[13px] text-gray-500">No log entries for this date.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div ref={logsRef} className="space-y-3">
           {logs.filter(l => l.content).map(log => (
             <div key={log.id} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
               <div className="flex items-center justify-between mb-2">
