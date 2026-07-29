@@ -76,7 +76,7 @@ function RideCard({ brandColor }: { brandColor: string }) {
 function NearbyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tab = searchParams.get('tab') || 'attractions';
+  const tab = searchParams.get('tab') || 'all';
   const hotelSlug = searchParams.get('hotel') || '';
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,8 +119,8 @@ function NearbyContent() {
             </div>
           ) : (
             <>
-              {/* Restaurants — only when tab=restaurants */}
-              {tab === 'restaurants' && restaurants.length > 0 && (
+              {/* Restaurants — when tab=all or tab=restaurants */}
+              {(tab === 'restaurants' || tab === 'all') && restaurants.length > 0 && (
                 <>
                   <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold pt-1">Partner Restaurants</p>
                   {restaurants.map(r => (
@@ -167,13 +167,13 @@ function NearbyContent() {
                 </>
               )}
 
-              {/* Transport — only when tab=attractions */}
-              {tab === 'attractions' && (
+              {/* Transport — when tab=all or tab=attractions */}
+              {(tab === 'attractions' || tab === 'all') && (
               <RideCard brandColor={brandColor} />
               )}
 
-              {/* Attractions — only when tab=attractions */}
-              {tab === 'attractions' && attractions.length > 0 && (
+              {/* Attractions — when tab=all or tab=attractions */}
+              {(tab === 'attractions' || tab === 'all') && attractions.length > 0 && (
                 <>
                   <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold pt-3">Things to Do</p>
                   {attractions.map(a => (
@@ -230,8 +230,8 @@ function NearbyContent() {
                 </>
               )}
 
-              {/* Services — only when tab=attractions */}
-              {tab === 'attractions' && services.length > 0 && (
+              {/* Services — when tab=all or tab=attractions */}
+              {(tab === 'attractions' || tab === 'all') && services.length > 0 && (
                 <>
                   <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold pt-3">Services</p>
                   {services.map(s => (
@@ -250,7 +250,7 @@ function NearbyContent() {
                 </div>
               )}
 
-              {(tab === 'attractions' && attractions.length === 0 && services.length === 0) && !loading && (
+              {((tab === 'attractions' && attractions.length === 0 && services.length === 0) || (tab === 'all' && restaurants.length === 0 && attractions.length === 0 && services.length === 0)) && !loading && (
                 <div className="text-center py-12">
                   <p className="text-gray-400 text-[14px]">No nearby places added yet.</p>
                 </div>
