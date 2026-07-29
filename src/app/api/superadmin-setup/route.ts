@@ -253,12 +253,16 @@ export async function GET() {
   // Only returns whether a superadmin slot exists — no user data leaked
   try {
     const admin = getSupabaseAdmin();
-    const { data } = await admin
+    const { data, error } = await admin
       .from('superadmin_config')
-      .select('user_id')
+      .select('user_id, email')
       .maybeSingle();
+    if (error) {
+      return NextResponse.json({ exists: false, debug_error: error.message, has_service_key: !!process.env.SUPABASE_SERVICE_KEY, key_prefix: (process.env.SUPABASE_SERVICE_KEY || '').substring(0, 20) });
+    }
     return NextResponse.json({ exists: !!data });
-  } catch {
-    return NextResponse.json({ exists: false });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    return NextResponse.json({ exists: false, debug_exception: msg, has_service_key: !!process.env.SUPABASE_SERVICE_KEY });
   }
 }
