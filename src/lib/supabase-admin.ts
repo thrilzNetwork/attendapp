@@ -1,21 +1,17 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://zhhhyrodqndeyjxveszu.supabase.co';
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoaGh5cm9kcW5kZXlqeHZlc3p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNzQ2MzcsImV4cCI6MjEwMDg1MDYzN30.T34AaiMB47koPl2vS4-skLLy957cwk2o9rA_U759BJw';
-
-let _admin: SupabaseClient | null = null;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbG...9BJw';
 
 function getAdmin(): SupabaseClient {
   const key = process.env.SUPABASE_SERVICE_KEY;
   if (!key || key === 'dev-build-noop-key' || key === 'placeholder') {
     // Build/dev fallback — use anon client
-    _admin = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } else {
-    _admin = createClient(SUPABASE_URL, key, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
-  return _admin;
+  return createClient(SUPABASE_URL, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }
 
 // Direct function that returns the client — avoids Proxy this-binding issues
