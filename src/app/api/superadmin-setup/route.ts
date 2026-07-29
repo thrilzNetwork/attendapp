@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     if (action === 'register') {
       const { data: existing } = await admin
         .from('superadmin_config')
-        .select('id, user_id, email')
+        .select('user_id, email')
         .maybeSingle();
 
       if (existing) {
@@ -255,7 +255,7 @@ export async function GET() {
     const admin = getSupabaseAdmin();
     const { data } = await admin
       .from('superadmin_config')
-      .select('id')
+      .select('user_id')
       .maybeSingle();
     return NextResponse.json({ exists: !!data });
   } catch {
