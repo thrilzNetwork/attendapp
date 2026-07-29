@@ -6,16 +6,14 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGci
 let _admin: SupabaseClient | null = null;
 
 function getAdmin(): SupabaseClient {
-  if (!_admin) {
-    const key = process.env.SUPABASE_SERVICE_KEY;
-    if (!key || key === 'dev-build-noop-key' || key === 'placeholder') {
-      // Build/dev fallback — use anon client
-      _admin = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } else {
-      _admin = createClient(SUPABASE_URL, key, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
-    }
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!key || key === 'dev-build-noop-key' || key === 'placeholder') {
+    // Build/dev fallback — use anon client
+    _admin = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } else {
+    _admin = createClient(SUPABASE_URL, key, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
   }
   return _admin;
 }
