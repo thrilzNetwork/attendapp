@@ -223,6 +223,11 @@ function DashboardInner() {
   const [session, setSession] = useState<Session | null>(null);
   const [tab, setTab] = useState<NavTab>('dailybrief');
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showForcePasswordChange, setShowForcePasswordChange] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordChangeError, setPasswordChangeError] = useState('');
+  const [passwordChanging, setPasswordChanging] = useState(false);
   // Auth state
   const [authMode, setAuthMode] = useState<'email' | 'authenticated'>('email');
   const [email, setEmail] = useState('');
@@ -342,6 +347,12 @@ function DashboardInner() {
 
       setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined, permissions: staff.permissions ?? [], department: staff.department, positions: staff.positions || [] });
       setAuthMode('authenticated');
+
+      // Force password change if using default password
+      if (password === 'Attenda2026!') {
+        setShowForcePasswordChange(true);
+      }
+
       // Show welcome modal for first-time logins (redirected from setup with ?welcome=1)
       if (searchParams.get('welcome') === '1' && !localStorage.getItem('attenda_welcomed')) {
         setShowWelcome(true);
@@ -636,6 +647,82 @@ function DashboardInner() {
               className="w-full py-3.5 rounded-2xl text-white font-extrabold text-[15px]"
               style={{ backgroundColor: TEAL }}>
               Get Started →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Force password change modal (first login with default password) ── */}
+      {showForcePasswordChange && (
+        <div className="fixed inset-0 z-[1000] bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8">
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-3">🔐</div>
+              <h2 className="text-[20px] font-extrabold text-gray-900 mb-2">Change Your Password</h2>
+              <p className="text-[13px] text-gray-500">
+                You're using the default password. Please create a new password to continue.
+              </p>
+            </div>
+
+            {passwordChangeError && (
+              <div className="bg-red-50 text-red-600 text-[12px] font-semibold p-3 rounded-xl mb-4 text-center">
+                {passwordChangeError}
+              </div>
+            )}
+
+            <div className="space-y-3 mb-5">
+              <input
+                type="password"
+                placeholder="New password (min 8 characters)"
+                value={newPassword}
+                onChange={e => { setNewPassword(e.target.value); setPasswordChangeError(''); }}
+                className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
+                autoComplete="new-password"
+              />
+              <input
+                type="password"
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={e => { setConfirmPassword(e.target.value); setPasswordChangeError(''); }}
+                className="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
+                autoComplete="new-password"
+              />
+            </div>
+
+            <button
+              onClick={async () => {
+                setPasswordChangeError('');
+                if (!newPassword || newPassword.length < 8) {
+                  setPasswordChangeError('Password must be at least 8 characters.');
+                  return;
+                }
+                if (newPassword !== confirmPassword) {
+                  setPasswordChangeError('Passwords do not match.');
+                  return;
+                }
+                if (newPassword === 'Attenda2026!') {
+                  setPasswordChangeError('Choose a new password — not the default one.');
+                  return;
+                }
+                setPasswordChanging(true);
+                try {
+                  const { error } = await supabase.auth.updateUser({ password: newPassword });
+                  if (error) throw error;
+                  setShowForcePasswordChange(false);
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  setPassword('');
+                } catch (e: unknown) {
+                  const msg = e instanceof Error ? e.message : 'Failed to update password.';
+                  setPasswordChangeError(msg);
+                } finally {
+                  setPasswordChanging(false);
+                }
+              }}
+              disabled={passwordChanging}
+              className="w-full py-3.5 rounded-2xl text-white font-extrabold text-[15px] disabled:opacity-50"
+              style={{ backgroundColor: TEAL }}>
+              {passwordChanging ? 'Updating...' : 'Update Password & Continue →'}
             </button>
           </div>
         </div>
