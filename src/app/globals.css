@@ -195,3 +195,84 @@
     transform: none;
   }
 }
+
+/* ── Landing Page Premium Animations ─────────────────────── */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px) rotate(-1deg); }
+  50% { transform: translateY(-6px) rotate(1deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(15, 184, 158, 0.15), 0 0 60px rgba(15, 184, 158, 0.05); }
+  50% { box-shadow: 0 0 30px rgba(15, 184, 158, 0.25), 0 0 80px rgba(15, 184, 158, 0.1); }
+}
+
+@keyframes gradient-x {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes orbit {
+  0% { transform: rotate(0deg) translateX(8px) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(8px) rotate(-360deg); }
+}
+
+.animate-float { animation: float 5s ease-in-out infinite; }
+.animate-float-slow { animation: floatSlow 7s ease-in-out infinite; }
+.animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+.animate-gradient-x {
+  background-size: 200% 200%;
+  animation: gradient-x 8s ease infinite;
+}
+.animate-scale-in { animation: scale-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-orbit { animation: orbit 12s linear infinite; }
+
+/* Premium card shadows */
+.shadow-premium {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 8px rgba(0,0,0,0.04), 0 12px 24px rgba(0,0,0,0.06), 0 32px 64px rgba(0,0,0,0.08);
+}
+.shadow-premium-hover:hover {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04), 0 8px 16px rgba(0,0,0,0.06), 0 24px 48px rgba(0,0,0,0.1), 0 48px 96px rgba(0,0,0,0.12);
+}
+
+/* Gradient orbs */
+.gradient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+/* Glass morphism */
+.glass {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.3);
+}
+
+/* Shimmer text */
+.shimmer-text {
+  background: linear-gradient(90deg, #0D9488 0%, #15b79e 25%, #0D9488 50%, #15b79e 75%, #0D9488 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 4s linear infinite;
+}

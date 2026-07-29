@@ -356,35 +356,97 @@ function AttendaLandingPage() {
         </div>
       </nav>
 
-      {/* HERO — sharper copy with revenue + labor above the fold */}
-      <section className="relative py-20 md:py-28 px-5 bg-white overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.4] pointer-events-none"
-          style={{ backgroundImage: 'radial-gradient(circle, #d0d5dd 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+      {/* HERO — Premium floating mockups with animated gradient background */}
+      <section className="relative py-20 md:py-28 px-5 overflow-hidden" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fafb 50%, #f0fdfb 100%)' }}>
+        {/* Animated gradient orbs */}
+        <div className="gradient-orb w-[400px] h-[400px] top-[-100px] right-[10%] opacity-40" style={{ background: 'radial-gradient(circle, rgba(15,184,158,0.3) 0%, transparent 70%)' }} />
+        <div className="gradient-orb w-[300px] h-[300px] bottom-[10%] left-[-50px] opacity-30" style={{ background: 'radial-gradient(circle, rgba(13,148,136,0.25) 0%, transparent 70%)' }} />
+        <div className="gradient-orb w-[250px] h-[250px] top-[40%] right-[30%] opacity-20 animate-float-slow" style={{ background: 'radial-gradient(circle, rgba(15,184,158,0.2) 0%, transparent 70%)' }} />
+        
+        {/* Subtle dot grid */}
+        <div className="absolute inset-0 opacity-[0.25] pointer-events-none"
+          style={{ backgroundImage: 'radial-gradient(circle, #d0d5dd 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+        
         <div className="relative max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
             <div className="lg:col-span-5">
-              <h6 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-4">
-                Hotel Operations Software
-              </h6>
-              <h1 className="text-[40px] md:text-[56px] lg:text-[60px] leading-[1.05] font-black tracking-tight text-gray-900 mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border border-teal-200 bg-teal-50/50 animate-scale-in" style={{ animationDelay: '0.1s' }}>
+                <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+                <span className="text-[12px] font-bold text-teal-700 tracking-wide uppercase">Hotel Operations Software</span>
+              </div>
+              <h1 className="text-[40px] md:text-[56px] lg:text-[60px] leading-[1.05] font-black tracking-tight text-gray-900 mb-6 animate-scale-in" style={{ animationDelay: '0.2s' }}>
                 One Solution.<br />
-                <span style={{ color: '#0D9488' }}>Built For Independent Hotels.</span>
+                <span className="shimmer-text">Built For Independent Hotels.</span>
               </h1>
-              <p className="text-[18px] text-gray-600 leading-relaxed mb-8">
+              <p className="text-[18px] text-gray-600 leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s' }}>
                 Attenda is the all-in-one operating system for independent hotels — instant guest requests, live GPS shuttle tracking, Uber Direct food delivery, and staff operations in one thread. No app. No rip-and-replace.
               </p>
-              <a href="#demo"
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-[16px] transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
-                style={{ backgroundColor: '#15b79e', color: '#000' }}>
-                Schedule a Demo <ArrowRight size={18} />
-              </a>
-              <p className="text-[13px] text-gray-500 mt-4">
-                15-minute call. No slide deck. No commitment.
-              </p>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-scale-in" style={{ animationDelay: '0.4s' }}>
+                <a href="#demo"
+                  className="animate-pulse-glow inline-flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-[16px] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]"
+                  style={{ backgroundColor: '#15b79e', color: '#000' }}>
+                  Schedule a Demo <ArrowRight size={18} />
+                </a>
+                <a href="#platform" className="text-[14px] font-semibold text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-1 group">
+                  See the platform <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
+                </a>
+              </div>
+              
+              {/* Floating trust stats */}
+              <div className="mt-10 flex items-center gap-6 animate-scale-in" style={{ animationDelay: '0.5s' }}>
+                <div className="flex items-center gap-2">
+                  <div className="flex -space-x-2">
+                    {[1,2,3,4].map(i => (
+                      <div key={i} className="w-8 h-8 rounded-full border-2 border-white shadow-sm" style={{ background: `linear-gradient(135deg, #${['0D9488','15b79e','0f766e','14b8a6'][i-1]} 0%, #${['0f766e','0D9488','15b79e','0D9488'][i-1]} 100%)` }} />
+                    ))}
+                  </div>
+                  <p className="text-[12px] text-gray-500 font-medium"><span className="text-gray-900 font-bold">3+</span> properties live</p>
+                </div>
+                <div className="h-6 w-px bg-gray-200" />
+                <div className="flex items-center gap-1">
+                  {[1,2,3,4,5].map(i => (
+                    <svg key={i} width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 0.75L8.75 5.25H13.5L9.5 8.25L10.75 12.75L7 9.75L3.25 12.75L4.5 8.25L0.5 5.25H5.25L7 0.75Z" fill="#f59e0b"/></svg>
+                  ))}
+                  <span className="text-[12px] text-gray-500 font-medium ml-1">Rated <span className="text-gray-900 font-bold">5.0</span> by hotel operators</span>
+                </div>
+              </div>
             </div>
-            <div className="lg:col-span-6 lg:col-start-7">
-              <HeaderMockup />
+            <div className="lg:col-span-6 lg:col-start-7 relative">
+              {/* Floating phone mockups */}
+              <div className="relative animate-float" style={{ animationDelay: '0.5s' }}>
+                <HeaderMockup />
+              </div>
+              {/* Floating badge */}
+              <div className="absolute -bottom-4 -left-4 glass rounded-2xl px-4 py-3 shadow-premium animate-float-slow hidden lg:flex items-center gap-3" style={{ animationDelay: '1s' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#0D948820' }}>
+                  <CheckCircle size={20} className="text-teal-600" />
+                </div>
+                <div>
+                  <p className="text-[12px] font-bold text-gray-900">Live Tracking</p>
+                  <p className="text-[11px] text-gray-500">Bouncie GPS connected</p>
+                </div>
+              </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* STATS BAR — floating glass stats */}
+      <section className="relative z-10 -mt-8 mb-16 px-5">
+        <div className="max-w-5xl mx-auto">
+          <div className="glass rounded-3xl px-6 py-6 md:px-10 md:py-8 shadow-premium grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0">
+            {[
+              { value: '4,258+', label: 'Requests Processed', sub: 'Since launch' },
+              { value: '38', label: 'Staff Active', sub: 'Across 3 properties' },
+              { value: '11', label: 'Days to Live', sub: 'Average onboarding' },
+              { value: '$16K+', label: 'Revenue Captured', sub: 'In 4 months' },
+            ].map((stat, i) => (
+              <div key={i} className={`text-center ${i < 3 ? 'md:border-r md:border-gray-200/60' : ''} px-4`}>
+                <p className="text-[26px] md:text-[32px] font-black text-gray-900 leading-tight">{stat.value}</p>
+                <p className="text-[13px] font-semibold text-gray-700 mt-0.5">{stat.label}</p>
+                <p className="text-[11px] text-gray-400">{stat.sub}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -464,24 +526,29 @@ function AttendaLandingPage() {
             </p>
           </Reveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { icon: QrCode, title: 'Zero apps for guests', desc: 'Scan the QR — tap to request towels, housekeeping, or maintenance. One tap, instant delivery to the front desk. No download, no account.' },
-              { icon: Bus, title: 'Live GPS shuttle tracking', desc: 'Bouncie integration shows real-time shuttle location, speed, ETA to hotel, and today\'s trip log. Arrival alerts when the shuttle is 0.5 mi away.' },
-              { icon: Truck, title: 'Uber Direct food delivery', desc: 'Partner restaurants, Uber last-mile delivery. Guest picks "Pay via Uber" at checkout. Uber tracks the courier; the hotel earns its share on every order.' },
-              { icon: ClipboardList, title: 'One thread for the property', desc: 'Guest request → staff task → vendor job → GM dashboard. No radio calls, no missed handoffs, no sticky notes.' },
-              { icon: Users, title: 'Guest identity without PMS', desc: 'Guests enter name + checkout date once. Session persists until checkout. Staff visually verify against PMS with one tap — no integration required.' },
-              { icon: Globe, title: 'Works alongside your PMS', desc: 'No rip-and-replace. Attenda runs beside your current system from day one. 11 days from contract to live.' },
+              { icon: QrCode, title: 'Zero apps for guests', desc: 'Scan the QR — tap to request towels, housekeeping, or maintenance. One tap, instant delivery to the front desk. No download, no account.', accent: '#0D9488' },
+              { icon: Bus, title: 'Live GPS shuttle tracking', desc: 'Bouncie integration shows real-time shuttle location, speed, ETA to hotel, and today\'s trip log. Arrival alerts when the shuttle is 0.5 mi away.', accent: '#0ea5e9' },
+              { icon: Truck, title: 'Uber Direct food delivery', desc: 'Partner restaurants, Uber last-mile delivery. Guest picks "Pay via Uber" at checkout. Uber tracks the courier; the hotel earns its share on every order.', accent: '#8b5cf6' },
+              { icon: ClipboardList, title: 'One thread for the property', desc: 'Guest request → staff task → vendor job → GM dashboard. No radio calls, no missed handoffs, no sticky notes.', accent: '#f59e0b' },
+              { icon: Users, title: 'Guest identity without PMS', desc: 'Guests enter name + checkout date once. Session persists until checkout. Staff visually verify against PMS with one tap — no integration required.', accent: '#ec4899' },
+              { icon: Globe, title: 'Works alongside your PMS', desc: 'No rip-and-replace. Attenda runs beside your current system from day one. 11 days from contract to live.', accent: '#14b8a6' },
             ].map((item, i) => {
               const ItemIcon = item.icon;
               return (
                 <Reveal key={i} direction="up" delay={(i % 3) * 100}>
-                  <div className="hover-lift h-full bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-lg">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ backgroundColor: `${TEAL}10` }}>
-                      <ItemIcon size={20} style={{ color: TEAL }} />
+                  <div className="group relative h-full bg-white/60 backdrop-blur-sm border border-gray-200/80 rounded-2xl p-7 shadow-premium transition-all duration-500 hover:shadow-premium-hover hover:-translate-y-1 hover:bg-white/90 overflow-hidden">
+                    {/* Accent glow on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(circle at 80% 80%, ${item.accent}08 0%, transparent 70%)` }} />
+                    
+                    <div className="relative">
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-transform duration-500 group-hover:scale-110" style={{ background: `linear-gradient(135deg, ${item.accent}15 0%, ${item.accent}08 100%)` }}>
+                        <ItemIcon size={20} style={{ color: item.accent }} />
+                      </div>
+                      <h4 className="text-[16px] font-black text-gray-900 mb-2 group-hover:text-gray-800 transition-colors">{item.title}</h4>
+                      <p className="text-[13px] text-gray-500 leading-relaxed">{item.desc}</p>
                     </div>
-                    <h4 className="text-[16px] font-black text-gray-900 mb-2">{item.title}</h4>
-                    <p className="text-[14px] text-gray-600 leading-relaxed">{item.desc}</p>
                   </div>
                 </Reveal>
               );
@@ -869,22 +936,39 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* PROVEN RESULTS */}
-      <section className="py-20 px-5 bg-gray-900 text-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-400 mb-3">
-              Proven Results
-            </h2>
-            <h3 className="text-[32px] md:text-[42px] font-black tracking-tight text-white">
-              The bottom line: it works.
+      {/* PROVEN RESULTS — Premium dark with gradient */}
+      <section className="relative py-20 md:py-28 px-5 overflow-hidden">
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(145deg, #111827 0%, #1f2937 40%, #0f766e 100%)' }} />
+        <div className="absolute inset-0 opacity-30"
+          style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(15,184,158,0.15) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(15,184,158,0.1) 0%, transparent 40%)' }} />
+        
+        <div className="relative max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Proven Results</span>
+            </div>
+            <h3 className="text-[36px] md:text-[48px] font-black tracking-tight text-white leading-[1.1]">
+              The bottom line:<br />
+              <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(90deg, #5eead4 0%, #0d9488 100%)' }}>it works.</span>
             </h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            <KpiTileDark value="73%" label="Faster guest response" />
-            <KpiTileDark value="4&rarr;1" label="Tools replaced" />
-            <KpiTileDark value="11" label="Days to live" />
-            <KpiTileDark value="0" label="Apps for guests" />
+            {[
+              { value: '73%', label: 'Faster guest response', icon: '✈️' },
+              { value: '4→1', label: 'Tools replaced', icon: '🔧' },
+              { value: '11', label: 'Days to live', icon: '🚀' },
+              { value: '0', label: 'Apps for guests', icon: '📱' },
+            ].map((kpi, i) => (
+              <div key={i} className="relative group">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/5 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-6">
+                  <div className="text-[28px] mb-1">{kpi.icon}</div>
+                  <p className="text-[36px] md:text-[44px] font-black text-white leading-none mb-2">{kpi.value}</p>
+                  <p className="text-[13px] text-gray-400 font-medium">{kpi.label}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
