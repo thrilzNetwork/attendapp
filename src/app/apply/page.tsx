@@ -20,6 +20,7 @@ function ApplyContent() {
   const [contact, setContact] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [businessType, setBusinessType] = useState('');
   const [description, setDescription] = useState('');
   const [hotelField, setHotelField] = useState('');
 
@@ -54,6 +55,7 @@ function ApplyContent() {
           contact,
           phone,
           email,
+          businessType,
           hotel: hotelParam || hotelField,
           message: description,
         }),
@@ -218,6 +220,30 @@ function ApplyContent() {
                   placeholder="you@yourbusiness.com"
                   className="flex-1 text-[14px] text-black placeholder:text-gray-300 outline-none bg-transparent"
                 />
+              </div>
+            </div>
+
+            {/* Business Type */}
+            <div>
+              <label className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                Business Type *
+              </label>
+              <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-teal-500 transition-colors">
+                <Building2 size={15} className="text-gray-400 shrink-0" />
+                <select
+                  required
+                  value={businessType}
+                  onChange={e => setBusinessType(e.target.value)}
+                  className="flex-1 text-[14px] text-black outline-none bg-transparent appearance-none"
+                >
+                  <option value="" disabled>Select your business type</option>
+                  <option value="Restaurant">Restaurant</option>
+                  <option value="Transport">Transport</option>
+                  <option value="Service">Service</option>
+                  <option value="Experience">Experience / Tours</option>
+                  <option value="Brand Partner">Brand Partner</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
             </div>
 

@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
 
     const body = await req.json();
-    const { name, contact, phone, email, hotel } = body;
+    const { name, contact, phone, email, businessType, hotel } = body;
 
     if (!name || !contact || !phone || !email) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
       contact_name: contact,
       contact_phone: phone,
       contact_email: email,
+      business_type: businessType || null,
       hotel_slug: hotel || '',
       status: 'pending',
     });
