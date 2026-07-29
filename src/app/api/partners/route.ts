@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 import { getCaller } from '@/lib/supabase-admin';
 
-const SUPABASE_URL = 'https://bdmmstatrsenidlgjock.supabase.co';
+const SUPABASE_URL = 'https://zhhhyrodqndeyjxveszu.supabase.co';
 
 
 function getServiceClient() {

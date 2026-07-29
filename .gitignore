@@ -57,3 +57,6 @@ scripts/*.mjs
 scripts/*.py
 .env.prod
 .claude/
+
+# Local Netlify folder
+.netlify

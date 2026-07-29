@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, verifySession, isSuperAdmin } from '@/lib/supabase-admin';
 import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
-const SUPABASE_URL = 'https://bdmmstatrsenidlgjock.supabase.co';
+const SUPABASE_URL = 'https://zhhhyrodqndeyjxveszu.supabase.co';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export async function POST(req: NextRequest) {

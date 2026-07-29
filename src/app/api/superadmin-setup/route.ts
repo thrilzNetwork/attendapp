@@ -6,11 +6,11 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
  * POST: create/register superadmin, create hotels, create staff
  * GET: check if superadmin slot exists
  */
-const SUPABASE_URL = 'https://bdmmstatrsenidlgjock.supabase.co';
+const SUPABASE_URL = 'https://zhhhyrodqndeyjxveszu.supabase.co';
 
 async function verifySession(token: string) {
   const { createClient } = await import('@supabase/supabase-js');
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbW1zdGF0cnNlbmlkbGdqb2NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MTE5MjAsImV4cCI6MjA5NDE4NzkyMH0.1pnioO5Y_3pW2LTaYc9aliRwTkGhX2cTNLrK9jI1P-4';
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoaGh5cm9kcW5kZXlqeHZlc3p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNzQ2MzcsImV4cCI6MjEwMDg1MDYzN30.T34AaiMB47koPl2vS4-skLLy957cwk2o9rA_U759BJw';
   const anonClient = createClient(SUPABASE_URL, anonKey);
   const { data, error } = await anonClient.auth.getUser(token);
   if (error || !data?.user) return null;
