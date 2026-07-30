@@ -400,7 +400,7 @@ function AttendaLandingPage() {
                       <div key={i} className="w-8 h-8 rounded-full border-2 border-white shadow-sm" style={{ background: `linear-gradient(135deg, #${['0D9488','15b79e','0f766e','14b8a6'][i-1]} 0%, #${['0f766e','0D9488','15b79e','0D9488'][i-1]} 100%)` }} />
                     ))}
                   </div>
-                  <p className="text-[12px] text-gray-500 font-medium"><span className="text-gray-900 font-bold">3+</span> properties live</p>
+                  <p className="text-[12px] text-gray-500 font-medium">Properties live</p>
                 </div>
                 <div className="h-6 w-px bg-gray-200" />
                 <div className="flex items-center gap-1">
@@ -425,86 +425,6 @@ function AttendaLandingPage() {
                   <p className="text-[12px] font-bold text-gray-900">Live Tracking</p>
                   <p className="text-[11px] text-gray-500">Bouncie GPS connected</p>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* STATS BAR — floating glass stats */}
-      <section className="relative z-10 -mt-8 mb-16 px-5">
-        <div className="max-w-5xl mx-auto">
-          <div className="glass rounded-3xl px-6 py-6 md:px-10 md:py-8 shadow-premium grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0">
-            {[
-              { value: '4,258+', label: 'Requests Processed', sub: 'Since launch' },
-              { value: '38', label: 'Staff Active', sub: 'Across 3 properties' },
-              { value: '11', label: 'Days to Live', sub: 'Average onboarding' },
-              { value: '$16K+', label: 'Revenue Captured', sub: 'In 4 months' },
-            ].map((stat, i) => (
-              <div key={i} className={`text-center ${i < 3 ? 'md:border-r md:border-gray-200/60' : ''} px-4`}>
-                <p className="text-[26px] md:text-[32px] font-black text-gray-900 leading-tight">{stat.value}</p>
-                <p className="text-[13px] font-semibold text-gray-700 mt-0.5">{stat.label}</p>
-                <p className="text-[11px] text-gray-400">{stat.sub}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* QR ONBOARDING — real photo showcase */}
-      <section className="py-20 md:py-28 px-5 overflow-hidden relative">
-        <div className="absolute inset-0 opacity-[0.2] pointer-events-none"
-          style={{ backgroundImage: 'radial-gradient(circle, #d0d5dd 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
-        <div className="relative max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <div className="relative">
-              <Image 
-                src="/images/qr-code-scan.jpg" 
-                alt="Guest scanning QR code in hotel room"
-                width={540} 
-                height={670} 
-                className="rounded-3xl shadow-premium object-cover"
-              />
-              <div className="absolute -bottom-6 -right-6 glass rounded-2xl px-5 py-4 shadow-premium hidden lg:block">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, #0D948820 0%, #0D948810 100%)` }}>
-                    <QrCode size={20} style={{ color: '#0D9488' }} />
-                  </div>
-                  <div>
-                    <p className="text-[12px] font-bold text-gray-900">Instant Access</p>
-                    <p className="text-[11px] text-gray-500">No download required</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="lg:pl-4">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border border-teal-200 bg-teal-50/50">
-                <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-                <span className="text-[12px] font-bold text-teal-700 tracking-wide uppercase">Zero Friction Onboarding</span>
-              </div>
-              <h2 className="text-[32px] md:text-[42px] font-black tracking-tight text-gray-900 mb-5 leading-[1.1]">
-                One scan.<br />
-                <span className="shimmer-text">Everything in their browser.</span>
-              </h2>
-              <p className="text-[17px] text-gray-600 leading-relaxed mb-8">
-                Guests scan a QR code in the room and instantly access the full hotel experience — requests, shuttle booking, food ordering, and local recommendations. No app store. No download. No account creation.
-              </p>
-              <div className="space-y-4">
-                {[
-                  { num: '01', title: 'Scan the QR', desc: 'One tap opens the mobile web app instantly in their browser.' },
-                  { num: '02', title: 'Enter checkout date', desc: 'Name + checkout date entered once. Session persists until check-out.' },
-                  { num: '03', title: 'Access everything', desc: 'Requests, shuttle, food, and local tips — all in one thread.' },
-                ].map((step, i) => (
-                  <div key={i} className="flex items-start gap-4 group">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors" style={{ backgroundColor: `${TEAL}15` }}>
-                      <span className="text-[11px] font-black" style={{ color: TEAL }}>{step.num}</span>
-                    </div>
-                    <div>
-                      <p className="text-[15px] font-bold text-gray-900 group-hover:text-teal-700 transition-colors">{step.title}</p>
-                      <p className="text-[13px] text-gray-500">{step.desc}</p>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           </div>
