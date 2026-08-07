@@ -233,11 +233,11 @@ END $$;
 -- ─── HOTELS ─────────────────────────────────────────────────────
 CREATE POLICY hotels_select ON public.hotels FOR SELECT USING (true);
 CREATE POLICY hotels_insert ON public.hotels FOR INSERT
-  WITH CHECK (public.is_superadmin()));
+  WITH CHECK (public.is_superadmin());
 CREATE POLICY hotels_update ON public.hotels FOR UPDATE
   USING (public.is_superadmin() OR (auth.role() = 'authenticated' AND public.get_user_hotel_id() = hotel_id::text));
 CREATE POLICY hotels_delete ON public.hotels FOR DELETE
-  USING (public.is_superadmin()));
+  USING (public.is_superadmin());
 
 -- ─── REQUESTS (guest-created, staff-managed) ───────────────────
 CREATE POLICY requests_select ON public.requests FOR SELECT USING (true);
@@ -353,16 +353,16 @@ CREATE POLICY staff_accounts_read_own_email ON public.staff_accounts
 
 CREATE POLICY staff_accounts_select_hotel ON public.staff_accounts
   FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 
 CREATE POLICY staff_accounts_insert ON public.staff_accounts FOR INSERT
-  WITH CHECK (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  WITH CHECK (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 
 CREATE POLICY staff_accounts_update ON public.staff_accounts FOR UPDATE
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 
 CREATE POLICY staff_accounts_delete ON public.staff_accounts FOR DELETE
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 
 -- ─── STAFF_SCHEDULES ──────────────────────────────────────────
 CREATE POLICY staff_schedules_select ON public.staff_schedules FOR SELECT
@@ -376,7 +376,7 @@ CREATE POLICY staff_schedules_delete ON public.staff_schedules FOR DELETE
 
 -- ─── STAFF_CHECKLISTS ──────────────────────────────────────────
 CREATE POLICY staff_checklists_select ON public.staff_checklists FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY staff_checklists_insert ON public.staff_checklists FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY staff_checklists_update ON public.staff_checklists FOR UPDATE
@@ -386,7 +386,7 @@ CREATE POLICY staff_checklists_delete ON public.staff_checklists FOR DELETE
 
 -- ─── STAFF_CHECKLIST_INSTANCES ────────────────────────────────
 CREATE POLICY staff_checklist_instances_select ON public.staff_checklist_instances FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY staff_checklist_instances_insert ON public.staff_checklist_instances FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY staff_checklist_instances_update ON public.staff_checklist_instances FOR UPDATE
@@ -406,7 +406,7 @@ CREATE POLICY staff_positions_delete ON public.staff_positions FOR DELETE
 
 -- ─── STAFF_RDO_REQUESTS ───────────────────────────────────────
 CREATE POLICY staff_rdo_requests_select ON public.staff_rdo_requests FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY staff_rdo_requests_insert ON public.staff_rdo_requests FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY staff_rdo_requests_update ON public.staff_rdo_requests FOR UPDATE
@@ -416,7 +416,7 @@ CREATE POLICY staff_rdo_requests_delete ON public.staff_rdo_requests FOR DELETE
 
 -- ─── STAFF_BIRTHDAYS ──────────────────────────────────────────
 CREATE POLICY staff_birthdays_select ON public.staff_birthdays FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY staff_birthdays_insert ON public.staff_birthdays FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY staff_birthdays_update ON public.staff_birthdays FOR UPDATE
@@ -424,13 +424,13 @@ CREATE POLICY staff_birthdays_update ON public.staff_birthdays FOR UPDATE
 
 -- ─── STAFF_EVENTS ─────────────────────────────────────────────
 CREATE POLICY staff_events_select ON public.staff_events FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY staff_events_insert ON public.staff_events FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 
 -- ─── STAFF_INCENTIVES ─────────────────────────────────────────
 CREATE POLICY staff_incentives_select ON public.staff_incentives FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY staff_incentives_insert ON public.staff_incentives FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY staff_incentives_update ON public.staff_incentives FOR UPDATE
@@ -438,19 +438,19 @@ CREATE POLICY staff_incentives_update ON public.staff_incentives FOR UPDATE
 
 -- ─── STAFF_POINTS ────────────────────────────────────────────
 CREATE POLICY staff_points_select ON public.staff_points FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY staff_points_insert ON public.staff_points FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 
 -- ─── STAFF_REDEMPTIONS ────────────────────────────────────────
 CREATE POLICY staff_redemptions_select ON public.staff_redemptions FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY staff_redemptions_insert ON public.staff_redemptions FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 
 -- ─── HOTEL_OPS_TOOLS ──────────────────────────────────────────
 CREATE POLICY hotel_ops_tools_select ON public.hotel_ops_tools FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY hotel_ops_tools_insert ON public.hotel_ops_tools FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY hotel_ops_tools_update ON public.hotel_ops_tools FOR UPDATE
@@ -470,7 +470,7 @@ CREATE POLICY hotel_knowledge_base_delete ON public.hotel_knowledge_base FOR DEL
 
 -- ─── COMPSET_HOTELS ───────────────────────────────────────────
 CREATE POLICY compset_hotels_select ON public.compset_hotels FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY compset_hotels_insert ON public.compset_hotels FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY compset_hotels_update ON public.compset_hotels FOR UPDATE
@@ -480,7 +480,7 @@ CREATE POLICY compset_hotels_delete ON public.compset_hotels FOR DELETE
 
 -- ─── COMPSET_CALL_TIMES ───────────────────────────────────────
 CREATE POLICY compset_call_times_select ON public.compset_call_times FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY compset_call_times_insert ON public.compset_call_times FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY compset_call_times_update ON public.compset_call_times FOR UPDATE
@@ -490,7 +490,7 @@ CREATE POLICY compset_call_times_delete ON public.compset_call_times FOR DELETE
 
 -- ─── COMPSET_ENTRIES ─────────────────────────────────────────
 CREATE POLICY compset_entries_select ON public.compset_entries FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY compset_entries_insert ON public.compset_entries FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY compset_entries_update ON public.compset_entries FOR UPDATE
@@ -500,7 +500,7 @@ CREATE POLICY compset_entries_delete ON public.compset_entries FOR DELETE
 
 -- ─── CALL_AROUND_LOGS ────────────────────────────────────────
 CREATE POLICY call_around_logs_select ON public.call_around_logs FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY call_around_logs_insert ON public.call_around_logs FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY call_around_logs_update ON public.call_around_logs FOR UPDATE
@@ -510,7 +510,7 @@ CREATE POLICY call_around_logs_delete ON public.call_around_logs FOR DELETE
 
 -- ─── DAILY_LOGS ───────────────────────────────────────────────
 CREATE POLICY daily_logs_select ON public.daily_logs FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY daily_logs_insert ON public.daily_logs FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY daily_logs_update ON public.daily_logs FOR UPDATE
@@ -520,7 +520,7 @@ CREATE POLICY daily_logs_delete ON public.daily_logs FOR DELETE
 
 -- ─── NO_SHOWS ────────────────────────────────────────────────
 CREATE POLICY no_shows_select ON public.no_shows FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY no_shows_insert ON public.no_shows FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY no_shows_update ON public.no_shows FOR UPDATE
@@ -530,7 +530,7 @@ CREATE POLICY no_shows_delete ON public.no_shows FOR DELETE
 
 -- ─── ROOM_MOVES ───────────────────────────────────────────────
 CREATE POLICY room_moves_select ON public.room_moves FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY room_moves_insert ON public.room_moves FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY room_moves_update ON public.room_moves FOR UPDATE
@@ -540,7 +540,7 @@ CREATE POLICY room_moves_delete ON public.room_moves FOR DELETE
 
 -- ─── BANK_COUNTS ─────────────────────────────────────────────
 CREATE POLICY bank_counts_select ON public.bank_counts FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY bank_counts_insert ON public.bank_counts FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY bank_counts_update ON public.bank_counts FOR UPDATE
@@ -550,7 +550,7 @@ CREATE POLICY bank_counts_delete ON public.bank_counts FOR DELETE
 
 -- ─── WEEKLY_FORECASTS ─────────────────────────────────────────
 CREATE POLICY weekly_forecasts_select ON public.weekly_forecasts FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY weekly_forecasts_insert ON public.weekly_forecasts FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY weekly_forecasts_update ON public.weekly_forecasts FOR UPDATE
@@ -560,7 +560,7 @@ CREATE POLICY weekly_forecasts_delete ON public.weekly_forecasts FOR DELETE
 
 -- ─── VENDORS ─────────────────────────────────────────────────
 CREATE POLICY vendors_select ON public.vendors FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY vendors_insert ON public.vendors FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY vendors_update ON public.vendors FOR UPDATE
@@ -570,7 +570,7 @@ CREATE POLICY vendors_delete ON public.vendors FOR DELETE
 
 -- ─── VENDOR_ORDERS ───────────────────────────────────────────
 CREATE POLICY vendor_orders_select ON public.vendor_orders FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY vendor_orders_insert ON public.vendor_orders FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY vendor_orders_update ON public.vendor_orders FOR UPDATE
@@ -580,7 +580,7 @@ CREATE POLICY vendor_orders_delete ON public.vendor_orders FOR DELETE
 
 -- ─── VENDOR_ORDER_GUIDE ──────────────────────────────────────
 CREATE POLICY vendor_order_guide_select ON public.vendor_order_guide FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY vendor_order_guide_insert ON public.vendor_order_guide FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY vendor_order_guide_update ON public.vendor_order_guide FOR UPDATE
@@ -590,7 +590,7 @@ CREATE POLICY vendor_order_guide_delete ON public.vendor_order_guide FOR DELETE
 
 -- ─── VENDOR_ORDER_ITEMS ──────────────────────────────────────
 CREATE POLICY vendor_order_items_select ON public.vendor_order_items FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY vendor_order_items_insert ON public.vendor_order_items FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY vendor_order_items_update ON public.vendor_order_items FOR UPDATE
@@ -598,7 +598,7 @@ CREATE POLICY vendor_order_items_update ON public.vendor_order_items FOR UPDATE
 
 -- ─── VENDOR_EVENTS ───────────────────────────────────────────
 CREATE POLICY vendor_events_select ON public.vendor_events FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY vendor_events_insert ON public.vendor_events FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY vendor_events_update ON public.vendor_events FOR UPDATE
@@ -608,7 +608,7 @@ CREATE POLICY vendor_events_delete ON public.vendor_events FOR DELETE
 
 -- ─── VENDOR_EXPENSES ─────────────────────────────────────────
 CREATE POLICY vendor_expenses_select ON public.vendor_expenses FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY vendor_expenses_insert ON public.vendor_expenses FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY vendor_expenses_update ON public.vendor_expenses FOR UPDATE
@@ -636,7 +636,7 @@ CREATE POLICY position_todo_items_delete ON public.position_todo_items FOR DELET
 
 -- ─── POSITION_TODO_INSTANCES ─────────────────────────────────
 CREATE POLICY position_todo_instances_select ON public.position_todo_instances FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY position_todo_instances_insert ON public.position_todo_instances FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY position_todo_instances_update ON public.position_todo_instances FOR UPDATE
@@ -646,7 +646,7 @@ CREATE POLICY position_todo_instances_delete ON public.position_todo_instances F
 
 -- ─── POSITION_TODO_RESPONSES ─────────────────────────────────
 CREATE POLICY position_todo_responses_select ON public.position_todo_responses FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY position_todo_responses_insert ON public.position_todo_responses FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY position_todo_responses_update ON public.position_todo_responses FOR UPDATE
@@ -665,9 +665,9 @@ CREATE POLICY blog_posts_delete ON public.blog_posts FOR DELETE
 
 -- ops_tools: global reference, superadmin manages
 CREATE POLICY ops_tools_select ON public.ops_tools FOR SELECT USING (true);
-CREATE POLICY ops_tools_insert ON public.ops_tools FOR INSERT WITH CHECK (public.is_superadmin()));
-CREATE POLICY ops_tools_update ON public.ops_tools FOR UPDATE USING (public.is_superadmin()));
-CREATE POLICY ops_tools_delete ON public.ops_tools FOR DELETE USING (public.is_superadmin()));
+CREATE POLICY ops_tools_insert ON public.ops_tools FOR INSERT WITH CHECK (public.is_superadmin());
+CREATE POLICY ops_tools_update ON public.ops_tools FOR UPDATE USING (public.is_superadmin());
+CREATE POLICY ops_tools_delete ON public.ops_tools FOR DELETE USING (public.is_superadmin());
 
 -- kpi_packs / todo_packs: global, authenticated read
 CREATE POLICY kpi_packs_select ON public.kpi_packs FOR SELECT USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
@@ -675,14 +675,14 @@ CREATE POLICY todo_packs_select ON public.todo_packs FOR SELECT USING (auth.role
 
 -- kpi_pack_installs / todo_pack_installs: hotel-scoped
 CREATE POLICY kpi_pack_installs_select ON public.kpi_pack_installs FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY kpi_pack_installs_insert ON public.kpi_pack_installs FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY kpi_pack_installs_update ON public.kpi_pack_installs FOR UPDATE
   USING (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 
 CREATE POLICY todo_pack_installs_select ON public.todo_pack_installs FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY todo_pack_installs_insert ON public.todo_pack_installs FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY todo_pack_installs_update ON public.todo_pack_installs FOR UPDATE
@@ -690,29 +690,29 @@ CREATE POLICY todo_pack_installs_update ON public.todo_pack_installs FOR UPDATE
 
 -- ─── ATTENDA_FEES (hotel-scoped) ─────────────────────────────
 CREATE POLICY attenda_fees_select ON public.attenda_fees FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 
 -- ─── PAYOUT_LEDGER (hotel-scoped, superadmin manages) ────────
 CREATE POLICY payout_ledger_select ON public.payout_ledger FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY payout_ledger_insert ON public.payout_ledger FOR INSERT
-  WITH CHECK (public.is_superadmin()));
+  WITH CHECK (public.is_superadmin());
 CREATE POLICY payout_ledger_update ON public.payout_ledger FOR UPDATE
-  USING (public.is_superadmin()));
+  USING (public.is_superadmin());
 
 -- ─── SUPERADMIN_CONFIG ───────────────────────────────────────
 CREATE POLICY superadmin_config_select ON public.superadmin_config FOR SELECT
-  USING (public.is_superadmin()));
+  USING (public.is_superadmin());
 CREATE POLICY superadmin_config_insert ON public.superadmin_config FOR INSERT
-  WITH CHECK (public.is_superadmin()));
+  WITH CHECK (public.is_superadmin());
 CREATE POLICY superadmin_config_update ON public.superadmin_config FOR UPDATE
-  USING (public.is_superadmin()));
+  USING (public.is_superadmin());
 CREATE POLICY superadmin_config_delete ON public.superadmin_config FOR DELETE
-  USING (public.is_superadmin()));
+  USING (public.is_superadmin());
 
 -- ─── BOUNCIE TABLES (hotel-scoped) ────────────────────────────
 CREATE POLICY bouncie_connections_select ON public.bouncie_connections FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY bouncie_connections_insert ON public.bouncie_connections FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY bouncie_connections_update ON public.bouncie_connections FOR UPDATE
@@ -721,7 +721,7 @@ CREATE POLICY bouncie_connections_delete ON public.bouncie_connections FOR DELET
   USING (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 
 CREATE POLICY bouncie_devices_select ON public.bouncie_devices FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY bouncie_devices_insert ON public.bouncie_devices FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 CREATE POLICY bouncie_devices_update ON public.bouncie_devices FOR UPDATE
@@ -730,9 +730,9 @@ CREATE POLICY bouncie_devices_delete ON public.bouncie_devices FOR DELETE
   USING (auth.role() = 'authenticated' AND (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
 
 CREATE POLICY bouncie_locations_select ON public.bouncie_locations FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 CREATE POLICY bouncie_trips_select ON public.bouncie_trips FOR SELECT
-  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin()));
+  USING (hotel_id::text = public.get_user_hotel_id() OR public.is_superadmin());
 
 
 -- ═════════════════════════════════════════════════════════════════
