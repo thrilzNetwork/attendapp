@@ -2626,7 +2626,7 @@ function GuestHomePreview({ color, hotelName }: { color: string; hotelName: stri
         {/* Rewards banner */}
         <div className="mx-1.5 rounded-xl overflow-hidden" style={{ height: 44, backgroundColor: color, opacity: 0.15 }}>
           <div className="flex items-end h-full px-2 pb-1">
-            <span className="text-[6px] font-bold" style={{ color }}>BEST WESTERN REWARDS</span>
+            <span className="text-[6px] font-bold" style={{ color }}>LOYALTY REWARDS</span>
           </div>
         </div>
         {/* Bottom row */}

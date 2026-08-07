@@ -43,7 +43,7 @@ export interface HotelConfig {
 }
 
 const DEFAULT_CONFIG: HotelConfig = {
-  name: 'Best Western - Attenda Hotel',
+  name: 'Attenda Hotel',
   wifiName: 'Attenda-Guest',
   wifiPassword: 'welcome2026',
   frontDeskPhone: '(305) 555-0100',

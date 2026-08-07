@@ -197,14 +197,14 @@ function HotelGuestApp({
           <span className="text-[11px] font-bold text-white tracking-[0.12em] uppercase">SAFETY</span>
         </button>
       </div>
-      <a href="https://www.bestwestern.com/rewards/join.html" target="_blank" rel="noopener noreferrer"
+      <a href="/nearby?tab=attractions"
         className="w-full h-full block min-h-0 rounded-2xl overflow-hidden shadow-sm active:scale-[0.97]">
         <div className="relative w-full h-full rounded-2xl overflow-hidden">
           <Image src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&fit=crop&q=80"
-            alt="Rewards" fill className="object-cover" sizes="100vw" />
+            alt="Local attractions" fill className="object-cover" sizes="100vw" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
           <div className="absolute bottom-2 left-3">
-            <span className="text-[13px] font-bold text-white tracking-wider">BEST WESTERN REWARDS</span>
+            <span className="text-[13px] font-bold text-white tracking-wider">EXPLORE LOCAL</span>
           </div>
         </div>
       </a>
@@ -275,6 +275,7 @@ function HotelGuestApp({
       <GuestSheet open={openSheet === 'review'} onClose={closeSheet} title="Leave a Review">
         <ReviewSheetContent onClose={closeSheet} />
       </GuestSheet>
+      <p className="text-center text-[9px] text-gray-300 pb-1">This property is independently owned and operated.</p>
     </div>
   );
 }
@@ -1409,6 +1410,7 @@ function AttendaLandingPage() {
             </div>
             <div className="text-[12px] text-gray-500">
               &copy; 2026 Attenda. All rights reserved.
+              <p className="text-[10px] text-gray-400 mt-1">This property is independently owned and operated.</p>
             </div>
           </div>
         </div>
@@ -1826,7 +1828,6 @@ function LogoStrip() {
   const items = [
     { name: 'Google Reviews', color: '#4285F4', abbr: 'G' },
     { name: 'Stripe', color: '#635BFF', abbr: 'S' },
-    { name: 'Best Western', color: '#003087', abbr: 'BW' },
     { name: 'TripAdvisor', color: '#00AF87', abbr: 'TA' },
     { name: 'Yelp', color: '#D32323', abbr: 'Y' },
     { name: 'QR Code', color: '#374151', abbr: 'QR' },

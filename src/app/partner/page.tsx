@@ -435,7 +435,7 @@ function RestaurantLandingPage({ urlType: initialUrlType }: { urlType?: string }
                   value={form.hotel}
                   onChange={e => setForm(f => ({ ...f, hotel: e.target.value }))}
                   className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-200"
-                  placeholder="e.g. Best Western Fort Lauderdale"
+                  placeholder="e.g. Your Hotel Fort Lauderdale"
                 />
               </div>
               <div>

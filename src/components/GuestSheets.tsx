@@ -765,6 +765,60 @@ export function SafetySheetContent() {
         <AlertTriangle size={20} className="text-red-600 shrink-0 mt-0.5" />
         <div><p className="text-[13px] font-bold text-red-800 mb-1">In Case of Emergency</p><p className="text-[12px] text-red-700 leading-relaxed">{emergencyMessage} {frontDesk}.</p></div>
       </div>
+      {/* Carbon Monoxide Safety — warning sign + infographic */}
+      <div className="bg-white rounded-2xl overflow-hidden border-2 border-red-300 shadow-sm">
+        {/* Red header bar with warning triangle */}
+        <div className="bg-red-600 px-4 py-3 flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-white/15 rounded flex items-center justify-center shrink-0">
+            <AlertTriangle size={18} className="text-white" />
+          </div>
+          <p className="text-[15px] font-bold text-white uppercase tracking-wide">Carbon Monoxide Safety Tips</p>
+        </div>
+
+        {/* Warning text */}
+        <div className="px-4 pt-3 pb-2 bg-red-50">
+          <p className="text-[12px] text-red-900 font-semibold leading-relaxed">
+            Carbon Monoxide is a colorless, odorless, poisonous gas, and exposure can be fatal.
+          </p>
+        </div>
+
+        {/* Two columns: Symptoms | What to Do */}
+        <div className="grid grid-cols-2 gap-px bg-gray-200">
+          {/* Left: Symptoms */}
+          <div className="bg-white p-3">
+            <p className="text-[11px] font-bold text-red-700 mb-2 uppercase tracking-wider">Symptoms</p>
+            <div className="space-y-1.5">
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-red-500 shrink-0 mt-0.5">▸</span> Headache</p>
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-red-500 shrink-0 mt-0.5">▸</span> Dizziness</p>
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-red-500 shrink-0 mt-0.5">▸</span> Nausea</p>
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-red-500 shrink-0 mt-0.5">▸</span> Confusion</p>
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-red-500 shrink-0 mt-0.5">▸</span> Shortness of breath</p>
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-red-500 shrink-0 mt-0.5">▸</span> Loss of consciousness</p>
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-red-500 shrink-0 mt-0.5">▸</span> Fatigue</p>
+            </div>
+          </div>
+          {/* Right: Do Something About It */}
+          <div className="bg-white p-3">
+            <p className="text-[11px] font-bold text-red-700 mb-2 uppercase tracking-wider">Do something about it</p>
+            <div className="space-y-1.5">
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-orange-500 shrink-0 mt-0.5">▸</span> Never ignore a CO alarm</p>
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-orange-500 shrink-0 mt-0.5">▸</span> Call 911 if you suspect CO poisoning</p>
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-orange-500 shrink-0 mt-0.5">▸</span> Never use a generator or grill inside</p>
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-orange-500 shrink-0 mt-0.5">▸</span> Check fireplace / wood stove ventilation</p>
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-orange-500 shrink-0 mt-0.5">▸</span> Move outside immediately for fresh air</p>
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-orange-500 shrink-0 mt-0.5">▸</span> Keep the person awake</p>
+              <p className="text-[11px] text-gray-800 flex items-start gap-1.5"><span className="text-orange-500 shrink-0 mt-0.5">▸</span> Do not use the phone inside</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom notice — detector reminder */}
+        <div className="bg-red-600 px-4 py-2.5 flex items-center gap-2">
+          <ShieldCheck size={14} className="text-white shrink-0" />
+          <p className="text-[11px] text-white font-semibold">Your room is equipped with a carbon monoxide detector.</p>
+        </div>
+      </div>
+
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
         <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-3 font-semibold">Emergency Contacts</p>
         {emergencyContacts.map((e, i) => (
@@ -809,6 +863,7 @@ export function WelcomeSheetContent() {
         <div className="mt-4 pt-4 border-t border-gray-100">
           <p className="text-[14px] font-bold" style={{ color: BURGUNDY }}>{config.managerName || 'Hotel Manager'}</p>
           <p className="text-[12px] text-gray-400">{config.name}</p>
+          <p className="text-[10px] text-gray-400 mt-1">This property is independently owned and operated.</p>
         </div>
       </div>
       {config.teamPhotoUrl ? (

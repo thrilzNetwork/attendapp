@@ -44,8 +44,8 @@ async function runBootstrap(admin: ReturnType<typeof getSupabaseAdmin>) {
   const { data: hotel } = await admin
     .from('hotels')
     .upsert({
-      slug: 'bw-ftl-10272',
-      name: 'Best Western Fort Lauderdale Airport',
+      slug: 'ftl-10272',
+      name: 'Fort Lauderdale Airport Hotel',
       address: '1700 W Commercial Blvd, Fort Lauderdale, FL 33309',
       admin_phone: '+19547603100',
       room_count: 103,

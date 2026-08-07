@@ -571,18 +571,26 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
   };
 
   const handleUpdateRequest = async (id: string, status: string) => {
-    await updateShuttleRequest(id, { status: status as ShuttleRequest['status'] });
-    await load();
+    try {
+      await updateShuttleRequest(id, { status: status as ShuttleRequest['status'] });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update request');
+    }
   };
 
   const handleReassign = async (id: string) => {
-    await updateShuttleRequest(id, {
-      assigned_driver_id: reassignDriverId || undefined,
-      status: 'assigned',
-    });
-    setReassigningId(null);
-    setReassignDriverId('');
-    await load();
+    try {
+      await updateShuttleRequest(id, {
+        assigned_driver_id: reassignDriverId || null,
+        status: 'assigned',
+      });
+      setReassigningId(null);
+      setReassignDriverId('');
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to reassign driver');
+    }
   };
 
   const handleGenerateSchedule = async () => {

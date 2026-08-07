@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     "hotel operations platform",
     "boutique hotel software",
     "hotel task management",
-    "Best Western operations tool",
+    "independent hotel operations tool",
     "Florida hotel software",
     "hotel revenue tracking",
   ],

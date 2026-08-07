@@ -1012,7 +1012,12 @@ export async function getShuttleRequests(hotelId: string): Promise<ShuttleReques
 export async function updateShuttleRequest(id: string, updates: {
   status?: string; assigned_driver_id?: string | null;
 }) {
-  const { error } = await supabase.from('shuttle_requests').update(updates).eq('id', id);
+  // Build a clean payload — Supabase client omits undefined keys, which is fine.
+  // null explicitly clears the field (e.g., unassigning a driver).
+  const payload: Record<string, unknown> = {};
+  if (updates.status !== undefined) payload.status = updates.status;
+  if (updates.assigned_driver_id !== undefined) payload.assigned_driver_id = updates.assigned_driver_id;
+  const { error } = await supabase.from('shuttle_requests').update(payload).eq('id', id);
   if (error) throw error;
 }
 

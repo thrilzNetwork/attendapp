@@ -653,7 +653,7 @@ export async function deleteShuttleSlot(hotelId: string, id: string): Promise<bo
 
 export interface CallAroundEntry {
   log_date: string;              // YYYY-MM-DD
-  hotel_name: string;            // "Best Western Fort Lauderdale"
+  hotel_name: string;            // "Fort Lauderdale Airport Hotel"
   phone: string;
   contact: string;               // who you spoke to (optional)
   occupancy: string;             // 'High' | 'Low' | 'Sold out' | numeric

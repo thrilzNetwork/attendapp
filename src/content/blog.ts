@@ -101,7 +101,7 @@ export const blogPosts: BlogPost[] = [
     publishedDate: "2026-06-03",
     author: "Alejandro Soria",
     content: [
-      "Marriott spends eight figures on their tech stack. Hilton spends more. They have dedicated IT teams, integration specialists, and a procurement process that takes eighteen months. Independent hotels — 60 rooms, 120 rooms, a GM who also does the scheduling and the purchasing — need something that works within the week.",
+      "Chains spend eight figures on their tech stack. The big brands spend more. They have dedicated IT teams, integration specialists, and a procurement process that takes eighteen months. Independent hotels — 60 rooms, 120 rooms, a GM who also does the scheduling and the purchasing — need something that works within the week.",
       "The gap isn't capability. It's integration. Chains buy best-in-class for every function — PMS here, CRM there, housekeeping board over here — and pay a team to glue them together. Independents buy one system, find out it doesn't do housekeeping well, buy a second, and end up with three logins for one shift.",
       "Here's what an independent hotel actually needs in 2026. One tool for guest requests and communication (QR code, no app). One tool for staff tasks and handoffs. One tool for vendor jobs and invoices. One tool for GM oversight and KPIs. One tool for knowledge and SOPs. And one tool that puts them all on one thread.",
       "That's Attenda. Six tools, one platform, weekly deployment cycle, no IT team required.",

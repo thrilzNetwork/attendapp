@@ -610,7 +610,7 @@ interface PlatformHealth {
                 <input
                   value={form.websiteUrl}
                   onChange={e => setForm({ ...form, websiteUrl: e.target.value })}
-                  placeholder="https://www.bestwestern.com/..."
+                  placeholder="https://yourhotel.com/..."
                   className="flex-1 bg-gray-50 rounded-xl px-3.5 py-3 text-[14px] border border-gray-100 focus:outline-none focus:border-teal-400"
                 />
                 <button

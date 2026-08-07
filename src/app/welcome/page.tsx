@@ -44,7 +44,8 @@ export default function WelcomePage() {
           <p className="text-[13px] text-gray-700 leading-relaxed whitespace-pre-wrap">{config.welcomeLetter || 'Thank you for choosing our hotel. We are delighted to welcome you and hope you have a wonderful stay with us.'}</p>
           <div className="mt-5 pt-5 border-t border-gray-100">
             <p className="text-[14px] font-bold mb-0.5" style={{ color: brandColor }}>{config.managerName || 'Hotel Manager'}</p>
-            <p className="text-[12px] text-gray-400">{config.name || 'Best Western'}</p>
+            <p className="text-[12px] text-gray-400">{config.name || 'Attenda Hotel'}</p>
+            <p className="text-[10px] text-gray-400 mt-1">This property is independently owned and operated.</p>
           </div>
         </div>
 

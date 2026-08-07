@@ -278,7 +278,7 @@ function ApplyContent() {
                     type="text"
                     value={hotelField}
                     onChange={e => setHotelField(e.target.value)}
-                    placeholder="e.g. Miami Airport Marriott"
+                    placeholder="e.g. Miami Airport Hotel"
                     className="flex-1 text-[14px] text-black placeholder:text-gray-300 outline-none bg-transparent"
                   />
                 </div>
