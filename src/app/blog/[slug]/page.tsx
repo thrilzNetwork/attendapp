@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { blogPosts, featuredBlogPosts } from "@/content/blog";
+import { blogPosts, featuredBlogPosts, presenceBlogPost } from "@/content/blog";
 import { ArrowLeft } from "lucide-react";
 
 export default function BlogPostPage({ params }: { params: { slug: string } }) {
-  const post = blogPosts.find((p) => p.slug === params.slug);
+  const post = blogPosts.find((p) => p.slug === params.slug) ?? (params.slug === presenceBlogPost.slug ? presenceBlogPost : undefined);
 
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
@@ -41,9 +41,10 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
     }
   };
 
-  const relatedPosts = featuredBlogPosts
+  const allPosts = [...blogPosts, presenceBlogPost];
+  const relatedPosts = allPosts
     .filter((p) => p.slug !== post.slug)
-    .slice(0, 3);
+    .slice(-3);
 
   return (
     <div className="min-h-screen bg-white font-sans antialiased">

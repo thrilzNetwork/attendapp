@@ -132,3 +132,26 @@ export const blogPosts: BlogPost[] = [
 export const featuredBlogPosts = blogPosts.map(({ slug, num, category, categoryColor, title, problem, readingTime, author }) => ({
   slug, num, category, categoryColor, title, problem, readingTime, author,
 }));
+
+export const presenceBlogPost: BlogPost = {
+  slug: "attenda-presence-never-a-silent-front-desk",
+  num: "07",
+  category: "Product",
+  categoryColor: "#0D9488",
+  title: "Attenda Presence: Never a Silent Front Desk",
+  subtitle: "The two-sided realtime system for single-coverage hotels",
+  problem: "One desk, one staff member, twelve reasons to step away — and no way for guests to know. The fix is Presence: a kiosk display, a phone console, and a log that never lies.",
+  readingTime: "6 min",
+  publishedDate: "2026-08-08",
+  author: "Alejandro Soria",
+  content: [
+    "Most independent hotels run single-coverage front desks. One person. One shift. One desk. That person checks guests in, answers the phone, calls housekeeping, restocks the lobby, walks the property, and takes their break. When they step away — for any reason — the desk is empty. The guest who walks up sees no one. They wait. They leave. They leave a review.",
+    "The problem isn't that staff step away. They should. They have to. The problem is that the desk goes silent. No sign, no countdown, no way to ask for help. The guest stands there guessing whether someone is coming back in thirty seconds or thirty minutes.",
+    "Attenda Presence fixes this with two devices and one realtime channel. A kiosk-locked tablet sits on the front desk. When staff is there, it shows an ambient screen — a clock, hotel info, rotating promos. When staff steps away, the display switches: an amber bar appears with a clear message, a reason, a live countdown, and a button to request assistance. The guest always knows the state of the desk.",
+    "On the staff side, a phone app. One tap to step away — pick a reason (towels, guest assist, restock, property walk, break), pick a duration. The display updates in under a second. If a guest taps the assistance button while the desk is unattended, the staff member's phone vibrates immediately. They acknowledge it, head back, and the event is logged.",
+    "The key design decision: guests never see 'overdue.' The countdown on the guest display floors at zero. If staff is late, the bar stays at 0:00. Overdue is a staff and admin concept — it shows in red on the phone console and in the admin dashboard, never on the guest-facing screen. Guests see calm. Staff see accountability.",
+    "Every away session is logged server-side. Who stepped away, when, for how long, the reason, the estimated duration, the actual duration, and whether it ran overdue. Assist requests are timestamped — when the guest asked, when staff acknowledged, when it was resolved. This is labor-adjacent data, visible to GMs and owners, not to other staff.",
+    "The display is offline-safe. If the network drops, it keeps functioning locally — it caches the last state, queues any assistance taps, and delivers them when the connection returns. No error states visible to guests. The service worker handles it. Staff see 'display offline' on their phone if the heartbeat is missed.",
+    "We're building this for the properties that run lean. The ones where one person holds the desk and every minute away is a minute the guest notices. Presence doesn't add staff. It makes the staff you have visible — to guests, to themselves, and to the people managing the property.",
+  ],
+};

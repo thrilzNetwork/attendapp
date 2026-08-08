@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { featuredBlogPosts } from "@/content/blog";
+import { featuredBlogPosts, presenceBlogPost } from "@/content/blog";
 import { ArrowRight } from "lucide-react";
 
 export default function BlogIndexPage() {
-  const posts = featuredBlogPosts;
+  const posts = [...featuredBlogPosts, { slug: presenceBlogPost.slug, num: presenceBlogPost.num, category: presenceBlogPost.category, categoryColor: presenceBlogPost.categoryColor, title: presenceBlogPost.title, problem: presenceBlogPost.problem, readingTime: presenceBlogPost.readingTime, author: presenceBlogPost.author }];
 
   return (
     <div className="min-h-screen bg-white font-sans antialiased">

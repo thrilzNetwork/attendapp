@@ -309,8 +309,18 @@ function PresenceLanding() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  const [emailError, setEmailError] = useState('');
+
   const handleNotify = () => {
-    if (!email.trim()) return;
+    if (!email.trim()) {
+      setEmailError('Please enter your email.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+    setEmailError('');
     setNotified(true);
   };
 
@@ -325,6 +335,7 @@ function PresenceLanding() {
           </a>
           <div className="hidden md:flex items-center gap-7">
             <a href="#how" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">How it works</a>
+            <a href="/blog" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Blog</a>
             <a href="/staff" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Log in</a>
             <button onClick={() => howRef.current?.scrollIntoView({ behavior: 'smooth' })}
               className="px-5 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all active:scale-[0.97] shadow-sm"
@@ -332,8 +343,11 @@ function PresenceLanding() {
               Get notified
             </button>
           </div>
-          <button onClick={() => howRef.current?.scrollIntoView({ behavior: 'smooth' })} className="md:hidden px-4 py-2 rounded-lg text-white text-[12px] font-bold"
-            style={{ backgroundColor: TEAL }}>Get notified</button>
+          <div className="md:hidden flex items-center gap-3">
+            <a href="/staff" className="text-[13px] text-gray-600 hover:text-gray-900 font-medium">Log in</a>
+            <button onClick={() => howRef.current?.scrollIntoView({ behavior: 'smooth' })} className="px-4 py-2 rounded-lg text-white text-[12px] font-bold"
+              style={{ backgroundColor: TEAL }}>Get notified</button>
+          </div>
         </div>
       </nav>
 
@@ -514,19 +528,23 @@ function PresenceLanding() {
               <p className="text-[14px] text-gray-600">We&rsquo;ll be in touch when Attenda Presence launches.</p>
             </div>
           ) : (
-            <div className="max-w-md mx-auto flex flex-col sm:flex-row gap-3">
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="gm@yourproperty.com"
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-4 text-[15px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-500 transition-colors bg-white"
-              />
-              <button onClick={handleNotify}
-                className="px-8 py-4 rounded-xl text-white font-bold text-[15px] shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
-                style={{ backgroundColor: TEAL }}>
-                Notify me
-              </button>
+            <div className="max-w-md mx-auto flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => { setEmail(e.target.value); setEmailError(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleNotify(); }}
+                  placeholder="gm@yourproperty.com"
+                  className="flex-1 border border-gray-200 rounded-xl px-4 py-4 text-[15px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-500 transition-colors bg-white"
+                />
+                <button onClick={handleNotify}
+                  className="px-8 py-4 rounded-xl text-white font-bold text-[15px] shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+                  style={{ backgroundColor: TEAL }}>
+                  Notify me
+                </button>
+              </div>
+              {emailError && <p className="text-[13px] text-red-500 font-medium text-left">{emailError}</p>}
             </div>
           )}
         </div>
