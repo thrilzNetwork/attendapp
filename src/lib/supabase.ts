@@ -1109,6 +1109,15 @@ export async function updateStaffDetails(id: string, updates: {
   await callStaffApi({ action: 'update', staffId: id, updates });
 }
 
+export async function setStaffPassword(id: string, password: string) {
+  await callStaffApi({ action: 'set_password', staffId: id, updates: { password } });
+}
+
+export async function resetAllStaffPasswords(tempPassword?: string): Promise<{ updated: number; skipped: string[]; temp_password: string }> {
+  const res = await callStaffApi({ action: 'reset_all_passwords', updates: { temp_password: tempPassword } });
+  return { updated: res.updated || 0, skipped: res.skipped || [], temp_password: res.temp_password || '' };
+}
+
 // ─── Knowledge Base ──────────────────────────────────────
 
 export interface KnowledgeEntry {

@@ -36,10 +36,16 @@ function ResetPasswordContent() {
     setLoading(true);
     setError('');
     try {
-      const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/staff/reset-password`,
+      // Send a fully Attenda-branded reset email via our custom endpoint,
+      // instead of supabase.auth.resetPasswordForEmail() which triggers an
+      // un-branded Supabase email.
+      const res = await fetch('/api/staff-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       });
-      if (err) throw err;
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Could not send reset email.');
       setSent(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not send reset email.');

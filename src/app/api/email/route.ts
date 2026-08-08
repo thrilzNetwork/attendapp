@@ -205,6 +205,40 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── 6. Branded password reset ────────────────────────────────
+    if (type === 'password_reset') {
+      const { staffEmail, staffName, hotelName, resetUrl } = data;
+      if (!staffEmail) return NextResponse.json({ ok: true });
+      await getResend().emails.send({
+        from: FROM, to: staffEmail, bcc: [SUPER_BCC],
+        subject: `Reset your Attenda password${hotelName ? ` — ${hotelName}` : ''}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
+            <div style="background:#0D9488;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center">
+              <h1 style="color:white;margin:0;font-size:22px;font-weight:800">Reset your password</h1>
+              <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:14px">${hotelName ? hotelName + ' · ' : ''}Attenda Staff Dashboard</p>
+            </div>
+            <p style="font-size:16px;color:#111;margin-bottom:16px">Hi ${staffName || 'there'},</p>
+            <p style="font-size:14px;color:#444;line-height:1.6;margin-bottom:24px">
+              We received a request to reset your Attenda password. Click the button below to choose a new one.
+              This link expires in 1 hour.
+            </p>
+            <a href="${resetUrl}" style="display:inline-block;background:#0D9488;color:white;padding:14px 28px;border-radius:12px;font-weight:700;font-size:14px;text-decoration:none;margin-bottom:24px">
+              Reset My Password →
+            </a>
+            <p style="font-size:13px;color:#888;line-height:1.6;margin-bottom:24px">
+              If you didn't request this, you can safely ignore this email.
+            </p>
+            <div style="background:#f9fafb;border-radius:10px;padding:20px">
+              <p style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.05em;margin:0 0 6px">Having trouble?</p>
+              <p style="font-size:12px;color:#666;line-height:1.6;margin:0">Open the link above, or copy and paste it into your browser:<br><span style="color:#0D9488;word-break:break-all">${resetUrl}</span></p>
+            </div>
+            <p style="font-size:12px;color:#aaa;text-align:center;margin-top:24px">Powered by Attenda — Hospitality Experience Platform</p>
+          </div>
+        `,
+      });
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('Email send error:', err);

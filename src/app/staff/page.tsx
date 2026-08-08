@@ -37,7 +37,7 @@ import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
   getHotelConfig, updateHotelConfig, HotelConfig,
   getStaffAccounts, getStaffAccountsForHotel, createStaffAccountWithDetails, getStaffAccountByEmail,
-  deleteStaffAccount, updateStaffDetails, updateStaffPermissions, StaffAccount,
+  deleteStaffAccount, updateStaffDetails, updateStaffPermissions, setStaffPassword, resetAllStaffPasswords, StaffAccount,
   getPartners, createPartner, updatePartner, deletePartner, Partner,
   getPartnerMenuItems, createPartnerMenuItem, deletePartnerMenuItem, PartnerMenuItem,
   getQrCodes, createQrCode, deleteQrCode, QrCode as QrCodeRow,
@@ -2164,7 +2164,47 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   const [saveError, setSaveError] = useState('');
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resentId, setResentId] = useState<string | null>(null);
+  // Password reset state
+  const [resettingPwId, setResettingPwId] = useState<string | null>(null);
+  const [resetPwForm, setResetPwForm] = useState<{ id: string; name: string; pw: string } | null>(null);
+  const [resetPwError, setResetPwError] = useState('');
+  const [resetPwSaving, setResetPwSaving] = useState(false);
+  const [resetPwMsg, setResetPwMsg] = useState('');
+  const [resetAllBusy, setResetAllBusy] = useState(false);
+  const [resetAllMsg, setResetAllMsg] = useState('');
   const ALL_PERMS = ['orders', 'messages', 'shuttle', 'knowledge', 'compset', 'marketplace', 'hotel', 'staff_mgmt', 'partners', 'qrcodes'];
+
+  const handleSetPassword = async () => {
+    if (!resetPwForm) return;
+    if (!resetPwForm.pw || resetPwForm.pw.length < 6) { setResetPwError('Password must be at least 6 characters.'); return; }
+    setResetPwSaving(true);
+    setResetPwError('');
+    setResetPwMsg('');
+    try {
+      await setStaffPassword(resetPwForm.id, resetPwForm.pw);
+      setResetPwForm(null);
+      setResetPwMsg(`Password updated for ${resetPwForm.name}.`);
+    } catch (e: unknown) {
+      setResetPwError(e instanceof Error ? e.message : 'Failed to update password.');
+    } finally {
+      setResetPwSaving(false);
+    }
+  };
+
+  const handleResetAll = async () => {
+    if (!confirm('Reset ALL staff passwords to Attenda2026! and force each to set a new one on next login?')) return;
+    setResetAllBusy(true);
+    setResetAllMsg('');
+    try {
+      const res = await resetAllStaffPasswords('Attenda2026!');
+      setResetAllMsg(`Reset ${res.updated} staff password(s). Skipped: ${res.skipped.length ? res.skipped.join(', ') : 'none'}. Staff will set a new password on next login.`);
+      onRefresh();
+    } catch (e: unknown) {
+      setResetAllMsg('Error: ' + (e instanceof Error ? e.message : 'Failed to reset.'));
+    } finally {
+      setResetAllBusy(false);
+    }
+  };
 
   const handleResendInvite = async (s: StaffAccount) => {
     if (!s.email) return;
@@ -2316,7 +2356,18 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
 
   return (
     <div className="p-8 max-w-lg">
-      <h1 className="text-[26px] font-extrabold text-gray-900 mb-6">Staff Management</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-[26px] font-extrabold text-gray-900">Staff Management</h1>
+        <button onClick={handleResetAll} disabled={resetAllBusy}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 text-[11px] font-bold disabled:opacity-50">
+          {resetAllBusy ? 'Resetting...' : 'Reset All Passwords'}
+        </button>
+      </div>
+      {resetAllMsg && (
+        <div className="mb-5 bg-indigo-50 border border-indigo-100 text-indigo-700 text-[12px] font-semibold px-4 py-3 rounded-xl">
+          {resetAllMsg}
+        </div>
+      )}
       <div className="space-y-5">
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
           <h3 className="font-bold text-[15px] mb-3">Add Staff Member</h3>
@@ -2454,6 +2505,10 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
                         {resentId === s.id ? 'Sent!' : resendingId === s.id ? 'Sending...' : 'Resend Invite'}
                       </button>
                     )}
+                    <button onClick={() => { setResetPwForm({ id: s.id!, name: s.name, pw: '' }); setResetPwError(''); setResetPwMsg(''); }}
+                      className="text-[10px] font-bold px-2 py-1 rounded bg-indigo-50 text-indigo-700">
+                      Reset Password
+                    </button>
                     <button onClick={() => handleToggleActive(s)} className="text-[10px] font-bold px-2 py-1 rounded bg-amber-100 text-amber-700">Deactivate</button>
                     <button onClick={() => { if(confirm('Delete?')) { deleteStaffAccount(s.id!); onRefresh(); } }}
                       className="text-red-400"><Trash2 size={13} /></button>
@@ -2581,6 +2636,37 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
           </details>
         )}
       </div>
+
+      {/* Reset single staff password modal */}
+      {resetPwForm && (
+        <div className="fixed inset-0 z-[1000] bg-black/50 flex items-center justify-center p-4" onClick={() => !resetPwSaving && setResetPwForm(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-[17px] font-extrabold text-gray-900 mb-1">Reset Password</h3>
+            <p className="text-[12px] text-gray-500 mb-4">
+              Set a new password for <span className="font-bold text-gray-800">{resetPwForm.name}</span>. They can change it anytime after login.
+            </p>
+            <input
+              type="password"
+              placeholder="New password (min 6 characters)"
+              value={resetPwForm.pw}
+              autoComplete="new-password"
+              onChange={e => { setResetPwForm({ ...resetPwForm, pw: e.target.value }); setResetPwError(''); }}
+              onKeyDown={e => e.key === 'Enter' && handleSetPassword()}
+              className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 focus:outline-none focus:border-teal-400 mb-3"
+            />
+            {resetPwError && <p className="text-[11px] text-red-500 bg-red-50 px-3 py-2 rounded-lg mb-3">{resetPwError}</p>}
+            {resetPwMsg && <p className="text-[11px] text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg mb-3">{resetPwMsg}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => setResetPwForm(null)} disabled={resetPwSaving}
+                className="flex-1 px-4 py-2.5 rounded-xl text-[13px] font-bold text-gray-500 bg-gray-100 disabled:opacity-50">Cancel</button>
+              <button onClick={handleSetPassword} disabled={resetPwSaving}
+                className="flex-1 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                {resetPwSaving ? 'Saving...' : 'Set Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -108,6 +108,77 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // ── Set a staff member's password (admin/superadmin) ──
+    if (action === 'set_password') {
+      if (!staffId || !updates?.password || typeof updates.password !== 'string') {
+        return NextResponse.json({ ok: false, error: 'staffId and password required.' }, { status: 400 });
+      }
+      if (updates.password.length < 6) {
+        return NextResponse.json({ ok: false, error: 'Password must be at least 6 characters.' }, { status: 400 });
+      }
+      if (!(await callerOwnsRow(caller, 'staff_accounts', staffId))) {
+        return NextResponse.json({ ok: false, error: 'Forbidden.' }, { status: 403 });
+      }
+      // Find the auth user id linked to this staff record
+      const { data: staffRow } = await supabaseAdmin
+        .from('staff_accounts')
+        .select('id, email, auth_user_id')
+        .eq('id', staffId)
+        .maybeSingle();
+      if (!staffRow) {
+        return NextResponse.json({ ok: false, error: 'Staff account not found.' }, { status: 404 });
+      }
+      if (!staffRow.auth_user_id) {
+        return NextResponse.json({ ok: false, error: 'This staff member has no linked login yet. Resend their invite so they can set up their account.' }, { status: 400 });
+      }
+      const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(staffRow.auth_user_id, {
+        password: updates.password,
+      });
+      if (authErr) throw new Error(authErr.message || 'Failed to update auth password');
+      return NextResponse.json({ ok: true });
+    }
+
+    // ── Bulk reset ALL staff passwords in the caller's hotel to a generic one ──
+    if (action === 'reset_all_passwords') {
+      if (!scopedHotelId) {
+        return NextResponse.json({ ok: false, error: 'No hotel in scope.' }, { status: 400 });
+      }
+      const tempPassword = (updates?.temp_password as string) || 'Attenda2026!';
+      if (typeof tempPassword !== 'string' || tempPassword.length < 6) {
+        return NextResponse.json({ ok: false, error: 'temp_password must be at least 6 characters.' }, { status: 400 });
+      }
+      // Only hotel admins/managers or superadmins may bulk-reset
+      if (!caller.isSuper) {
+        const { data: callerRow } = await supabaseAdmin
+          .from('staff_accounts')
+          .select('role')
+          .eq('auth_user_id', caller.userId)
+          .maybeSingle();
+        const role = callerRow?.role;
+        if (role !== 'admin' && role !== 'manager' && role !== 'general_manager') {
+          return NextResponse.json({ ok: false, error: 'Only admins may reset staff passwords.' }, { status: 403 });
+        }
+      }
+      // Fetch staff with linked auth users for this hotel
+      const { data: rows, error: listErr } = await supabaseAdmin
+        .from('staff_accounts')
+        .select('id, email, auth_user_id')
+        .eq('hotel_id', scopedHotelId)
+        .not('auth_user_id', 'is', null);
+      if (listErr) throw new Error(listErr.message || 'Failed to list staff');
+      let updated = 0;
+      const skipped: string[] = [];
+      for (const row of rows || []) {
+        const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(row.auth_user_id, {
+          password: tempPassword,
+          user_metadata: { ...(row.email ? {} : {}), force_password_change: true },
+        });
+        if (authErr) skipped.push(row.email || row.id);
+        else updated++;
+      }
+      return NextResponse.json({ ok: true, updated, skipped, temp_password: tempPassword });
+    }
+
     // ── Delete staff ──
     if (action === 'delete') {
       if (!staffId) {
