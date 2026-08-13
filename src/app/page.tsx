@@ -20,7 +20,6 @@ import {
   ShuttleScreenMockup,
   MessagesScreenMockup,
   GuestRequestsMockup,
-  BouncieGPSMockup,
   UberDirectMockup,
 } from '@/components/landing/AppMockups';
 
@@ -1877,26 +1876,6 @@ function CaseStudyBars() {
           <div className="text-[9px] font-bold text-gray-500 mt-1">{b.m}</div>
         </div>
       ))}
-    </div>
-  );
-}
-
-/* ── KPI tile dark (Proven Results strip) ────────────────────── */
-
-function KpiTileDark({ value, label }: { value: string; label: string }) {
-  const numMatch = value.match(/^(\d+)/);
-  const numericTarget = numMatch ? parseInt(numMatch[1]) : 0;
-  const suffix = numMatch ? value.slice(numMatch[0].length) : '';
-  const [count, ref] = useCountUp(numericTarget);
-  const display = numericTarget > 0 ? `${count}${suffix}` : value;
-  return (
-    <div ref={ref} className="border border-gray-700 rounded-2xl p-6">
-      <div
-        className="text-[44px] md:text-[56px] font-black leading-none mb-3 tracking-tight"
-        style={{ color: TEAL }}
-        dangerouslySetInnerHTML={{ __html: display }}
-      />
-      <div className="text-[13px] text-gray-300 uppercase tracking-wider font-semibold">{label}</div>
     </div>
   );
 }

@@ -715,7 +715,7 @@ export default function SchedulesView({
 
         {/* Per-day alerts */}
         <div className="border-t border-gray-100 pt-3">
-          <p className="text-[11px] font-bold text-gray-600 mb-2">This week's staffing issues:</p>
+          <p className="text-[11px] font-bold text-gray-600 mb-2">This week&apos;s staffing issues:</p>
           <div className="space-y-1.5">
             {weekDates.map(date => {
               const f = forecasts.find(x => x.date === date);
