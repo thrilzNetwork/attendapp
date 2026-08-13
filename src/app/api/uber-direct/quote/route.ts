@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDeliveryQuote } from '@/lib/uber-direct';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
+// Without this the GET is prerendered at build time, where UBER_DIRECT_CLIENT_ID
+// is unset — baking a permanent {ok:false, reason:'not_configured'} response into
+// the deploy no matter what the runtime env has.
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   if (!process.env.UBER_DIRECT_CLIENT_ID) {
     return NextResponse.json({ ok: false, reason: 'not_configured' });

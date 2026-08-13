@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { blogPosts, featuredBlogPosts, presenceBlogPost } from "@/content/blog";
+import { blogPosts, presenceBlogPost } from "@/content/blog";
 import { ArrowLeft } from "lucide-react";
 
 export default function BlogPostPage({ params }: { params: { slug: string } }) {
