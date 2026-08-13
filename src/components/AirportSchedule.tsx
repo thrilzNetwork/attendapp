@@ -17,6 +17,7 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
   const [date, setDate] = useState(todayISO());
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [bookError, setBookError] = useState('');
 
   useEffect(() => {
     try {
@@ -51,6 +52,7 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
 
   const handleBook = async () => {
     if (!name.trim() || !room.trim()) return;
+    setBookError('');
     setSubmitting(true);
     try {
       const isVirtual = selected!.id.startsWith('virtual-');
@@ -61,6 +63,16 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
         cfg?.id ? createShuttleRequest({ hotel_id: cfg.id, guest_name: name, room_number: room, pickup_location: cfg.shuttlePickupLocation || 'Hotel Lobby', destination: selected!.route_name || 'Airport', date, time: selected!.departure_time || undefined, pax, status: 'pending' }) : Promise.resolve(),
       ]);
       results.forEach((r, i) => { if (r.status === 'rejected') console.error(`[AirportSchedule] promise[${i}] rejected:`, r.reason); });
+
+      // The shuttle_request row is what the front desk actually works off. If it
+      // didn't persist, the trip was never recorded — never show a confirmation for
+      // it, or the guest waits for a pickup nobody knows about.
+      const requestResult = results[1];
+      if (requestResult.status === 'rejected') {
+        throw requestResult.reason instanceof Error ? requestResult.reason : new Error(String(requestResult.reason));
+      }
+      if (!cfg?.id) throw new Error('Hotel not identified — could not record this trip.');
+
       // Add to guest's local request list so it appears in MY ORDERS
       try {
         const timeLabel = fmt12(selected!.departure_time);
@@ -68,9 +80,12 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
         const existing = JSON.parse(localStorage.getItem('guestRequests') || '[]');
         localStorage.setItem('guestRequests', JSON.stringify([newReq, ...existing]));
       } catch {}
-    } catch (e) { console.error('[AirportSchedule] handleBook error:', e); }
+      setDone(true);
+    } catch (e) {
+      console.error('[AirportSchedule] handleBook error:', e);
+      setBookError(e instanceof Error ? e.message : 'Could not save your booking. Please see the front desk.');
+    }
     setSubmitting(false);
-    setDone(true);
   };
 
   if (loading) return (
@@ -146,6 +161,13 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
           </div>
         </div>
       </div>
+
+      {bookError && (
+        <div className="mt-6 rounded-2xl border-2 border-red-200 bg-red-50 px-4 py-3">
+          <p className="text-[14px] font-bold text-red-700">Booking not saved</p>
+          <p className="text-[13px] text-red-600 mt-0.5">{bookError}</p>
+        </div>
+      )}
 
       <button
         onClick={handleBook}

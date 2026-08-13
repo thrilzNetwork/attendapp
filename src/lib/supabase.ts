@@ -964,10 +964,14 @@ export async function bookShuttleSlot(booking: {
   slot_id: string; guest_name: string; room_number: string; pax?: number; notes?: string;
   price_charged?: number; charge_accepted?: boolean;
 }) {
-  const { data } = await supabase.from('shuttle_bookings').insert({
+  const { data, error } = await supabase.from('shuttle_bookings').insert({
     ...booking, pax: booking.pax || 1, notes: booking.notes || '',
     price_charged: booking.price_charged || 0, charge_accepted: booking.charge_accepted || false,
   }).select().single();
+  // Never swallow this. A denied insert (RLS) or constraint failure used to return
+  // null silently, so the caller showed the guest a confirmation for a trip that was
+  // never recorded. Match createShuttleRequest and throw.
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
@@ -1000,9 +1004,12 @@ export async function createShuttleRequest(req: {
 
 export async function getShuttleRequests(hotelId: string): Promise<ShuttleRequest[]> {
   if (!isUuid(hotelId)) return [];
-  const { data } = await supabase.from('shuttle_requests').select(`
+  const { data, error } = await supabase.from('shuttle_requests').select(`
     *, staff_accounts!left(name)
   `).eq('hotel_id', hotelId).order('created_at', { ascending: false });
+  // A read blocked by RLS returns an error, not rows — without this it looks
+  // identical to "no trips today", which hides the real failure.
+  if (error) console.error('[getShuttleRequests] query failed:', error.message);
   return (data || []).map((r: Record<string, unknown>) => ({
     ...r,
     assigned_driver_name: (r.staff_accounts as Record<string, unknown>)?.name as string || null,
