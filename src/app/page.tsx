@@ -325,7 +325,7 @@ function AttendaLandingPage() {
       {/* ANNOUNCEMENT BAR */}
       <div className="bg-gray-900 text-white text-center py-2 px-4 relative">
         <p className="text-[12px] font-semibold">
-          Live GPS shuttle tracking + instant guest requests → now in production
+          Built by hotel operators, for independent hotels.
         </p>
       </div>
 
@@ -336,11 +336,11 @@ function AttendaLandingPage() {
             <img src="/brand/logo-primary.svg" alt="Attenda" height={36} style={{ height: 36, width: 'auto' }} />
           </a>
           <div className="hidden md:flex items-center gap-7">
-            <a href="#platform" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Platform</a>
-            <a href="#modules" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Software</a>
+            <a href="#pillars" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Platform</a>
+            <a href="#modules" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Product</a>
             <a href="#case-study" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Case Study</a>
-            <a href="/blog" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Blog</a>
-            <a href="#demo" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Resources</a>
+            <a href="/blog" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Field Notes</a>
+            <a href="#founder" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">About</a>
             <a href="/staff" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Log in</a>
             <button onClick={() => scrollTo(enrollRef)}
               className="px-5 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all active:scale-[0.97] shadow-sm"
@@ -369,14 +369,14 @@ function AttendaLandingPage() {
             <div className="lg:col-span-5">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border border-teal-200 bg-teal-50/50 animate-scale-in" style={{ animationDelay: '0.1s' }}>
                 <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-                <span className="text-[12px] font-bold text-teal-700 tracking-wide uppercase">Hotel Operations Software</span>
+                <span className="text-[12px] font-bold text-teal-700 tracking-wide uppercase">Hotel operations, organized</span>
               </div>
               <h1 className="text-[40px] md:text-[56px] lg:text-[60px] leading-[1.05] font-black tracking-tight text-gray-900 mb-6 animate-scale-in" style={{ animationDelay: '0.2s' }}>
-                One Solution.<br />
-                <span className="shimmer-text">Built For Independent Hotels.</span>
+                Run your hotel<br />
+                <span className="shimmer-text">from one place.</span>
               </h1>
               <p className="text-[18px] text-gray-600 leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s' }}>
-                Attenda is the all-in-one operating system for independent hotels — instant guest requests, live GPS shuttle tracking, Uber Direct food delivery, and staff operations in one thread. No app. No rip-and-replace.
+                Attenda brings your daily operations, your team, and your guest experience into one environment — without replacing the systems you already depend on. Less chasing information. More taking care of guests.
               </p>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-scale-in" style={{ animationDelay: '0.4s' }}>
                 <a href="#demo"
@@ -384,28 +384,15 @@ function AttendaLandingPage() {
                   style={{ backgroundColor: '#15b79e', color: '#000' }}>
                   Schedule a Demo <ArrowRight size={18} />
                 </a>
-                <a href="#platform" className="text-[14px] font-semibold text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-1 group">
-                  See the platform <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
+                <a href="#product" className="text-[14px] font-semibold text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-1 group">
+                  See Attenda in action <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
                 </a>
               </div>
               
-              {/* Floating trust stats */}
-              <div className="mt-10 flex items-center gap-6 animate-scale-in" style={{ animationDelay: '0.5s' }}>
-                <div className="flex items-center gap-2">
-                  <div className="flex -space-x-2">
-                    {[1,2,3,4].map(i => (
-                      <div key={i} className="w-8 h-8 rounded-full border-2 border-white shadow-sm" style={{ background: `linear-gradient(135deg, #${['0D9488','15b79e','0f766e','14b8a6'][i-1]} 0%, #${['0f766e','0D9488','15b79e','0D9488'][i-1]} 100%)` }} />
-                    ))}
-                  </div>
-                  <p className="text-[12px] text-gray-500 font-medium">Properties live</p>
-                </div>
-                <div className="h-6 w-px bg-gray-200" />
-                <div className="flex items-center gap-1">
-                  {[1,2,3,4,5].map(i => (
-                    <svg key={i} width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 0.75L8.75 5.25H13.5L9.5 8.25L10.75 12.75L7 9.75L3.25 12.75L4.5 8.25L0.5 5.25H5.25L7 0.75Z" fill="#f59e0b"/></svg>
-                  ))}
-                  <span className="text-[12px] text-gray-500 font-medium ml-1">Rated <span className="text-gray-900 font-bold">5.0</span> by hotel operators</span>
-                </div>
+              {/* Founder credibility — honest, no invented social proof */}
+              <div className="mt-10 flex items-center gap-2.5 animate-scale-in" style={{ animationDelay: '0.5s' }}>
+                <div className="w-2 h-2 rounded-full bg-teal-500" />
+                <p className="text-[13px] text-gray-500 font-medium">Built and run by a 15-year hotel operator.</p>
               </div>
             </div>
             <div className="lg:col-span-6 lg:col-start-7 relative">
@@ -427,6 +414,52 @@ function AttendaLandingPage() {
           </div>
         </div>
       </section>
+
+      {/* PMS POSITIONING BAND — kill the #1 fear immediately */}
+      <section className="py-12 md:py-16 px-5 bg-white border-b border-gray-100">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-8">
+            <p className="text-[22px] md:text-[28px] font-black tracking-tight text-gray-900 leading-snug max-w-3xl mx-auto">
+              Attenda is not a PMS — and doesn&apos;t try to be.
+            </p>
+            <p className="text-[15px] md:text-[16px] text-gray-600 mt-3 max-w-2xl mx-auto">
+              Your PMS manages reservations. Attenda helps your team manage the operation <span className="italic">around</span> them.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6">
+              <div className="text-[11px] font-bold tracking-widest uppercase text-gray-400 mb-2">Your PMS</div>
+              <p className="text-[14px] text-gray-600">Reservations · Rates · Folios · System of record</p>
+            </div>
+            <div className="rounded-2xl border-2 p-6" style={{ borderColor: `${TEAL}40`, backgroundColor: `${TEAL}06` }}>
+              <div className="text-[11px] font-bold tracking-widest uppercase mb-2" style={{ color: TEAL }}>Attenda</div>
+              <p className="text-[14px] text-gray-700">Operations · Team · Guest experience · Knowledge · Revenue moments</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* THE PROBLEM — operator voice */}
+      <Reveal>
+        <section className="py-16 md:py-24 px-5 bg-gradient-to-b from-white to-gray-50">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">The reality on the floor</h2>
+            <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-gray-900 mb-6 leading-[1.08]">
+              The information exists.<br />
+              <span style={{ color: TEAL }}>It&apos;s just scattered everywhere.</span>
+            </h3>
+            <p className="text-[16px] md:text-[18px] text-gray-600 leading-relaxed mb-4">
+              Schedules live in one app. Checklists in another. SOPs in a binder — or in a manager&apos;s head. Guest requests arrive by phone, text, and front-desk sticky note. Transportation gets coordinated by radio and guesswork.
+            </p>
+            <p className="text-[16px] md:text-[18px] text-gray-600 leading-relaxed mb-8">
+              Managers spend the day chasing answers instead of making decisions. And everyone gets pulled away from the one job that matters most: the guest.
+            </p>
+            <p className="text-[17px] md:text-[19px] font-bold text-gray-900">
+              Attenda brings that scattered operation into one place.
+            </p>
+          </div>
+        </section>
+      </Reveal>
 
       {/* SEE IT FROM EVERY ANGLE — role mockups */}
       <section className="py-16 md:py-24 px-5 bg-gradient-to-b from-white to-gray-50 overflow-hidden">
@@ -493,24 +526,24 @@ function AttendaLandingPage() {
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-gray-700">Built for independent hotels</span>
             </div>
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Why hotel teams choose Attenda</h2>
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">What changes</h2>
             <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
-              One thread. Every role.<br />
-              <span style={{ color: TEAL }}>No apps for guests.</span>
+              Run a more organized hotel<br />
+              <span style={{ color: TEAL }}>with less stress.</span>
             </h3>
             <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              A single platform designed around how independent hotels actually operate &mdash; not a reskinned chatbot or a white-labeled marketplace.
+              Before the features, the outcomes &mdash; what an organized operation actually feels like, shift after shift.
             </p>
           </Reveal>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { icon: QrCode, title: 'Zero apps for guests', desc: 'Scan the QR — tap to request towels, housekeeping, or maintenance. One tap, instant delivery to the front desk. No download, no account.', accent: '#0D9488' },
-              { icon: Bus, title: 'Live GPS shuttle tracking', desc: 'Bouncie integration shows real-time shuttle location, speed, ETA to hotel, and today\'s trip log. Arrival alerts when the shuttle is 0.5 mi away.', accent: '#0ea5e9' },
-              { icon: Truck, title: 'Uber Direct food delivery', desc: 'Partner restaurants, Uber last-mile delivery. Guest picks "Pay via Uber" at checkout. Uber tracks the courier; the hotel earns its share on every order.', accent: '#8b5cf6' },
-              { icon: ClipboardList, title: 'One thread for the property', desc: 'Guest request → staff task → vendor job → GM dashboard. No radio calls, no missed handoffs, no sticky notes.', accent: '#f59e0b' },
-              { icon: Users, title: 'Guest identity without PMS', desc: 'Guests enter name + checkout date once. Session persists until checkout. Staff visually verify against PMS with one tap — no integration required.', accent: '#ec4899' },
-              { icon: Globe, title: 'Works alongside your PMS', desc: 'No rip-and-replace. Attenda runs beside your current system from day one. 11 days from contract to live.', accent: '#14b8a6' },
+              { icon: ClipboardList, title: 'Know what’s happening', desc: 'See the day’s operation across every department — without calling around or chasing radios.', accent: '#0D9488' },
+              { icon: Users, title: 'Keep everyone aligned', desc: 'Each person sees the work that’s theirs, in real time. Nothing lives on a sticky note.', accent: '#0ea5e9' },
+              { icon: Bell, title: 'Serve guests better', desc: 'Fewer dropped requests, faster response, and more time for the actual hospitality.', accent: '#8b5cf6' },
+              { icon: CheckCircle, title: 'Operate with consistency', desc: 'Your procedures, checklists, and standards — followed the same way, every shift.', accent: '#f59e0b' },
+              { icon: DollarSign, title: 'Find new revenue', desc: 'Capture the transportation, dining, and service moments happening around the stay.', accent: '#ec4899' },
+              { icon: Zap, title: 'Improve over time', desc: 'Turn your team’s knowledge and daily inputs into a sharper operation over time.', accent: '#14b8a6' },
             ].map((item, i) => {
               const ItemIcon = item.icon;
               return (
@@ -1263,7 +1296,7 @@ function AttendaLandingPage() {
             { q: 'Does the guest need to download an app?', a: 'No. They scan a QR code in the room &mdash; opens a mobile web app in their browser.' },
             { q: 'How are vendors onboarded?', a: 'Each vendor gets a lightweight web portal link. They see open jobs, accept, and update status.' },
             { q: 'What about my existing PMS?', a: 'Attenda runs alongside your current PMS from day one. No rip-and-replace.' },
-            { q: 'How long does setup take?', a: '11 days from contract to live. We do QR design, branding, and staff training.' },
+            { q: 'How long does setup take?', a: 'Weeks, not months. We configure Attenda around how your property already runs &mdash; QR design, branding, workflows, and staff training.' },
             { q: 'What does Attenda cost?', a: 'Flat monthly per property + ordering revenue share. No contracts. No per-room games. We&apos;ll quote on the demo call.' },
           ].map((item, i) => (
             <button
@@ -1353,10 +1386,10 @@ function AttendaLandingPage() {
       <section id="founder" className="py-16 md:py-24 px-5 bg-gradient-to-br from-gray-50 to-white">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Built by a 15-Year Operator</h2>
-            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">The founder.</h3>
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Operator to operator</h2>
+            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">Built inside real hotel operations.</h3>
             <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              Fifteen years in hospitality. Three PMS migrations. Two CRMs that died on the vine. One in-house tool that actually stuck.
+              Limited-service, extended-stay, and full-service. F&amp;B and airport operations. Different segments, the same operational problem &mdash; and the tool built to solve it.
             </p>
           </div>
 
@@ -1378,19 +1411,19 @@ function AttendaLandingPage() {
               <div className="md:col-span-3 p-8 md:p-10">
                 <div className="text-[12px] uppercase tracking-widest text-gray-500 font-bold mb-2">The short version</div>
                 <p className="text-[16px] text-gray-700 leading-relaxed mb-5">
-                  Alejandro Soria has spent fifteen years inside hospitality &mdash; front desk, GM, owner-operator of independent properties in Texas and Florida. He&apos;s been the guy who picked the PMS, who trained the housekeeping staff, who took the 2am call when the boiler went out, and who wrote the &ldquo;do not lose this guest&rdquo; note in the margin of the shift log.
+                  Alejandro Soria has spent his career inside hotel operations &mdash; limited-service, extended-stay, and full-service properties, plus F&amp;B and airport operations. He&apos;s picked the PMS, run the front desk, trained the teams, taken the 2am call when the boiler went out, and lived the gap between what the software promised and what the shift actually needed.
                 </p>
                 <p className="text-[16px] text-gray-700 leading-relaxed mb-5">
-                  He&apos;s bought three PMS systems, integrated two CRMs, beta-tested four &ldquo;AI will transform hospitality&rdquo; platforms, and personally watched every one of them fail at the same point: the gap between the demo and the front desk. Attenda is what he built to close that gap &mdash; not a pitch deck, not a roadmap, an operations layer he runs on his own properties every day.
+                  Across every segment, the same problem kept surfacing: the work <em>around</em> the hotel was scattered across apps, paper, and people&apos;s heads &mdash; and the guest paid for it. Attenda is what he built to close that gap: not a pitch deck, not a roadmap, an operations layer built operator to operator.
                 </p>
                 <p className="text-[16px] text-gray-700 leading-relaxed mb-6">
                   He doesn&apos;t do pilots, betas, or &ldquo;early access.&rdquo; Attenda is the tool he wished had existed in year one of his hospitality career &mdash; and the one he uses in year fifteen.
                 </p>
                 <blockquote className="border-l-4 pl-4 py-2 mb-6" style={{ borderColor: TEAL }}>
                   <p className="text-[17px] font-bold text-gray-900 italic leading-snug">
-                    &ldquo;I&apos;ve sat through every demo. I&apos;ve signed the contracts. I&apos;ve been the GM on the call when the software didn&apos;t do what the sales rep said. Attenda exists because I got tired of paying for tools that don&apos;t work in the real world.&rdquo;
+                    &ldquo;I&apos;ve sat through the demos and signed the contracts. I&apos;ve been the GM on the call when the software didn&apos;t do what it promised. Attenda is the tool I wanted on the floor &mdash; built by someone who&apos;s actually run the operation.&rdquo;
                   </p>
-                  <div className="text-[12px] text-gray-500 mt-2 font-semibold">&mdash; Alejandro Soria, on why he stopped buying and started building</div>
+                  <div className="text-[12px] text-gray-500 mt-2 font-semibold">&mdash; Alejandro Soria, operator to operator</div>
                 </blockquote>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-2">
                   <div className="bg-gray-50 rounded-lg p-3">
@@ -1399,14 +1432,14 @@ function AttendaLandingPage() {
                     <div className="text-[10px] text-gray-500 mt-0.5">Front desk &rarr; GM &rarr; owner</div>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Properties run</div>
-                    <div className="text-[13px] font-black text-gray-900">Independent &middot; TX & FL</div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">Boutique, 60&ndash;150 keys</div>
+                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Segments run</div>
+                    <div className="text-[13px] font-black text-gray-900">Limited &middot; Extended &middot; Full-service</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">plus F&amp;B &amp; airport ops</div>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Software burned through</div>
-                    <div className="text-[13px] font-black text-gray-900">3 PMS &middot; 2 CRM &middot; 4 AI</div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">None survived contact with guests</div>
+                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Discipline</div>
+                    <div className="text-[13px] font-black text-gray-900">Hotel ops + technology</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">Built operator to operator</div>
                   </div>
                 </div>
                 <div className="mt-6 flex items-center gap-3">
