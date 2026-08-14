@@ -12,14 +12,13 @@ import {
 import { useGuest } from '@/lib/guest-context';
 import { getHotelConfig } from '@/lib/supabase';
 import Reveal from '@/components/landing/Reveal';
-import { PhoneFrame, BrowserFrame } from '@/components/landing/DeviceFrames';
+import { PhoneFrame } from '@/components/landing/DeviceFrames';
 import {
   RequestsScreenMockup,
   ScheduleScreenMockup,
   AdminDashboardMockup,
   ShuttleScreenMockup,
   MessagesScreenMockup,
-  GuestRequestsMockup,
 } from '@/components/landing/AppMockups';
 
 /* ──────────────────────────────────────────────────────────── */
@@ -352,63 +351,46 @@ function AttendaLandingPage() {
         </div>
       </nav>
 
-      {/* HERO — Premium floating mockups with animated gradient background */}
-      <section className="relative py-20 md:py-28 px-5 overflow-hidden" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fafb 50%, #f0fdfb 100%)' }}>
-        {/* Animated gradient orbs */}
-        <div className="gradient-orb w-[400px] h-[400px] top-[-100px] right-[10%] opacity-40" style={{ background: 'radial-gradient(circle, rgba(15,184,158,0.3) 0%, transparent 70%)' }} />
-        <div className="gradient-orb w-[300px] h-[300px] bottom-[10%] left-[-50px] opacity-30" style={{ background: 'radial-gradient(circle, rgba(13,148,136,0.25) 0%, transparent 70%)' }} />
-        <div className="gradient-orb w-[250px] h-[250px] top-[40%] right-[30%] opacity-20 animate-float-slow" style={{ background: 'radial-gradient(circle, rgba(15,184,158,0.2) 0%, transparent 70%)' }} />
-        
-        {/* Subtle dot grid */}
-        <div className="absolute inset-0 opacity-[0.25] pointer-events-none"
-          style={{ backgroundImage: 'radial-gradient(circle, #d0d5dd 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
-        
-        <div className="relative max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-            <div className="lg:col-span-5">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border border-teal-200 bg-teal-50/50 animate-scale-in" style={{ animationDelay: '0.1s' }}>
-                <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-                <span className="text-[12px] font-bold text-teal-700 tracking-wide uppercase">Hotel operations, organized</span>
-              </div>
-              <h1 className="text-[40px] md:text-[56px] lg:text-[60px] leading-[1.05] font-black tracking-tight text-gray-900 mb-6 animate-scale-in" style={{ animationDelay: '0.2s' }}>
-                Run your hotel<br />
-                <span className="shimmer-text">from one place.</span>
-              </h1>
-              <p className="text-[18px] text-gray-600 leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s' }}>
-                Attenda brings your daily operations, your team, and your guest experience into one environment — without replacing the systems you already depend on. Less chasing information. More taking care of guests.
-              </p>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-scale-in" style={{ animationDelay: '0.4s' }}>
-                <a href="#demo"
-                  className="animate-pulse-glow inline-flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-[16px] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]"
-                  style={{ backgroundColor: '#15b79e', color: '#000' }}>
-                  Schedule a Demo <ArrowRight size={18} />
-                </a>
-                <a href="#product" className="text-[14px] font-semibold text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-1 group">
-                  See Attenda in action <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
-                </a>
-              </div>
-              
-              {/* Founder credibility — honest, no invented social proof */}
-              <div className="mt-10 flex items-center gap-2.5 animate-scale-in" style={{ animationDelay: '0.5s' }}>
-                <div className="w-2 h-2 rounded-full bg-teal-500" />
-                <p className="text-[13px] text-gray-500 font-medium">Built and run by a 15-year hotel operator.</p>
-              </div>
+      {/* HERO — full-width cinematic band */}
+      <section className="relative min-h-[560px] md:min-h-[680px] flex items-center overflow-hidden">
+        <Image
+          src="/images/landing/hero-lobby.jpg"
+          alt="A front-desk associate welcoming an arriving guest in a warm boutique hotel lobby"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center"
+        />
+        {/* Legibility gradient — left-heavy so the copy stays crisp */}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(8,15,20,0.88) 0%, rgba(8,15,20,0.64) 38%, rgba(8,15,20,0.18) 70%, rgba(8,15,20,0) 100%)' }} />
+
+        <div className="relative w-full max-w-6xl mx-auto px-5 py-20 md:py-28">
+          <div className="max-w-xl">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border border-white/20 bg-white/10 backdrop-blur-sm animate-scale-in" style={{ animationDelay: '0.1s' }}>
+              <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+              <span className="text-[12px] font-bold text-white/90 tracking-wide uppercase">Hotel operations, organized</span>
             </div>
-            <div className="lg:col-span-6 lg:col-start-7 relative">
-              {/* Floating phone mockups */}
-              <div className="relative animate-float" style={{ animationDelay: '0.5s' }}>
-                <HeaderMockup />
-              </div>
-              {/* Floating badge */}
-              <div className="absolute -bottom-4 -left-4 glass rounded-2xl px-4 py-3 shadow-premium animate-float-slow hidden lg:flex items-center gap-3" style={{ animationDelay: '1s' }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#0D948820' }}>
-                  <CheckCircle size={20} className="text-teal-600" />
-                </div>
-                <div>
-                  <p className="text-[12px] font-bold text-gray-900">Live Tracking</p>
-                  <p className="text-[11px] text-gray-500">Bouncie GPS connected</p>
-                </div>
-              </div>
+            <h1 className="text-[40px] md:text-[58px] lg:text-[64px] leading-[1.04] font-black tracking-tight text-white mb-6 animate-scale-in" style={{ animationDelay: '0.2s' }}>
+              Run your hotel<br />
+              <span style={{ color: '#5eead4' }}>from one place.</span>
+            </h1>
+            <p className="text-[18px] text-white/85 leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s' }}>
+              Attenda brings your daily operations, your team, and your guest experience into one environment — without replacing the systems you already depend on. Less chasing information. More taking care of guests.
+            </p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-scale-in" style={{ animationDelay: '0.4s' }}>
+              <a href="#demo"
+                className="animate-pulse-glow inline-flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-[16px] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]"
+                style={{ backgroundColor: '#15b79e', color: '#000' }}>
+                Schedule a Demo <ArrowRight size={18} />
+              </a>
+              <a href="#product" className="text-[14px] font-semibold text-white/80 hover:text-white transition-colors flex items-center gap-1 group">
+                See Attenda in action <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
+              </a>
+            </div>
+            {/* Founder credibility — honest, no invented social proof */}
+            <div className="mt-10 flex items-center gap-2.5 animate-scale-in" style={{ animationDelay: '0.5s' }}>
+              <div className="w-2 h-2 rounded-full bg-teal-400" />
+              <p className="text-[13px] text-white/70 font-medium">Built and run by a 15-year hotel operator.</p>
             </div>
           </div>
         </div>
@@ -477,7 +459,7 @@ function AttendaLandingPage() {
             <Reveal direction="up" delay={0} className="flex flex-col items-center">
               <PhoneFrame width={240} className="mx-auto">
                 <div className="h-[476px] overflow-hidden">
-                  <GuestRequestsMockup />
+                  <Image src="/images/landing/app-guest-home.png" alt="Attenda guest app — requests, shuttle, food and local tips" width={402} height={874} className="w-full h-auto" />
                 </div>
               </PhoneFrame>
               <div className="mt-5 text-center">
@@ -580,28 +562,33 @@ function AttendaLandingPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {([
-              { n: '01', icon: ClipboardList, title: 'Operations', tag: 'Know what’s happening in your hotel.',
+              { n: '01', icon: ClipboardList, title: 'Operations', tag: 'Know what’s happening in your hotel.', img: '/images/landing/pillar-ops.jpg',
                 body: 'Daily to-dos, department checklists, cash controls, night-audit prep, schedules, and manager assignments — organized and visible. Your team executes; management sees it happen, from anywhere.',
                 points: ['Daily operational dashboard', 'Checklists & to-dos by department', 'Schedules & manager assignments', 'Staff accountability & visibility'],
                 scenario: 'A manager off-site opens Attenda and sees the day at a glance — done, pending, requests, transportation, and what needs attention. No group text.' },
-              { n: '02', icon: QrCode, title: 'Guest Experience', tag: 'Give guests a simple way to reach the hotel.',
+              { n: '02', icon: QrCode, title: 'Guest Experience', tag: 'Give guests a simple way to reach the hotel.', img: '/images/landing/pillar-guest.jpg',
                 body: 'Guests scan the QR code in their welcome card and get what they need from their phone — hotel info, amenities, shuttle, requests, and curated local tips. No app. No account.',
                 points: ['QR welcome → hotel info & amenities', 'Guest requests (towels, housekeeping, maintenance)', 'Shuttle requests + live tracking', 'Local recommendations & transportation'],
                 scenario: 'A guest lands, scans the code, taps “towels” — the request reaches the right person, and the towels arrive. The result is the hero, not the tech.' },
-              { n: '03', icon: Users, title: 'Knowledge & People', tag: 'Better hotels are run by better-informed people.',
+              { n: '03', icon: Users, title: 'Knowledge & People', tag: 'Better hotels are run by better-informed people.', img: '/images/landing/pillar-knowledge.jpg',
                 body: 'Your SOPs, procedures, and property knowledge — accessible to the team that needs them. Attenda’s assistant helps people find approved answers; when it can’t, it points them to a manager instead of guessing. AI assists the operation. It never runs it.',
                 points: ['Right Answers — approved knowledge access', 'Learning & HR', 'Culture Hub — recognition, birthdays, incentives'],
                 coming: ['Attenda University', 'Community knowledge exchange'],
                 scenario: 'A new team member asks a procedure question and gets the property’s real answer in seconds — or a clean handoff to a manager.' },
-              { n: '04', icon: DollarSign, title: 'Revenue & Connected Services', tag: 'Be more useful to your guest — and capture the value.',
+              { n: '04', icon: DollarSign, title: 'Revenue & Connected Services', tag: 'Be more useful to your guest — and capture the value.', img: '/images/landing/pillar-revenue.jpg',
                 body: 'Not every hotel has a restaurant. Every hotel has guests who want dinner, a ride, or something to do. Curate the transportation, dining, and experiences around the stay — convenient for the guest, a new channel for the hotel. Curated by hospitality people, not random ads.',
                 points: ['Transportation & taxi', 'Curated dining (partner delivery)', 'Experiences & local partners', 'Revenue visible to management'],
                 scenario: 'A guest wants dinner; you don’t have a restaurant. Instead of “we don’t,” they get three great nearby options you chose — ordered from the room.' },
-            ] as { n: string; icon: typeof ClipboardList; title: string; tag: string; body: string; points: string[]; coming?: string[]; scenario: string }[]).map((p) => {
+            ] as { n: string; icon: typeof ClipboardList; title: string; tag: string; img: string; body: string; points: string[]; coming?: string[]; scenario: string }[]).map((p) => {
               const PIcon = p.icon;
               return (
                 <Reveal key={p.n} direction="up">
-                  <div className="h-full bg-white border border-gray-200 rounded-2xl p-7 shadow-premium">
+                  <div className="h-full bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-premium flex flex-col">
+                    <div className="relative h-40 md:h-44 w-full overflow-hidden">
+                      <Image src={p.img} alt={p.title} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
+                    </div>
+                    <div className="p-7 flex flex-col flex-1">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: `linear-gradient(135deg, ${TEAL}15 0%, ${TEAL}08 100%)` }}>
                         <PIcon size={20} style={{ color: TEAL }} />
@@ -625,6 +612,7 @@ function AttendaLandingPage() {
                       ))}
                     </ul>
                     <div className="border-l-2 pl-3 text-[13px] text-gray-500 italic leading-relaxed" style={{ borderColor: `${TEAL}40` }}>{p.scenario}</div>
+                    </div>
                   </div>
                 </Reveal>
               );
@@ -1739,112 +1727,6 @@ function PlatformTabs() {
   );
 }
 
-/* ────────────────────────────────────────────────────────────
-   KPI tile dark (Proven Results strip)
-   ──────────────────────────────────────────────────────────── */
-
-const HERO_TOASTS = [
-  { title: 'New request · Room 214', sub: 'Extra towels · just now', dot: 'bg-green-500', ping: 'bg-green-400' },
-  { title: 'Shuttle booked · Room 301', sub: 'MIA Airport · 3:30 PM', dot: 'bg-blue-500', ping: 'bg-blue-400' },
-  { title: 'Order placed · Room 108', sub: 'Marina Grill · $24.50', dot: 'bg-amber-500', ping: 'bg-amber-400' },
-  { title: 'Late checkout · Room 412', sub: 'Approved · +$40 captured', dot: 'bg-emerald-500', ping: 'bg-emerald-400' },
-];
-
-function HeaderMockup() {
-  const parallaxRef = useRef<HTMLDivElement>(null);
-  const [toastIdx, setToastIdx] = useState(0);
-
-  // Cycle "live" incoming activity through the toast card
-  useEffect(() => {
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    const id = setInterval(() => setToastIdx(i => (i + 1) % HERO_TOASTS.length), 4000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Subtle scroll parallax on the whole mockup (transform-only, rAF-throttled)
-  useEffect(() => {
-    const el = parallaxRef.current;
-    if (!el || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    let raf = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const r = el.getBoundingClientRect();
-        const p = (r.top + r.height / 2 - window.innerHeight / 2) / window.innerHeight;
-        el.style.transform = `translateY(${(p * 26).toFixed(1)}px)`;
-      });
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      cancelAnimationFrame(raf);
-    };
-  }, []);
-
-  const toast = HERO_TOASTS[toastIdx];
-  return (
-    <div ref={parallaxRef} className="relative w-full" style={{ willChange: 'transform' }}>
-      {/* brand glow */}
-      <div
-        className="pointer-events-none absolute -inset-10 -z-10 opacity-50"
-        style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(13,148,136,0.18) 0%, transparent 70%)' }}
-      />
-      <div className="animate-float-slow">
-        <BrowserFrame url="attenda.app/staff · Your Property">
-          <Image
-            src="/images/staff-desktop.png"
-            alt="Staff desktop dashboard showing real-time requests, room status, and activity feed"
-            width={640}
-            height={400}
-            className="w-full h-auto block"
-            priority
-          />
-        </BrowserFrame>
-      </div>
-
-      {/* floating live-activity toast — bottom left (cycles through incoming events) */}
-      <div className="absolute -bottom-5 -left-4 hidden sm:block">
-        <div key={toastIdx} className="animate-toast-cycle flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white px-3.5 py-2.5 shadow-xl">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${toast.ping}`} />
-            <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${toast.dot}`} />
-          </span>
-          <div className="leading-tight">
-            <div className="text-[11px] font-black text-gray-900">{toast.title}</div>
-            <div className="text-[10px] text-gray-500">{toast.sub}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* floating revenue badge — top right */}
-      <div className="absolute -top-4 -right-2 hidden sm:block" style={{ animation: 'float 7s ease-in-out 1s infinite' }}>
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-white px-3.5 py-2.5 shadow-xl">
-          <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
-            <DollarSign size={13} className="text-white" />
-          </div>
-          <div className="leading-tight">
-            <div className="text-[11px] font-black text-gray-900">+$340 today</div>
-            <div className="text-[10px] text-emerald-600 font-semibold">Shuttle + dining</div>
-          </div>
-        </div>
-      </div>
-
-      {/* floating shuttle badge — mid left */}
-      <div className="absolute top-[35%] -left-8 hidden lg:block" style={{ animation: 'float 9s ease-in-out 2s infinite' }}>
-        <div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-white px-3 py-2 shadow-lg">
-          <Bus size={14} style={{ color: '#3B82F6' }} />
-          <div className="leading-tight">
-            <div className="text-[10px] font-black text-gray-900">Shuttle · 3:30 PM</div>
-            <div className="text-[9px] text-gray-500">4 guests confirmed</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── useCountUp ─────────────────────────────────────────────── */
 function useCountUp(target: number, duration = 1800): [number, React.RefObject<HTMLDivElement>] {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>;
