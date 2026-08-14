@@ -36,17 +36,6 @@ export async function POST(req: NextRequest) {
     const resolvedRoom = room_number || 'N/A';
     const resolvedPax = pax || 1;
 
-    // Build details string with all intake info
-    const detailParts: string[] = [`Shuttle to ${destination}`];
-    if (time) detailParts.push(`at ${time}`);
-    detailParts.push(`${resolvedPax} passenger${resolvedPax > 1 ? 's' : ''}`);
-    if (airline) detailParts.push(`Airline: ${airline}`);
-    if (terminal) detailParts.push(`Terminal: ${terminal}`);
-    if (flight_number) detailParts.push(`Flight: ${flight_number}`);
-    if (callback_number) detailParts.push(`Callback: ${callback_number}`);
-    if (pickup_location) detailParts.push(`Pickup: ${pickup_location}`);
-    const fullDetails = detailParts.join(' | ');
-
     const supabase = getSupabaseAdmin();
 
     // Build notes incorporating all intake fields (airline/terminal/flight/callback

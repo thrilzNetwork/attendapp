@@ -48,7 +48,7 @@ export default function RoomStatusView({ hotelId, staffName }: { hotelId: string
 
       {rooms.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
-          <p className="text-[13px] text-gray-500">No rooms yet. Click "+ Room" to add room numbers.</p>
+          <p className="text-[13px] text-gray-500">No rooms yet. Click &quot;+ Room&quot; to add room numbers.</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">

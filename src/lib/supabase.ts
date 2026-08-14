@@ -2696,7 +2696,7 @@ export async function createIncidentLog(il: { hotel_id: string; incident_date?: 
   if (error) throw new Error(error.message);
 }
 
-export async function resolveIncidentLog(id: string, resolvedBy: string): Promise<void> {
+export async function resolveIncidentLog(id: string): Promise<void> {
   const { error } = await supabase.from('incident_logs').update({ resolved: true, resolved_at: new Date().toISOString() }).eq('id', id);
   if (error) throw new Error(error.message);
 }

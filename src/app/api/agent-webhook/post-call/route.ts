@@ -63,13 +63,6 @@ export async function POST(req: NextRequest) {
       if (nameMatch) callerName = nameMatch[1];
     }
 
-    // Check if this conversation triggered the book_shuttle tool
-    // (the requests table would already have a Shuttle row from the tool)
-    let hadBooking = false;
-    if (transcriptText && transcriptText.toLowerCase().includes('book')) {
-      hadBooking = true;
-    }
-
     // 1. Save to agent_calls table
     const { error: callError } = await supabase.from('agent_calls').insert({
       hotel_id: HOTEL_ID,

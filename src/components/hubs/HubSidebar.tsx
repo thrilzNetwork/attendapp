@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getMyHubs, type Hub } from '@/lib/supabase';
-import { LogOut, Settings, Users, Building2 } from 'lucide-react';
+import { LogOut, Users, Building2 } from 'lucide-react';
 
 const TEAL = '#0D9488';
 

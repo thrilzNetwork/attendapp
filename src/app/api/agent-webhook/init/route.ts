@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { conversation_id, agent_id, user_data } = body;
+    const { user_data } = body;
 
     // Inject dynamic variables that the agent can use in its prompt
     const dynamicVariables: Record<string, string> = {

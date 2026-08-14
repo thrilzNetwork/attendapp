@@ -100,7 +100,7 @@ export default function HubDemoPage() {
           />
         ) : (
           <div className="p-8 text-center text-gray-400">
-            <p className="text-[15px] mb-2">You haven't been assigned to any hubs yet.</p>
+            <p className="text-[15px] mb-2">You haven&apos;t been assigned to any hubs yet.</p>
             <p className="text-[13px]">Ask your manager to assign you to a department hub.</p>
           </div>
         )}

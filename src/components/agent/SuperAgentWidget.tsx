@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 
 const TEAL = '#0D9488';
-const AGENT_ID = 'agent_4101kzn4ysvjfaava4ck5ggdt5ba';
 
 interface Message {
   role: 'agent' | 'user';

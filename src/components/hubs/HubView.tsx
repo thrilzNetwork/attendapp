@@ -16,7 +16,7 @@ const TEAL = '#0D9488';
 // Hub-specific stats only use supabase directly
 
 export default function HubView({
-  hotelId, hub, tool, staffName, isAdmin, hotelName, isAssigned,
+  hotelId, hub, tool, staffName, isAssigned,
 }: {
   hotelId: string; hub: Hub; tool: string | null; staffName: string;
   isAdmin: boolean; hotelName: string; isAssigned: boolean;

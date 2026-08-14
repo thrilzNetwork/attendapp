@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Bot, Bus, ConciergeBell, UtensilsCrossed, Settings, PhoneCall,
+  Bot, Bus, ConciergeBell, UtensilsCrossed, PhoneCall,
   ToggleLeft, ToggleRight, RefreshCw, Save, ExternalLink, Webhook,
-  MessageSquare, ChevronDown, ChevronUp, Bot as BotIcon, CheckCircle,
+  ChevronDown, ChevronUp, Bot as BotIcon,
 } from 'lucide-react';
 
 const TEAL = '#0D9488';
@@ -256,7 +256,7 @@ export default function AgentDashboard({ hotelId, hotelName }: { hotelId: string
                             <button onClick={() => { setEditingAgent(agent.id); setEditForms({ ...editForms, [agent.id]: agent }); }}
                               className="text-[10px] font-bold text-gray-500 hover:text-gray-700">Edit</button>
                           </div>
-                          <p className="mt-1 text-[12px] text-gray-700 p-2.5 bg-gray-50 rounded-lg italic">"{agent.first_message || '—'}"</p>
+                          <p className="mt-1 text-[12px] text-gray-700 p-2.5 bg-gray-50 rounded-lg italic">&quot;{agent.first_message || '—'}&quot;</p>
                         </div>
                         <div>
                           <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">System Prompt</span>

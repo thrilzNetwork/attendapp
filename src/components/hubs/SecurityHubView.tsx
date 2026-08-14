@@ -60,7 +60,7 @@ function IncidentsView({ incidents, hotelId, staffName, reload }: { incidents: I
               </div>
               <p className="text-[12px] text-gray-600">{i.description}</p>
               {i.action_taken && <p className="text-[10px] text-gray-400 mt-1">Action: {i.action_taken}</p>}
-              {!i.resolved && <button onClick={() => { resolveIncidentLog(i.id, staffName || 'Staff'); reload(); }} className="text-[10px] mt-2 py-1 px-3 rounded-lg bg-emerald-50 text-emerald-600 font-semibold">Mark Resolved</button>}
+              {!i.resolved && <button onClick={() => { resolveIncidentLog(i.id); reload(); }} className="text-[10px] mt-2 py-1 px-3 rounded-lg bg-emerald-50 text-emerald-600 font-semibold">Mark Resolved</button>}
             </div>
           ))}
         </div>
