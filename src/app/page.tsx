@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { ArrowRight, Bell, Bus, Check, CheckCircle, ClipboardList, Clock, DollarSign, Globe, MapPin, Phone, QrCode, ShieldCheck, Store, Tablet, Truck, User, Users, Utensils, Wifi, Zap } from 'lucide-react';
+import { ArrowRight, Bell, Bus, Check, CheckCircle, ClipboardList, Clock, DollarSign, MapPin, Phone, QrCode, ShieldCheck, Store, Tablet, Truck, User, Users, Utensils, Wifi, Zap } from 'lucide-react';
 import GuestAuthModal from '@/components/GuestAuthModal';
 import {
   GuestSheet,
@@ -20,7 +20,6 @@ import {
   ShuttleScreenMockup,
   MessagesScreenMockup,
   GuestRequestsMockup,
-  UberDirectMockup,
 } from '@/components/landing/AppMockups';
 
 /* ──────────────────────────────────────────────────────────── */
@@ -338,7 +337,7 @@ function AttendaLandingPage() {
           <div className="hidden md:flex items-center gap-7">
             <a href="#pillars" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Platform</a>
             <a href="#modules" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Product</a>
-            <a href="#case-study" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Case Study</a>
+            <a href="#revenue" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Case Study</a>
             <a href="/blog" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Field Notes</a>
             <a href="#founder" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">About</a>
             <a href="/staff" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Log in</a>
@@ -462,7 +461,7 @@ function AttendaLandingPage() {
       </Reveal>
 
       {/* SEE IT FROM EVERY ANGLE — role mockups */}
-      <section className="py-16 md:py-24 px-5 bg-gradient-to-b from-white to-gray-50 overflow-hidden">
+      <section id="product" className="py-16 md:py-24 px-5 bg-gradient-to-b from-white to-gray-50 overflow-hidden">
         <div className="max-w-6xl mx-auto">
           <Reveal className="text-center max-w-2xl mx-auto mb-14">
             <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">One system, every role</h2>
@@ -567,52 +566,75 @@ function AttendaLandingPage() {
         </div>
       </section>
 
+      {/* THE FOUR PILLARS */}
+      <section id="pillars" className="py-16 md:py-24 px-5 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">How Attenda works</h2>
+            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
+              Four parts of your operation.<br /><span style={{ color: TEAL }}>One environment.</span>
+            </h3>
+            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
+              Operations, guest experience, knowledge, and revenue &mdash; coordinated in one place, so nothing lives on a sticky note or in someone&apos;s head.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {([
+              { n: '01', icon: ClipboardList, title: 'Operations', tag: 'Know what’s happening in your hotel.',
+                body: 'Daily to-dos, department checklists, cash controls, night-audit prep, schedules, and manager assignments — organized and visible. Your team executes; management sees it happen, from anywhere.',
+                points: ['Daily operational dashboard', 'Checklists & to-dos by department', 'Schedules & manager assignments', 'Staff accountability & visibility'],
+                scenario: 'A manager off-site opens Attenda and sees the day at a glance — done, pending, requests, transportation, and what needs attention. No group text.' },
+              { n: '02', icon: QrCode, title: 'Guest Experience', tag: 'Give guests a simple way to reach the hotel.',
+                body: 'Guests scan the QR code in their welcome card and get what they need from their phone — hotel info, amenities, shuttle, requests, and curated local tips. No app. No account.',
+                points: ['QR welcome → hotel info & amenities', 'Guest requests (towels, housekeeping, maintenance)', 'Shuttle requests + live tracking', 'Local recommendations & transportation'],
+                scenario: 'A guest lands, scans the code, taps “towels” — the request reaches the right person, and the towels arrive. The result is the hero, not the tech.' },
+              { n: '03', icon: Users, title: 'Knowledge & People', tag: 'Better hotels are run by better-informed people.',
+                body: 'Your SOPs, procedures, and property knowledge — accessible to the team that needs them. Attenda’s assistant helps people find approved answers; when it can’t, it points them to a manager instead of guessing. AI assists the operation. It never runs it.',
+                points: ['Right Answers — approved knowledge access', 'Learning & HR', 'Culture Hub — recognition, birthdays, incentives'],
+                coming: ['Attenda University', 'Community knowledge exchange'],
+                scenario: 'A new team member asks a procedure question and gets the property’s real answer in seconds — or a clean handoff to a manager.' },
+              { n: '04', icon: DollarSign, title: 'Revenue & Connected Services', tag: 'Be more useful to your guest — and capture the value.',
+                body: 'Not every hotel has a restaurant. Every hotel has guests who want dinner, a ride, or something to do. Curate the transportation, dining, and experiences around the stay — convenient for the guest, a new channel for the hotel. Curated by hospitality people, not random ads.',
+                points: ['Transportation & taxi', 'Curated dining (partner delivery)', 'Experiences & local partners', 'Revenue visible to management'],
+                scenario: 'A guest wants dinner; you don’t have a restaurant. Instead of “we don’t,” they get three great nearby options you chose — ordered from the room.' },
+            ] as { n: string; icon: typeof ClipboardList; title: string; tag: string; body: string; points: string[]; coming?: string[]; scenario: string }[]).map((p) => {
+              const PIcon = p.icon;
+              return (
+                <Reveal key={p.n} direction="up">
+                  <div className="h-full bg-white border border-gray-200 rounded-2xl p-7 shadow-premium">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: `linear-gradient(135deg, ${TEAL}15 0%, ${TEAL}08 100%)` }}>
+                        <PIcon size={20} style={{ color: TEAL }} />
+                      </div>
+                      <span className="text-[13px] font-black text-gray-300">{p.n}</span>
+                      <h4 className="text-[20px] font-black text-gray-900">{p.title}</h4>
+                    </div>
+                    <p className="text-[15px] font-bold mb-2" style={{ color: TEAL }}>{p.tag}</p>
+                    <p className="text-[14px] text-gray-600 leading-relaxed mb-4">{p.body}</p>
+                    <ul className="space-y-2 mb-4">
+                      {p.points.map(pt => (
+                        <li key={pt} className="flex items-start gap-2 text-[13px] text-gray-700">
+                          <Check size={15} className="mt-0.5 shrink-0" style={{ color: TEAL_BRIGHT }} />{pt}
+                        </li>
+                      ))}
+                      {p.coming?.map(pt => (
+                        <li key={pt} className="flex items-center gap-2 text-[13px] text-gray-400">
+                          <Clock size={15} className="shrink-0" />{pt}
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-gray-300 border border-gray-200 rounded px-1.5 py-0.5">Coming</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="border-l-2 pl-3 text-[13px] text-gray-500 italic leading-relaxed" style={{ borderColor: `${TEAL}40` }}>{p.scenario}</div>
+                  </div>
+                </Reveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* FULL PLATFORM INVENTORY — 6 tabbed cards */}
       <PlatformTabs />
-
-      {/* TWO NEW SUPERPOWERS */}
-      <Reveal>
-        <section className="py-20 bg-gray-50">
-          <div className="max-w-5xl mx-auto px-4 text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-teal-200 bg-teal-50/50 mb-4">
-              <span className="text-[11px] font-bold text-teal-700 uppercase tracking-wider">Live Features</span>
-            </div>
-            <h2 className="text-[32px] md:text-[42px] font-black tracking-tight text-gray-900 mb-3">Two new superpowers</h2>
-            <p className="text-[16px] text-gray-500 mb-14 max-w-lg mx-auto">GPS tracking and last-mile delivery — both live, both built in.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 justify-items-center">
-              <Reveal direction="up" delay={0} className="flex flex-col items-center gap-5 w-full">
-                <div className="relative rounded-2xl overflow-hidden shadow-premium hover:shadow-premium-hover transition-all duration-500 group">
-                  <Image 
-                    src="/images/shuttle-tracking.jpg" 
-                    alt="Guest tracking hotel shuttle with live GPS on their phone"
-                    width={540} 
-                    height={300} 
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <div className="glass rounded-xl px-4 py-2.5 inline-flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-[12px] font-bold text-gray-900">Live GPS · Bouncie Connected</span>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-[14px] font-semibold text-gray-700">Shuttle tracking in real time</p>
-              </Reveal>
-              <Reveal direction="up" delay={150} className="flex flex-col items-center gap-5 w-full">
-                <div className="animate-float">
-                  <PhoneFrame width={240}>
-                    <div className="h-[476px] overflow-hidden">
-                      <UberDirectMockup />
-                    </div>
-                  </PhoneFrame>
-                </div>
-                <p className="text-[14px] font-semibold text-gray-700">Uber Direct Delivery</p>
-              </Reveal>
-            </div>
-          </div>
-        </section>
-      </Reveal>
 
       {/* ATTENDA PRESENCE — new tool/extension */}
       <Reveal>
@@ -1039,86 +1061,6 @@ function AttendaLandingPage() {
         </div>
       </section>
 
-      {/* PROVEN RESULTS — Premium dark with gradient */}
-      <section className="relative py-20 md:py-28 px-5 overflow-hidden">
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(145deg, #111827 0%, #1f2937 40%, #0f766e 100%)' }} />
-        <div className="absolute inset-0 opacity-30"
-          style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(15,184,158,0.15) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(15,184,158,0.1) 0%, transparent 40%)' }} />
-        
-        <div className="relative max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Proven Results</span>
-            </div>
-            <h3 className="text-[36px] md:text-[48px] font-black tracking-tight text-white leading-[1.1]">
-              The bottom line:<br />
-              <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(90deg, #5eead4 0%, #0d9488 100%)' }}>it works.</span>
-            </h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            {[
-              { value: '73%', label: 'Faster guest response', icon: '✈️' },
-              { value: '4→1', label: 'Tools replaced', icon: '🔧' },
-              { value: '11', label: 'Days to live', icon: '🚀' },
-              { value: '0', label: 'Apps for guests', icon: '📱' },
-            ].map((kpi, i) => (
-              <div key={i} className="relative group">
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/5 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-6">
-                  <div className="text-[28px] mb-1">{kpi.icon}</div>
-                  <p className="text-[36px] md:text-[44px] font-black text-white leading-none mb-2">{kpi.value}</p>
-                  <p className="text-[13px] text-gray-400 font-medium">{kpi.label}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <LogoStrip />
-
-      {/* TESTIMONIAL */}
-      <section id="case-study" className="py-12 md:py-20 px-5">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-            <div className="lg:col-span-5 lg:order-1 order-2">
-              <div className="rounded-2xl overflow-hidden aspect-[4/5] relative shadow-lg">
-                <Image
-                  src="https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=600&fit=crop&q=80"
-                  alt="Boutique hotel lobby"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 40vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                <div className="absolute bottom-6 left-6 right-6">
-                  <div className="flex gap-1 mb-2">
-                    {[1,2,3,4,5].map(s => (
-                      <svg key={s} width="16" height="16" viewBox="0 0 24 24" fill="#FBBF24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                    ))}
-                  </div>
-                  <div className="text-[13px] font-black text-white">5-star reviews recovered</div>
-                  <div className="text-[11px] text-white/70 mt-0.5">before guests check out</div>
-                </div>
-              </div>
-            </div>
-            <div className="lg:col-span-6 lg:col-start-7 order-1 lg:order-2">
-              <h6 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">
-                What hotel operators say about Attenda
-              </h6>
-              <h2 className="text-[28px] md:text-[36px] font-black tracking-tight text-gray-900 mb-6 leading-tight">
-                &ldquo;One thread. Every room knew what was happening &mdash; us, the staff, the vendors. Nobody was guessing. We onboarded in 11 days and the front desk started capturing revenue we used to walk past.&rdquo;
-              </h2>
-              <div className="border-l-4 pl-5" style={{ borderColor: '#15b79e' }}>
-                <div className="text-[15px] font-bold text-gray-900">General Manager</div>
-                <div className="text-[14px] text-gray-500">42-room boutique near PortMiami, Florida</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* GENERATE REVENUE — case study */}
       <section id="revenue" className="py-16 md:py-24 px-5 bg-gradient-to-br from-gray-50 to-white">
         <div className="max-w-6xl mx-auto">
@@ -1283,6 +1225,87 @@ function AttendaLandingPage() {
           </div>
         </div>
       </section>
+
+      {/* IMPLEMENTATION */}
+      <Reveal>
+        <section className="py-16 md:py-24 px-5 bg-gradient-to-b from-white to-gray-50">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Getting started</h2>
+              <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-gray-900 mb-4 leading-[1.08]">
+                We configure Attenda around your hotel &mdash; <span style={{ color: TEAL }}>not the other way around.</span>
+              </h3>
+              <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
+                You don&apos;t need another six-month technology project. Start with Attenda&apos;s operational tools, then shape your own to-dos, checklists, procedures, departments, and assignments.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {[
+                { n: '1', t: 'We learn your operation', d: 'How your property actually runs — departments, procedures, the daily rhythm.' },
+                { n: '2', t: 'We configure your workflows', d: 'Your to-dos, checklists, knowledge, and assignments, set up around your hotel.' },
+                { n: '3', t: 'Your team goes live', d: 'QR design, branding, and staff training. Weeks, not months.' },
+              ].map(s => (
+                <div key={s.n} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[15px] font-black mb-3" style={{ backgroundColor: TEAL }}>{s.n}</div>
+                  <h4 className="text-[16px] font-black text-gray-900 mb-1.5">{s.t}</h4>
+                  <p className="text-[13px] text-gray-600 leading-relaxed">{s.d}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* MANAGED OPERATIONAL SUPPORT */}
+      <Reveal>
+        <section className="py-16 md:py-24 px-5 bg-white">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">More than software</h2>
+            <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-gray-900 mb-5 leading-[1.08]">
+              Technology alone doesn&apos;t fix hotel operations.<br /><span style={{ color: TEAL }}>People do.</span>
+            </h3>
+            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto mb-8">
+              For properties that want hands-on help, Attenda can provide or coordinate operational support &mdash; implementation, configuration, and ongoing guidance. Software, plus knowledge, plus execution.
+            </p>
+            <a href="#demo" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-bold text-[15px] shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: TEAL }}>
+              Ask about managed support <ArrowRight size={16} />
+            </a>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* TRUST & SECURITY */}
+      <Reveal>
+        <section className="py-16 md:py-24 px-5 bg-gray-50 border-y border-gray-200">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Built to be trusted</h2>
+              <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-gray-900 leading-[1.08]">
+                Your operation, kept <span style={{ color: TEAL }}>separate and secure.</span>
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {[
+                { icon: ShieldCheck, t: 'Tenant separation', d: 'Each property’s data is isolated from every other.' },
+                { icon: User, t: 'Human control', d: 'Managers decide. AI assists and escalates to people — it never runs the operation.' },
+                { icon: Users, t: 'Role-based access', d: 'Staff, admin, and manager permissions, scoped to the job.' },
+                { icon: Wifi, t: 'Guest privacy', d: 'Minimal guest data. No PMS integration required.' },
+              ].map(x => {
+                const XIcon = x.icon;
+                return (
+                  <div key={x.t} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: `linear-gradient(135deg, ${TEAL}15 0%, ${TEAL}08 100%)` }}>
+                      <XIcon size={20} style={{ color: TEAL }} />
+                    </div>
+                    <h4 className="text-[15px] font-black text-gray-900 mb-1.5">{x.t}</h4>
+                    <p className="text-[13px] text-gray-600 leading-relaxed">{x.d}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      </Reveal>
 
       {/* FAQ */}
       <section className="py-20 px-5 bg-gray-50">
@@ -1478,7 +1501,7 @@ function AttendaLandingPage() {
             <div>
               <h4 className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-4">Company</h4>
               <ul className="space-y-2.5 text-[14px] text-gray-700">
-                <li><a href="#case-study" className="hover:text-gray-900">Case Study</a></li>
+                <li><a href="#revenue" className="hover:text-gray-900">Case Study</a></li>
                 <li><a href="#platform" className="hover:text-gray-900">Platform</a></li>
                 <li><a href="/staff" className="hover:text-gray-900">Staff Login</a></li>
                 <li><a href="mailto:thrilznetwork@gmail.com" className="hover:text-gray-900">Contact</a></li>
@@ -1490,7 +1513,7 @@ function AttendaLandingPage() {
                 <li><a href="#demo" className="hover:text-gray-900">Schedule a Demo</a></li>
                 <li><a href="/blog" className="hover:text-gray-900">Field Notes Blog</a></li>
                 <li><a href="#platform" className="hover:text-gray-900">Feature Tour</a></li>
-                <li><a href="#case-study" className="hover:text-gray-900">Customer Stories</a></li>
+                <li><a href="#revenue" className="hover:text-gray-900">Customer Stories</a></li>
                 <li><a href="/privacy" className="hover:text-gray-900">Privacy</a></li>
                 <li><a href="/terms" className="hover:text-gray-900">Terms</a></li>
               </ul>
@@ -1910,36 +1933,6 @@ function CaseStudyBars() {
   );
 }
 
-/* ── Logo / Integration Marquee Strip ──────────────────────── */
-function LogoStrip() {
-  const items = [
-    { name: 'Google Reviews', color: '#4285F4', abbr: 'G' },
-    { name: 'Stripe', color: '#635BFF', abbr: 'S' },
-    { name: 'TripAdvisor', color: '#00AF87', abbr: 'TA' },
-    { name: 'Yelp', color: '#D32323', abbr: 'Y' },
-    { name: 'QR Code', color: '#374151', abbr: 'QR' },
-    { name: 'WhatsApp', color: '#25D366', abbr: 'WA' },
-    { name: 'Airbnb', color: '#FF5A5F', abbr: 'Ab' },
-  ];
-  const doubled = [...items, ...items];
-  return (
-    <div className="overflow-hidden border-y border-gray-100 bg-gray-50 py-5">
-      <div className="flex gap-8 animate-marquee whitespace-nowrap">
-        {doubled.map((item, i) => (
-          <div key={i} className="inline-flex items-center gap-2.5 shrink-0 px-4">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[11px] font-black shadow-sm"
-              style={{ backgroundColor: item.color }}
-            >
-              {item.abbr}
-            </div>
-            <span className="text-[13px] font-semibold text-gray-600">{item.name}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /* ── Enroll Form ────────────────────────────────────────────── */
 function EnrollForm() {
