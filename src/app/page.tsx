@@ -621,6 +621,20 @@ function AttendaLandingPage() {
         </div>
       </section>
 
+      {/* SCENARIO BAND — airport coordination */}
+      <Reveal>
+        <section className="relative py-20 md:py-28 px-5 overflow-hidden">
+          <Image src="/images/landing/scene-airport.jpg" alt="A hotel shuttle driver welcoming an arriving guest at the airport" fill sizes="100vw" className="object-cover object-center" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(8,15,20,0.15) 0%, rgba(8,15,20,0.55) 58%, rgba(8,15,20,0.86) 100%)' }} />
+          <div className="relative max-w-5xl mx-auto">
+            <div className="ml-auto max-w-md text-right">
+              <h3 className="text-[26px] md:text-[38px] font-black tracking-tight text-white leading-[1.1] mb-3">Airport chaos, handled.</h3>
+              <p className="text-[15px] md:text-[17px] text-white/85">Live shuttle location, guest ETAs, and pickups in one view. Less guessing at the curb — better coordination for every arrival.</p>
+            </div>
+          </div>
+        </section>
+      </Reveal>
+
       {/* FULL PLATFORM INVENTORY — 6 tabbed cards */}
       <PlatformTabs />
 
@@ -789,12 +803,12 @@ function AttendaLandingPage() {
                   </div>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center relative overflow-hidden">
-                  <Image 
-                    src="/images/guest-on-phone-hero.jpg" 
-                    alt="Guest using Attenda on their phone in a hotel room"
-                    width={480} 
-                    height={600} 
-                    className="rounded-2xl shadow-premium object-cover animate-float-slow"
+                  <Image
+                    src="/images/landing/scene-welcome.jpg"
+                    alt="A guest reaching for the welcome card with the Attenda QR code in their room"
+                    width={800}
+                    height={450}
+                    className="rounded-2xl shadow-premium object-cover animate-float-slow w-full"
                     style={{ maxHeight: 520 }}
                   />
                 </div>
@@ -1214,6 +1228,20 @@ function AttendaLandingPage() {
         </div>
       </section>
 
+      {/* SCENARIO BAND — curated local dining */}
+      <Reveal>
+        <section className="relative py-20 md:py-28 px-5 overflow-hidden">
+          <Image src="/images/landing/scene-dining.jpg" alt="A couple enjoying dinner at a curated local restaurant" fill sizes="100vw" className="object-cover object-center" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(8,15,20,0.86) 0%, rgba(8,15,20,0.5) 55%, rgba(8,15,20,0.15) 100%)' }} />
+          <div className="relative max-w-5xl mx-auto">
+            <div className="max-w-md">
+              <h3 className="text-[26px] md:text-[38px] font-black tracking-tight text-white leading-[1.1] mb-3">No restaurant? Still their best meal.</h3>
+              <p className="text-[15px] md:text-[17px] text-white/85">Curate the dining, transportation, and experiences around the stay — convenient for the guest, and a new channel for the hotel.</p>
+            </div>
+          </div>
+        </section>
+      </Reveal>
+
       {/* IMPLEMENTATION */}
       <Reveal>
         <section className="py-16 md:py-24 px-5 bg-gradient-to-b from-white to-gray-50">
@@ -1240,24 +1268,31 @@ function AttendaLandingPage() {
                 </div>
               ))}
             </div>
+            <div className="mt-8 rounded-2xl overflow-hidden shadow-premium">
+              <Image src="/images/landing/scene-onboarding.jpg" alt="Attenda onboarding — configuring the platform alongside hotel staff" width={1600} height={900} className="w-full h-auto object-cover" />
+            </div>
           </div>
         </section>
       </Reveal>
 
-      {/* MANAGED OPERATIONAL SUPPORT */}
+      {/* MANAGED OPERATIONAL SUPPORT — cinematic photo band */}
       <Reveal>
-        <section className="py-16 md:py-24 px-5 bg-white">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">More than software</h2>
-            <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-gray-900 mb-5 leading-[1.08]">
-              Technology alone doesn&apos;t fix hotel operations.<br /><span style={{ color: TEAL }}>People do.</span>
-            </h3>
-            <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto mb-8">
-              For properties that want hands-on help, Attenda can provide or coordinate operational support &mdash; implementation, configuration, and ongoing guidance. Software, plus knowledge, plus execution.
-            </p>
-            <a href="#demo" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-bold text-[15px] shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: TEAL }}>
-              Ask about managed support <ArrowRight size={16} />
-            </a>
+        <section className="relative py-24 md:py-32 px-5 overflow-hidden">
+          <Image src="/images/landing/scene-manager.jpg" alt="An operations consultant guiding a hotel manager" fill sizes="100vw" className="object-cover object-center" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(8,15,20,0.9) 0%, rgba(8,15,20,0.7) 45%, rgba(8,15,20,0.35) 100%)' }} />
+          <div className="relative max-w-5xl mx-auto">
+            <div className="max-w-2xl">
+              <h2 className="text-[14px] font-bold tracking-widest uppercase text-white/60 mb-3">More than software</h2>
+              <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-white mb-5 leading-[1.08]">
+                Technology alone doesn&apos;t fix hotel operations.<br /><span style={{ color: '#5eead4' }}>People do.</span>
+              </h3>
+              <p className="text-[16px] md:text-[18px] text-white/80 max-w-2xl mb-8">
+                For properties that want hands-on help, Attenda can provide or coordinate operational support &mdash; implementation, configuration, and ongoing guidance. Software, plus knowledge, plus execution.
+              </p>
+              <a href="#demo" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-bold text-[15px] shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: TEAL }}>
+                Ask about managed support <ArrowRight size={16} />
+              </a>
+            </div>
           </div>
         </section>
       </Reveal>
@@ -1271,6 +1306,10 @@ function AttendaLandingPage() {
               <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-gray-900 leading-[1.08]">
                 Your operation, kept <span style={{ color: TEAL }}>separate and secure.</span>
               </h3>
+            </div>
+            <div className="relative rounded-2xl overflow-hidden shadow-premium mb-10 max-w-4xl mx-auto">
+              <Image src="/images/landing/scene-evening.jpg" alt="A hotel front desk, staffed and secure in the evening" width={1600} height={720} className="w-full h-auto object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {[
