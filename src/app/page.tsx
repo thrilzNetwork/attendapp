@@ -226,20 +226,17 @@ function HotelGuestApp({
           </button>
         </div>
       </div>
-      <div className="flex items-end justify-between">
-        <div className="flex items-center gap-2">
-          <Globe size={14} className="text-gray-400" />
-          <span className="text-[11px] text-gray-400 leading-none">powered by Attenda</span>
-        </div>
+      <div className="flex gap-3 items-stretch">
         <button onClick={() => (window.location.href = '/account')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200 shadow-sm active:scale-[0.97]">
-          <span className="text-[11px] font-bold tracking-[0.08em] uppercase" style={{ color: brandColor }}>My Orders</span>
+          className="flex-1 h-12 rounded-2xl bg-white border border-gray-200 flex items-center justify-center gap-2 active:scale-[0.97] shadow-sm">
+          <ClipboardList size={18} strokeWidth={1.5} style={{ color: brandColor }} />
+          <span className="text-[12px] font-bold tracking-[0.08em] uppercase" style={{ color: brandColor }}>My Orders</span>
         </button>
-        <button onClick={() => handleClick('message', true)} className="flex items-center gap-2 shrink-0">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: brandColor }}>
-            <User size={20} className="text-white" strokeWidth={1.5} />
-          </div>
-          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: brandColor }}>REQUEST NOW</span>
+        <button onClick={() => handleClick('message', true)}
+          className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.97] shadow-sm"
+          style={{ backgroundColor: brandColor }}>
+          <User size={18} className="text-white" strokeWidth={1.5} />
+          <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-white">Request Now</span>
         </button>
       </div>
 

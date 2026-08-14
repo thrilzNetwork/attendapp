@@ -50,7 +50,7 @@ export interface NearbyIntro {
 
 
 const SUPABASE_URL = 'https://zhhhyrodqndeyjxveszu.supabase.co';
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoaGh5cm9kcW5kZXlqeHZlc3p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNzQ2MzcsImV4cCI6MjEwMDg1MDYzN30.T34AaiMB47koPl2vS4-skLLy957cwk2o9rA_U759BJw';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_7nIb4v8vyVj4cH4gd8GntQ_Or3pwTx3';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -337,11 +337,14 @@ export async function updateVendorStatus(id: string, vendorStatus: 'new' | 'rece
 }
 
 export async function updateRequestStatus(id: string, status: string, assigned_to?: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const update: Record<string, any> = { status };
-  if (assigned_to !== undefined) update.assigned_to = assigned_to;
-  const { error } = await supabase.from('requests').update(update).eq('id', id);
-  if (error) throw new Error(error.message || JSON.stringify(error));
+  const headers = await authedApiHeaders();
+  const res = await fetch('/api/update-request', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ id, status, assigned_to }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Failed to update request');
 }
 
 export async function deleteRequest(id: string) {
@@ -836,12 +839,16 @@ export interface ShuttleRequest {
   notes: string;
   status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
   assigned_driver_id: string | null;
-  assigned_driver_name?: string;
+  assigned_driver_name?: string | null;
   created_at: string;
   uber_delivery_id?: string | null;
   uber_tracking_url?: string | null;
   uber_status?: string | null;
   uber_fee_cents?: number | null;
+  airline?: string | null;
+  terminal?: string | null;
+  callback_number?: string | null;
+  flight_number?: string | null;
 }
 
 // ─── Shuttle CRUD ───────────────────────────────────────────
@@ -1000,13 +1007,8 @@ export async function createShuttleRequest(req: {
 
 export async function getShuttleRequests(hotelId: string): Promise<ShuttleRequest[]> {
   if (!isUuid(hotelId)) return [];
-  const { data } = await supabase.from('shuttle_requests').select(`
-    *, staff_accounts!left(name)
-  `).eq('hotel_id', hotelId).order('created_at', { ascending: false });
-  return (data || []).map((r: Record<string, unknown>) => ({
-    ...r,
-    assigned_driver_name: (r.staff_accounts as Record<string, unknown>)?.name as string || null,
-  })) as ShuttleRequest[];
+  const { data } = await supabase.from('shuttle_requests').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false });
+  return ((data || []) as unknown as ShuttleRequest[]).map(r => ({ ...r, assigned_driver_name: null }));
 }
 
 export async function updateShuttleRequest(id: string, updates: {
@@ -2517,3 +2519,251 @@ export async function deleteVendorExpense(id: string): Promise<void> {
 }
 
 export default supabase;
+
+// ─── Hub Architecture ───────────────────────────────────────
+export interface Hub {
+  id: string;
+  hotel_id: string;
+  slug: string;
+  name: string;
+  icon: string;
+  sort_order: number;
+  is_active: boolean;
+  tools: string[];
+  dashboard_config: Record<string, unknown>;
+}
+
+export interface HubAssignment {
+  id: string;
+  hotel_id: string;
+  staff_id: string;
+  hub_id: string;
+}
+
+export async function getHubs(hotelId: string): Promise<Hub[]> {
+  const { data } = await supabase.from('hubs')
+    .select('*').eq('hotel_id', hotelId).eq('is_active', true).order('sort_order');
+  return (data || []) as unknown as Hub[];
+}
+
+export async function getMyHubs(hotelId: string, staffId?: string): Promise<Hub[]> {
+  let query = supabase.from('hub_assignments').select('hub:hubs(*)').eq('hotel_id', hotelId);
+  if (staffId) query = query.eq('staff_id', staffId);
+  const { data } = await query.order('hub:sort_order' as never);
+  const hubs = (data || []).map((d: Record<string, unknown>) => d.hub).filter(Boolean) as unknown as Hub[];
+  return hubs;
+}
+
+export async function assignStaffToHub(hotelId: string, staffId: string, hubId: string, assignedBy?: string): Promise<void> {
+  const { error } = await supabase.from('hub_assignments').insert({ hotel_id: hotelId, staff_id: staffId, hub_id: hubId, assigned_by: assignedBy });
+  if (error && error.code !== '23505') throw new Error(error.message);
+}
+
+export async function unassignStaffFromHub(staffId: string, hubId: string): Promise<void> {
+  const { error } = await supabase.from('hub_assignments').delete().eq('staff_id', staffId).eq('hub_id', hubId);
+  if (error) throw new Error(error.message);
+}
+
+// ─── Room Status (Housekeeping) ────────────────────────────
+export interface RoomStatus {
+  id: string; hotel_id: string; room_number: string; status: string;
+  cleaned_by?: string; cleaned_at?: string; inspected_by?: string; inspected_at?: string;
+  notes?: string; updated_at: string;
+}
+
+export async function getRoomStatuses(hotelId: string): Promise<RoomStatus[]> {
+  const { data } = await supabase.from('room_status').select('*').eq('hotel_id', hotelId).order('room_number');
+  return (data || []) as unknown as RoomStatus[];
+}
+
+export async function updateRoomStatus(id: string, updates: Partial<RoomStatus>): Promise<void> {
+  const { error } = await supabase.from('room_status').update(updates).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function upsertRoomStatus(hotelId: string, roomNumber: string, status: string, staffName: string): Promise<void> {
+  const { error } = await supabase.from('room_status').upsert({
+    hotel_id: hotelId, room_number: roomNumber, status,
+    cleaned_by: status === 'clean' ? staffName : undefined,
+    cleaned_at: status === 'clean' ? new Date().toISOString() : undefined,
+    inspected_by: status === 'inspected' ? staffName : undefined,
+    inspected_at: status === 'inspected' ? new Date().toISOString() : undefined,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'hotel_id,room_number' });
+  if (error) throw new Error(error.message);
+}
+
+// ─── Linen Counts (Housekeeping) ────────────────────────────
+export interface LinenCount { id: string; hotel_id: string; count_date: string; shift: string; item_type: string; count: number; par_level: number; counted_by?: string; notes?: string; }
+
+export async function getLinenCounts(hotelId: string, date?: string): Promise<LinenCount[]> {
+  const d = date || new Date().toISOString().slice(0, 10);
+  const { data } = await supabase.from('linen_counts').select('*').eq('hotel_id', hotelId).eq('count_date', d).order('created_at', { ascending: false });
+  return (data || []) as unknown as LinenCount[];
+}
+
+export async function createLinenCount(lc: { hotel_id: string; count_date?: string; shift: string; item_type: string; count: number; par_level: number; counted_by?: string; notes?: string }): Promise<void> {
+  const { error } = await supabase.from('linen_counts').insert({ count_date: new Date().toISOString().slice(0,10), ...lc });
+  if (error) throw new Error(error.message);
+}
+
+// ─── Meal Covers (Breakfast/F&B) ────────────────────────────
+export interface MealCover { id: string; hotel_id: string; service_date: string; time_slot?: string; guest_count: number; leftover_portions: number; recorded_by?: string; }
+
+export async function getMealCovers(hotelId: string, date?: string): Promise<MealCover[]> {
+  const d = date || new Date().toISOString().slice(0, 10);
+  const { data } = await supabase.from('meal_covers').select('*').eq('hotel_id', hotelId).eq('service_date', d).order('created_at', { ascending: false });
+  return (data || []) as unknown as MealCover[];
+}
+
+export async function createMealCover(mc: { hotel_id: string; service_date?: string; time_slot?: string; guest_count: number; leftover_portions: number; recorded_by?: string }): Promise<void> {
+  const { error } = await supabase.from('meal_covers').insert({ service_date: new Date().toISOString().slice(0,10), ...mc });
+  if (error) throw new Error(error.message);
+}
+
+// ─── Waste Logs (Breakfast/F&B) ─────────────────────────────
+export interface WasteLog { id: string; hotel_id: string; waste_date: string; item: string; quantity: number; unit: string; reason?: string; estimated_cost: number; recorded_by?: string; }
+
+export async function getWasteLogs(hotelId: string, date?: string): Promise<WasteLog[]> {
+  const d = date || new Date().toISOString().slice(0, 10);
+  const { data } = await supabase.from('waste_logs').select('*').eq('hotel_id', hotelId).eq('waste_date', d).order('created_at', { ascending: false });
+  return (data || []) as unknown as WasteLog[];
+}
+
+export async function createWasteLog(wl: { hotel_id: string; waste_date?: string; item: string; quantity: number; unit: string; reason?: string; estimated_cost: number; recorded_by?: string }): Promise<void> {
+  const { error } = await supabase.from('waste_logs').insert({ waste_date: new Date().toISOString().slice(0,10), ...wl });
+  if (error) throw new Error(error.message);
+}
+
+// ─── Monthly Spends (Breakfast/F&B) ─────────────────────────
+export interface MonthlySpend { id: string; hotel_id: string; spend_date: string; category: string; amount: number; vendor?: string; notes?: string; recorded_by?: string; }
+
+export async function getMonthlySpends(hotelId: string, month?: string): Promise<MonthlySpend[]> {
+  let query = supabase.from('monthly_spends').select('*').eq('hotel_id', hotelId).order('spend_date', { ascending: false });
+  if (month) query = query.gte('spend_date', month + '-01').lt('spend_date', month + '-31');
+  const { data } = await query.limit(100);
+  return (data || []) as unknown as MonthlySpend[];
+}
+
+export async function createMonthlySpend(ms: { hotel_id: string; spend_date?: string; category: string; amount: number; vendor?: string; notes?: string; recorded_by?: string }): Promise<void> {
+  const { error } = await supabase.from('monthly_spends').insert({ spend_date: new Date().toISOString().slice(0,10), ...ms });
+  if (error) throw new Error(error.message);
+}
+
+// ─── F&B Inventory ──────────────────────────────────────────
+export interface FnbInventoryItem { id: string; hotel_id: string; item_name: string; par_level: number; current_count: number; unit: string; order_needed: boolean; last_counted_by?: string; last_counted_at?: string; }
+
+export async function getFnbInventory(hotelId: string): Promise<FnbInventoryItem[]> {
+  const { data } = await supabase.from('fnb_inventory').select('*').eq('hotel_id', hotelId).order('item_name');
+  return (data || []) as unknown as FnbInventoryItem[];
+}
+
+export async function updateFnbInventory(id: string, updates: Partial<FnbInventoryItem>): Promise<void> {
+  const { error } = await supabase.from('fnb_inventory').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+// ─── Work Orders (Maintenance) ──────────────────────────────
+export interface WorkOrder { id: string; hotel_id: string; location: string; issue: string; priority: string; status: string; assigned_to?: string; parts_used?: string; created_by?: string; created_at: string; resolved_at?: string; }
+
+export async function getWorkOrders(hotelId: string): Promise<WorkOrder[]> {
+  const { data } = await supabase.from('work_orders').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false });
+  return (data || []) as unknown as WorkOrder[];
+}
+
+export async function createWorkOrder(wo: { hotel_id: string; location: string; issue: string; priority: string; status: string; assigned_to?: string; parts_used?: string; created_by?: string }): Promise<void> {
+  const { error } = await supabase.from('work_orders').insert(wo);
+  if (error) throw new Error(error.message);
+}
+
+export async function updateWorkOrder(id: string, updates: Partial<WorkOrder>): Promise<void> {
+  const { error } = await supabase.from('work_orders').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+// ─── Incident Logs (Security) ───────────────────────────────
+export interface IncidentLog { id: string; hotel_id: string; incident_date: string; type: string; location?: string; description: string; action_taken?: string; reported_by?: string; resolved: boolean; resolved_at?: string; }
+
+export async function getIncidentLogs(hotelId: string, date?: string): Promise<IncidentLog[]> {
+  let query = supabase.from('incident_logs').select('*').eq('hotel_id', hotelId).order('incident_date', { ascending: false });
+  if (date) query = query.eq('incident_date', date);
+  const { data } = await query.limit(50);
+  return (data || []) as unknown as IncidentLog[];
+}
+
+export async function createIncidentLog(il: { hotel_id: string; incident_date?: string; type: string; location?: string; description: string; action_taken?: string; reported_by?: string; resolved: boolean }): Promise<void> {
+  const { error } = await supabase.from('incident_logs').insert({ incident_date: new Date().toISOString().slice(0,10), ...il });
+  if (error) throw new Error(error.message);
+}
+
+export async function resolveIncidentLog(id: string, resolvedBy: string): Promise<void> {
+  const { error } = await supabase.from('incident_logs').update({ resolved: true, resolved_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+// ─── Patrol Logs (Security) ────────────────────────────────
+export interface PatrolLog { id: string; hotel_id: string; patrol_date: string; checkpoint: string; check_time?: string; status: string; notes?: string; officer_name?: string; }
+
+export async function getPatrolLogs(hotelId: string, date?: string): Promise<PatrolLog[]> {
+  const d = date || new Date().toISOString().slice(0, 10);
+  const { data } = await supabase.from('patrol_logs').select('*').eq('hotel_id', hotelId).eq('patrol_date', d).order('created_at', { ascending: false });
+  return (data || []) as unknown as PatrolLog[];
+}
+
+export async function createPatrolLog(pl: { hotel_id: string; patrol_date?: string; checkpoint: string; status: string; notes?: string; officer_name?: string }): Promise<void> {
+  const { error } = await supabase.from('patrol_logs').insert({ patrol_date: new Date().toISOString().slice(0,10), check_time: new Date().toISOString(), ...pl });
+  if (error) throw new Error(error.message);
+}
+
+// ─── AI Agent System ────────────────────────────────────────
+export interface AgentConfig {
+  id: string; hotel_id: string; elevenlabs_agent_id?: string;
+  is_active: boolean; is_premium: boolean; voice_id: string;
+  first_message: string; system_prompt: string; knowledge_base: Record<string, unknown>;
+  tools_enabled: string[]; max_duration_seconds: number;
+}
+
+export interface AgentCall {
+  id: string; hotel_id: string; caller_name?: string; caller_room?: string;
+  caller_phone?: string; conversation_id?: string; status: string;
+  transcript?: string; duration_seconds: number; request_created: boolean;
+  request_id?: string; escalated: boolean; escalated_to?: string;
+  started_at: string; ended_at?: string;
+}
+
+export interface AgentRequest {
+  id: string; hotel_id: string; call_id?: string; request_type: string;
+  room_number?: string; guest_name?: string; description: string;
+  priority: string; status: string; assigned_to?: string; notes?: string;
+  created_at: string; completed_at?: string;
+}
+
+export async function getAgentConfig(hotelId: string): Promise<AgentConfig | null> {
+  const { data } = await supabase.from('agent_configs').select('*').eq('hotel_id', hotelId).single();
+  return data as unknown as AgentConfig | null;
+}
+
+export async function getAgentCalls(hotelId: string, limit = 20): Promise<AgentCall[]> {
+  const { data } = await supabase.from('agent_calls').select('*').eq('hotel_id', hotelId).order('started_at', { ascending: false }).limit(limit);
+  return (data || []) as unknown as AgentCall[];
+}
+
+export async function getAgentRequests(hotelId: string, status?: string): Promise<AgentRequest[]> {
+  let query = supabase.from('agent_requests').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false });
+  if (status) query = query.eq('status', status);
+  const { data } = await query.limit(50);
+  return (data || []) as unknown as AgentRequest[];
+}
+
+export async function updateAgentRequest(id: string, updates: Partial<AgentRequest>): Promise<void> {
+  const { error } = await supabase.from('agent_requests').update(updates).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function subscribeAgentCalls(hotelId: string, onInsert: (call: AgentCall) => void) {
+  return supabase.channel('agent-calls').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'agent_calls', filter: `hotel_id=eq.${hotelId}` }, (payload) => { onInsert(payload.new as AgentCall); }).subscribe();
+}
+
+export async function subscribeAgentRequests(hotelId: string, onInsert: (req: AgentRequest) => void) {
+  return supabase.channel('agent-requests').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'agent_requests', filter: `hotel_id=eq.${hotelId}` }, (payload) => { onInsert(payload.new as AgentRequest); }).subscribe();
+}

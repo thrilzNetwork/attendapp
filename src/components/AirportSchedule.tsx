@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { CheckCircle } from 'lucide-react';
-import { getAllShuttleSlotsForHotel, bookShuttleSlot, createShuttleRequest, getHotelConfig, ShuttleSlot, HotelConfig } from '@/lib/supabase';
+import { getAllShuttleSlotsForHotel, bookShuttleSlot, getHotelConfig, ShuttleSlot, HotelConfig } from '@/lib/supabase';
 
 function todayISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function fmt12(time: string) { const [h] = time.split(':').map(Number); return `${h % 12 || 12} ${h >= 12 ? 'PM' : 'AM'}`; }
@@ -56,9 +56,25 @@ export function AirportSchedule({ brandColor, config }: { brandColor: string; co
       const isVirtual = selected!.id.startsWith('virtual-');
       const cfg = config?.id ? config : await getHotelConfig();
       console.log('[AirportSchedule] handleBook cfg.id=', cfg?.id, 'isVirtual=', isVirtual);
+      const bookingPromise = fetch('/api/guest-book-shuttle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hotel_id: cfg?.id,
+          guest_name: name,
+          room_number: room,
+          pickup_location: cfg?.shuttlePickupLocation || 'Hotel Lobby',
+          destination: selected!.route_name || 'Airport',
+          date,
+          time: selected!.departure_time || undefined,
+          pax,
+          status: 'pending',
+        }),
+      }).then(async r => { if (!r.ok) throw new Error(await r.text()); });
+
       const results = await Promise.allSettled([
         isVirtual ? Promise.resolve() : bookShuttleSlot({ slot_id: selected!.id, guest_name: name, room_number: room, pax, notes: '', price_charged: 0, charge_accepted: false }),
-        cfg?.id ? createShuttleRequest({ hotel_id: cfg.id, guest_name: name, room_number: room, pickup_location: cfg.shuttlePickupLocation || 'Hotel Lobby', destination: selected!.route_name || 'Airport', date, time: selected!.departure_time || undefined, pax, status: 'pending' }) : Promise.resolve(),
+        bookingPromise,
       ]);
       results.forEach((r, i) => { if (r.status === 'rejected') console.error(`[AirportSchedule] promise[${i}] rejected:`, r.reason); });
       // Add to guest's local request list so it appears in MY ORDERS

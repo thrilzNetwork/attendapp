@@ -24,6 +24,7 @@ class ErrorBoundary extends Component<{children: React.ReactNode, fallback?: Rea
   }
 }
 import Image from 'next/image';
+import AgentDashboard from '@/components/agent/AgentDashboard';
 import {
   Bell, MessageSquare, Bus, Settings, Users,
   LogOut, RefreshCw, Plus, Trash2, Eye, EyeOff, Save,
@@ -31,7 +32,7 @@ import {
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
-  BarChart3, BarChart2, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign, ShieldCheck, MapPin, PhoneCall, Trophy, Heart, Truck,
+  BarChart3, BarChart2, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign, ShieldCheck, MapPin, PhoneCall, Trophy, Heart, Truck, Bot, Webhook, Wrench,
 } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
@@ -125,7 +126,7 @@ type NavTab =
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
   | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture'
-  | 'revenue' | 'reports' | 'vendors';
+  | 'revenue' | 'reports' | 'vendors' | 'agent';
 
 interface Request {
   id: string;
@@ -209,6 +210,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'vendors',         label: 'Vendors',            icon: Truck,           roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'qrcodes',         label: 'QR Codes',            icon: QrCodeIcon,      roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'rooms',           label: 'Room Management',     icon: DoorOpen,        roles: ['admin', 'superadmin'], section: 'Admin' },
+  { tab: 'agent',           label: 'AI Agent',             icon: Bot,             roles: ['admin', 'superadmin'], section: 'Admin' },
 
   // ── PLATFORM — superadmin only ──
   { tab: 'properties',      label: 'All Properties',      icon: Building2,       roles: ['superadmin'], section: 'Platform' },
@@ -1016,6 +1018,9 @@ function DashboardInner() {
         {tabPanel('rooms', isAdmin,
           <RoomsView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} />
         )}
+        {tabPanel('agent', isAdmin,
+          <AgentDashboard hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} />
+        )}
         {tabPanel('properties', s.role === 'superadmin',
           <SuperAdminView onSwitchHotel={switchHotel} />
         )}
@@ -1640,7 +1645,21 @@ function ShuttleRequestsPanel({ hotelId }: { hotelId: string }) {
     setLoading(false);
   }, [hotelId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    // Real-time: auto-refresh when new shuttle requests come in from the AI agent
+    const { supabase } = require('@/lib/supabase');
+    const channel = supabase
+      .channel(`shuttle_requests_${hotelId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'shuttle_requests', filter: `hotel_id=eq.${hotelId}` }, () => {
+        load();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shuttle_requests', filter: `hotel_id=eq.${hotelId}` }, () => {
+        load();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [load, hotelId]);
 
   if (loading) return <div className="text-center py-12"><div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" /></div>;
 
@@ -1664,11 +1683,20 @@ function ShuttleRequestsPanel({ hotelId }: { hotelId: string }) {
                 {pending.map(r => (
                   <div key={r.id} className="bg-white rounded-xl border border-amber-200 p-4 shadow-sm">
                     <div className="flex items-start justify-between mb-2">
-                      <div>
+                      <div className="flex-1">
                         <p className="text-[14px] font-bold text-gray-900">{r.guest_name} · Room {r.room_number} · {r.pax} pax</p>
                         <p className="text-[12px] text-gray-500">{r.destination} · {r.date || 'No date'} {r.time || ''}</p>
-                        {r.notes && <p className="text-[11px] text-gray-400 mt-0.5">{r.notes}</p>}
+                        {(r.airline || r.terminal || r.callback_number) && (
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {r.airline && <span className="px-2 py-0.5 rounded-md bg-blue-50 text-[10px] font-bold text-blue-700">{r.airline}</span>}
+                            {r.terminal && <span className="px-2 py-0.5 rounded-md bg-purple-50 text-[10px] font-bold text-purple-700">Terminal {r.terminal}</span>}
+                            {r.callback_number && <span className="px-2 py-0.5 rounded-md bg-green-50 text-[10px] font-bold text-green-700">📞 {r.callback_number}</span>}
+                            {r.flight_number && <span className="px-2 py-0.5 rounded-md bg-gray-50 text-[10px] font-bold text-gray-600">Flight {r.flight_number}</span>}
+                          </div>
+                        )}
+                        {r.notes && <p className="text-[11px] text-gray-400 mt-1">{r.notes}</p>}
                       </div>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 shrink-0 ml-2">AI BOOKED</span>
                     </div>
                     <div className="flex gap-2">
                       <select onChange={async e => { if(e.target.value) { await updateShuttleRequest(r.id, { assigned_driver_id: e.target.value, status: 'assigned' }); load(); } }}
@@ -1706,17 +1734,33 @@ function ShuttleRequestsPanel({ hotelId }: { hotelId: string }) {
           )}
 
           {done.length > 0 && (
-            <details className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-              <summary className="text-[13px] font-bold text-gray-500 cursor-pointer">Completed ({done.length})</summary>
-              <div className="space-y-1 mt-2">
-                {done.map(r => (
-                  <div key={r.id} className="flex items-center gap-3 text-[12px] text-gray-500 py-1">
-                    <span>{r.guest_name} · {r.destination}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100">{r.status}</span>
-                  </div>
-                ))}
+            <div>
+              <h3 className="text-[13px] font-bold text-gray-500 uppercase tracking-wider mb-2">Today's Ride History ({done.length})</h3>
+              <div className="space-y-2">
+                {done.map(r => {
+                  const isDone = r.status === 'completed';
+                  return (
+                    <div key={r.id} className={`bg-white rounded-xl border p-3.5 shadow-sm ${isDone ? 'border-gray-200' : 'border-red-100'}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[13px] font-bold text-gray-900">{r.guest_name} · Room {r.room_number} · {r.pax} pax</p>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${isDone ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                          {isDone ? '✓ COMPLETED' : '✕ CANCELLED'}
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-gray-500">{r.destination} · {r.date || 'No date'} {r.time || ''}</p>
+                      {(r.airline || r.terminal || r.callback_number) && (
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {r.airline && <span className="px-2 py-0.5 rounded-md bg-blue-50 text-[10px] font-bold text-blue-700">{r.airline}</span>}
+                          {r.terminal && <span className="px-2 py-0.5 rounded-md bg-purple-50 text-[10px] font-bold text-purple-700">Terminal {r.terminal}</span>}
+                          {r.callback_number && <span className="px-2 py-0.5 rounded-md bg-green-50 text-[10px] font-bold text-green-700">📞 {r.callback_number}</span>}
+                        </div>
+                      )}
+                      {r.assigned_driver_name && <p className="text-[10px] text-gray-400 mt-1">Driver: {r.assigned_driver_name}</p>}
+                    </div>
+                  );
+                })}
               </div>
-            </details>
+            </div>
           )}
         </>
       )}

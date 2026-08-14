@@ -170,6 +170,7 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+
       </head>
       <body className="antialiased bg-[#F5F5F5] text-ink-900 font-sans">
         <GuestProvider>
