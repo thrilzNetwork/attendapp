@@ -6,7 +6,9 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const agentId = 'agent_4101kzn4ysvjfaava4ck5ggdt5ba';
+  // Overridable in Netlify (ELEVENLABS_AGENT_ID) so the agent can be swapped
+  // without a code change. Defaults to the "Attenda Super Agent".
+  const agentId = process.env.ELEVENLABS_AGENT_ID || 'agent_4101kzn4ysvjfaava4ck5ggdt5ba';
   const apiKey = process.env.ELEVENLABS_API_KEY;
 
   if (!apiKey) {
@@ -14,8 +16,10 @@ export async function GET() {
   }
 
   try {
+    // Correct ElevenLabs endpoint: get-signed-url with agent_id query param.
+    // (The old /convai/agents/{id}/signed-url path returns 404.)
     const res = await fetch(
-      `https://api.elevenlabs.io/v1/convai/agents/${agentId}/signed-url`,
+      `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`,
       {
         method: 'GET',
         headers: {
