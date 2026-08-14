@@ -14,6 +14,8 @@ const ALLOWED_ORIGINS = [
 
 // Any *.vercel.app domain is allowed (dynamic preview URLs)
 const VERCEL_APP_RE = /^https:\/\/[a-z0-9-]+-thrilzs-projects\.vercel\.app$/;
+// Netlify deploy-preview / branch subdomains, e.g. https://<hash>--attenda-app.netlify.app
+const NETLIFY_APP_RE = /^https:\/\/[a-z0-9-]+--attenda-app\.netlify\.app$/;
 
 /**
  * Origin/referer check — soft gate against non-browser clients.
@@ -25,7 +27,7 @@ export function isAllowedOrigin(origin: string | null, referer: string | null): 
   // No origin = API client (curl, scripts) — allow through, let API key check handle it
   if (!origin && !referer) return true;
   const check = origin || referer || '';
-  return ALLOWED_ORIGINS.some(a => check.startsWith(a)) || VERCEL_APP_RE.test(check);
+  return ALLOWED_ORIGINS.some(a => check.startsWith(a)) || VERCEL_APP_RE.test(check) || NETLIFY_APP_RE.test(check);
 }
 
 /**
