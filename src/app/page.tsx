@@ -12,14 +12,7 @@ import {
 import { useGuest } from '@/lib/guest-context';
 import { getHotelConfig } from '@/lib/supabase';
 import Reveal from '@/components/landing/Reveal';
-import { PhoneFrame } from '@/components/landing/DeviceFrames';
-import {
-  RequestsScreenMockup,
-  ScheduleScreenMockup,
-  AdminDashboardMockup,
-  ShuttleScreenMockup,
-  MessagesScreenMockup,
-} from '@/components/landing/AppMockups';
+import { PhoneFrame, BrowserFrame } from '@/components/landing/DeviceFrames';
 
 /* ──────────────────────────────────────────────────────────── */
 /*  Root — detects hotel context and switches view             */
@@ -457,46 +450,42 @@ function AttendaLandingPage() {
             </p>
           </Reveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-8 items-end">
-            <Reveal direction="up" delay={0} className="flex flex-col items-center">
-              <PhoneFrame width={240} className="mx-auto">
-                <div className="h-[476px] overflow-hidden">
-                  <Image src="/images/landing/app-guest-home.png" alt="Attenda guest app — requests, shuttle, food and local tips" width={402} height={874} className="w-full h-auto" />
-                </div>
-              </PhoneFrame>
-              <div className="mt-5 text-center">
-                <div className="text-[15px] font-black text-gray-900">For Guests</div>
-                <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Scan the QR — requests, shuttle, food, and local tips. No app to download.</p>
-              </div>
-            </Reveal>
-
-            <Reveal direction="up" delay={120} className="flex flex-col items-center">
-              <div className="animate-float-slow">
-                <PhoneFrame width={220} className="mx-auto">
-                  <div className="h-[476px] overflow-hidden">
-                    <RequestsScreenMockup />
-                  </div>
-                </PhoneFrame>
-              </div>
-              <div className="mt-5 text-center">
-                <div className="text-[15px] font-black text-gray-900">For Staff</div>
-                <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Every request, task, and shift in one live thread — nothing slips.</p>
-              </div>
-            </Reveal>
-
-            <Reveal direction="up" delay={240} className="flex flex-col items-center">
-              <div className="animate-float">
-                <PhoneFrame width={220} className="mx-auto">
-                  <div className="h-[476px] overflow-hidden">
-                    <AdminDashboardMockup />
-                  </div>
-                </PhoneFrame>
-              </div>
-              <div className="mt-5 text-center">
+          <div className="space-y-12">
+            {/* Management — real desktop dashboard */}
+            <Reveal direction="up" className="max-w-4xl mx-auto">
+              <BrowserFrame url="attenda.app/staff · The Marina Bay Hotel">
+                <Image src="/images/landing/app-gm-dashboard.jpg" alt="Attenda management dashboard — the real staff web app" width={1440} height={900} className="w-full h-auto block" />
+              </BrowserFrame>
+              <div className="mt-4 text-center">
                 <div className="text-[15px] font-black text-gray-900">For Management</div>
-                <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Labor, revenue, and performance across the property at a glance.</p>
+                <p className="text-[13px] text-gray-500 mt-1 max-w-md mx-auto">Labor, revenue, and performance across the property — at a glance, from anywhere.</p>
               </div>
             </Reveal>
+
+            {/* Staff (desktop) + Guest (mobile) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-end">
+              <Reveal direction="up" delay={120} className="lg:col-span-8">
+                <BrowserFrame url="attenda.app/staff · Requests">
+                  <Image src="/images/landing/app-staff-requests.jpg" alt="Attenda staff requests board — the real staff web app" width={1440} height={900} className="w-full h-auto block" />
+                </BrowserFrame>
+                <div className="mt-4 text-center">
+                  <div className="text-[15px] font-black text-gray-900">For Staff</div>
+                  <p className="text-[13px] text-gray-500 mt-1 max-w-md mx-auto">Every request, task, and shift in one live thread — nothing slips.</p>
+                </div>
+              </Reveal>
+
+              <Reveal direction="up" delay={240} className="lg:col-span-4 flex flex-col items-center">
+                <PhoneFrame width={230} className="mx-auto">
+                  <div className="h-[476px] overflow-hidden">
+                    <Image src="/images/landing/app-guest-home.png" alt="Attenda guest app — requests, shuttle, food and local tips" width={402} height={874} className="w-full h-auto" />
+                  </div>
+                </PhoneFrame>
+                <div className="mt-4 text-center">
+                  <div className="text-[15px] font-black text-gray-900">For Guests</div>
+                  <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Scan the QR — requests, shuttle, food, and local tips. No app.</p>
+                </div>
+              </Reveal>
+            </div>
           </div>
         </div>
       </section>
@@ -872,13 +861,9 @@ function AttendaLandingPage() {
                   </div>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <div className="animate-float-slow">
-                    <PhoneFrame width={240} className="mx-auto">
-                      <div className="h-[520px] overflow-hidden">
-                        <RequestsScreenMockup />
-                      </div>
-                    </PhoneFrame>
-                  </div>
+                  <BrowserFrame url="attenda.app/staff · Requests">
+                    <Image src="/images/landing/app-staff-requests.jpg" alt="Attenda staff requests board — the real web app" width={1440} height={900} className="w-full h-auto block" />
+                  </BrowserFrame>
                 </div>
               </div>
             </div>
@@ -938,13 +923,9 @@ function AttendaLandingPage() {
                   </div>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <div className="animate-float">
-                    <PhoneFrame width={240} className="mx-auto">
-                      <div className="h-[520px] overflow-hidden">
-                        <AdminDashboardMockup />
-                      </div>
-                    </PhoneFrame>
-                  </div>
+                  <BrowserFrame url="attenda.app/staff · Dashboard">
+                    <Image src="/images/landing/app-gm-dashboard.jpg" alt="Attenda management dashboard — the real web app" width={1440} height={900} className="w-full h-auto block" />
+                  </BrowserFrame>
                 </div>
               </div>
             </div>
@@ -995,13 +976,9 @@ function AttendaLandingPage() {
                   </a>
                 </div>
                 <div className="p-8 md:p-10 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
-                  <div className="animate-float-slow">
-                    <PhoneFrame width={240} className="mx-auto">
-                      <div className="h-[520px] overflow-hidden">
-                        <ShuttleScreenMockup />
-                      </div>
-                    </PhoneFrame>
-                  </div>
+                  <BrowserFrame url="attenda.app/staff · Transportation">
+                    <Image src="/images/landing/app-staff-transport.jpg" alt="Attenda transportation dispatch — the real web app" width={1440} height={900} className="w-full h-auto block" />
+                  </BrowserFrame>
                 </div>
               </div>
             </div>
@@ -1739,18 +1716,22 @@ function PlatformTabs() {
               </ul>
             </div>
             <div className="p-6 md:p-8 bg-gradient-to-br from-gray-50 to-white flex items-center justify-center min-h-[380px]">
-              <div className={activeArea === 'guest' || activeArea === 'partners' ? 'animate-float' : 'animate-float-slow'}>
+              {activeArea === 'guest' ? (
                 <PhoneFrame width={220} className="mx-auto">
                   <div className="h-[476px] overflow-hidden">
-                    {activeArea === 'ops' && <RequestsScreenMockup />}
-                    {activeArea === 'revenue' && <AdminDashboardMockup />}
-                    {activeArea === 'labor' && <ScheduleScreenMockup />}
-                    {activeArea === 'guest' && <MessagesScreenMockup />}
-                    {activeArea === 'partners' && <ShuttleScreenMockup />}
-                    {activeArea === 'transport' && <ShuttleScreenMockup />}
+                    <Image src="/images/landing/app-guest-home.png" alt="Attenda guest app" width={402} height={874} className="w-full h-auto" />
                   </div>
                 </PhoneFrame>
-              </div>
+              ) : (
+                <BrowserFrame url="attenda.app/staff">
+                  <Image
+                    src={activeArea === 'ops' ? '/images/landing/app-staff-requests.jpg' : activeArea === 'revenue' ? '/images/landing/app-gm-dashboard.jpg' : activeArea === 'labor' ? '/images/landing/app-staff-schedules.jpg' : '/images/landing/app-staff-transport.jpg'}
+                    alt="Attenda staff web app"
+                    width={1440} height={900}
+                    className="w-full h-auto block"
+                  />
+                </BrowserFrame>
+              )}
             </div>
           </div>
         </div>
