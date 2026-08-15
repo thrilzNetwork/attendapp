@@ -362,9 +362,9 @@ function AttendaLandingPage() {
           className="object-cover object-center"
         />
         {/* Base scrim — stronger on mobile (text wraps wider) so white copy stays legible */}
-        <div className="absolute inset-0 bg-black/55 md:bg-black/25" />
-        {/* Directional gradient — keeps the editorial left-to-right falloff on desktop */}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(8,15,20,0.85) 0%, rgba(8,15,20,0.55) 45%, rgba(8,15,20,0.12) 100%)' }} />
+        <div className="absolute inset-0 bg-black/50 md:bg-black/25" />
+        {/* Directional gradient — near-opaque on the left (behind the copy), fading to reveal the photo on the right */}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(8,15,20,0.95) 0%, rgba(8,15,20,0.82) 44%, rgba(8,15,20,0.45) 68%, rgba(8,15,20,0.08) 100%)' }} />
 
         <div className="relative w-full max-w-6xl mx-auto px-5 py-20 md:py-28">
           <div className="max-w-xl">
@@ -376,7 +376,7 @@ function AttendaLandingPage() {
               Run your hotel<br />
               <span style={{ color: '#5eead4' }}>from one place.</span>
             </h1>
-            <p className="text-[18px] text-white/90 leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s', textShadow: '0 1px 10px rgba(0,0,0,0.45)' }}>
+            <p className="text-[18px] text-white leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s', textShadow: '0 1px 12px rgba(0,0,0,0.6)' }}>
               Attenda brings your daily operations, your team, and your guest experience into one environment — without replacing the systems you already depend on. Less chasing information. More taking care of guests.
             </p>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-scale-in" style={{ animationDelay: '0.4s' }}>
