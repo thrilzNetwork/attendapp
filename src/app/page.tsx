@@ -361,8 +361,10 @@ function AttendaLandingPage() {
           sizes="100vw"
           className="object-cover object-center"
         />
-        {/* Legibility gradient — left-heavy so the copy stays crisp */}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(8,15,20,0.88) 0%, rgba(8,15,20,0.64) 38%, rgba(8,15,20,0.18) 70%, rgba(8,15,20,0) 100%)' }} />
+        {/* Base scrim — stronger on mobile (text wraps wider) so white copy stays legible */}
+        <div className="absolute inset-0 bg-black/55 md:bg-black/25" />
+        {/* Directional gradient — keeps the editorial left-to-right falloff on desktop */}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(8,15,20,0.85) 0%, rgba(8,15,20,0.55) 45%, rgba(8,15,20,0.12) 100%)' }} />
 
         <div className="relative w-full max-w-6xl mx-auto px-5 py-20 md:py-28">
           <div className="max-w-xl">
@@ -370,11 +372,11 @@ function AttendaLandingPage() {
               <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
               <span className="text-[12px] font-bold text-white/90 tracking-wide uppercase">Hotel operations, organized</span>
             </div>
-            <h1 className="text-[40px] md:text-[58px] lg:text-[64px] leading-[1.04] font-black tracking-tight text-white mb-6 animate-scale-in" style={{ animationDelay: '0.2s' }}>
+            <h1 className="text-[40px] md:text-[58px] lg:text-[64px] leading-[1.04] font-black tracking-tight text-white mb-6 animate-scale-in" style={{ animationDelay: '0.2s', textShadow: '0 2px 18px rgba(0,0,0,0.5)' }}>
               Run your hotel<br />
               <span style={{ color: '#5eead4' }}>from one place.</span>
             </h1>
-            <p className="text-[18px] text-white/85 leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s' }}>
+            <p className="text-[18px] text-white/90 leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s', textShadow: '0 1px 10px rgba(0,0,0,0.45)' }}>
               Attenda brings your daily operations, your team, and your guest experience into one environment — without replacing the systems you already depend on. Less chasing information. More taking care of guests.
             </p>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-scale-in" style={{ animationDelay: '0.4s' }}>
