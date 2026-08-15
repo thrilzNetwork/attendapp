@@ -541,7 +541,7 @@ function AttendaLandingPage() {
                 scenario: 'A guest opens the hotel’s link, taps “towels” — the request reaches the right person, and the towels arrive. The result is the hero, not the tech.' },
               { n: '03', icon: Users, title: 'Learn', tag: 'Better hotels are run by better-informed people.', img: '/images/landing/pillar-knowledge.jpg',
                 body: 'Your SOPs, procedures, and property knowledge — accessible to the team that needs them. Attenda’s assistant helps people find approved answers; when it can’t, it points them to a manager instead of guessing. AI assists the operation. It never runs it.',
-                points: ['Right Answers — approved knowledge access', 'AI answering & scheduling assistants', 'Learning & HR', 'Culture Hub — recognition, birthdays, incentives'],
+                points: ['Right Answers — approved knowledge access', 'AI answering — takes calls & routes to the right person', 'AI scheduling assistant', 'Learning & HR', 'Culture Hub — recognition, birthdays, incentives'],
                 coming: ['Attenda University', 'Community knowledge exchange'],
                 scenario: 'A new team member asks a procedure question and gets the property’s real answer in seconds — or a clean handoff to a manager.' },
               { n: '04', icon: DollarSign, title: 'Grow', tag: 'Be more useful to your guest — and capture the value.', img: '/images/landing/pillar-revenue.jpg',
@@ -799,7 +799,7 @@ function AttendaLandingPage() {
             <div className="max-w-2xl">
               <h2 className="text-[14px] font-bold tracking-widest uppercase text-white/60 mb-3">Fractional management</h2>
               <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-white mb-5 leading-[1.08]">
-                Sometimes you don&apos;t need more software.<br /><span style={{ color: '#5eead4' }}>You need a manager.</span>
+                Software alone doesn&apos;t run a hotel.<br /><span style={{ color: '#5eead4' }}>People do.</span>
               </h3>
               <p className="text-[16px] md:text-[18px] text-white/80 max-w-2xl mb-8">
                 For qualified properties, Attenda can place a fractional hotel manager &mdash; a certified Attenda operator trained across limited-service, extended-stay, full-service, and boutique models &mdash; to run the operation on the platform alongside your team. The software, plus an operator who knows how to use it.
@@ -844,6 +844,34 @@ function AttendaLandingPage() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* INTEGRATIONS — best-in-class, plainly stated (SEO + credibility) */}
+      <Reveal>
+        <section className="py-16 md:py-20 px-5 bg-white border-b border-gray-100">
+          <div className="max-w-5xl mx-auto text-center">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Built on best-in-class technology</h2>
+            <h3 className="text-[26px] md:text-[36px] font-black tracking-tight text-gray-900 mb-4 leading-[1.1]">
+              We don&apos;t reinvent what already works.
+            </h3>
+            <p className="text-[15px] md:text-[16px] text-gray-600 max-w-2xl mx-auto mb-10">
+              Attenda connects the tools hotels already trust — so live shuttle tracking, AI voice answering, delivery, and payments just work.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { name: 'Bouncie', role: 'Live GPS shuttle tracking' },
+                { name: 'ElevenLabs', role: 'AI voice answering & agents' },
+                { name: 'Uber Direct', role: 'Last-mile delivery' },
+                { name: 'Stripe', role: 'Payments & checkout' },
+              ].map(t => (
+                <div key={t.name} className="rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left">
+                  <div className="text-[16px] font-black text-gray-900">{t.name}</div>
+                  <div className="text-[12px] text-gray-500 mt-1">{t.role}</div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -918,11 +946,11 @@ function AttendaLandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { num: '01', cat: 'Operations', catColor: '#3B82F6', title: 'The 12-questions-a-day front desk problem', slug: 'the-12-questions-a-day-front-desk-problem', problem: 'Towels. WiFi. Late checkout. Parking. Breakfast. Checkout time. The same six questions, twice each, every shift. Why QR codes close the gap.', readingTime: '5 min' },
-              { num: '02', cat: 'Revenue', catColor: TEAL, title: 'Cruise-day shuttle: the $7,820 line item', slug: 'cruise-day-shuttle-the-dollar7820-line-item', problem: 'How a 121-room boutique captured $7,820 in four months from cruise-day shuttle bookings &mdash; the math, the UI, the cruise calendar integration.', readingTime: '7 min' },
-              { num: '03', cat: 'Housekeeping', catColor: '#8B5CF6', title: 'Why we killed the 4-system housekeeping stack', slug: 'why-we-killed-the-4-system-housekeeping-stack', problem: 'Housekeeping in one app. Front desk in another. GM dashboard in a third. Guest requests in a fourth. The day the team stopped using three of them.', readingTime: '6 min' },
-              { num: '04', cat: 'Owner', catColor: '#F59E0B', title: 'The &ldquo;AI will transform hospitality&rdquo; trap', slug: 'the-ai-will-transform-hospitality-trap', problem: 'Three pitches, three contracts, three dashboards no one opened. What the sales deck doesn&apos;t show you about contact with the front desk.', readingTime: '8 min' },
-              { num: '05', cat: 'Industry', catColor: '#6B7280', title: 'The ops stack gap: chains vs. independents', slug: 'the-ops-stack-gap-chains-vs-independents', problem: 'Chains can afford 8-figure PMS systems. Independents can&apos;t. The six tools an independent property actually needs to compete in 2026.', readingTime: '9 min' },
+              { num: '01', cat: 'Operations', catColor: '#3B82F6', title: 'Hotels don&rsquo;t have an information problem', slug: 'hotels-dont-have-an-information-problem', problem: 'They have an organization problem. Your team already creates everything you need to run the hotel — it&apos;s just scattered across apps, paper, and people&apos;s heads.', readingTime: '5 min' },
+              { num: '02', cat: 'Revenue', catColor: TEAL, title: 'Cruise-day shuttle: the $7,820 line item', slug: 'cruise-day-shuttle-the-dollar7820-line-item', problem: 'How a 121-room boutique captured $7,820 in four months from cruise-day shuttle bookings &mdash; the math, the UI, the cruise calendar.', readingTime: '7 min' },
+              { num: '03', cat: 'Transportation', catColor: '#0EA5E9', title: 'Stop answering &ldquo;where&rsquo;s the shuttle?&rdquo;', slug: 'stop-answering-wheres-the-shuttle', problem: 'A guest lands, calls the front desk, asks where the shuttle is — every arrival, all day. Live GPS answers it before the phone rings.', readingTime: '6 min' },
+              { num: '04', cat: 'AI', catColor: '#F59E0B', title: 'AI that knows when not to guess', slug: 'ai-that-knows-when-not-to-guess', problem: 'The dangerous AI in a hotel isn&apos;t the one that&apos;s wrong. It&apos;s the one that&apos;s confidently wrong. Assistance, not autonomy.', readingTime: '6 min' },
+              { num: '05', cat: 'Management', catColor: '#6B7280', title: 'When a hotel needs a manager, not more software', slug: 'when-a-hotel-needs-a-manager-not-more-software', problem: 'Sometimes the software isn&apos;t the problem — execution is. The case for a certified fractional operator running the platform.', readingTime: '6 min' },
               { num: '06', cat: 'Reviews', catColor: '#10B981', title: 'From 3.8 to 4.7 stars: a six-month turnaround', slug: 'from-3-8-to-4-7-stars-a-six-month-turnaround', problem: 'The problem was never the rooms. It was the gap between &ldquo;I need towels&rdquo; and &ldquo;towels arrived.&rdquo; The fix, the timeline, the metric to watch.', readingTime: '5 min' },
             ].map((topic, i) => (
               <a key={i} href={`/blog/${topic.slug}`}
