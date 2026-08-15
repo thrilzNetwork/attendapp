@@ -937,18 +937,18 @@ function AttendaLandingPage() {
               Field Notes &middot; For Independent Operators
             </h2>
             <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
-              Six problems every operator faces.
+              Operator to operator.
             </h3>
             <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              No fake authors. No invented quotes. These are the six topics we cover in Field Notes &mdash; written by Alejandro from fifteen years on the front desk, with real numbers from the properties running Attenda.
+              No fake authors. No invented quotes. Notes on running an independent hotel &mdash; written by Alejandro from years in hotel operations, with real numbers from the properties running Attenda.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { num: '01', cat: 'Operations', catColor: '#3B82F6', title: 'Hotels don&rsquo;t have an information problem', slug: 'hotels-dont-have-an-information-problem', problem: 'They have an organization problem. Your team already creates everything you need to run the hotel — it&apos;s just scattered across apps, paper, and people&apos;s heads.', readingTime: '5 min' },
+              { num: '01', cat: 'Operations', catColor: '#3B82F6', title: 'Hotels don’t have an information problem', slug: 'hotels-dont-have-an-information-problem', problem: 'They have an organization problem. Your team already creates everything you need to run the hotel — it&apos;s just scattered across apps, paper, and people&apos;s heads.', readingTime: '5 min' },
               { num: '02', cat: 'Revenue', catColor: TEAL, title: 'Cruise-day shuttle: the $7,820 line item', slug: 'cruise-day-shuttle-the-dollar7820-line-item', problem: 'How a 121-room boutique captured $7,820 in four months from cruise-day shuttle bookings &mdash; the math, the UI, the cruise calendar.', readingTime: '7 min' },
-              { num: '03', cat: 'Transportation', catColor: '#0EA5E9', title: 'Stop answering &ldquo;where&rsquo;s the shuttle?&rdquo;', slug: 'stop-answering-wheres-the-shuttle', problem: 'A guest lands, calls the front desk, asks where the shuttle is — every arrival, all day. Live GPS answers it before the phone rings.', readingTime: '6 min' },
+              { num: '03', cat: 'Transportation', catColor: '#0EA5E9', title: 'Stop answering “where’s the shuttle?”', slug: 'stop-answering-wheres-the-shuttle', problem: 'A guest lands, calls the front desk, asks where the shuttle is — every arrival, all day. Live GPS answers it before the phone rings.', readingTime: '6 min' },
               { num: '04', cat: 'AI', catColor: '#F59E0B', title: 'AI that knows when not to guess', slug: 'ai-that-knows-when-not-to-guess', problem: 'The dangerous AI in a hotel isn&apos;t the one that&apos;s wrong. It&apos;s the one that&apos;s confidently wrong. Assistance, not autonomy.', readingTime: '6 min' },
               { num: '05', cat: 'Management', catColor: '#6B7280', title: 'When a hotel needs a manager, not more software', slug: 'when-a-hotel-needs-a-manager-not-more-software', problem: 'Sometimes the software isn&apos;t the problem — execution is. The case for a certified fractional operator running the platform.', readingTime: '6 min' },
               { num: '06', cat: 'Reviews', catColor: '#10B981', title: 'From 3.8 to 4.7 stars: a six-month turnaround', slug: 'from-3-8-to-4-7-stars-a-six-month-turnaround', problem: 'The problem was never the rooms. It was the gap between &ldquo;I need towels&rdquo; and &ldquo;towels arrived.&rdquo; The fix, the timeline, the metric to watch.', readingTime: '5 min' },
