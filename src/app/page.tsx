@@ -444,18 +444,18 @@ function AttendaLandingPage() {
               See Attenda from <span style={{ color: TEAL }}>every angle</span>
             </p>
             <p className="text-[16px] text-gray-600 mt-4">
-              The same live data, tailored to who&rsquo;s looking — guests, your front-line staff, and management.
+              Not another guest-messaging app. The whole operation — transport, housekeeping, cash, knowledge, revenue — seen from wherever you&rsquo;re standing.
             </p>
           </Reveal>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             {([
-              { photo: '/images/landing/scene-welcome.jpg', role: 'For Guests', sub: 'One tap for towels, shuttle, food, or the front desk — through the hotel’s own welcome link. No app.',
-                icon: CheckCircle, cue: 'Towels — on the way', cueSub: 'Room 412 · just now' },
-              { photo: '/images/landing/scene-evening.jpg', role: 'For Staff', sub: 'Every request lands in one place. Claim it, done — nothing slips.',
-                icon: Bell, cue: 'New request · Room 412', cueSub: 'Extra towels · tap to claim' },
-              { photo: '/images/landing/scene-manager.jpg', role: 'For Management', sub: 'Know what’s happening across the property — from anywhere.',
-                icon: ClipboardList, cue: 'Today · 12 requests', cueSub: 'all handled · avg 6 min' },
+              { photo: '/images/landing/scene-airport.jpg', role: 'For Guests', sub: 'Their whole stay in one place — shuttle, transport, dining, and the front desk. Not just a chat box.',
+                icon: Bus, cue: 'Airport shuttle · 4 min away', cueSub: 'Live GPS · on time' },
+              { photo: '/images/landing/scene-housekeeping.jpg', role: 'For Staff', sub: 'The real work of the shift — checklists, rooms, cash, night audit — organized and visible.',
+                icon: ClipboardList, cue: 'Housekeeping · 14 of 18 rooms', cueSub: 'shift checklist on track' },
+              { photo: '/images/landing/scene-manager.jpg', role: 'For Management', sub: 'Know what’s actually happening — checklists, cash, transport, exceptions — from anywhere.',
+                icon: CheckCircle, cue: 'Today · checklists on track', cueSub: 'cash drop logged · 3 open' },
             ] as { photo: string; role: string; sub: string; icon: typeof Bell; cue: string; cueSub: string }[]).map((c, i) => {
               const CueIcon = c.icon;
               return (
