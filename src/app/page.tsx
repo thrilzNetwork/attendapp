@@ -371,6 +371,7 @@ function AttendaLandingPage() {
 
       {/* HERO — full-width cinematic band */}
       <section className="relative min-h-[560px] md:min-h-[680px] flex items-center overflow-hidden">
+        {/* Poster photo — instant paint, zero layout shift, and the fallback everywhere */}
         <Image
           src="/images/landing/hero-lobby.jpg"
           alt="A front-desk associate welcoming an arriving guest in a warm boutique hotel lobby"
@@ -379,6 +380,18 @@ function AttendaLandingPage() {
           sizes="100vw"
           className="object-cover object-center"
         />
+        {/* Cinematic loop — desktop only, muted, respects reduced-motion (see globals) */}
+        <video
+          className="hero-video absolute inset-0 w-full h-full object-cover object-center hidden md:block"
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster="/images/landing/hero-lobby.jpg"
+          aria-hidden="true"
+        >
+          <source src="/images/landing/hero-lobby.mp4" type="video/mp4" />
+        </video>
         {/* Base scrim — stronger on mobile (text wraps wider) so white copy stays legible */}
         <div className="absolute inset-0 bg-black/50 md:bg-black/25" />
         {/* Directional gradient — near-opaque on the left (behind the copy), fading to reveal the photo on the right */}

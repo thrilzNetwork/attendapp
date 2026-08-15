@@ -184,6 +184,10 @@
   [class*='animate-'] {
     animation: none !important;
   }
+  /* Hide the hero background video — fall back to the static poster photo */
+  .hero-video {
+    display: none !important;
+  }
   .animate-toast-cycle,
   .animate-row-in,
   .animate-fill-x {
