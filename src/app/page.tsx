@@ -477,7 +477,7 @@ function AttendaLandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             {([
-              { photo: '/images/landing/scene-airport.jpg', role: 'For Guests', sub: 'Their whole stay in one place — shuttle, transport, dining, requests, and the front desk. Not just a chat box.',
+              { photo: '/images/landing/scene-arrival.jpg', role: 'For Guests', sub: 'Their whole stay in one place — shuttle, transport, dining, requests, and the front desk. Not just a chat box.',
                 cues: [
                   { icon: Bus, title: 'Airport shuttle · 4 min away', sub: 'Live GPS · on time' },
                   { icon: Utensils, title: 'Order placed · Marina Grill', sub: '$24.50 · on the way' },
