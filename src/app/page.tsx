@@ -450,42 +450,41 @@ function AttendaLandingPage() {
             </p>
           </Reveal>
 
-          <div className="space-y-12">
-            {/* Management — real desktop dashboard */}
-            <Reveal direction="up" className="max-w-4xl mx-auto">
-              <BrowserFrame url="attenda.app/staff · The Marina Bay Hotel">
-                <Image src="/images/landing/app-gm-dashboard.jpg" alt="Attenda management dashboard — the real staff web app" width={1440} height={900} className="w-full h-auto block" />
-              </BrowserFrame>
-              <div className="mt-4 text-center">
-                <div className="text-[15px] font-black text-gray-900">For Management</div>
-                <p className="text-[13px] text-gray-500 mt-1 max-w-md mx-auto">Labor, revenue, and performance across the property — at a glance, from anywhere.</p>
-              </div>
-            </Reveal>
-
-            {/* Staff (desktop) + Guest (mobile) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-end">
-              <Reveal direction="up" delay={120} className="lg:col-span-8">
-                <BrowserFrame url="attenda.app/staff · Requests">
-                  <Image src="/images/landing/app-staff-requests.jpg" alt="Attenda staff requests board — the real staff web app" width={1440} height={900} className="w-full h-auto block" />
-                </BrowserFrame>
-                <div className="mt-4 text-center">
-                  <div className="text-[15px] font-black text-gray-900">For Staff</div>
-                  <p className="text-[13px] text-gray-500 mt-1 max-w-md mx-auto">Every request, task, and shift in one live thread — nothing slips.</p>
-                </div>
-              </Reveal>
-
-              <Reveal direction="up" delay={240} className="lg:col-span-4 flex flex-col items-center">
-                <PhoneFrame width={230} className="mx-auto">
-                  <div className="h-[476px] overflow-hidden">
-                    <Image src="/images/landing/app-guest-home.png" alt="Attenda guest app — requests, shuttle, food and local tips" width={402} height={874} className="w-full h-auto" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+            {([
+              { photo: '/images/landing/scene-welcome.jpg', role: 'For Guests', sub: 'Scan the QR — one tap for towels, shuttle, food, or the front desk. No app.',
+                icon: CheckCircle, cue: 'Towels — on the way', cueSub: 'Room 412 · just now' },
+              { photo: '/images/landing/scene-evening.jpg', role: 'For Staff', sub: 'Every request lands in one place. Claim it, done — nothing slips.',
+                icon: Bell, cue: 'New request · Room 412', cueSub: 'Extra towels · tap to claim' },
+              { photo: '/images/landing/scene-manager.jpg', role: 'For Management', sub: 'Know what’s happening across the property — from anywhere.',
+                icon: ClipboardList, cue: 'Today · 12 requests', cueSub: 'all handled · avg 6 min' },
+            ] as { photo: string; role: string; sub: string; icon: typeof Bell; cue: string; cueSub: string }[]).map((c, i) => {
+              const CueIcon = c.icon;
+              return (
+                <Reveal key={c.role} direction="up" delay={i * 120} className="flex flex-col">
+                  <div className="relative rounded-3xl overflow-hidden shadow-premium aspect-[4/5]">
+                    <Image src={c.photo} alt={c.role} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <div className="bg-white/95 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-lg flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${TEAL}15` }}>
+                          <CueIcon size={18} style={{ color: TEAL }} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-black text-gray-900 truncate">{c.cue}</p>
+                          <p className="text-[11px] text-gray-500 truncate">{c.cueSub}</p>
+                        </div>
+                        <div className="ml-auto w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                      </div>
+                    </div>
                   </div>
-                </PhoneFrame>
-                <div className="mt-4 text-center">
-                  <div className="text-[15px] font-black text-gray-900">For Guests</div>
-                  <p className="text-[13px] text-gray-500 mt-1 max-w-[230px]">Scan the QR — requests, shuttle, food, and local tips. No app.</p>
-                </div>
-              </Reveal>
-            </div>
+                  <div className="mt-4 text-center">
+                    <div className="text-[15px] font-black text-gray-900">{c.role}</div>
+                    <p className="text-[13px] text-gray-500 mt-1">{c.sub}</p>
+                  </div>
+                </Reveal>
+              );
+            })}
           </div>
         </div>
       </section>
