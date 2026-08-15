@@ -293,6 +293,33 @@ function ValidationSuccessModal({ open, onClose, brandColor }: { open: boolean; 
 const TEAL = '#0D9488';
 const TEAL_BRIGHT = '#15b79e';
 
+/* Rotating "activity" cue — cycles through varied operational moments so the
+   product reads as the whole operation, not a single request/shuttle tool. */
+function RotatingCue({ cues }: { cues: { icon: typeof Bell; title: string; sub: string }[] }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI(v => (v + 1) % cues.length), 2600);
+    return () => clearInterval(t);
+  }, [cues.length]);
+  const c = cues[i];
+  const Icon = c.icon;
+  return (
+    <div className="bg-white/95 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-lg flex items-center gap-3">
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${TEAL}15` }}>
+        <Icon size={18} style={{ color: TEAL }} />
+      </div>
+      <div key={i} className="min-w-0 animate-scale-in">
+        <p className="text-[13px] font-black text-gray-900 truncate">{c.title}</p>
+        <p className="text-[11px] text-gray-500 truncate">{c.sub}</p>
+      </div>
+      <div className="ml-auto flex gap-1 shrink-0">
+        {cues.map((_, n) => (
+          <span key={n} className="w-1.5 h-1.5 rounded-full transition-colors" style={{ backgroundColor: n === i ? TEAL : '#d1d5db' }} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function AttendaLandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -450,39 +477,42 @@ function AttendaLandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             {([
-              { photo: '/images/landing/scene-airport.jpg', role: 'For Guests', sub: 'Their whole stay in one place — shuttle, transport, dining, and the front desk. Not just a chat box.',
-                icon: Bus, cue: 'Airport shuttle · 4 min away', cueSub: 'Live GPS · on time' },
-              { photo: '/images/landing/scene-housekeeping.jpg', role: 'For Staff', sub: 'The real work of the shift — checklists, rooms, cash, night audit — organized and visible.',
-                icon: ClipboardList, cue: 'Housekeeping · 14 of 18 rooms', cueSub: 'shift checklist on track' },
-              { photo: '/images/landing/scene-manager.jpg', role: 'For Management', sub: 'Know what’s actually happening — checklists, cash, transport, exceptions — from anywhere.',
-                icon: CheckCircle, cue: 'Today · checklists on track', cueSub: 'cash drop logged · 3 open' },
-            ] as { photo: string; role: string; sub: string; icon: typeof Bell; cue: string; cueSub: string }[]).map((c, i) => {
-              const CueIcon = c.icon;
-              return (
-                <Reveal key={c.role} direction="up" delay={i * 120} className="flex flex-col">
-                  <div className="relative rounded-3xl overflow-hidden shadow-premium aspect-[4/5]">
-                    <Image src={c.photo} alt={c.role} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <div className="bg-white/95 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-lg flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${TEAL}15` }}>
-                          <CueIcon size={18} style={{ color: TEAL }} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-black text-gray-900 truncate">{c.cue}</p>
-                          <p className="text-[11px] text-gray-500 truncate">{c.cueSub}</p>
-                        </div>
-                        <div className="ml-auto w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                      </div>
-                    </div>
+              { photo: '/images/landing/scene-airport.jpg', role: 'For Guests', sub: 'Their whole stay in one place — shuttle, transport, dining, requests, and the front desk. Not just a chat box.',
+                cues: [
+                  { icon: Bus, title: 'Airport shuttle · 4 min away', sub: 'Live GPS · on time' },
+                  { icon: Utensils, title: 'Order placed · Marina Grill', sub: '$24.50 · on the way' },
+                  { icon: CheckCircle, title: 'Late checkout · approved', sub: 'Room 315 · 1:00 PM' },
+                  { icon: Check, title: 'Guest left a 5★ review', sub: 'posted to Google' },
+                ] },
+              { photo: '/images/landing/scene-housekeeping.jpg', role: 'For Staff', sub: 'The real work of the shift — checklists, rooms, cash, requests, night audit — organized and visible.',
+                cues: [
+                  { icon: ClipboardList, title: 'Housekeeping · 14 of 18 rooms', sub: 'shift checklist on track' },
+                  { icon: Bell, title: 'New request · Room 412', sub: 'tap to claim' },
+                  { icon: ShieldCheck, title: 'Complaint flagged · Room 208', sub: 'escalated to a manager' },
+                  { icon: Clock, title: 'Your shift starts 3:00 PM', sub: '3 to-dos ready' },
+                ] },
+              { photo: '/images/landing/scene-manager.jpg', role: 'For Management', sub: 'Know what’s actually happening — revenue, checklists, cash, transport, exceptions — from anywhere.',
+                cues: [
+                  { icon: DollarSign, title: 'Revenue today · $2,340', sub: 'shuttle · dining · late checkout' },
+                  { icon: CheckCircle, title: 'Checklists · 92% on track', sub: '2 flagged for review' },
+                  { icon: Users, title: 'Occupancy · 82%', sub: '14 arrivals today' },
+                  { icon: ShieldCheck, title: 'Cash drop · logged', sub: 'night audit ready' },
+                ] },
+            ] as { photo: string; role: string; sub: string; cues: { icon: typeof Bell; title: string; sub: string }[] }[]).map((c, i) => (
+              <Reveal key={c.role} direction="up" delay={i * 120} className="flex flex-col">
+                <div className="relative rounded-3xl overflow-hidden shadow-premium aspect-[4/5]">
+                  <Image src={c.photo} alt={c.role} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <RotatingCue cues={c.cues} />
                   </div>
-                  <div className="mt-4 text-center">
-                    <div className="text-[15px] font-black text-gray-900">{c.role}</div>
-                    <p className="text-[13px] text-gray-500 mt-1">{c.sub}</p>
-                  </div>
-                </Reveal>
-              );
-            })}
+                </div>
+                <div className="mt-4 text-center">
+                  <div className="text-[15px] font-black text-gray-900">{c.role}</div>
+                  <p className="text-[13px] text-gray-500 mt-1">{c.sub}</p>
+                </div>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>
