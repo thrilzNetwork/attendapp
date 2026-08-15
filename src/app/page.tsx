@@ -541,7 +541,7 @@ function AttendaLandingPage() {
                 scenario: 'A guest opens the hotel’s link, taps “towels” — the request reaches the right person, and the towels arrive. The result is the hero, not the tech.' },
               { n: '03', icon: Users, title: 'Learn', tag: 'Better hotels are run by better-informed people.', img: '/images/landing/pillar-knowledge.jpg',
                 body: 'Your SOPs, procedures, and property knowledge — accessible to the team that needs them. Attenda’s assistant helps people find approved answers; when it can’t, it points them to a manager instead of guessing. AI assists the operation. It never runs it.',
-                points: ['Right Answers — approved knowledge access', 'Learning & HR', 'Culture Hub — recognition, birthdays, incentives'],
+                points: ['Right Answers — approved knowledge access', 'AI answering & scheduling assistants', 'Learning & HR', 'Culture Hub — recognition, birthdays, incentives'],
                 coming: ['Attenda University', 'Community knowledge exchange'],
                 scenario: 'A new team member asks a procedure question and gets the property’s real answer in seconds — or a clean handoff to a manager.' },
               { n: '04', icon: DollarSign, title: 'Grow', tag: 'Be more useful to your guest — and capture the value.', img: '/images/landing/pillar-revenue.jpg',
@@ -790,22 +790,22 @@ function AttendaLandingPage() {
         </section>
       </Reveal>
 
-      {/* MANAGED OPERATIONAL SUPPORT — cinematic photo band */}
+      {/* FRACTIONAL MANAGEMENT — cinematic photo band */}
       <Reveal>
         <section className="relative py-24 md:py-32 px-5 overflow-hidden">
-          <Image src="/images/landing/scene-manager.jpg" alt="An operations consultant guiding a hotel manager" fill sizes="100vw" className="object-cover object-center" />
+          <Image src="/images/landing/scene-manager.jpg" alt="A certified Attenda operator working alongside a hotel team" fill sizes="100vw" className="object-cover object-center" />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(8,15,20,0.9) 0%, rgba(8,15,20,0.7) 45%, rgba(8,15,20,0.35) 100%)' }} />
           <div className="relative max-w-5xl mx-auto">
             <div className="max-w-2xl">
-              <h2 className="text-[14px] font-bold tracking-widest uppercase text-white/60 mb-3">More than software</h2>
+              <h2 className="text-[14px] font-bold tracking-widest uppercase text-white/60 mb-3">Fractional management</h2>
               <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-white mb-5 leading-[1.08]">
-                Technology alone doesn&apos;t fix hotel operations.<br /><span style={{ color: '#5eead4' }}>People do.</span>
+                Sometimes you don&apos;t need more software.<br /><span style={{ color: '#5eead4' }}>You need a manager.</span>
               </h3>
               <p className="text-[16px] md:text-[18px] text-white/80 max-w-2xl mb-8">
-                For properties that want hands-on help, Attenda can provide or coordinate operational support &mdash; implementation, configuration, and ongoing guidance. Software, plus knowledge, plus execution.
+                For qualified properties, Attenda can place a fractional hotel manager &mdash; a certified Attenda operator trained across limited-service, extended-stay, full-service, and boutique models &mdash; to run the operation on the platform alongside your team. The software, plus an operator who knows how to use it.
               </p>
               <a href="#demo" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-bold text-[15px] shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: TEAL }}>
-                Ask about managed support <ArrowRight size={16} />
+                See if your property qualifies <ArrowRight size={16} />
               </a>
             </div>
           </div>
