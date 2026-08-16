@@ -949,28 +949,14 @@ function AttendaLandingPage() {
         </section>
       </Reveal>
 
-      {/* INTEGRATIONS — best-in-class, plainly stated (SEO + credibility) */}
+      {/* INTEGRATIONS — logo strip only */}
       <Reveal>
-        <section className="py-16 md:py-20 px-5 bg-white border-b border-gray-100">
+        <section className="py-14 md:py-16 px-5 bg-white border-b border-gray-100">
           <div className="max-w-5xl mx-auto text-center">
-            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Built on best-in-class technology</h2>
-            <h3 className="text-[26px] md:text-[36px] font-black tracking-tight text-gray-900 mb-4 leading-[1.1]">
-              We don&apos;t reinvent what already works.
-            </h3>
-            <p className="text-[15px] md:text-[16px] text-gray-600 max-w-2xl mx-auto mb-10">
-              Attenda connects the tools hotels already trust — so live shuttle tracking, AI voice answering, delivery, and payments just work.
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { name: 'Bouncie', role: 'Live GPS shuttle tracking' },
-                { name: 'ElevenLabs', role: 'AI voice answering & agents' },
-                { name: 'Uber Direct', role: 'Last-mile delivery' },
-                { name: 'Stripe', role: 'Payments & checkout' },
-              ].map(t => (
-                <div key={t.name} className="rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left">
-                  <div className="text-[16px] font-black text-gray-900">{t.name}</div>
-                  <div className="text-[12px] text-gray-500 mt-1">{t.role}</div>
-                </div>
+            <p className="text-[12px] font-bold tracking-widest uppercase text-gray-400 mb-8">Built on best-in-class technology</p>
+            <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-6 md:gap-x-16 opacity-70">
+              {['Bouncie', 'ElevenLabs', 'Uber Direct', 'Stripe'].map(name => (
+                <span key={name} className="text-[22px] md:text-[26px] font-black tracking-tight text-gray-400">{name}</span>
               ))}
             </div>
           </div>
