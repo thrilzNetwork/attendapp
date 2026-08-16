@@ -371,7 +371,6 @@ function AttendaLandingPage() {
 
       {/* HERO — full-width cinematic band */}
       <section className="relative min-h-[560px] md:min-h-[680px] flex items-center overflow-hidden">
-        {/* Poster photo — instant paint, zero layout shift, and the fallback everywhere */}
         <Image
           src="/images/landing/hero-lobby.jpg"
           alt="A front-desk associate welcoming an arriving guest in a warm boutique hotel lobby"
@@ -380,18 +379,6 @@ function AttendaLandingPage() {
           sizes="100vw"
           className="object-cover object-center"
         />
-        {/* Cinematic loop — desktop only, muted, respects reduced-motion (see globals) */}
-        <video
-          className="hero-video absolute inset-0 w-full h-full object-cover object-center hidden md:block"
-          autoPlay
-          muted
-          loop
-          playsInline
-          poster="/images/landing/hero-lobby.jpg"
-          aria-hidden="true"
-        >
-          <source src="/images/landing/hero-lobby.mp4" type="video/mp4" />
-        </video>
         {/* Base scrim — stronger on mobile (text wraps wider) so white copy stays legible */}
         <div className="absolute inset-0 bg-black/50 md:bg-black/25" />
         {/* Directional gradient — near-opaque on the left (behind the copy), fading to reveal the photo on the right */}
@@ -475,6 +462,81 @@ function AttendaLandingPage() {
         </section>
       </Reveal>
 
+      {/* OWNING vs OPERATING */}
+      <Reveal>
+        <section className="py-16 md:py-24 px-5 bg-white">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">The real gap</h2>
+            <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-gray-900 mb-6 leading-[1.08]">
+              Owning a hotel and operating one<br />
+              <span style={{ color: TEAL }}>are two different jobs.</span>
+            </h3>
+            <p className="text-[16px] md:text-[18px] text-gray-600 leading-relaxed mb-4">
+              A hotel isn&apos;t run from one dashboard. Market, labor, budget, forecast, brand standards, guest expectations, cost control, transportation, QA, procedures, culture — and dozens of daily decisions — all shape how a property performs. Experienced operators learn how those pieces connect.
+            </p>
+            <p className="text-[16px] md:text-[18px] text-gray-600 leading-relaxed mb-8">
+              Attenda helps put that operational structure into a system your entire hotel can use.
+            </p>
+            <p className="text-[17px] md:text-[19px] font-bold text-gray-900">
+              The operating knowledge shouldn&apos;t disappear when the manager leaves the building.
+            </p>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* DIFFERENT MODELS — Models · Systems · Strategies */}
+      <Reveal>
+        <section className="py-16 md:py-24 px-5 bg-gray-50 border-y border-gray-200">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Built around your hotel</h2>
+              <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-gray-900 mb-4 leading-[1.08]">
+                There is no universal<br /><span style={{ color: TEAL }}>hotel operating model.</span>
+              </h3>
+              <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
+                A boutique, an airport property, an extended-stay hotel, and a full-service resort shouldn&apos;t run the same way. Attenda is configured around the property — its model, its systems, its strategies, its people.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {[
+                { k: 'Models', q: 'What kind of hotel are we actually running?', d: 'Property type, market, service level, guest mix, brand, labor, and ownership objectives define the model.' },
+                { k: 'Systems', q: 'How do we make it repeatable?', d: 'To-dos, checklists, cash controls, night audit, scheduling, QA, SOPs, and accountability turn knowledge into routine.' },
+                { k: 'Strategies', q: 'How should the hotel perform?', d: 'Revenue, ADR, labor, cost control, guest satisfaction, and competitive position — evaluated with real operational information.' },
+              ].map(m => (
+                <div key={m.k} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                  <div className="text-[18px] font-black text-gray-900 mb-1">{m.k}</div>
+                  <div className="text-[13px] font-bold mb-2" style={{ color: TEAL }}>{m.q}</div>
+                  <p className="text-[13px] text-gray-600 leading-relaxed">{m.d}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* THE ATTENDA LOOP */}
+      <Reveal>
+        <section className="py-16 md:py-24 px-5 bg-white">
+          <div className="max-w-5xl mx-auto text-center">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">How it compounds</h2>
+            <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-gray-900 mb-10 leading-[1.08]">
+              The operation that <span style={{ color: TEAL }}>improves itself.</span>
+            </h3>
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-3">
+              {['Model', 'System', 'Execution', 'Information', 'Decision', 'Improvement'].map((step, i, arr) => (
+                <div key={step} className="flex items-center gap-3">
+                  <span className="inline-flex items-center px-4 py-2.5 rounded-xl text-[14px] font-black text-gray-900 bg-gray-50 border border-gray-200">{step}</span>
+                  {i < arr.length - 1 && <ArrowRight size={16} className="text-gray-300" />}
+                </div>
+              ))}
+            </div>
+            <p className="text-[15px] md:text-[16px] text-gray-600 max-w-2xl mx-auto mt-8 leading-relaxed">
+              The model sets the systems. Your team executes them. Execution creates information. Attenda organizes it. Management makes better decisions — which improve the model and the systems. Then it runs again.
+            </p>
+          </div>
+        </section>
+      </Reveal>
+
       {/* SEE IT FROM EVERY ANGLE — role mockups */}
       <section id="product" className="py-16 md:py-24 px-5 bg-gradient-to-b from-white to-gray-50 overflow-hidden">
         <div className="max-w-6xl mx-auto">
@@ -504,7 +566,7 @@ function AttendaLandingPage() {
                   { icon: ShieldCheck, title: 'Complaint flagged · Room 208', sub: 'escalated to a manager' },
                   { icon: Clock, title: 'Your shift starts 3:00 PM', sub: '3 to-dos ready' },
                 ] },
-              { photo: '/images/landing/scene-manager.jpg', role: 'For Management', sub: 'Know what’s actually happening — revenue, checklists, cash, transport, exceptions — from anywhere.',
+              { photo: '/images/landing/scene-manager.jpg', role: 'For Management', sub: 'See the hotel the way an experienced operator sees it — revenue, checklists, cash, transport, exceptions — from anywhere.',
                 cues: [
                   { icon: DollarSign, title: 'Revenue today · $2,340', sub: 'shuttle · dining · late checkout' },
                   { icon: CheckCircle, title: 'Checklists · 92% on track', sub: '2 flagged for review' },
@@ -539,7 +601,7 @@ function AttendaLandingPage() {
               Operate. Serve.<br /><span style={{ color: TEAL }}>Learn. Grow.</span>
             </h3>
             <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              Everything Attenda does ladders up to four outcomes for your hotel &mdash; not a pile of features to learn.
+              Model, systems, and strategies are the thinking. These four outcomes are how Attenda executes it &mdash; not a pile of features to learn.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -617,6 +679,24 @@ function AttendaLandingPage() {
         </section>
       </Reveal>
 
+      {/* HUMAN INPUTS — operational intelligence */}
+      <Reveal>
+        <section className="py-16 md:py-24 px-5 bg-gray-50 border-y border-gray-200">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">People, not automation</h2>
+            <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-gray-900 mb-6 leading-[1.08]">
+              Your team already knows what&apos;s happening.<br />
+              <span style={{ color: TEAL }}>Attenda makes it visible.</span>
+            </h3>
+            <p className="text-[16px] md:text-[18px] text-gray-600 leading-relaxed mb-4">
+              The front-desk associate, the housekeeper, the shuttle driver, the department manager, the GM — every completed task, request, checklist, schedule, and note adds context. Attenda isn&apos;t here to automate people out of hospitality. It&apos;s here to organize what they already do.
+            </p>
+            <p className="text-[16px] md:text-[18px] text-gray-600 leading-relaxed">
+              Instead of that information disappearing into paper, messages, or someone&apos;s memory, Attenda turns it into operational visibility &mdash; so management can see the hotel the way an experienced operator sees it, and give judgment better information before deciding what to do next.
+            </p>
+          </div>
+        </section>
+      </Reveal>
 
       {/* PRICING — inline */}
       <section className="py-16 md:py-24 px-5 bg-white" id="pricing">
@@ -803,23 +883,30 @@ function AttendaLandingPage() {
         </section>
       </Reveal>
 
-      {/* FRACTIONAL MANAGEMENT — cinematic photo band */}
+      {/* ATTENDA OPERATOR SERVICES — premium, separate from the platform */}
       <Reveal>
         <section className="relative py-24 md:py-32 px-5 overflow-hidden">
-          <Image src="/images/landing/scene-manager.jpg" alt="A certified Attenda operator working alongside a hotel team" fill sizes="100vw" className="object-cover object-center" />
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(8,15,20,0.9) 0%, rgba(8,15,20,0.7) 45%, rgba(8,15,20,0.35) 100%)' }} />
+          <Image src="/images/landing/scene-manager.jpg" alt="An experienced hospitality operator working alongside a hotel team" fill sizes="100vw" className="object-cover object-center" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(8,15,20,0.92) 0%, rgba(8,15,20,0.72) 45%, rgba(8,15,20,0.38) 100%)' }} />
           <div className="relative max-w-5xl mx-auto">
             <div className="max-w-2xl">
-              <h2 className="text-[14px] font-bold tracking-widest uppercase text-white/60 mb-3">Fractional management</h2>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span className="text-[11px] font-bold text-white/90 uppercase tracking-wider">Attenda Operator Services · Premium</span>
+              </div>
               <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-white mb-5 leading-[1.08]">
                 Software alone doesn&apos;t run a hotel.<br /><span style={{ color: '#5eead4' }}>People do.</span>
               </h3>
-              <p className="text-[16px] md:text-[18px] text-white/80 max-w-2xl mb-8">
-                For qualified properties, Attenda can place a fractional hotel manager &mdash; a certified Attenda operator trained across limited-service, extended-stay, full-service, and boutique models &mdash; to run the operation on the platform alongside your team. The software, plus an operator who knows how to use it.
+              <p className="text-[16px] md:text-[18px] text-white/80 max-w-2xl mb-4">
+                Attenda gives ownership the structure, visibility, and systems to run a better-organized hotel. Some owners have strong operators already &mdash; give them the platform. Others need both.
+              </p>
+              <p className="text-[16px] md:text-[18px] text-white/80 max-w-2xl mb-6">
+                For qualified properties, Attenda can pair the platform with an experienced hospitality operator who works alongside ownership and the team &mdash; fractional GM leadership, operating-model development, cost-control and budget review, QA prep, and training &mdash; powered by the same system the property uses every day. Not outsourced support. Operational leadership.
               </p>
               <a href="#demo" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-bold text-[15px] shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: TEAL }}>
-                See if your property qualifies <ArrowRight size={16} />
+                Explore Attenda Operator Services <ArrowRight size={16} />
               </a>
+              <p className="text-[12px] text-white/55 mt-3">Premium service · Qualification required · Limited availability</p>
             </div>
           </div>
         </section>
@@ -993,9 +1080,9 @@ function AttendaLandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Operator to operator</h2>
-            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">Built inside real hotel operations.</h3>
+            <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">Built from the bottom of the hotel up.</h3>
             <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              Limited-service, extended-stay, and full-service. F&amp;B and airport operations. Different segments, the same operational problem &mdash; and the tool built to solve it.
+              Attenda wasn&apos;t designed by someone studying hotel operations from the outside. It evolved from doing the work.
             </p>
           </div>
 
@@ -1015,37 +1102,37 @@ function AttendaLandingPage() {
                 </div>
               </div>
               <div className="md:col-span-3 p-8 md:p-10">
-                <div className="text-[12px] uppercase tracking-widest text-gray-500 font-bold mb-2">The short version</div>
+                <div className="text-[12px] uppercase tracking-widest text-gray-500 font-bold mb-2">In his words</div>
                 <p className="text-[16px] text-gray-700 leading-relaxed mb-5">
-                  Alejandro Soria has spent his career inside hotel operations &mdash; limited-service, extended-stay, and full-service properties, plus F&amp;B and airport operations. He&apos;s picked the PMS, run the front desk, trained the teams, taken the 2am call when the boiler went out, and lived the gap between what the software promised and what the shift actually needed.
+                  I started in hospitality after high school as a houseman. Over the years I worked through different levels of hotel operations &mdash; and across different property types, service models, brands, ownership structures, and management environments.
                 </p>
                 <p className="text-[16px] text-gray-700 leading-relaxed mb-5">
-                  Across every segment, the same problem kept surfacing: the work <em>around</em> the hotel was scattered across apps, paper, and people&apos;s heads &mdash; and the guest paid for it. Attenda is what he built to close that gap: not a pitch deck, not a roadmap, an operations layer built operator to operator.
+                  And the same pattern kept appearing. The hotel might change. The flag might change. The market might change. But operational knowledge was constantly fragmented. Ownership understood the investment. Employees understood their individual jobs. Experienced managers understood how the pieces connected &mdash; but that knowledge rarely lived in one place.
                 </p>
                 <p className="text-[16px] text-gray-700 leading-relaxed mb-6">
-                  He doesn&apos;t do pilots, betas, or &ldquo;early access.&rdquo; Attenda is the tool he wished had existed in year one of his hospitality career &mdash; and the one he uses in year fifteen.
+                  Budgets, forecasts, labor, QA, procedures, guest experience, cost control, schedules, accountability, and daily execution were held together by a mix of software, paperwork, messages, and experience. Attenda grew from trying to organize that reality &mdash; not to replace hotel operators, but to put better operational systems and knowledge in the hands of more hotel people.
                 </p>
                 <blockquote className="border-l-4 pl-4 py-2 mb-6" style={{ borderColor: TEAL }}>
                   <p className="text-[17px] font-bold text-gray-900 italic leading-snug">
-                    &ldquo;I&apos;ve sat through the demos and signed the contracts. I&apos;ve been the GM on the call when the software didn&apos;t do what it promised. Attenda is the tool I wanted on the floor &mdash; built by someone who&apos;s actually run the operation.&rdquo;
+                    &ldquo;Attenda grew from trying to organize that reality &mdash; not to replace hotel operators, but to put better operational systems and knowledge in the hands of more hotel people.&rdquo;
                   </p>
-                  <div className="text-[12px] text-gray-500 mt-2 font-semibold">&mdash; Alejandro Soria, operator to operator</div>
+                  <div className="text-[12px] text-gray-500 mt-2 font-semibold">&mdash; Alejandro Soria, Founder</div>
                 </blockquote>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-2">
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">In hospitality</div>
-                    <div className="text-[13px] font-black text-gray-900">15+ years</div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">Front desk &rarr; GM &rarr; owner</div>
+                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Started as</div>
+                    <div className="text-[13px] font-black text-gray-900">A houseman</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">worked up through operations</div>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Segments run</div>
+                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Across</div>
                     <div className="text-[13px] font-black text-gray-900">Limited &middot; Extended &middot; Full-service</div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">plus F&amp;B &amp; airport ops</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">boutique, branded &amp; independent</div>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Discipline</div>
-                    <div className="text-[13px] font-black text-gray-900">Hotel ops + technology</div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">Built operator to operator</div>
+                    <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Built it</div>
+                    <div className="text-[13px] font-black text-gray-900">From doing the work</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">not studying it from outside</div>
                   </div>
                 </div>
                 <div className="mt-6 flex items-center gap-3">
