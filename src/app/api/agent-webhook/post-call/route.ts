@@ -48,8 +48,17 @@ export async function POST(req: NextRequest) {
       transcriptText = transcript;
     }
 
-    // Extract summary if available
-    const summary = analysis?.summary || '';
+    // Extract caller phone — ElevenLabs puts it in body.user_id or metadata sub-objects
+    let callerPhone = '';
+    if (body.user_id) callerPhone = body.user_id;
+    else if (metadata?.sms?.sms_user_phone_number) callerPhone = metadata.sms.sms_user_phone_number;
+    else if (metadata?.phone_call?.caller_number) callerPhone = metadata.phone_call.caller_number;
+    else if (metadata?.from) callerPhone = metadata.from;
+    else if (body.from) callerPhone = body.from;
+
+    // Extract summary — ElevenLabs uses transcript_summary, not summary
+    const summary = analysis?.transcript_summary || analysis?.summary || '';
+    const callTitle = analysis?.call_summary_title || '';
     const dataCollection = analysis?.data_collection_results || null;
 
     // Extract caller info from transcript, metadata, or data collection
@@ -58,9 +67,13 @@ export async function POST(req: NextRequest) {
     else if (dataCollection?.guest_name) callerName = dataCollection.guest_name;
     else if (metadata?.caller_name) callerName = metadata.caller_name;
     else if (transcriptText) {
-      // Try to extract name from transcript: look for "my name is X" or "name is X" or "I'm X"
+      // Try to extract name from transcript: look for "my name is X" or "name is X" or "I'm X" or "this is X"
       const nameMatch = transcriptText.match(/(?:my name is|i'm|i am|this is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/);
       if (nameMatch) callerName = nameMatch[1];
+    }
+    // Use call title as better fallback than "Unknown Caller"
+    if (callerName === 'Unknown Caller' && callTitle) {
+      callerName = `Caller (${callTitle})`;
     }
 
     // 1. Save to agent_calls table
@@ -75,6 +88,7 @@ export async function POST(req: NextRequest) {
       data_collection: dataCollection || null,
       metadata: metadata || null,
       caller_name: callerName,
+      caller_phone: callerPhone,
       request_created: false,
       escalated: false,
       started_at: metadata?.started_at || new Date().toISOString(),
@@ -91,8 +105,8 @@ export async function POST(req: NextRequest) {
     const requestType = agentType === 'Shuttle' ? 'Shuttle Call' : agentType === 'Customer Service' ? 'Service Call' : agentType === 'Room Service' ? 'Order Call' : 'AI Call';
 
     const requestDetails = summary
-      ? `[${agentName}] ${summary}`
-      : `[${agentName}] Call from ${callerName}. ${transcriptText ? 'Transcript saved.' : 'No transcript.'}`;
+      ? `[${agentName}] ${summary}${callerPhone ? ` | Caller: ${callerPhone}` : ''}`
+      : `[${agentName}] Call from ${callerName}${callerPhone ? ` (${callerPhone})` : ''}. ${transcriptText ? 'Transcript saved.' : 'No transcript.'}`;
 
     const { error: reqError } = await supabase.from('requests').insert({
       hotel_id: HOTEL_ID,
