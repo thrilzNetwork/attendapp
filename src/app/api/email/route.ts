@@ -5,6 +5,15 @@ import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 const FROM = 'Attenda <noreply@attendaapp.com>';
 const SUPER_BCC = 'thrilznetwork@gmail.com';
 
+/**
+ * Where replies actually land.
+ *
+ * FROM is noreply@attendaapp.com, and that mailbox does not exist — the domain
+ * carries no inbound MX. Several of these emails invite a reply, so without an
+ * explicit reply-to those answers bounce into nothing. Point them at a real inbox.
+ */
+const REPLY_TO = process.env.CONTACT_REPLY_TO || SUPER_BCC;
+
 const getResend = () => {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY is not configured');
@@ -31,7 +40,7 @@ export async function POST(req: NextRequest) {
         subject: `Your Attenda property is live — ${hotelName}`,
         html: `
           <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
-            <div style="background:#0D9488;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center">
+            <div style="background:#158A7C;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center">
               <h1 style="color:white;margin:0;font-size:22px;font-weight:800">Welcome to Attenda</h1>
               <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:14px">Your property is ready to go live</p>
             </div>
@@ -39,11 +48,11 @@ export async function POST(req: NextRequest) {
             <p style="color:#666;font-size:13px;margin-bottom:24px">Slug: @${slug}</p>
             <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:16px">
               <p style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.05em;margin:0 0 6px">Guest App URL</p>
-              <a href="${guestUrl}" style="color:#0D9488;font-size:14px;word-break:break-all">${guestUrl}</a>
+              <a href="${guestUrl}" style="color:#158A7C;font-size:14px;word-break:break-all">${guestUrl}</a>
             </div>
             <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:24px">
               <p style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.05em;margin:0 0 6px">Staff Dashboard</p>
-              <a href="${adminUrl}" style="color:#0D9488;font-size:14px;word-break:break-all">${adminUrl}</a>
+              <a href="${adminUrl}" style="color:#158A7C;font-size:14px;word-break:break-all">${adminUrl}</a>
             </div>
             <p style="font-size:12px;color:#aaa;text-align:center">Powered by Attenda — Hospitality Experience Platform</p>
           </div>
@@ -92,7 +101,7 @@ export async function POST(req: NextRequest) {
         subject: `You're invited to ${hotelName} — Set up your Attenda account`,
         html: `
           <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
-            <div style="background:#0D9488;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center">
+            <div style="background:#158A7C;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center">
               <h1 style="color:white;margin:0;font-size:22px;font-weight:800">You're invited!</h1>
               <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:14px">${hotelName} · Staff Dashboard</p>
             </div>
@@ -101,12 +110,12 @@ export async function POST(req: NextRequest) {
               Your account as <strong>${staffRole}</strong> at <strong>${hotelName}</strong> has been created.
               Click below to set your password and get started.
             </p>
-            <a href="${setupUrl}" style="display:inline-block;background:#0D9488;color:white;padding:14px 28px;border-radius:12px;font-weight:700;font-size:14px;text-decoration:none;margin-bottom:24px">
+            <a href="${setupUrl}" style="display:inline-block;background:#158A7C;color:white;padding:14px 28px;border-radius:12px;font-weight:700;font-size:14px;text-decoration:none;margin-bottom:24px">
               Complete Your Setup →
             </a>
             <div style="background:#f9fafb;border-radius:10px;padding:20px">
               <p style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.05em;margin:0 0 6px">Dashboard URL</p>
-              <a href="https://attendaapp.com/staff?hotel=${hotelSlug}" style="color:#0D9488;font-size:14px;word-break:break-all">https://attendaapp.com/staff?hotel=${hotelSlug}</a>
+              <a href="https://attendaapp.com/staff?hotel=${hotelSlug}" style="color:#158A7C;font-size:14px;word-break:break-all">https://attendaapp.com/staff?hotel=${hotelSlug}</a>
             </div>
             <p style="font-size:12px;color:#aaa;text-align:center;margin-top:24px">Powered by Attenda — Hospitality Experience Platform</p>
           </div>
@@ -131,7 +140,7 @@ export async function POST(req: NextRequest) {
         subject: `[${hotelName}] Your schedule — ${weekStart} to ${weekEnd}`,
         html: `
           <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
-            <div style="background:#0D9488;border-radius:12px;padding:20px 24px;margin-bottom:24px">
+            <div style="background:#158A7C;border-radius:12px;padding:20px 24px;margin-bottom:24px">
               <h1 style="color:white;margin:0;font-size:20px;font-weight:800">Weekly Schedule</h1>
               <p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:13px">${hotelName} · ${weekStart} – ${weekEnd}</p>
             </div>
@@ -162,11 +171,11 @@ export async function POST(req: NextRequest) {
     if (type === 'enrollment_inquiry') {
       const { contactName, contactEmail, contactPhone, propertyName, propertyType, rooms, city, message } = data;
       await getResend().emails.send({
-        from: FROM, to: SUPER_BCC,
+        from: FROM, to: SUPER_BCC, replyTo: contactEmail || REPLY_TO,
         subject: `New Enrollment Inquiry: ${propertyName}`,
         html: `
           <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
-            <div style="background:#0D9488;border-radius:12px;padding:24px;margin-bottom:24px">
+            <div style="background:#158A7C;border-radius:12px;padding:24px;margin-bottom:24px">
               <h1 style="color:white;margin:0;font-size:20px;font-weight:800">New Property Inquiry</h1>
             </div>
             <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:16px">
@@ -180,17 +189,17 @@ export async function POST(req: NextRequest) {
               <p style="font-size:15px;font-weight:800;color:#111;margin:0 0 4px">${propertyName}</p>
               <p style="font-size:13px;color:#555;margin:0">${city ? city + ' · ' : ''}${propertyType} · ${rooms} rooms</p>
             </div>
-            ${message ? `<div style="background:#f9fafb;border-radius:10px;padding:20px;border-left:4px solid #0D9488"><p style="font-size:14px;color:#333;margin:0;line-height:1.6">${message}</p></div>` : ''}
+            ${message ? `<div style="background:#f9fafb;border-radius:10px;padding:20px;border-left:4px solid #158A7C"><p style="font-size:14px;color:#333;margin:0;line-height:1.6">${message}</p></div>` : ''}
           </div>
         `,
       });
       if (contactEmail) {
         await getResend().emails.send({
-          from: FROM, to: contactEmail,
+          from: FROM, to: contactEmail, replyTo: REPLY_TO,
           subject: `We got your request — ${propertyName}`,
           html: `
             <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
-              <div style="background:#0D9488;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center">
+              <div style="background:#158A7C;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center">
                 <h1 style="color:white;margin:0;font-size:22px;font-weight:800">Request received!</h1>
                 <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px">We'll be in touch within 1 business day</p>
               </div>
@@ -214,7 +223,7 @@ export async function POST(req: NextRequest) {
         subject: `Reset your Attenda password${hotelName ? ` — ${hotelName}` : ''}`,
         html: `
           <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
-            <div style="background:#0D9488;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center">
+            <div style="background:#158A7C;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center">
               <h1 style="color:white;margin:0;font-size:22px;font-weight:800">Reset your password</h1>
               <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:14px">${hotelName ? hotelName + ' · ' : ''}Attenda Staff Dashboard</p>
             </div>
@@ -223,7 +232,7 @@ export async function POST(req: NextRequest) {
               We received a request to reset your Attenda password. Click the button below to choose a new one.
               This link expires in 1 hour.
             </p>
-            <a href="${resetUrl}" style="display:inline-block;background:#0D9488;color:white;padding:14px 28px;border-radius:12px;font-weight:700;font-size:14px;text-decoration:none;margin-bottom:24px">
+            <a href="${resetUrl}" style="display:inline-block;background:#158A7C;color:white;padding:14px 28px;border-radius:12px;font-weight:700;font-size:14px;text-decoration:none;margin-bottom:24px">
               Reset My Password →
             </a>
             <p style="font-size:13px;color:#888;line-height:1.6;margin-bottom:24px">
@@ -231,7 +240,7 @@ export async function POST(req: NextRequest) {
             </p>
             <div style="background:#f9fafb;border-radius:10px;padding:20px">
               <p style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.05em;margin:0 0 6px">Having trouble?</p>
-              <p style="font-size:12px;color:#666;line-height:1.6;margin:0">Open the link above, or copy and paste it into your browser:<br><span style="color:#0D9488;word-break:break-all">${resetUrl}</span></p>
+              <p style="font-size:12px;color:#666;line-height:1.6;margin:0">Open the link above, or copy and paste it into your browser:<br><span style="color:#158A7C;word-break:break-all">${resetUrl}</span></p>
             </div>
             <p style="font-size:12px;color:#aaa;text-align:center;margin-top:24px">Powered by Attenda — Hospitality Experience Platform</p>
           </div>
