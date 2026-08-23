@@ -19,7 +19,7 @@
   </defs>
 
   <!-- ======"A" monogram ===== -->
-  <g transform="translate(0 0)">
+  <g transform="translate(-130 -560)">
     <!-- Left leg of A (outer light face) -->
     <path d="M 380 560
              L 130 1010

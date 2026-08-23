@@ -41,10 +41,13 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
-    // Notify a human. A lead that only lands in a table is a lead nobody answers,
-    // so this runs on every submit — but never blocks the response: the lead is
-    // already safely stored, and an email outage must not read as a failed form.
-    void notifyNewLead({ name, email, property_name, phone, notes, source }).catch(e =>
+    // Notify a human. Must be awaited, not fire-and-forget: this runs inside a
+    // serverless function, and the platform is free to freeze the process the
+    // instant the response is sent — an un-awaited promise can be paused
+    // mid-flight and only resume (if ever) whenever a later request happens to
+    // reuse the same warm container. Errors are still swallowed, since the lead
+    // is already stored and an email outage must not read as a failed form.
+    await notifyNewLead({ name, email, property_name, phone, notes, source }).catch(e =>
       console.error('schedule-demo: lead notification failed', e),
     );
 

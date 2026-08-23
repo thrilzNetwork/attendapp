@@ -30,9 +30,10 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
-    // Same alert path as the landing-page form — a lead captured mid-call is
-    // still a lead nobody answers until a human is notified.
-    void notifyNewLead({
+    // Awaited for the same reason as /api/schedule-demo: a serverless function
+    // can freeze right after the response returns, so fire-and-forget here is
+    // not "faster", it's "unreliable" — see notify-lead.ts callers for detail.
+    await notifyNewLead({
       name: name || 'Unknown',
       email,
       property_name,
