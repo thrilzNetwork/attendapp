@@ -189,7 +189,7 @@ function TrainingAdminView({ hotelId, onRefresh }: { hotelId: string; onRefresh:
       <div className="flex items-center justify-between">
         <p className="text-[13px] text-gray-600">{courses.length} courses total</p>
         <button onClick={() => setShowAddCourse(true)}
-          className="px-4 py-2 rounded-xl text-white font-bold text-[12px] flex items-center gap-1" style={{ backgroundColor: '#0D9488' }}>
+          className="px-4 py-2 rounded-xl text-white font-bold text-[12px] flex items-center gap-1" style={{ backgroundColor: '#158A7C' }}>
           <Plus size={14} /> New Course
         </button>
       </div>
@@ -266,7 +266,7 @@ function TrainingAdminView({ hotelId, onRefresh }: { hotelId: string; onRefresh:
                         </div>
                         <div className="flex gap-2">
                           <button onClick={handleAddModule} disabled={saving || !moduleForm.title}
-                            className="px-4 py-1.5 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#0D9488' }}>Save</button>
+                            className="px-4 py-1.5 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#158A7C' }}>Save</button>
                           <button onClick={() => setShowAddModule(null)} className="px-4 py-1.5 rounded-lg text-[12px] text-gray-500">Cancel</button>
                         </div>
                       </div>
@@ -285,7 +285,7 @@ function TrainingAdminView({ hotelId, onRefresh }: { hotelId: string; onRefresh:
                         ))}
                         <div className="flex gap-2">
                           <button onClick={handleAddQuiz} disabled={saving || !quizForm.question}
-                            className="px-4 py-1.5 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#0D9488' }}>Save Question</button>
+                            className="px-4 py-1.5 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#158A7C' }}>Save Question</button>
                           <button onClick={() => setShowAddQuiz(null)} className="px-4 py-1.5 rounded-lg text-[12px] text-gray-500">Done</button>
                         </div>
                       </div>
@@ -328,7 +328,7 @@ function TrainingAdminView({ hotelId, onRefresh }: { hotelId: string; onRefresh:
               </label>
               <div className="flex gap-2 pt-2">
                 <button onClick={handleAddCourse} disabled={saving || !courseForm.title}
-                  className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: '#0D9488' }}>
+                  className="flex-1 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: '#158A7C' }}>
                   {saving ? 'Saving...' : 'Create Course'}
                 </button>
                 <button onClick={() => setShowAddCourse(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-[13px]">Cancel</button>
@@ -489,7 +489,7 @@ export default function LearningHRView({ hotelId }: { hotelId: string }) {
   const categoryIcon = (cat: string) => COURSE_CATS.find(c => c.key === cat)?.icon || '📚';
   const courseColor = (cat: string) => {
     const map: Record<string, string> = {
-      'Brand Standards': '#7C3AED', 'Attenda Platform': '#0D9488',
+      'Brand Standards': '#7C3AED', 'Attenda Platform': '#158A7C',
       Hospitality: '#E11D48', Safety: '#D97706', SOP: '#2563EB', Leadership: '#059669',
     };
     return map[cat] || '#6B7280';
@@ -601,7 +601,7 @@ export default function LearningHRView({ hotelId }: { hotelId: string }) {
                         })}
                         <button onClick={() => submitQuiz(mod.id)}
                           disabled={quizQuestions.filter(q => (q.details as any).module_id === mod.id).some(q => quizAnswers[q.id] === undefined)}
-                          className="px-5 py-2.5 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: '#0D9488' }}>
+                          className="px-5 py-2.5 rounded-xl text-white font-bold text-[13px] disabled:opacity-50" style={{ backgroundColor: '#158A7C' }}>
                           Submit Quiz
                         </button>
                       </div>
@@ -652,7 +652,7 @@ export default function LearningHRView({ hotelId }: { hotelId: string }) {
         ].map(t => (
           <button key={t.key} onClick={() => setLearnTab(t.key)}
             className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap ${learnTab === t.key ? 'text-white' : 'bg-white border border-gray-200 text-gray-600'}`}
-            style={learnTab === t.key ? { backgroundColor: '#0D9488' } : {}}>{t.label}</button>
+            style={learnTab === t.key ? { backgroundColor: '#158A7C' } : {}}>{t.label}</button>
         ))}
       </div>
 
@@ -695,7 +695,7 @@ export default function LearningHRView({ hotelId }: { hotelId: string }) {
                               </div>
                               {progress.total > 0 && (
                                 <div className="text-right shrink-0 ml-3">
-                                  <p className="text-[18px] font-extrabold" style={{ color: progress.completed === progress.total ? '#059669' : '#0D9488' }}>
+                                  <p className="text-[18px] font-extrabold" style={{ color: progress.completed === progress.total ? '#059669' : '#158A7C' }}>
                                     {Math.round((progress.completed / progress.total) * 100)}%
                                   </p>
                                   <p className="text-[10px] text-gray-400">{progress.completed}/{progress.total}</p>
@@ -704,7 +704,7 @@ export default function LearningHRView({ hotelId }: { hotelId: string }) {
                             </div>
                             {progress.total > 0 && (
                               <div className="h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
-                                <div className="h-full rounded-full transition-all" style={{ width: `${(progress.completed / progress.total) * 100}%`, backgroundColor: progress.completed === progress.total ? '#059669' : '#0D9488' }} />
+                                <div className="h-full rounded-full transition-all" style={{ width: `${(progress.completed / progress.total) * 100}%`, backgroundColor: progress.completed === progress.total ? '#059669' : '#158A7C' }} />
                               </div>
                             )}
                           </div>

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { getIncidentLogs, createIncidentLog, resolveIncidentLog, getPatrolLogs, createPatrolLog, type IncidentLog, type PatrolLog } from '@/lib/supabase';
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 export default function SecurityHubView({ hotelId, staffName }: { hotelId: string; staffName?: string }) {
   const [tab, setTab] = useState<'incidents'|'patrols'>('incidents');

@@ -1,4 +1,55 @@
-<svg width="32" height="32" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="44" height="44" rx="10" fill="#0D9488"/>
-  <text x="22" y="31" font-family="-apple-system, BlinkMacSystemFont, Inter, sans-serif" font-size="24" font-weight="800" fill="white" text-anchor="middle">A</text>
+<svg width="512" height="512" viewBox="0 0 640 450" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="tealLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5ECFC0"/>
+      <stop offset="100%" stop-color="#1E9E8F"/>
+    </linearGradient>
+    <linearGradient id="tealMid" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3BBCAC"/>
+      <stop offset="100%" stop-color="#158A7C"/>
+    </linearGradient>
+    <linearGradient id="tealDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1C9284"/>
+      <stop offset="100%" stop-color="#0E6B60"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ===== "A" monogram (centered) ===== -->
+  <g transform="translate(-65 -460)">
+    <!-- Left leg of A (outer light face) -->
+    <path d="M 380 560
+             L 130 1010
+             L 300 1010
+             L 460 720
+             Z" fill="url(#tealLight)"/>
+    <!-- Left leg inner shaded face -->
+    <path d="M 380 560
+             L 460 720
+             L 400 720
+             L 350 630
+             Z" fill="url(#tealDark)"/>
+
+    <!-- Right leg of A -->
+    <path d="M 500 560
+             L 760 1010
+             L 590 1010
+             L 430 720
+             Z" fill="url(#tealMid)"/>
+
+    <!-- Peak connecting both legs -->
+    <path d="M 380 560 L 500 560 L 460 720 L 430 720 Z" fill="url(#tealLight)"/>
+
+    <!-- Diagonal arrow sash -->
+    <path d="M 165 1010
+             C 300 950, 470 830, 560 690
+             L 585 650
+             L 700 620
+             L 750 730
+             L 715 705
+             C 560 850, 380 970, 235 1010
+             Z"
+          fill="url(#tealMid)" opacity="0.95"/>
+    <!-- Arrowhead -->
+    <path d="M 585 650 L 770 585 L 750 730 Z" fill="url(#tealLight)"/>
+  </g>
 </svg>

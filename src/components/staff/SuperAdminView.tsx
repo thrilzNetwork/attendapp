@@ -8,7 +8,7 @@ import {
   ClipboardList, Circle,
 } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 const API_KEY = process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '';
 
 /* ── types ───────────────────────────────────────────────── */
@@ -86,7 +86,7 @@ function OnboardingWizard({
     slug: '',
     type: 'Hotel',
     rooms: '',
-    brandColor: '#0D9488',
+    brandColor: '#158A7C',
     address: '',
     email: '',
     phone: '',

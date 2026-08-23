@@ -1,21 +1,64 @@
-<svg width="140" height="120" viewBox="0 0 140 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Icon mark centered, scale(0.727) then translate to center -->
-  <g transform="translate(15,0) scale(0.727)">
-    <polygon points="6,104 20,104 52,26 40,26" fill="#0D9488"/>
-    <polygon points="54,26 66,26 76,104 62,104" fill="#0F766E"/>
-    <polygon points="22,72 16,86 70,86 64,72" fill="#0D9488"/>
-    <polygon points="8,88 20,104 92,10 80,4" fill="#14B8A6"/>
-    <polygon points="78,2 104,2 104,26 92,26 92,14 78,14" fill="#14B8A6"/>
-    <polygon points="46,36 26,74 66,74" fill="white"/>
-    <rect x="42" y="73" width="8" height="10" fill="white"/>
+<svg width="700" height="760" viewBox="0 0 700 760" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="tealLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5ECFC0"/>
+      <stop offset="100%" stop-color="#1E9E8F"/>
+    </linearGradient>
+    <linearGradient id="tealMid" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3BBCAC"/>
+      <stop offset="100%" stop-color="#158A7C"/>
+    </linearGradient>
+    <linearGradient id="tealDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1C9284"/>
+      <stop offset="100%" stop-color="#0E6B60"/>
+    </linearGradient>
+    <linearGradient id="wordmark" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#178C7E"/>
+      <stop offset="100%" stop-color="#0F6B60"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ===== "A" monogram (trimmed, centered) ===== -->
+  <g transform="translate(-100 -530)">
+    <!-- Left leg of A (outer light face) -->
+    <path d="M 380 560
+             L 130 1010
+             L 300 1010
+             L 460 720
+             Z" fill="url(#tealLight)"/>
+    <!-- Left leg inner shaded face -->
+    <path d="M 380 560
+             L 460 720
+             L 400 720
+             L 350 630
+             Z" fill="url(#tealDark)"/>
+
+    <!-- Right leg of A -->
+    <path d="M 500 560
+             L 760 1010
+             L 590 1010
+             L 430 720
+             Z" fill="url(#tealMid)"/>
+
+    <!-- Peak connecting both legs -->
+    <path d="M 380 560 L 500 560 L 460 720 L 430 720 Z" fill="url(#tealLight)"/>
+
+    <!-- Diagonal arrow sash crossing the A, pointing up-right -->
+    <path d="M 165 1010
+             C 300 950, 470 830, 560 690
+             L 585 650
+             L 700 620
+             L 750 730
+             L 715 705
+             C 560 850, 380 970, 235 1010
+             Z"
+          fill="url(#tealMid)" opacity="0.95"/>
+    <!-- Arrowhead -->
+    <path d="M 585 650 L 770 585 L 750 730 Z" fill="url(#tealLight)"/>
   </g>
 
-  <!-- Wordmark centered below -->
-  <text x="70" y="112"
-    font-family="'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
-    font-size="26"
-    font-weight="700"
-    fill="#0D9488"
-    text-anchor="middle"
-    letter-spacing="-0.5">Attenda</text>
+  <!-- ===== Wordmark "Attenda" ===== -->
+  <g fill="url(#wordmark)" font-family="Arial, Helvetica, sans-serif" font-weight="700">
+    <text x="350" y="655" font-size="150" letter-spacing="-3" text-anchor="middle">Attenda</text>
+  </g>
 </svg>

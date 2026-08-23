@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { getLinenCounts, createLinenCount, type LinenCount } from '@/lib/supabase';
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 export default function LinenCountView({ hotelId, staffName }: { hotelId: string; staffName?: string }) {
   const [counts, setCounts] = useState<LinenCount[]>([]);

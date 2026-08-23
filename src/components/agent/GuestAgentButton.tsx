@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { getAgentConfig, type AgentConfig } from '@/lib/supabase';
 import { Phone, X, Mic, MicOff } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 export default function GuestAgentButton({ hotelId, roomNumber, guestName }: { hotelId: string; roomNumber?: string; guestName?: string }) {
   const [config, setConfig] = useState<AgentConfig | null>(null);

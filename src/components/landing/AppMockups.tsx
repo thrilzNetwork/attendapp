@@ -14,7 +14,7 @@ import {
   TrendingUp, Wrench, Utensils, ShoppingBag, Phone, Layers, Truck, MapPin,
 } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 /* ─── tiny shared atoms ─────────────────────────────────────── */
 
@@ -260,15 +260,15 @@ export function RequestsScreenMockup() {
 
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const STAFF_ROWS = [
-  { name: 'Maria G.',  dept: 'Front Desk',   color: '#0D9488', shifts: [1,1,1,1,1,0,0] },
+  { name: 'Maria G.',  dept: 'Front Desk',   color: '#158A7C', shifts: [1,1,1,1,1,0,0] },
   { name: 'Carlos V.', dept: 'Housekeeping', color: '#3B82F6', shifts: [1,1,0,1,1,1,0] },
-  { name: 'Priya L.',  dept: 'Front Desk',   color: '#0D9488', shifts: [0,1,1,1,1,0,1] },
+  { name: 'Priya L.',  dept: 'Front Desk',   color: '#158A7C', shifts: [0,1,1,1,1,0,1] },
   { name: 'James K.',  dept: 'Maintenance',  color: '#8B5CF6', shifts: [1,0,1,1,0,1,1] },
   { name: 'Sofia R.',  dept: 'Housekeeping', color: '#3B82F6', shifts: [1,1,1,0,1,0,1] },
 ];
 
 const DEPT_COLORS: Record<string, string> = {
-  'Front Desk': '#0D9488',
+  'Front Desk': '#158A7C',
   'Housekeeping': '#3B82F6',
   'Maintenance': '#8B5CF6',
 };
@@ -593,7 +593,7 @@ export function ShuttleScreenMockup() {
    ════════════════════════════════════════════════════════════════ */
 
 const REQUEST_BUTTONS = [
-  { label: 'Towels',       icon: Layers,      bg: '#0D9488', sent: true  },
+  { label: 'Towels',       icon: Layers,      bg: '#158A7C', sent: true  },
   { label: 'Housekeeping', icon: Users,        bg: '#7C3AED', sent: false },
   { label: 'Room Service', icon: Utensils,     bg: '#D97706', sent: false },
   { label: 'Amenities',    icon: ShoppingBag,  bg: '#DB2777', sent: false },
@@ -673,12 +673,12 @@ export function BouncieGPSMockup() {
       </div>
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-3 pb-2.5 pt-1 flex items-center gap-2">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#0D948815' }}>
-          <Bus size={14} style={{ color: '#0D9488' }} />
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#158A7C15' }}>
+          <Bus size={14} style={{ color: '#158A7C' }} />
         </div>
         <span className="text-[11px] font-black text-gray-900">Live Shuttle</span>
         <PulsingDot />
-        <span className="ml-auto text-[8px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: '#0D9488' }}>On Trip</span>
+        <span className="ml-auto text-[8px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: '#158A7C' }}>On Trip</span>
       </div>
 
       <div className="flex-1 overflow-hidden px-3 py-2.5 space-y-2.5">
@@ -697,20 +697,20 @@ export function BouncieGPSMockup() {
           <div className="absolute -bottom-6 -right-5 h-20 w-24 rounded-full bg-[#BFDDEB]" />
           {/* route */}
           <svg className="absolute inset-0 h-full w-full" viewBox="0 0 200 108" fill="none" preserveAspectRatio="none" aria-hidden>
-            <path d="M12 92 C 50 88, 62 60, 100 54 S 168 30, 186 16" stroke="#0D9488" strokeOpacity="0.25" strokeWidth="5" strokeLinecap="round" />
-            <path d="M12 92 C 50 88, 62 60, 100 54 S 168 30, 186 16" stroke="#0D9488" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="7 9" className="animate-route-dash" />
+            <path d="M12 92 C 50 88, 62 60, 100 54 S 168 30, 186 16" stroke="#158A7C" strokeOpacity="0.25" strokeWidth="5" strokeLinecap="round" />
+            <path d="M12 92 C 50 88, 62 60, 100 54 S 168 30, 186 16" stroke="#158A7C" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="7 9" className="animate-route-dash" />
           </svg>
           {/* hotel pin */}
           <div className="absolute right-[4%] top-[6%] flex flex-col items-center">
-            <div className="flex h-4 w-4 items-center justify-center rounded-full border-2 bg-white shadow" style={{ borderColor: '#0D9488' }}>
-              <Home size={8} style={{ color: '#0D9488' }} />
+            <div className="flex h-4 w-4 items-center justify-center rounded-full border-2 bg-white shadow" style={{ borderColor: '#158A7C' }}>
+              <Home size={8} style={{ color: '#158A7C' }} />
             </div>
             <span className="mt-0.5 rounded bg-white/90 px-1 text-[6px] font-black text-gray-700 shadow-sm">HOTEL</span>
           </div>
           {/* shuttle marker driving the route */}
           <div
             className="animate-shuttle-drive absolute flex h-5 w-5 items-center justify-center rounded-full text-white shadow-md ring-2 ring-white"
-            style={{ backgroundColor: '#0D9488', offsetPath: "path('M12 92 C 50 88, 62 60, 100 54 S 168 30, 186 16')", offsetRotate: '0deg' }}
+            style={{ backgroundColor: '#158A7C', offsetPath: "path('M12 92 C 50 88, 62 60, 100 54 S 168 30, 186 16')", offsetRotate: '0deg' }}
           >
             <Bus size={11} color="white" />
           </div>
@@ -724,7 +724,7 @@ export function BouncieGPSMockup() {
         {/* GPS card */}
         <div className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
           <div className="flex items-center gap-1.5 mb-2">
-            <MapPin size={10} style={{ color: '#0D9488' }} />
+            <MapPin size={10} style={{ color: '#158A7C' }} />
             <span className="text-[9px] font-bold text-gray-700">Current Position</span>
           </div>
           <p className="text-[10px] font-mono text-gray-900 font-bold">27.9506° N, 82.4572° W</p>
@@ -783,7 +783,7 @@ export function BouncieGPSMockup() {
         {/* Track button */}
         <button
           className="w-full py-2.5 rounded-xl text-[10px] font-bold text-white text-center"
-          style={{ backgroundColor: '#0D9488' }}
+          style={{ backgroundColor: '#158A7C' }}
         >
           Track on Google Maps →
         </button>

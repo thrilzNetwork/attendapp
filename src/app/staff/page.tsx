@@ -159,7 +159,7 @@ interface Session {
 }
 
 /* ── Constants ─────────────────────────────────────────── */
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 const BUILD_TS = Date.now();
 
 const DEPARTMENTS = [
@@ -1437,7 +1437,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
               <input type="number" min="0" step="0.01" value={newRoute.price || ''} placeholder="0" onChange={e => setNewRoute({ ...newRoute, price: parseFloat(e.target.value)||0 })}
                 className="bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 text-[13px] outline-none w-[72px]" />
             </div>
-            <button onClick={handleAddRoute} className="px-4 py-2.5 rounded-xl text-white font-semibold text-[13px]" style={{ backgroundColor: '#0D9488' }}>Add</button>
+            <button onClick={handleAddRoute} className="px-4 py-2.5 rounded-xl text-white font-semibold text-[13px]" style={{ backgroundColor: '#158A7C' }}>Add</button>
           </div>
         </div>
       )}
@@ -1495,7 +1495,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                           <input type="number" min="0" step="0.01" value={newSlot.override_price ?? ''} placeholder="--" onChange={e => setNewSlot({ ...newSlot, override_price: e.target.value ? parseFloat(e.target.value) : null })}
                             className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none w-[80px]" />
                         </div>
-                        <button onClick={handleAddSlot} className="px-4 py-2 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#0D9488' }}>Save</button>
+                        <button onClick={handleAddSlot} className="px-4 py-2 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#158A7C' }}>Save</button>
                         <button onClick={() => setNewSlot({ route_id: '', show: false, time: '', days: [0,1,2,3,4,5,6], capacity: 0, event_label: '', override_price: null })} className="px-3 py-2 text-[12px] text-gray-400">Cancel</button>
                       </div>
                       <div>
@@ -1558,7 +1558,7 @@ function ShuttleRoutesPanel({ hotelId, isAdmin }: { hotelId: string; isAdmin: bo
                             <input type="number" min="0" step="0.01" value={batch.override_price ?? ''} placeholder="0" onChange={e => setBatch({ ...batch, override_price: e.target.value ? parseFloat(e.target.value) : null })}
                               className="bg-gray-50 rounded-lg px-3 py-2 border text-[13px] outline-none w-20" />
                           </div>
-                          <button onClick={handleBatchGenerate} className="px-4 py-2 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#0D9488' }}>Generate</button>
+                          <button onClick={handleBatchGenerate} className="px-4 py-2 rounded-lg text-white font-bold text-[12px]" style={{ backgroundColor: '#158A7C' }}>Generate</button>
                         </div>
                         <div className="flex gap-1.5 flex-wrap">
                           {DAYS.map((d, i) => {
@@ -1725,7 +1725,7 @@ function ShuttleRequestsPanel({ hotelId }: { hotelId: string }) {
                         <p className="text-[12px] text-gray-500">{r.destination} · Driver: {r.assigned_driver_name || 'Unassigned'}</p>
                       </div>
                       <button onClick={async () => { await updateShuttleRequest(r.id, { status: 'completed' }); load(); }}
-                        className="px-3 py-2 rounded-lg text-[11px] font-bold text-white" style={{ backgroundColor: '#0D9488' }}>Complete</button>
+                        className="px-3 py-2 rounded-lg text-[11px] font-bold text-white" style={{ backgroundColor: '#158A7C' }}>Complete</button>
                     </div>
                   </div>
                 ))}
@@ -2500,10 +2500,10 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
               </div>
             </div>
             {saveError && <p className="text-[11px] text-red-500 bg-red-50 px-3 py-2 rounded-lg">{saveError}</p>}
-            <button onClick={handleAdd} disabled={saving} className="w-full py-3 rounded-xl text-white font-semibold text-[13px] disabled:opacity-50" style={{ backgroundColor: '#0D9488' }}>{saving ? 'Saving...' : 'ADD STAFF MEMBER'}</button>
+            <button onClick={handleAdd} disabled={saving} className="w-full py-3 rounded-xl text-white font-semibold text-[13px] disabled:opacity-50" style={{ backgroundColor: '#158A7C' }}>{saving ? 'Saving...' : 'ADD STAFF MEMBER'}</button>
             {form.email && (
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={sendInvite} onChange={e => setSendInvite(e.target.checked)} className="w-4 h-4 rounded" style={{ accentColor: '#0D9488' }} />
+                <input type="checkbox" checked={sendInvite} onChange={e => setSendInvite(e.target.checked)} className="w-4 h-4 rounded" style={{ accentColor: '#158A7C' }} />
                 <span className="text-[11px] text-gray-500">Send invitation email with setup link</span>
               </label>
             )}

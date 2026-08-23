@@ -16,7 +16,7 @@ import {
   type VendorEvent, type VendorExpense,
 } from '@/lib/supabase';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 const CATEGORIES = [
   { key: 'produce', label: 'Produce' },

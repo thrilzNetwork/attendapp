@@ -5,7 +5,7 @@ import { BarChart2, Users, ClipboardList, DollarSign, Star, TrendingUp, Printer,
 import { supabase } from '@/lib/supabase';
 import { listKpiDefinitions, type KpiSubmission, type KpiDefinition, type OpRecord } from '@/lib/opsStore';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 function localDateStr(d: Date = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

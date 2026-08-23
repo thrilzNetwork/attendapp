@@ -10,7 +10,7 @@ import WorkOrdersView from '@/components/hubs/WorkOrdersView';
 import SecurityHubView from '@/components/hubs/SecurityHubView';
 
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 // Existing tools will be wired in the full build — not needed for preview
 // Hub-specific stats only use supabase directly

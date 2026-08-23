@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle, Clock, ChefHat, Package, Truck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 interface OrderRow {
   id: string;

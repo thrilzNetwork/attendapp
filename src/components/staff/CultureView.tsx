@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Trophy, Gift, Star, Plus, X, Calendar, Cake, PartyPopper, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -206,7 +206,7 @@ export default function CultureView({
     <div style={{ fontFamily: 'system-ui, sans-serif', background: '#F9FAFB', minHeight: '100vh', paddingBottom: 80 }}>
 
       {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #0D9488 0%, #0891B2 100%)', padding: '20px 16px 0', color: '#fff' }}>
+      <div style={{ background: 'linear-gradient(135deg, #158A7C 0%, #0891B2 100%)', padding: '20px 16px 0', color: '#fff' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
           <Heart size={22} fill="#fff" color="#fff" />
           <div>

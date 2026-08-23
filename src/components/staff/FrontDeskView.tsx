@@ -30,7 +30,7 @@ import RoomMovesView from '@/components/ops-tools/RoomMovesView';
 import BankCountView from '@/components/ops-tools/BankCountView';
 
 /* ── Constants ─────────────────────────── */
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 /* ── Front Desk View ───────────────────── */
 export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, config }: {

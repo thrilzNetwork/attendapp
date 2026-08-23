@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { HotelConfig, PositionBudget, updateHotelConfig } from '@/lib/supabase';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 type TileKey = 'WELCOME' | 'TRANSPORT' | 'FACILITIES' | 'SAFETY' | 'NEARBY' | 'FOOD' | 'REVIEW';
 
@@ -520,7 +520,7 @@ function TileEditor({ tile, form, setForm, onBack, onSave, saved }: {
               }} maxLength={7} className={inp + ' flex-1 font-mono'} placeholder="#6B1D3C" />
             </div>
             <div className="flex gap-2 flex-wrap">
-              {['#6B1D3C','#0D9488','#1D4ED8','#7C3AED','#B45309','#DC2626','#0F172A','#059669'].map(c => (
+              {['#6B1D3C','#158A7C','#1D4ED8','#7C3AED','#B45309','#DC2626','#0F172A','#059669'].map(c => (
                 <button key={c} onClick={() => setForm({ ...form, brandColor: c })}
                   className="w-7 h-7 rounded-lg border-[3px] transition-transform active:scale-90"
                   style={{ backgroundColor: c, borderColor: form.brandColor === c ? '#111' : 'transparent' }} />
@@ -779,7 +779,7 @@ function SettingsForm({ form, setForm, onSave, saved, saveError, discovering, di
               maxLength={7} className={inp + ' flex-1 font-mono'} placeholder="#6B1D3C" />
           </div>
           <div className="flex gap-2 flex-wrap">
-            {['#6B1D3C','#0D9488','#1D4ED8','#7C3AED','#B45309','#DC2626','#0F172A','#059669'].map(c => (
+            {['#6B1D3C','#158A7C','#1D4ED8','#7C3AED','#B45309','#DC2626','#0F172A','#059669'].map(c => (
               <button key={c} onClick={() => setForm({ ...form, brandColor: c })}
                 className="w-7 h-7 rounded-lg border-[3px] transition-transform active:scale-90"
                 style={{ backgroundColor: c, borderColor: form.brandColor === c ? '#111' : 'transparent' }} />

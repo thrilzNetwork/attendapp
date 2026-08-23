@@ -15,7 +15,7 @@ import {
   DEPARTMENTS, type DepartmentKey,
 } from '@/lib/opsStore';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 // ── Template types ──────────────────────────────────────────────────────────
 interface TemplateShift {

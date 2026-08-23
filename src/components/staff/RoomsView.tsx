@@ -11,7 +11,7 @@ import {
 } from '@/lib/supabase';
 import type { HotelRoom } from '@/lib/supabase';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 export default function RoomsView({ hotelId, hotelName }: { hotelId: string; hotelName: string }) {
   const [rooms, setRooms] = useState<HotelRoom[]>([]);
@@ -309,7 +309,7 @@ export default function RoomsView({ hotelId, hotelName }: { hotelId: string; hot
             onClick={handleAddManual}
             disabled={saving || !newRoomNum.trim()}
             className="px-4 py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50"
-            style={{ backgroundColor: '#0D9488' }}
+            style={{ backgroundColor: '#158A7C' }}
           >
             {saving ? 'Adding...' : 'Add Room'}
           </button>
@@ -352,7 +352,7 @@ export default function RoomsView({ hotelId, hotelName }: { hotelId: string; hot
                   onClick={handleReplace}
                   disabled={saving}
                   className="px-4 py-2 rounded-lg text-white text-[12px] font-bold disabled:opacity-50"
-                  style={{ backgroundColor: '#0D9488' }}
+                  style={{ backgroundColor: '#158A7C' }}
                 >
                   {saving ? 'Saving...' : 'Replace All Rooms'}
                 </button>

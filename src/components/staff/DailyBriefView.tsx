@@ -37,7 +37,7 @@ import {
   type OpRecord,
 } from '@/lib/opsStore';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 const DEPARTMENTS = [
   { key: 'management',   label: 'Management',   icon: '👔' },

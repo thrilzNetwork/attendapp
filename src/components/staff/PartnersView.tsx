@@ -44,7 +44,7 @@ interface PartnerMenuItem {
   is_active: boolean;
 }
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 const CATEGORY_TABS = [
   { key: 'restaurant', label: 'Restaurant' },
@@ -596,7 +596,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
                 </div>
 
                 {/* Tier B */}
-                <div className={`rounded-xl border-2 p-4 transition-colors ${form.has_ordering ? 'border-[#0D9488] bg-teal-50/40' : 'border-gray-200 bg-gray-50'}`}>
+                <div className={`rounded-xl border-2 p-4 transition-colors ${form.has_ordering ? 'border-[#158A7C] bg-teal-50/40' : 'border-gray-200 bg-gray-50'}`}>
                   <div className="flex items-start gap-2.5 mb-2">
                     <input
                       type="checkbox"

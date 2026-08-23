@@ -14,7 +14,7 @@ import {
 } from '@/lib/supabase';
 import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList, Move, UserX, DollarSign, BookOpen, Download, CalendarClock } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 // Local calendar date (YYYY-MM-DD). Avoids the UTC rollover bug where
 // toISOString() returns tomorrow's date after ~7pm in US timezones.

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Bus, MapPin, Phone } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 export default function AgentDemoPage() {
   const [phoneNumber, setPhoneNumber] = useState<string | null>(null);

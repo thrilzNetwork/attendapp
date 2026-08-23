@@ -4,7 +4,7 @@ import { useConversation, ConversationProvider } from '@elevenlabs/react';
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 const AGENT_ID = 'agent_4101kzn4ysvjfaava4ck5ggdt5ba';
 
 interface Message {

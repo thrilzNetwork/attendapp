@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getDailyLogs, createDailyLog, type DailyLogEntry } from '@/lib/supabase';
 import { CalendarClock } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 const CATEGORIES = ['General', 'Maintenance', 'Incident', 'Guest Feedback', 'Housekeeping', 'Front Desk', 'Other'];
 const SHIFTS = ['AM', 'PM', 'Overnight'];
 

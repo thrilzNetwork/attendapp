@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { getMealCovers, createMealCover, getWasteLogs, createWasteLog, getMonthlySpends, createMonthlySpend, getFnbInventory, updateFnbInventory, type MealCover, type WasteLog, type MonthlySpend, type FnbInventoryItem } from '@/lib/supabase';
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 export default function BreakfastHubView({ hotelId, staffName }: { hotelId: string; staffName?: string }) {
   const [tab, setTab] = useState<'covers'|'waste'|'spend'|'inventory'>('covers');

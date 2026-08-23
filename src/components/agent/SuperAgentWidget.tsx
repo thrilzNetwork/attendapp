@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 interface Message {
   role: 'agent' | 'user';

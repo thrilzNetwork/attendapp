@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { listOps, createOps, updateOps, type OpRecord } from '@/lib/opsStore';
 import { AlertTriangle, CheckCircle, XCircle, ChevronUp, Phone } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 interface CalloutsViewProps {
   hotelId: string;

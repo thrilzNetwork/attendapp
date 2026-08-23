@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { supabase, getHotelConfig, type HotelConfig } from '@/lib/supabase';
 import { QrCode, ArrowLeft, ChevronRight, CheckCircle, Loader2 } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 // ─── Types ────────────────────────────────────────────────────
 

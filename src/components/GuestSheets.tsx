@@ -73,7 +73,7 @@ const REQUEST_CATEGORIES = [
     label: 'Towels',
     type: 'Amenity Request',
     details: 'Towel Service',
-    color: '#0D9488',
+    color: '#158A7C',
   },
   {
     icon: <WashingMachine size={22} />,

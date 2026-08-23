@@ -1,26 +1,37 @@
-<svg width="320" height="80" viewBox="0 0 320 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Icon mark (white version) scaled to 80px tall -->
-  <g transform="scale(0.727)">
+<svg width="1500" height="450" viewBox="0 0 1500 450" xmlns="http://www.w3.org/2000/svg">
+  <!-- ===== "A" monogram in white (for dark backgrounds) ===== -->
+  <g fill="#FFFFFF">
     <!-- Left leg of A -->
-    <polygon points="6,104 20,104 52,26 40,26" fill="white"/>
+    <path d="M 380 560
+             L 130 1010
+             L 300 1010
+             L 460 720
+             Z"/>
     <!-- Right leg of A -->
-    <polygon points="54,26 66,26 76,104 62,104" fill="rgba(255,255,255,0.75)"/>
-    <!-- Crossbar -->
-    <polygon points="22,72 16,86 70,86 64,72" fill="white"/>
-    <!-- Arrow shaft -->
-    <polygon points="8,88 20,104 92,10 80,4" fill="rgba(255,255,255,0.9)"/>
-    <!-- Arrow head -->
-    <polygon points="78,2 104,2 104,26 92,26 92,14 78,14" fill="white"/>
-    <!-- Tree cutout (transparent = shows through to dark bg) -->
-    <polygon points="46,36 26,74 66,74" fill="#0D9488"/>
-    <rect x="42" y="73" width="8" height="10" fill="#0D9488"/>
+    <path d="M 500 560
+             L 760 1010
+             L 590 1010
+             L 430 720
+             Z"/>
+    <!-- Peak connecting both legs -->
+    <path d="M 380 560 L 500 560 L 460 720 L 430 720 Z"/>
   </g>
 
-  <!-- Wordmark white -->
-  <text x="94" y="56"
-    font-family="'Plus Jakarta Sans', 'Inter', system-ui, sans-serif"
-    font-size="44"
-    font-weight="700"
-    fill="white"
-    letter-spacing="-1">Attenda</text>
+  <!-- Diagonal arrow sash (slightly lighter white for depth) -->
+  <g fill="#EAF7F4">
+    <path d="M 165 1010
+             C 300 950, 470 830, 560 690
+             L 585 650
+             L 700 620
+             L 750 730
+             L 715 705
+             C 560 850, 380 970, 235 1010
+             Z"/>
+    <path d="M 585 650 L 770 585 L 750 730 Z"/>
+  </g>
+
+  <!-- ===== Wordmark "Attenda" ===== -->
+  <g fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-weight="700">
+    <text x="880" y="390" font-size="380" letter-spacing="-6">Attenda</text>
+  </g>
 </svg>

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { getMyHubs, type Hub } from '@/lib/supabase';
 import { LogOut, Users, Building2 } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 const TOOL_LABELS: Record<string, string> = {
   recap: '📊 Daily Recap',

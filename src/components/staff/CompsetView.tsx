@@ -9,7 +9,7 @@ import {
   CompsetHotel, CompsetCallTime, CompsetEntry,
 } from '@/lib/supabase';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 function todayStr() {
   const d = new Date();

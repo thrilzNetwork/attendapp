@@ -7,7 +7,7 @@ import {
   ChevronDown, ChevronUp, Bot as BotIcon,
 } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 type AgentType = 'transportation' | 'customer_service' | 'room_ordering' | 'general';
 

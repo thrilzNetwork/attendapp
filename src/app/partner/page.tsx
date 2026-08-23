@@ -24,7 +24,7 @@ interface VendorOrder {
   uber_tracking_url?: string;
 }
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 /* ──────────────────────────────────────────────────────────── */
 /*  Restaurant Landing Page (shown to new visitors)             */
@@ -937,7 +937,7 @@ export default function PartnerPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-7 h-7 border-2 border-gray-300 border-t-[#0D9488] rounded-full animate-spin" />
+        <div className="w-7 h-7 border-2 border-gray-300 border-t-[#158A7C] rounded-full animate-spin" />
       </div>
     }>
       <PartnerContent />

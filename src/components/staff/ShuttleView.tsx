@@ -24,7 +24,7 @@ function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
   return R * 2 * Math.asin(Math.sqrt(a));
 }
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAYS_FULL  = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -671,7 +671,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
       {/* Quick Dispatch Bar */}
       <button onClick={() => { resetDispatch(); setShowDispatch(true); }}
         className="w-full mb-5 py-3.5 rounded-2xl text-white font-bold text-[14px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-        style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.35)' }}>
+        style={{ background: `linear-gradient(135deg, #158A7C 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.35)' }}>
         <Plus size={17} strokeWidth={2.5} /> New Trip
       </button>
 
@@ -1320,7 +1320,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                   <button onClick={handleDispatchSubmit}
                     disabled={dispatching || !dispatchForm.guest_name.trim() || !dispatchForm.room_number.trim()}
                     className="w-full py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 active:scale-[0.98] transition-all"
-                    style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
+                    style={{ background: `linear-gradient(135deg, #158A7C 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
                     {dispatching ? 'Logging…' : '✅ Log Trip'}
                   </button>
                 ) : tcStep === 'quote' && tcQuote ? (
@@ -1328,7 +1328,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                     <button onClick={resetTC} className="px-5 py-4 rounded-2xl bg-gray-100 font-bold text-[14px] text-gray-700">Back</button>
                     <button onClick={handleTCConfirmPay} disabled={dispatching}
                       className="flex-1 py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 flex items-center justify-center gap-2"
-                      style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
+                      style={{ background: `linear-gradient(135deg, #158A7C 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
                       <CreditCard size={16} /> Confirm & Pay {fmtCents(tcQuote.total_cents)}
                     </button>
                   </div>
@@ -1336,7 +1336,7 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                   <button onClick={handleTCGetQuote}
                     disabled={dispatching || !dispatchForm.guest_name.trim() || !dispatchForm.room_number.trim() || !dispatchForm.destination.trim()}
                     className="w-full py-4 rounded-2xl text-white font-bold text-[15px] disabled:opacity-50 active:scale-[0.98] transition-all"
-                    style={{ background: `linear-gradient(135deg, #0D9488 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
+                    style={{ background: `linear-gradient(135deg, #158A7C 0%, #0F766E 100%)`, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>
                     {dispatching ? 'Getting price…' : '🚗 Get Price & Book'}
                   </button>
                 )}

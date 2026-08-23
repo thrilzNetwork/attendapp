@@ -273,7 +273,7 @@
 
 /* Shimmer text */
 .shimmer-text {
-  background: linear-gradient(90deg, #0D9488 0%, #15b79e 25%, #0D9488 50%, #15b79e 75%, #0D9488 100%);
+  background: linear-gradient(90deg, #158A7C 0%, #15b79e 25%, #158A7C 50%, #15b79e 75%, #158A7C 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;

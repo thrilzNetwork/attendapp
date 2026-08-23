@@ -41,7 +41,7 @@ export default function AgentDashboardPage() {
           <input value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} placeholder="Email" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 mb-3" />
           <input type="password" value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} onKeyDown={e => e.key === 'Enter' && login()} placeholder="Password" className="w-full bg-gray-50 rounded-xl px-4 py-3 text-[14px] border border-gray-200 mb-3" />
           {loginError && <p className="text-[12px] text-red-600 mb-3">{loginError}</p>}
-          <button onClick={login} className="w-full text-white py-3 rounded-xl text-[14px] font-bold" style={{ backgroundColor: '#0D9488' }}>Sign In</button>
+          <button onClick={login} className="w-full text-white py-3 rounded-xl text-[14px] font-bold" style={{ backgroundColor: '#158A7C' }}>Sign In</button>
         </div>
       </div>
     );

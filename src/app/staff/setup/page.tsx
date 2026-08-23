@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase, getHotelConfig } from '@/lib/supabase';
 import { Eye, EyeOff, Check, Lock, Mail } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 function SetupContent() {
   const router = useRouter();

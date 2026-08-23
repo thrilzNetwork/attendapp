@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import type { OpsTool } from '@/lib/supabase';
 import { Building2, Copy, Check, LogOut, Globe, Eye, EyeOff, Lock, Trash2, RefreshCw, ChevronDown, ChevronUp, Power, PowerOff, Settings, Plus } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 // Helper: call superadmin proxy API (bypasses RLS via service_role)
 async function callAdmin(action: string, body: Record<string, unknown> = {}) {

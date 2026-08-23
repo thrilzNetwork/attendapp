@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getRoomStatuses, upsertRoomStatus, type RoomStatus } from '@/lib/supabase';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 export default function RoomStatusView({ hotelId, staffName }: { hotelId: string; staffName?: string }) {
   const [rooms, setRooms] = useState<RoomStatus[]>([]);

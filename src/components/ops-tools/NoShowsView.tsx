@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { getNoShows, createNoShow, deleteNoShow, type NoShow } from '@/lib/supabase';
 import { Trash2 } from 'lucide-react';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 export default function NoShowsView({ hotelId }: { hotelId: string }) {
   const _d = new Date(); const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;

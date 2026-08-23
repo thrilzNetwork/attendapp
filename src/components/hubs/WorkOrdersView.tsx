@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { getWorkOrders, createWorkOrder, updateWorkOrder, type WorkOrder } from '@/lib/supabase';
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 export default function WorkOrdersView({ hotelId, staffName }: { hotelId: string; staffName?: string }) {
   const [orders, setOrders] = useState<WorkOrder[]>([]);

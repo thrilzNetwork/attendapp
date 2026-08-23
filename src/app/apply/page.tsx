@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { CheckCircle, ArrowLeft, Building2, User, Phone, Mail, AlignLeft, Store } from 'lucide-react';
 import { getHotelConfig } from '@/lib/supabase';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 function ApplyContent() {
   const searchParams = useSearchParams();

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, ShoppingBag, TrendingUp } from 'lucide-react';
 import { authedApiHeaders } from '@/lib/supabase';
 
-const TEAL = '#0D9488';
+const TEAL = '#158A7C';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

@@ -308,7 +308,7 @@ export default function LeaderboardView({
                     >
                       <span className="text-[12px] font-bold text-gray-400 w-5 text-center">{idx + 1}</span>
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
-                        style={{ backgroundColor: idx === 0 ? '#F59E0B' : idx === 1 ? '#9CA3AF' : idx === 2 ? '#B45309' : '#0D9488' }}>
+                        style={{ backgroundColor: idx === 0 ? '#F59E0B' : idx === 1 ? '#9CA3AF' : idx === 2 ? '#B45309' : '#158A7C' }}>
                         {initials(entry.staff_name)}
                       </div>
                       <span className="flex-1 text-[13px] font-semibold text-gray-800">{entry.staff_name}</span>
@@ -377,7 +377,7 @@ export default function LeaderboardView({
                         onClick={() => redeem(inc.id)}
                         disabled={!canAfford}
                         className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white shrink-0 disabled:opacity-40 transition-colors"
-                        style={{ backgroundColor: canAfford ? '#0D9488' : '#9CA3AF' }}
+                        style={{ backgroundColor: canAfford ? '#158A7C' : '#9CA3AF' }}
                       >
                         Redeem
                       </button>
