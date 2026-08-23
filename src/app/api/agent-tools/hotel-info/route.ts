@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const { hotel_slug, hotel_id } = body;
     const supabase = getSupabaseAdmin();
 
-    let query = supabase.from('hotels').select('id, name, slug, brand_color, address, phone');
+    let query = supabase.from('hotels').select('id, name, slug, brand_color, address, front_desk_phone');
     if (hotel_id) {
       query = query.eq('id', hotel_id);
     } else if (hotel_slug) {

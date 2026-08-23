@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { notifyNewLead } from '@/lib/notify-lead';
 
 /**
  * ElevenLabs server tool: Schedule a demo
@@ -28,6 +29,17 @@ export async function POST(req: NextRequest) {
     }).select().single();
 
     if (error) throw error;
+
+    // Same alert path as the landing-page form — a lead captured mid-call is
+    // still a lead nobody answers until a human is notified.
+    void notifyNewLead({
+      name: name || 'Unknown',
+      email,
+      property_name,
+      phone,
+      notes,
+      source: 'agent_chat',
+    }).catch(e => console.error('agent-tools/schedule-demo: lead notification failed', e));
 
     return NextResponse.json({ 
       ok: true, 
