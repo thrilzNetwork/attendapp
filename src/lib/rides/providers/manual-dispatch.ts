@@ -3,7 +3,6 @@ import type {
   RideBookRequest,
   RideProvider,
   RideQuote,
-  RideQuoteRequest,
 } from '../types';
 
 /**
@@ -25,7 +24,7 @@ export const manualDispatch: RideProvider = {
     return true;
   },
 
-  async quote(req: RideQuoteRequest): Promise<RideQuote> {
+  async quote(): Promise<RideQuote> {
     return {
       id: `manual:${Date.now()}`,
       provider: 'manual_dispatch',
