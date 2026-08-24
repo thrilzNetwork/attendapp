@@ -17,15 +17,18 @@ export async function POST(req: NextRequest) {
       // reachable and was broken for the same reason as the food path — the
       // hardcoded Uber call — so it gets the same fallback-chain treatment
       // rather than being left as a landmine for whenever it is wired up.
+      // requests/shuttle_requests carry hotel_id/partner_id as plain UUID
+      // columns with no declared foreign key, so PostgREST can't auto-embed
+      // (`select=*,hotels(...)` 404s with PGRST200) — fetch separately instead.
       const { data: trip, error } = await db
         .from('shuttle_requests')
-        .select('*, hotels(name, address, front_desk_phone)')
+        .select('*')
         .eq('id', requestId)
         .maybeSingle();
       if (error || !trip) return NextResponse.json({ ok: false, error: 'Trip not found' }, { status: 404 });
       if (trip.uber_delivery_id) return NextResponse.json({ ok: false, error: 'Already dispatched' }, { status: 400 });
 
-      const hotel = trip.hotels as { name: string; address: string; front_desk_phone: string } | null;
+      const { data: hotel } = await db.from('hotels').select('name, address, front_desk_phone').eq('id', trip.hotel_id).maybeSingle();
       if (!hotel?.address) return NextResponse.json({ ok: false, error: 'Hotel address not set' }, { status: 400 });
       if (!trip.destination) return NextResponse.json({ ok: false, error: 'No destination on trip' }, { status: 400 });
 
@@ -71,14 +74,16 @@ export async function POST(req: NextRequest) {
     // account was disabled).
     const { data: order, error: oErr } = await db
       .from('requests')
-      .select('*, partners(id, name, address, phone, delivery_providers), hotels(name, address, front_desk_phone)')
+      .select('*')
       .eq('id', requestId)
       .maybeSingle();
     if (oErr || !order) return NextResponse.json({ ok: false, error: 'Order not found' }, { status: 404 });
     if (order.uber_delivery_id) return NextResponse.json({ ok: false, error: 'Already dispatched' }, { status: 400 });
 
-    const partner = order.partners as { id: string; name: string; address: string; phone: string; delivery_providers: string[] | null } | null;
-    const hotel = order.hotels as { name: string; address: string; front_desk_phone: string } | null;
+    const [{ data: partner }, { data: hotel }] = await Promise.all([
+      db.from('partners').select('id, name, address, phone, delivery_providers').eq('id', order.partner_id).maybeSingle(),
+      db.from('hotels').select('name, address, front_desk_phone').eq('id', order.hotel_id).maybeSingle(),
+    ]);
     if (!partner?.address || !hotel?.address) {
       return NextResponse.json({ ok: false, error: 'Missing pickup or dropoff address' }, { status: 400 });
     }
