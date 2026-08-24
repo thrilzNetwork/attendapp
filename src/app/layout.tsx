@@ -120,7 +120,7 @@ export default function RootLayout({
           name: "Alejandro Soria",
         },
         sameAs: [
-          "https://attendaapp.com",
+          "https://www.linkedin.com/company/thrilz-media",
         ],
       },
       {

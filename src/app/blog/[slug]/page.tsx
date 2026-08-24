@@ -1,53 +1,83 @@
-'use client';
-
-import { useState } from "react";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { blogPosts, presenceBlogPost } from "@/content/blog";
+import { blogPosts } from "@/content/blog";
 import { ArrowLeft } from "lucide-react";
+import { ShareBar, ArticleLeadCapture } from "@/components/blog/PostInteractive";
+
+const CANONICAL = "https://attendaapp.com";
+
+export function generateStaticParams() {
+  return blogPosts.map((post) => ({ slug: post.slug }));
+}
+
+export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
+  const post = blogPosts.find((p) => p.slug === params.slug);
+  if (!post) return {};
+
+  const url = `${CANONICAL}/blog/${post.slug}`;
+  return {
+    title: post.title,
+    description: post.metaDescription,
+    alternates: { canonical: url },
+    authors: [{ name: post.author, url: CANONICAL }],
+    openGraph: {
+      type: "article",
+      title: post.title,
+      description: post.metaDescription,
+      url,
+      publishedTime: post.publishedDate,
+      authors: [post.author],
+      section: post.category,
+      images: [{ url: "/og-image.png", width: 1200, height: 630, alt: post.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.metaDescription,
+      images: ["/og-image.png"],
+    },
+  };
+}
 
 export default function BlogPostPage({ params }: { params: { slug: string } }) {
-  const post = blogPosts.find((p) => p.slug === params.slug) ?? (params.slug === presenceBlogPost.slug ? presenceBlogPost : undefined);
-
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
-
+  const post = blogPosts.find((p) => p.slug === params.slug);
   if (!post) notFound();
 
-  const handleSubmit = async () => {
-    if (!email) return;
-    setStatus('sending');
-    try {
-      await fetch('/api/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-        body: JSON.stringify({
-          type: 'enrollment_inquiry',
-          data: {
-            contactName: 'Blog Reader',
-            contactEmail: email,
-            contactPhone: '',
-            propertyName: 'Interested in Attenda (Blog)',
-            propertyType: 'Property',
-            rooms: 'Not specified',
-            city: '',
-            message: `I read "${post.title}" and want to learn more.`,
-          },
-        }),
-      });
-      setStatus('sent');
-    } catch {
-      setStatus('idle');
-    }
-  };
+  const url = `${CANONICAL}/blog/${post.slug}`;
+  const relatedPosts = blogPosts
+    .filter((p) => p.slug !== post.slug && p.category === post.category)
+    .slice(0, 3);
+  const fillerPosts = blogPosts
+    .filter((p) => p.slug !== post.slug && !relatedPosts.includes(p))
+    .slice(0, 3 - relatedPosts.length);
+  const shown = [...relatedPosts, ...fillerPosts];
 
-  const allPosts = [...blogPosts, presenceBlogPost];
-  const relatedPosts = allPosts
-    .filter((p) => p.slug !== post.slug)
-    .slice(-3);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.metaDescription,
+    image: `${CANONICAL}/og-image.png`,
+    datePublished: post.publishedDate,
+    dateModified: post.publishedDate,
+    author: { "@type": "Person", name: post.author, url: CANONICAL },
+    publisher: {
+      "@type": "Organization",
+      name: "Attenda",
+      logo: { "@type": "ImageObject", url: `${CANONICAL}/og-image.png` },
+    },
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    articleSection: post.category,
+  };
 
   return (
     <div className="min-h-screen bg-white font-sans antialiased">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       {/* Article */}
       <article className="max-w-2xl mx-auto px-5 py-16">
         <Link
@@ -99,78 +129,8 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
           </div>
         </div>
 
-        {/* Share bar */}
-        <div className="flex items-center justify-between border-y border-gray-100 py-4 mb-10">
-          <div className="flex items-center gap-2 text-[12px] text-gray-500">
-            <span className="font-semibold">Share this article</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                const url = window.location.href;
-                window.location.href = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0A66C2] hover:bg-[#004182] text-white text-[12px] font-bold transition-all active:scale-[0.97] shadow-sm"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/></svg>
-              Share on LinkedIn
-            </button>
-            <button
-              onClick={() => {
-                const url = window.location.href;
-                navigator.clipboard.writeText(url).then(() => {
-                  const btn = document.getElementById('copy-btn');
-                  if (btn) {
-                    btn.textContent = 'Copied!';
-                    setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
-                  }
-                });
-              }}
-              id="copy-btn"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-[12px] font-bold transition-all active:scale-[0.97] border border-gray-200"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-              Copy Link
-            </button>
-          </div>
-        </div>
-
-        {/* In-article Lead Capture */}
-        <div className="bg-teal-50 border border-teal-200 rounded-2xl p-6 md:p-8 mb-12">
-          <h3 className="text-[18px] font-black text-gray-900 mb-2">
-            See this in action on your property
-          </h3>
-          <p className="text-[14px] text-gray-600 mb-4">
-            15-minute call. No slide deck. We&apos;ll show you Attenda from every role — guest, staff, GM, partner — on your property.
-          </p>
-          {status === 'sent' ? (
-            <div className="bg-white border border-teal-200 rounded-xl p-4 text-center">
-              <p className="text-[15px] font-bold text-gray-900">We&apos;ll be in touch!</p>
-              <p className="text-[12px] text-gray-500 mt-1">Expect a reply within one business day.</p>
-            </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-teal-500 transition-colors bg-white"
-              />
-              <button
-                onClick={handleSubmit}
-                disabled={status === 'sending'}
-                className="px-6 py-3 rounded-xl text-white font-bold text-[13px] bg-teal-600 hover:bg-teal-700 transition-all active:scale-[0.97] shadow-sm disabled:opacity-50"
-              >
-                {status === 'sending' ? 'Sending...' : 'Get a Demo →'}
-              </button>
-            </div>
-          )}
-          <p className="text-[11px] text-gray-500 mt-3">
-            Replies within 4 business hours. Your inquiry goes to thrilznetwork@gmail.com.
-          </p>
-        </div>
+        <ShareBar />
+        <ArticleLeadCapture postTitle={post.title} />
 
         {/* Bottom CTA */}
         <div className="text-center border-t border-gray-200 pt-8">
@@ -190,7 +150,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             More Field Notes
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {relatedPosts.map((rp) => (
+            {shown.map((rp) => (
               <Link
                 key={rp.slug}
                 href={`/blog/${rp.slug}`}
@@ -228,7 +188,8 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             <Link href="/" className="hover:text-gray-900">Home</Link>
             <Link href="/blog" className="hover:text-gray-900">Blog</Link>
             <Link href="/privacy" className="hover:text-gray-900">Privacy</Link>
-            <a href="mailto:thrilznetwork@gmail.com" className="hover:text-gray-900">Contact</a>
+            <a href="https://www.linkedin.com/company/thrilz-media" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900">LinkedIn</a>
+            <a href="mailto:support@attendaapp.com" className="hover:text-gray-900">Contact</a>
           </div>
         </div>
       </footer>
