@@ -353,14 +353,14 @@ function VendorDashboard() {
                 </button>
               </div>
 
-              {/* Uber Direct dispatch */}
+              {/* Delivery dispatch — Nash, Uber Direct, or the partner's own driver */}
               {!order.uber_delivery_id ? (
                 <button
                   onClick={() => dispatchUber(order)}
                   disabled={dispatching === order.id}
                   className="mt-2 w-full py-2.5 rounded-xl font-bold text-[13px] bg-black text-white flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform">
                   <Truck size={14} />
-                  {dispatching === order.id ? 'Dispatching…' : 'Send via Uber Direct'}
+                  {dispatching === order.id ? 'Dispatching…' : 'Dispatch delivery'}
                 </button>
               ) : (
                 <div className="mt-2 flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">

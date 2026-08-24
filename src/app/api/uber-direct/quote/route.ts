@@ -1,38 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDeliveryQuote } from '@/lib/uber-direct';
+import { getBestQuote } from '@/lib/delivery';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
-// Without this the GET is prerendered at build time, where UBER_DIRECT_CLIENT_ID
-// is unset — baking a permanent {ok:false, reason:'not_configured'} response into
-// the deploy no matter what the runtime env has.
+// Without this the GET is prerendered at build time, where provider credentials
+// are unset — baking a permanent {ok:false} response into the deploy regardless
+// of what the runtime env actually has.
 export const dynamic = 'force-dynamic';
 
+/**
+ * Delivery quote for a partner→hotel order.
+ *
+ * Named uber-direct for URL stability (the guest-ordering page already calls
+ * this path) but no longer tied to Uber: it walks the same fallback chain as
+ * dispatch, so quoting works even while Uber Direct's account is disabled —
+ * which is the exact situation that motivated building the chain.
+ */
 export async function GET(req: NextRequest) {
-  if (!process.env.UBER_DIRECT_CLIENT_ID) {
-    return NextResponse.json({ ok: false, reason: 'not_configured' });
-  }
   const { searchParams } = new URL(req.url);
   const partnerId = searchParams.get('partnerId');
   const hotelId = searchParams.get('hotelId');
   if (!partnerId || !hotelId) return NextResponse.json({ ok: false, reason: 'missing_params' });
 
   const [{ data: partner }, { data: hotel }] = await Promise.all([
-    supabaseAdmin.from('partners').select('name,address,lat,lng,phone').eq('id', partnerId).maybeSingle(),
+    supabaseAdmin.from('partners').select('name,address,lat,lng,phone,delivery_providers').eq('id', partnerId).maybeSingle(),
     supabaseAdmin.from('hotels').select('name,address,lat,lng').eq('id', hotelId).maybeSingle(),
   ]);
 
   if (!partner?.address || !hotel?.address) return NextResponse.json({ ok: false, reason: 'missing_address' });
 
   try {
-    const quote = await getDeliveryQuote({
-      pickup_address: partner.address,
-      dropoff_address: hotel.address,
-      pickup_lat: partner.lat ?? undefined,
-      pickup_lng: partner.lng ?? undefined,
-      dropoff_lat: hotel.lat ?? undefined,
-      dropoff_lng: hotel.lng ?? undefined,
+    const { quote } = await getBestQuote(
+      {
+        partner_id: partnerId,
+        pickup: { name: partner.name, address: partner.address, lat: partner.lat ?? undefined, lng: partner.lng ?? undefined, phone: partner.phone ?? undefined },
+        dropoff: { name: hotel.name, address: hotel.address, lat: hotel.lat ?? undefined, lng: hotel.lng ?? undefined },
+      },
+      partner.delivery_providers,
+    );
+    return NextResponse.json({
+      ok: true,
+      quote: {
+        id: quote.id,
+        provider: quote.provider,
+        fee_cents: quote.courier_fee_cents,
+        fee_display: `$${(quote.courier_fee_cents / 100).toFixed(2)}`,
+        eta_minutes: quote.eta_minutes,
+      },
     });
-    return NextResponse.json({ ok: true, quote });
   } catch {
     return NextResponse.json({ ok: false, reason: 'unavailable' });
   }
