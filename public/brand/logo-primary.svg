@@ -1,4 +1,4 @@
-<svg width="1500" height="450" viewBox="0 0 1500 450" xmlns="http://www.w3.org/2000/svg">
+<svg width="2106" height="510" viewBox="-100 -40 2206 530" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="tealLight" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#5ECFC0"/>
@@ -18,7 +18,7 @@
     </linearGradient>
   </defs>
 
-  <!-- ======"A" monogram ===== -->
+  <!-- ===== "A" monogram ===== -->
   <g transform="translate(-130 -560)">
     <!-- Left leg of A (outer light face) -->
     <path d="M 380 560
@@ -59,6 +59,6 @@
 
   <!-- ===== Wordmark "Attenda" ===== -->
   <g fill="url(#wordmark)" font-family="Arial, Helvetica, sans-serif" font-weight="700">
-    <text x="880" y="390" font-size="380" letter-spacing="-6">Attenda</text>
+    <text x="740" y="390" font-size="380" letter-spacing="-6">Attenda</text>
   </g>
 </svg>

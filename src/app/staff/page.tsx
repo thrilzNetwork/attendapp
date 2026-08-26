@@ -278,6 +278,60 @@ function DashboardInner() {
     if (hotel) localStorage.setItem('attenda_hotel_slug', hotel);
   }, []);
 
+  /* ── One-tab enforcement (BroadcastChannel) ──────────── */
+  const [multiTabBlocked, setMultiTabBlocked] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const bc = new BroadcastChannel('attenda_staff_tab');
+    const KEY = 'attenda_staff_tab_id';
+    const tabId = crypto.randomUUID();
+    // Ping every 10s to claim we're still alive
+    const ping = () => { localStorage.setItem(KEY, tabId); };
+    const handleMsg = (e: MessageEvent) => {
+      if (e.data.type === 'ping' && e.data.tabId !== tabId) {
+        // Another tab is alive — was it *us* or someone else?
+        const current = localStorage.getItem(KEY);
+        if (current && current !== tabId) {
+          // Another tab holds the lock and we're the new one — block
+          setMultiTabBlocked(true);
+        }
+      }
+      if (e.data.type === 'i-won') {
+        // This tab won the race — unblock
+        setMultiTabBlocked(false);
+      }
+    };
+    bc.addEventListener('message', handleMsg);
+    // Announce our arrival — the first tab to respond claims the lock
+    bc.postMessage({ type: 'ping', tabId });
+    // Give others a moment to respond
+    const claimTimeout = setTimeout(() => {
+      const current = localStorage.getItem(KEY);
+      if (!current || current === tabId) {
+        // No one else claimed — we win
+        localStorage.setItem(KEY, tabId);
+        bc.postMessage({ type: 'i-won', tabId });
+      }
+    }, 300);
+    ping();
+    const interval = setInterval(ping, 10000);
+    // Release lock on unload
+    const cleanup = () => {
+      clearInterval(interval);
+      clearTimeout(claimTimeout);
+      bc.removeEventListener('message', handleMsg);
+      bc.close();
+      if (localStorage.getItem(KEY) === tabId) {
+        localStorage.removeItem(KEY);
+      }
+    };
+    window.addEventListener('beforeunload', cleanup);
+    return () => {
+      cleanup();
+      window.removeEventListener('beforeunload', cleanup);
+    };
+  }, []);
+
   // Check if already logged in (e.g., redirected from setup page)
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
@@ -446,6 +500,8 @@ function DashboardInner() {
       // Email alert on new request
       if (payload?.eventType === 'INSERT' && payload?.new) {
         const r = payload.new;
+        // Append to requests state directly instead of reloading
+        setRequests(prev => [r, ...prev]);
         if (config?.notificationEmail && r.guest_name && r.room && r.type) {
           fetch('/api/email', {
             method: 'POST',
@@ -463,13 +519,22 @@ function DashboardInner() {
             }),
           }).catch(() => {});
         }
+      } else if (payload?.eventType === 'UPDATE' && payload?.new) {
+        // Update in-place instead of reloading
+        setRequests(prev => prev.map(r => r.id === payload.new.id ? { ...r, ...payload.new } : r));
+      } else if (payload?.eventType === 'DELETE' && payload?.old) {
+        setRequests(prev => prev.filter(r => r.id !== payload.old.id));
+      } else {
+        // Fallback for any other event types
+        reload(session.role);
       }
-      reload(session.role);
     });
     const ch2 = subscribeToMessages(hotelId, (payload: any) => {
       // Email alert on new guest message
       if (payload?.eventType === 'INSERT' && payload?.new) {
         const m = payload.new;
+        // Append to messages state directly instead of reloading
+        setMessages(prev => [m, ...prev]);
         if (config?.notificationEmail && m.guest_name && m.body) {
           fetch('/api/email', {
             method: 'POST',
@@ -486,8 +551,10 @@ function DashboardInner() {
             }),
           }).catch(() => {});
         }
+      } else {
+        // Fallback for update/delete on messages
+        reload(session.role);
       }
-      reload(session.role);
     });
     return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
   }, [session, reload, config]);
@@ -625,6 +692,30 @@ function DashboardInner() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row">
+
+      {/* ── Multi-tab blocker ── */}
+      {multiTabBlocked && (
+        <div className="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center p-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mb-5">
+            <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-[22px] font-extrabold text-gray-900 mb-2">Already open in another tab</h2>
+          <p className="text-[14px] text-gray-500 max-w-sm mb-6">
+            This staff dashboard can only be opened in one browser tab at a time to prevent duplicate requests and excessive server usage.
+          </p>
+          <div className="text-[13px] text-gray-400 space-y-1">
+            <p>Close the other tab, or</p>
+            <button
+              onClick={() => { setMultiTabBlocked(false); localStorage.removeItem('attenda_staff_tab_id'); }}
+              className="text-teal-600 font-semibold hover:underline"
+            >
+              Take control here
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Welcome modal (first login after setup) ── */}
       {showWelcome && (
@@ -3552,13 +3643,18 @@ function GuestsView({ hotelId }: { hotelId: string }) {
     // Subscribe to localStorage changes for real-time updates
     const handleStorage = () => loadGuests();
     window.addEventListener('storage', handleStorage);
-    // Poll for updates every 5 seconds
-    const interval = setInterval(loadGuests, 5000);
+    // Subscribe to Realtime for guest_validations changes instead of polling
+    const channel = supabase
+      .channel(`guest_validations_${hotelId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'guest_validations', filter: `hotel_id=eq.${hotelId}` }, () => {
+        loadGuests();
+      })
+      .subscribe();
     return () => {
       window.removeEventListener('storage', handleStorage);
-      clearInterval(interval);
+      supabase.removeChannel(channel);
     };
-  }, [loadGuests]);
+  }, [loadGuests, hotelId]);
 
   const confirmGuest = async (guest: GuestSessionData) => {
     // Write to database so it persists across devices

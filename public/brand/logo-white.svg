@@ -1,24 +1,24 @@
-<svg width="1500" height="450" viewBox="0 0 1500 450" xmlns="http://www.w3.org/2000/svg">
+<svg width="2106" height="510" viewBox="-40 -30 2106 510" xmlns="http://www.w3.org/2000/svg">
   <!-- ===== "A" monogram in white (for dark backgrounds) ===== -->
-  <g fill="#FFFFFF">
+  <g transform="translate(-130 -560)">
     <!-- Left leg of A -->
     <path d="M 380 560
              L 130 1010
              L 300 1010
              L 460 720
-             Z"/>
+             Z" fill="#FFFFFF"/>
     <!-- Right leg of A -->
     <path d="M 500 560
              L 760 1010
              L 590 1010
              L 430 720
-             Z"/>
+             Z" fill="#FFFFFF"/>
     <!-- Peak connecting both legs -->
-    <path d="M 380 560 L 500 560 L 460 720 L 430 720 Z"/>
+    <path d="M 380 560 L 500 560 L 460 720 L 430 720 Z" fill="#FFFFFF"/>
   </g>
 
   <!-- Diagonal arrow sash (slightly lighter white for depth) -->
-  <g fill="#EAF7F4">
+  <g transform="translate(-130 -560)" fill="#EAF7F4">
     <path d="M 165 1010
              C 300 950, 470 830, 560 690
              L 585 650
@@ -32,6 +32,6 @@
 
   <!-- ===== Wordmark "Attenda" ===== -->
   <g fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-weight="700">
-    <text x="880" y="390" font-size="380" letter-spacing="-6">Attenda</text>
+    <text x="740" y="390" font-size="380" letter-spacing="-6">Attenda</text>
   </g>
 </svg>
