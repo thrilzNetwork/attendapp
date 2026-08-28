@@ -467,7 +467,13 @@ function DashboardInner() {
       }
     }
 
-    if (cfg) setConfig(cfg);
+    if (cfg) {
+      // Only swap state when the hotel actually changes. reload() used to setConfig()
+      // with a fresh object every call, which retriggered the [session, reload, config]
+      // effect at ~10/sec (effect -> reload -> new config object -> effect).
+      const nextCfg = cfg;
+      setConfig(prev => (prev && prev.id === nextCfg.id ? prev : nextCfg));
+    }
     const hotelId = cfg?.id;
 
     if (!hotelId) {
@@ -488,6 +494,14 @@ function DashboardInner() {
     if (staffRows) setStaff(staffRows);
   }, []);
 
+  // Load data when the session role changes. config is intentionally NOT a dep here:
+  // it used to be, and since reload() replaced the config object each call, the effect
+  // re-ran itself at ~10/sec. Realtime subscriptions live in a separate effect keyed
+  // on the hotel-id STRING so channel resubscribes only happen on actual hotel change.
+  const configId = config?.id || null;
+  const configRef = useRef(config);
+  configRef.current = config;
+
   useEffect(() => {
     if (!session) return;
     reload(session.role);
@@ -495,22 +509,26 @@ function DashboardInner() {
     if (session.role === 'admin' || session.role === 'superadmin') {
       getAllHotels().then(data => setAllHotels(data as { id: string; slug: string; name: string }[]));
     }
-    const hotelId = config?.id || null;
+  }, [session, reload]);
+
+  useEffect(() => {
+    if (!session) return;
+    const hotelId = configId;
     const ch1 = subscribeToRequests(hotelId, (payload: any) => {
       // Email alert on new request
       if (payload?.eventType === 'INSERT' && payload?.new) {
         const r = payload.new;
         // Append to requests state directly instead of reloading
         setRequests(prev => [r, ...prev]);
-        if (config?.notificationEmail && r.guest_name && r.room && r.type) {
+        if (configRef.current?.notificationEmail && r.guest_name && r.room && r.type) {
           fetch('/api/email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
             body: JSON.stringify({
               type: 'new_request',
               data: {
-                notificationEmail: config.notificationEmail,
-                hotelName: config.name || 'Hotel',
+                notificationEmail: configRef.current.notificationEmail,
+                hotelName: configRef.current.name || 'Hotel',
                 guestName: r.guest_name,
                 room: r.room,
                 requestType: r.type,
@@ -524,9 +542,6 @@ function DashboardInner() {
         setRequests(prev => prev.map(r => r.id === payload.new.id ? { ...r, ...payload.new } : r));
       } else if (payload?.eventType === 'DELETE' && payload?.old) {
         setRequests(prev => prev.filter(r => r.id !== payload.old.id));
-      } else {
-        // Fallback for any other event types
-        reload(session.role);
       }
     });
     const ch2 = subscribeToMessages(hotelId, (payload: any) => {
@@ -535,15 +550,15 @@ function DashboardInner() {
         const m = payload.new;
         // Append to messages state directly instead of reloading
         setMessages(prev => [m, ...prev]);
-        if (config?.notificationEmail && m.guest_name && m.body) {
+        if (configRef.current?.notificationEmail && m.guest_name && m.body) {
           fetch('/api/email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
             body: JSON.stringify({
               type: 'guest_message',
               data: {
-                notificationEmail: config.notificationEmail,
-                hotelName: config.name || 'Hotel',
+                notificationEmail: configRef.current.notificationEmail,
+                hotelName: configRef.current.name || 'Hotel',
                 guestName: m.guest_name,
                 room: m.room || '',
                 message: m.body,
@@ -552,12 +567,11 @@ function DashboardInner() {
           }).catch(() => {});
         }
       } else {
-        // Fallback for update/delete on messages
-        reload(session.role);
+        // Unknown message events (non-INSERT): ignore — no reload.
       }
     });
     return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
-  }, [session, reload, config]);
+  }, [session, configId]);
 
   /* ── Login screen ─────────────────────────────────── */
   if (!session) {
