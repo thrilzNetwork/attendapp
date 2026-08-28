@@ -78,6 +78,7 @@ const HotelSettingsView = dynamic(() => import('@/components/staff/HotelSettings
 const LearningHRView = dynamic(() => import('@/components/staff/LearningHRView'), { ssr: false });
 const KpisView = dynamic(() => import('@/components/staff/KpisView'), { ssr: false });
 const DailyBriefView = dynamic(() => import('@/components/staff/DailyBriefView'), { ssr: false });
+const V2Dashboard = dynamic(() => import('@/components/v2/V2Dashboard'), { ssr: false });
 const CompsetView = dynamic(() => import('@/components/staff/CompsetView'), { ssr: false });
 const LeaderboardView = dynamic(() => import('@/components/staff/LeaderboardView'), { ssr: false });
 const CultureView = dynamic(() => import('@/components/staff/CultureView'), { ssr: false });
@@ -115,6 +116,8 @@ import {
   type OpRecord,
   type ShuttleSlot as OpsShuttleSlot,
 } from '@/lib/opsStore';
+
+import '@/components/v2/tokens.css';
 
 /* ── Types ─────────────────────────────────────────────── */
 type Role = 'admin' | 'staff' | 'superadmin' | 'vendor' | 'manager' | 'supervisor';
@@ -877,7 +880,7 @@ function DashboardInner() {
       </header>
 
       {/* ── Desktop sidebar ─────────────────────────── */}
-      <aside className="hidden md:flex w-[230px] bg-[#F3F4F6] flex-col shrink-0 h-screen sticky top-0 overflow-y-auto">
+      <aside className="hidden md:flex w-[240px] bg-white flex-col shrink-0 h-screen sticky top-0 overflow-y-auto" style={{ borderRight: '1px solid #E5EAF0' }}>
         <div className="px-5 pt-5 pb-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/logo-primary.svg" alt="Attenda" style={{ height: 28, width: 'auto', marginBottom: 4 }} />
@@ -965,9 +968,9 @@ function DashboardInner() {
                     key={item.tab}
                     onClick={() => setTab(item.tab)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-semibold transition-colors text-left mb-0.5 ${
-                      effectiveTab === item.tab ? 'text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200/50'
+                      effectiveTab === item.tab ? '' : 'text-gray-600 hover:bg-gray-50'
                     }`}
-                    style={effectiveTab === item.tab ? { backgroundColor: TEAL } : {}}
+                    style={effectiveTab === item.tab ? { backgroundColor: 'var(--v2-brand-tint, #E4F5F3)', color: 'var(--v2-brand-deep, #0E7C74)' } : {}}
                   >
                     <item.icon size={15} />
                     {item.label}
@@ -1038,7 +1041,16 @@ function DashboardInner() {
         )}
         {tabPanel('dailybrief', true,
           <ErrorBoundary fallback={<div className="p-4 md:p-8"><div className="bg-red-50 border border-red-200 rounded-2xl p-6"><p className="text-[16px] font-bold text-red-800 mb-2">Dashboard error</p><pre id="error-message" className="text-[12px] text-red-700 whitespace-pre-wrap bg-red-100 p-4 rounded-xl">{/* error will show here */}</pre></div></div>}>
-            <DailyBriefView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} config={config} sessionName={session?.name || ''} department={session?.department} positions={session?.positions} isAdmin={isAdmin} />
+            <V2Dashboard
+              hotelId={config?.id || ''}
+              hotelName={config?.name || 'Hotel'}
+              timezone={config?.timezone}
+              sessionName={session?.name || ''}
+              effectiveRole={effectiveRole}
+              requests={requests}
+              onOpenTab={(t: string) => setTab(t as NavTab)}
+              onUpdateRequest={async (id, status) => { await updateRequestStatus(id, status); reload(s.role); }}
+            />
           </ErrorBoundary>
         )}
         {tabPanel('property_info', !!config,
