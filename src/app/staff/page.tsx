@@ -79,6 +79,7 @@ const LearningHRView = dynamic(() => import('@/components/staff/LearningHRView')
 const KpisView = dynamic(() => import('@/components/staff/KpisView'), { ssr: false });
 const DailyBriefView = dynamic(() => import('@/components/staff/DailyBriefView'), { ssr: false });
 const V2Dashboard = dynamic(() => import('@/components/v2/V2Dashboard'), { ssr: false });
+const V2MyDay = dynamic(() => import('@/components/v2/V2MyDay'), { ssr: false });
 const CompsetView = dynamic(() => import('@/components/staff/CompsetView'), { ssr: false });
 const LeaderboardView = dynamic(() => import('@/components/staff/LeaderboardView'), { ssr: false });
 const CultureView = dynamic(() => import('@/components/staff/CultureView'), { ssr: false });
@@ -129,7 +130,7 @@ type NavTab =
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
   | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture'
-  | 'revenue' | 'reports' | 'vendors' | 'agent';
+  | 'revenue' | 'reports' | 'vendors' | 'agent' | 'myday';
 
 interface Request {
   id: string;
@@ -188,6 +189,7 @@ const TAB_PERMS: Partial<Record<NavTab, string>> = {
 const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; section?: string }[] = [
   // ── TODAY — what staff needs to do right now ──
   { tab: 'dailybrief',      label: 'Dashboard',          icon: BarChart3,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'myday',           label: 'My Day',             icon: ClipboardList,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'orders',          label: 'Requests',            icon: Bell,            roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'todos',           label: 'To-Dos',              icon: ClipboardList,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'kpis',            label: 'KPIs',                icon: TrendingUp,      roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
@@ -1047,6 +1049,19 @@ function DashboardInner() {
               timezone={config?.timezone}
               sessionName={session?.name || ''}
               effectiveRole={effectiveRole}
+              requests={requests}
+              onOpenTab={(t: string) => setTab(t as NavTab)}
+              onUpdateRequest={async (id, status) => { await updateRequestStatus(id, status); reload(s.role); }}
+            />
+          </ErrorBoundary>
+        )}
+        {tabPanel('myday', true,
+          <ErrorBoundary fallback={<div className="p-4 md:p-8"><div className="bg-red-50 border border-red-200 rounded-2xl p-6"><p className="text-[16px] font-bold text-red-800 mb-2">My Day error</p></div></div>}>
+            <V2MyDay
+              hotelId={config?.id || ''}
+              hotelName={config?.name || 'Hotel'}
+              timezone={config?.timezone}
+              sessionName={session?.name || ''}
               requests={requests}
               onOpenTab={(t: string) => setTab(t as NavTab)}
               onUpdateRequest={async (id, status) => { await updateRequestStatus(id, status); reload(s.role); }}
