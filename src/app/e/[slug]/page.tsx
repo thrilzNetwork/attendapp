@@ -11,9 +11,11 @@ export default function PublicExperiencePage() {
   const slug = params?.slug || '';
   const [exp, setExp] = useState<{ title: string; subtitle: string | null; mode: 'interactive' | 'presentation' | 'hybrid'; blocks: ExperienceBlock[] } | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'gone'>('loading');
+  const [forName, setForName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug) return;
+    try { setForName(new URLSearchParams(window.location.search).get('for')); } catch { setForName(null); }
     (async () => {
       try {
         const r = await fetch(`/api/experience?public=1&slug=${encodeURIComponent(slug)}`);
@@ -58,5 +60,5 @@ export default function PublicExperiencePage() {
     );
   }
 
-  return <ExperienceViewer title={exp.title} subtitle={exp.subtitle} mode={exp.mode} blocks={exp.blocks || []} onLog={onLog} />;
+  return <ExperienceViewer title={exp.title} subtitle={exp.subtitle} mode={exp.mode} blocks={exp.blocks || []} onLog={onLog} forName={forName} />;
 }

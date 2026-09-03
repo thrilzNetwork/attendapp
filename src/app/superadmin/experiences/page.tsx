@@ -27,6 +27,7 @@ const BLOCK_TYPES: { type: ExperienceBlockType; label: string }[] = [
   { type: 'hero', label: 'Hero' }, { type: 'text', label: 'Text' }, { type: 'image', label: 'Image' },
   { type: 'video', label: 'Video' }, { type: 'stat', label: 'Statistic' }, { type: 'features', label: 'Features' },
   { type: 'quote', label: 'Quote' }, { type: 'question', label: 'Question' }, { type: 'mc', label: 'Multiple choice' },
+  { type: 'select', label: 'Dropdown' }, { type: 'multi', label: 'Skills (multi-select)' },
   { type: 'contact', label: 'Contact' }, { type: 'cta', label: 'CTA' }, { type: 'divider', label: 'Divider' },
   { type: 'confirm', label: 'Confirmation' },
 ];
@@ -127,6 +128,8 @@ export default function ExperiencesBuilderPage() {
       type === 'quote' ? { body: 'Quote…', author: 'Name' } :
       type === 'question' ? { question: 'Ask something…', placeholder: 'Answer…' } :
       type === 'mc' ? { question: 'Pick one', options: ['Option A', 'Option B'] } :
+      type === 'select' ? { question: 'Pick one', options: ['Option A', 'Option B', 'Option C'], placeholder: 'Pick one…' } :
+      type === 'multi' ? { question: 'Pick all that apply', options: ['Skill A', 'Skill B', 'Skill C'] } :
       type === 'contact' ? { heading: 'Your details', fields: ['name', 'email'] } :
       type === 'cta' ? { label: 'Continue', href: '/corporate' } :
       type === 'confirm' ? { heading: 'You are in.', body: 'What happens next…' } :
@@ -369,6 +372,8 @@ function BlockEditor({ block, updBlock }: { block: ExperienceBlock; updBlock: (i
     case 'quote': return <><TA label="Quote" value={String(p.body || '')} onChange={(v) => set('body', v)} /><F label="Author" value={String(p.author || '')} onChange={(v) => set('author', v)} /></>;
     case 'question': return <><F label="Question" value={String(p.question || '')} onChange={(v) => set('question', v)} /><F label="Placeholder" value={String(p.placeholder || '')} onChange={(v) => set('placeholder', v)} /></>;
     case 'mc': return <><F label="Question" value={String(p.question || '')} onChange={(v) => set('question', v)} /><TA label="Options (one per line)" value={(Array.isArray(p.options) ? p.options : []).join('\n')} onChange={(v) => set('options', v.split('\n').filter(Boolean))} /></>;
+    case 'select': return <><F label="Question" value={String(p.question || '')} onChange={(v) => set('question', v)} /><TA label="Options (one per line)" value={(Array.isArray(p.options) ? p.options : []).join('\n')} onChange={(v) => set('options', v.split('\n').filter(Boolean))} /><F label="Answer key (advanced, optional)" value={String(p.key || '')} onChange={(v) => set('key', v)} /></>;
+    case 'multi': return <><F label="Question" value={String(p.question || '')} onChange={(v) => set('question', v)} /><TA label="Options (one per line)" value={(Array.isArray(p.options) ? p.options : []).join('\n')} onChange={(v) => set('options', v.split('\n').filter(Boolean))} /><F label="Answer key (advanced, optional)" value={String(p.key || '')} onChange={(v) => set('key', v)} /></>;
     case 'contact': return <><F label="Heading" value={String(p.heading || '')} onChange={(v) => set('heading', v)} /><F label="Fields (comma: name,email,phone,position)" value={(Array.isArray(p.fields) ? p.fields : []).join(',')} onChange={(v) => set('fields', v.split(',').map((x) => x.trim()).filter(Boolean))} /></>;
     case 'cta': return <><F label="Label" value={String(p.label || '')} onChange={(v) => set('label', v)} /><F label="Href" mono value={String(p.href || '')} onChange={(v) => set('href', v)} /></>;
     case 'confirm': return <><F label="Heading" value={String(p.heading || '')} onChange={(v) => set('heading', v)} /><TA label="Body" value={String(p.body || '')} onChange={(v) => set('body', v)} /></>;

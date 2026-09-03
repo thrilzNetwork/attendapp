@@ -18,7 +18,7 @@ const HEAD_FONT = 'Plus Jakarta Sans, Inter, sans-serif';
 
 export type ExperienceBlockType =
   'hero' | 'text' | 'image' | 'video' | 'stat' | 'features' | 'quote'
-  | 'question' | 'mc' | 'contact' | 'cta' | 'divider' | 'confirm';
+  | 'question' | 'mc' | 'select' | 'multi' | 'contact' | 'cta' | 'divider' | 'confirm';
 
 export type ExperienceBlock = {
   id: string;
@@ -35,12 +35,13 @@ type Props = {
   blocks: ExperienceBlock[];
   onLog?: (kind: LogKind, contact?: Record<string, string>, meta?: Record<string, unknown>) => void;
   embedded?: boolean;
+  forName?: string | null;
 };
 
-const INTERACTIVE_TYPES: ExperienceBlockType[] = ['question', 'mc', 'contact'];
-const FOCUS_TYPES: ExperienceBlockType[] = ['question', 'mc', 'contact', 'confirm', 'cta'];
+const INTERACTIVE_TYPES: ExperienceBlockType[] = ['question', 'mc', 'select', 'multi', 'contact'];
+const FOCUS_TYPES: ExperienceBlockType[] = ['question', 'mc', 'select', 'multi', 'contact', 'confirm', 'cta'];
 
-export default function ExperienceViewer({ title, subtitle, mode, blocks, onLog, embedded }: Props) {
+export default function ExperienceViewer({ title, subtitle, mode, blocks, onLog, embedded, forName }: Props) {
   const safeBlocks: ExperienceBlock[] = blocks.length
     ? blocks
     : [{ id: 'b0', type: 'hero', props: { eyebrow: 'ATTENDA', title, subtitle: subtitle || '' } }];
@@ -74,6 +75,11 @@ export default function ExperienceViewer({ title, subtitle, mode, blocks, onLog,
       className={`${embedded ? 'h-full overflow-y-auto' : 'min-h-screen'} w-full`}
       style={{ background: `radial-gradient(1200px 600px at 80% -10%, ${INK2}, ${INK})`, color: '#fff' }}
     >
+      {forName ? (
+        <div className="pt-6 text-center text-[11px] font-extrabold uppercase tracking-[0.3em]" style={{ color: TEAL_BRIGHT }}>
+          Prepared for {forName}
+        </div>
+      ) : null}
       {(mode === 'interactive') ? (
         <InteractiveFlow blocks={safeBlocks} title={title} subtitle={subtitle} markStart={markStart} markComplete={markComplete} />
       ) : (
@@ -93,7 +99,13 @@ function InteractiveFlow({ blocks, title, subtitle, markStart, markComplete }: {
   const [contact, setContact] = useState<Record<string, string>>({});
   const last = idx === blocks.length - 1;
 
-  const next = () => { if (idx < blocks.length - 1) setIdx(idx + 1); };
+  const next = () => {
+    if (idx >= blocks.length - 1) return;
+    const ni = idx + 1;
+    setIdx(ni);
+    const t = blocks[ni]?.type;
+    if (ni === blocks.length - 1 && t && !INTERACTIVE_TYPES.includes(t)) markComplete(contact);
+  };
   const back = () => { if (idx > 0) setIdx(idx - 1); };
 
   useEffect(() => {
@@ -105,7 +117,12 @@ function InteractiveFlow({ blocks, title, subtitle, markStart, markComplete }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx, last]);
 
-  useEffect(() => { if (last) markComplete(contact); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [last]);
+  useEffect(() => {
+    if (!last) return;
+    const t = blocks[blocks.length - 1]?.type;
+    if (t && !INTERACTIVE_TYPES.includes(t)) markComplete(contact);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [last]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -146,12 +163,16 @@ function ScrollStory({ blocks, title, subtitle, mode, markStart, markComplete }:
   const [contact, setContact] = useState<Record<string, string>>({});
   const lastIdx = blocks.length - 1;
   const finishRef = useRef<HTMLDivElement | null>(null);
+  const contactRef = useRef<Record<string, string>>({});
+  contactRef.current = contact;
 
   useEffect(() => {
+    const lastType = blocks[blocks.length - 1]?.type;
+    if (lastType && INTERACTIVE_TYPES.includes(lastType)) return; // Submit button completes it
     const el = finishRef.current;
     if (!el) return;
     const io = new IntersectionObserver((entries) => {
-      if (entries.some((x) => x.isIntersecting)) markComplete(contact);
+      if (entries.some((x) => x.isIntersecting)) markComplete(contactRef.current);
     }, { threshold: 0.4 });
     io.observe(el);
     return () => io.disconnect();
@@ -256,7 +277,8 @@ function BlockView({ block, contact, setContact, markStart, markComplete }: {
         <div className="rounded-3xl bg-white p-6 shadow-xl sm:p-8">
           <div className="text-lg font-extrabold text-gray-900" style={{ fontFamily: HEAD_FONT }}>{String(p.question || '')}</div>
           <input
-            onChange={(e) => { markStart(); setContact({ ...contact, answer: e.target.value }); }}
+            value={contact[String(p.key || block.id)] || ''}
+            onChange={(e) => { markStart(); setContact({ ...contact, [String(p.key || block.id)]: e.target.value }); }}
             placeholder={String(p.placeholder || 'Type your answer…')}
             className="mt-4 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none focus:border-teal-400"
           />
@@ -269,9 +291,10 @@ function BlockView({ block, contact, setContact, markStart, markComplete }: {
           <div className="text-lg font-extrabold text-gray-900" style={{ fontFamily: HEAD_FONT }}>{String(p.question || '')}</div>
           <div className="mt-4 space-y-2.5">
             {(Array.isArray(p.options) ? p.options : []).map((o: string, i: number) => {
-              const sel = contact.answer === o;
+              const key = String(p.key || block.id);
+              const sel = contact[key] === o;
               return (
-                <button key={i} onClick={() => { markStart(); setContact({ ...contact, answer: o }); }}
+                <button key={i} onClick={() => { markStart(); setContact({ ...contact, [key]: o }); }}
                   className="flex w-full items-center justify-between rounded-2xl border-2 px-4 py-3.5 text-left text-sm font-bold transition-all"
                   style={{ borderColor: sel ? TEAL : '#e5e7eb', background: sel ? MINT : '#fff', color: sel ? TEAL : '#374151' }}>
                   {String(o)}
@@ -282,6 +305,52 @@ function BlockView({ block, contact, setContact, markStart, markComplete }: {
           </div>
         </div>
       );
+
+    case 'select': {
+      const key = String(p.key || block.id);
+      const opts: string[] = Array.isArray(p.options) ? p.options : [];
+      return (
+        <div className="rounded-3xl bg-white p-6 shadow-xl sm:p-8">
+          <div className="text-lg font-extrabold text-gray-900" style={{ fontFamily: HEAD_FONT }}>{String(p.question || '')}</div>
+          <select
+            value={contact[key] || ''}
+            onChange={(e) => { markStart(); setContact({ ...contact, [key]: e.target.value }); }}
+            className="mt-4 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-800 outline-none focus:border-teal-400"
+          >
+            <option value="" disabled>{String(p.placeholder || 'Pick one…')}</option>
+            {opts.map((o, i) => (<option key={i} value={o}>{o}</option>))}
+          </select>
+        </div>
+      );
+    }
+
+    case 'multi': {
+      const key = String(p.key || block.id);
+      const opts: string[] = Array.isArray(p.options) ? p.options : [];
+      const picked = (contact[key] || '').split(',').filter(Boolean);
+      const toggle = (o: string) => {
+        markStart();
+        const next = picked.includes(o) ? picked.filter((x) => x !== o) : [...picked, o];
+        setContact({ ...contact, [key]: next.join(',') });
+      };
+      return (
+        <div className="rounded-3xl bg-white p-6 shadow-xl sm:p-8">
+          <div className="text-lg font-extrabold text-gray-900" style={{ fontFamily: HEAD_FONT }}>{String(p.question || '')}</div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {opts.map((o, i) => {
+              const sel = picked.includes(o);
+              return (
+                <button key={i} onClick={() => toggle(o)}
+                  className="flex items-center gap-1.5 rounded-full border-2 px-4 py-2 text-xs font-bold transition-all"
+                  style={{ borderColor: sel ? TEAL : '#e5e7eb', background: sel ? MINT : '#fff', color: sel ? TEAL : '#374151' }}>
+                  {sel ? <Check className="h-3.5 w-3.5" /> : null}{o}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
 
     case 'contact': {
       const fields: string[] = Array.isArray(p.fields) && p.fields.length ? p.fields : ['name', 'email'];
@@ -294,7 +363,7 @@ function BlockView({ block, contact, setContact, markStart, markComplete }: {
               <input key={f}
                 value={contact[f] || ''}
                 onChange={(e) => { markStart(); setContact({ ...contact, [f]: e.target.value }); }}
-                placeholder={f === 'name' ? 'Full name' : f === 'email' ? 'Email' : f === 'phone' ? 'Phone' : f === 'position' ? 'Position' : f}
+                placeholder={f === 'name' ? 'Full name' : f === 'email' ? 'Email' : f === 'phone' ? 'Phone' : f === 'position' ? 'Position' : f === 'company' ? 'Company' : f}
                 className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none focus:border-teal-400"
               />
             ))}

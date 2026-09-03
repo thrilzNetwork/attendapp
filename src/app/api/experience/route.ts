@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, isSuperAdmin } from '@/lib/supabase-admin';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { notifyNewTalent, notifyNewPartner } from '@/lib/notify';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
     if (!['view', 'start', 'complete', 'submit'].includes(kind)) {
       return NextResponse.json({ error: 'Bad kind' }, { status: 400 });
     }
-    const { data: exp } = await db.from('corporate_experiences').select('id').eq('slug', slug).eq('published', true).maybeSingle();
+    const { data: exp } = await db.from('corporate_experiences').select('id, type').eq('slug', slug).eq('published', true).maybeSingle();
     if (!exp) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const contact = b.contact && typeof b.contact === 'object' ? b.contact : null;
     const meta = b.meta && typeof b.meta === 'object' ? b.meta : null;
@@ -86,6 +87,40 @@ export async function POST(req: NextRequest) {
     await db.from('corporate_experience_events').insert({
       experience_id: exp.id, kind, contact, meta,
     });
+
+    // ── Route submissions into the real pipeline (talent / partner) ──
+    if (kind === 'submit' && contact) {
+      const name = String(contact.name || '').trim();
+      const email = String(contact.email || '').trim().toLowerCase();
+      if (email && name) {
+        const answers = Object.entries(contact)
+          .filter(([k, v]) => !['name', 'email', 'phone', 'company'].includes(k) && String(v).trim())
+          .map(([k, v]) => ({ question: k, answer: String(v).trim() }));
+        try {
+          if (exp.type === 'talent') {
+            const skills = answers.filter((a) => a.answer.includes(',')).flatMap((a) => a.answer.split(',').map((s) => s.trim())).filter(Boolean);
+            const story = answers.filter((a) => !a.answer.includes(',')).map((a) => a.answer).sort((x, y) => y.length - x.length)[0] || null;
+            const { error } = await db.from('corporate_talent_pool').insert({
+              full_name: name, email, phone: contact.phone || null,
+              skills: skills.length ? skills : null,
+              story,
+              notes: answers.length ? JSON.stringify(answers) : null,
+              source: 'experience-link',
+            });
+            if (!error) notifyNewTalent({ full_name: name, email, skills, story }).catch(() => {});
+          } else if (exp.type === 'partner') {
+            const company = String(contact.company || '').trim() || `${name}'s company`;
+            const { error } = await db.from('corporate_partners').insert({
+              company_name: company, contact_name: name, email, phone: contact.phone || null,
+              category: answers[0]?.answer || null,
+              offering: answers.length > 1 ? answers[answers.length - 1].answer : null,
+              notes: answers.length ? JSON.stringify(answers) : null,
+            });
+            if (!error) notifyNewPartner({ company_name: company, contact_name: name, email, category: answers[0]?.answer || null }).catch(() => {});
+          }
+        } catch { /* pipeline insert must never block the public experience */ }
+      }
+    }
     return NextResponse.json({ ok: true });
   }
 
