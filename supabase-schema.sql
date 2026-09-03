@@ -124,3 +124,28 @@ values
   ('2', 'Salmon Avocado Roll', 'Fresh salmon, avocado, cucumber', 12.99),
   ('2', 'Spicy Tuna Maki', 'Spicy tuna with cucumber', 11.99),
   ('2', 'Edamame', 'Steamed soybeans with sea salt', 5.99);
+
+-- ============================================================
+-- Experience Engine (2026-09-03) — see supabase/migrations/2026_09_03_experience_engine.sql
+-- ============================================================
+create table if not exists corporate_experiences (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  type text not null check (type in ('onboarding','talent','partner','client')),
+  title text not null default 'Untitled',
+  subtitle text,
+  mode text not null default 'hybrid' check (mode in ('interactive','presentation','hybrid')),
+  blocks jsonb not null default '[]'::jsonb,
+  published boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create table if not exists corporate_experience_events (
+  id uuid primary key default gen_random_uuid(),
+  experience_id uuid not null references corporate_experiences(id) on delete cascade,
+  kind text not null check (kind in ('view','start','complete','submit')),
+  contact jsonb,
+  meta jsonb,
+  created_at timestamptz not null default now()
+);
+alter table corporate_talent_pool add column if not exists stage text default 'new';

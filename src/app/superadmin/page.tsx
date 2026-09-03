@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { OpsTool } from '@/lib/supabase';
-import { Building2, Copy, Check, LogOut, Globe, Eye, EyeOff, Lock, Trash2, RefreshCw, ChevronDown, ChevronUp, Power, PowerOff, Settings, Plus } from 'lucide-react';
+import { Building2, Copy, Check, LogOut, Globe, Eye, EyeOff, Lock, Trash2, RefreshCw, ChevronDown, ChevronUp, Power, PowerOff, Settings, Plus, Users, UserPlus, KeyRound, Pencil, X } from 'lucide-react';
 
 const TEAL = '#158A7C';
 
@@ -22,7 +22,18 @@ async function callAdmin(action: string, body: Record<string, unknown> = {}) {
 }
 
 type Mode = 'checking' | 'signup' | 'login' | 'confirm' | 'dashboard' | 'unauthorized';
-type SuperTab = 'properties' | 'ops-tools';
+type SuperTab = 'overview' | 'properties' | 'people' | 'ops-tools' | 'corporate';
+
+interface StaffRow {
+  id: string;
+  hotel_id: string;
+  name: string;
+  email: string | null;
+  role: string;
+  active: boolean;
+  created_at: string;
+  hotels: { name: string; slug: string } | { name: string; slug: string }[] | null;
+}
 
 export default function SuperAdminPage() {
   const [mode, setMode] = useState<Mode>('checking');
@@ -42,7 +53,11 @@ export default function SuperAdminPage() {
   const [lookupStatus, setLookupStatus] = useState('');
   const [scrapeLoading, setScrapeLoading] = useState(false);
   const [syncingHotel, setSyncingHotel] = useState<string | null>(null);
-  const [superTab, setSuperTab] = useState<SuperTab>('properties');
+  const [superTab, setSuperTab] = useState<SuperTab>('overview');
+
+  // Command Center state
+  const [overview, setOverview] = useState<{ corporateUsers: number; corporateOnboardingIncomplete: number; talentCount: number; partnerCount: number; staffTotal: number; recent: { kind: string; label: string; at: string }[] } | null>(null);
+  const [integrations, setIntegrations] = useState<Record<string, { status: string; detail: string }> | null>(null);
 
   // Ops Tools state
   const [allOpsTools, setAllOpsTools] = useState<OpsTool[]>([]);
@@ -51,6 +66,30 @@ export default function SuperAdminPage() {
   // Per-hotel tool management
   const [selectedHotelTools, setSelectedHotelTools] = useState<string | null>(null);
   const [hotelToolToggles, setHotelToolToggles] = useState<Record<string, boolean>>({});
+
+  // People tab state (tenant staff across all properties)
+  const [staff, setStaff] = useState<StaffRow[]>([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffSearch, setStaffSearch] = useState('');
+  const [showAddStaff, setShowAddStaff] = useState(false);
+  const [staffForm, setStaffForm] = useState({ hotelId: '', name: '', email: '', role: 'staff', pin: '' });
+  const [staffSaving, setStaffSaving] = useState(false);
+  const [staffError, setStaffError] = useState('');
+  const [editStaff, setEditStaff] = useState<StaffRow | null>(null);
+  const [editStaffForm, setEditStaffForm] = useState({ name: '', email: '', role: 'staff', pin: '', active: true });
+  const [resettingPin, setResettingPin] = useState<string | null>(null);
+
+  // Property settings editor
+  const [editProp, setEditProp] = useState<HotelHealth | null>(null);
+  const [editPropForm, setEditPropForm] = useState({ name: '', address: '', roomCount: 0, adminPhone: '', notificationEmail: '', googleReviewUrl: '', tripadvisorUrl: '', yelpUrl: '', websiteUrl: '', brand: 'Hotel' });
+  const [editPropSaving, setEditPropSaving] = useState(false);
+
+  // Corporate member creation (onboard corporate people without leaving the console)
+  const [showCorpCreate, setShowCorpCreate] = useState(false);
+  const [corpForm, setCorpForm] = useState({ name: '', email: '', password: '', title: '' });
+  const [corpSaving, setCorpSaving] = useState(false);
+  const [corpError, setCorpError] = useState('');
+  const [corpCreds, setCorpCreds] = useState<{ email: string; password: string; name: string } | null>(null);
 interface HotelHealth {
   id: string;
   slug: string;
@@ -131,6 +170,29 @@ interface PlatformHealth {
     loadHotels();
     loadHealth();
   }, [loadHotels, loadHealth]);
+
+  // Command Center loaders
+  const loadOverview = useCallback(async () => {
+    try { setOverview((await callAdmin('overview')).data || (await callAdmin('overview'))); } catch { /* silent */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadIntegrations = useCallback(async () => {
+    try {
+      const r = await fetch('/api/integration-status', { headers: { 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' } });
+      if (r.ok) setIntegrations(await r.json());
+    } catch { /* silent */ }
+  }, []);
+
+  const relTime = (iso: string) => {
+    const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 3600) return `${Math.max(1, Math.floor(s / 60))}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
+  };
+
+  useEffect(() => {
+    if (mode === 'dashboard') { loadOverview(); loadIntegrations(); }
+  }, [mode, loadOverview, loadIntegrations]);
 
   const registerAndEnter = useCallback(async (userId: string, userEmail: string, sessionToken: string) => {
     const res = await fetch('/api/superadmin-setup', {
@@ -453,20 +515,158 @@ interface PlatformHealth {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+            <button onClick={() => setSuperTab('overview')}
+              className={`px-3 py-1.5 rounded-md text-[12px] font-bold transition-colors ${superTab === 'overview' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              Command Center
+            </button>
             <button onClick={() => setSuperTab('properties')}
               className={`px-3 py-1.5 rounded-md text-[12px] font-bold transition-colors ${superTab === 'properties' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
               Properties
+            </button>
+            <button onClick={async () => {
+              setSuperTab('people');
+              if (staff.length === 0 && !staffLoading) { setStaffLoading(true); try { setStaff((await callAdmin('list_all_staff')).data || []); } catch { } finally { setStaffLoading(false); } }
+            }}
+              className={`px-3 py-1.5 rounded-md text-[12px] font-bold transition-colors ${superTab === 'people' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              People
             </button>
             <button onClick={async () => { setSuperTab('ops-tools'); if (allOpsTools.length === 0) setAllOpsTools((await callAdmin('get_ops_tools')).data); }}
               className={`px-3 py-1.5 rounded-md text-[12px] font-bold transition-colors ${superTab === 'ops-tools' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
               Ops Tools
             </button>
+            <button onClick={() => setSuperTab('corporate')}
+              className={`px-3 py-1.5 rounded-md text-[12px] font-bold transition-colors ${superTab === 'corporate' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              Corporate
+            </button>
+            <a href="/superadmin/experiences" target="_blank" rel="noreferrer"
+              className="px-3 py-1.5 rounded-md text-[12px] font-bold text-gray-500 hover:text-gray-700">
+              Experiences
+            </a>
           </div>
           <button onClick={handleSignOut} className="flex items-center gap-2 text-[13px] text-gray-500 hover:text-red-500 transition-colors">
             <LogOut size={14} /> Sign Out
           </button>
         </div>
       </div>
+
+      {superTab === 'overview' && (
+        <div className="max-w-5xl mx-auto px-8 py-8">
+          {/* My Day strip */}
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-gray-400 mr-1">My Day</span>
+            {(overview?.corporateOnboardingIncomplete || 0) > 0 && (
+              <button onClick={() => setSuperTab('corporate')} className="rounded-full px-3 py-1.5 text-[11px] font-bold bg-amber-50 text-amber-700 hover:bg-amber-100">
+                {overview!.corporateOnboardingIncomplete} onboarding{overview!.corporateOnboardingIncomplete > 1 ? 's' : ''} incomplete →
+              </button>
+            )}
+            {(health?.totals.hotels || 0) - (health?.totals.activeHotels || 0) > 0 && (
+              <button onClick={() => setSuperTab('properties')} className="rounded-full px-3 py-1.5 text-[11px] font-bold bg-red-50 text-red-600 hover:bg-red-100">
+                {(health!.totals.hotels - health!.totals.activeHotels)} inactive propert{(health!.totals.hotels - health!.totals.activeHotels) > 1 ? 'ies' : 'y'} →
+              </button>
+            )}
+            {(overview?.talentCount || 0) > 0 && (
+              <button onClick={() => setSuperTab('corporate')} className="rounded-full px-3 py-1.5 text-[11px] font-bold bg-teal-50 hover:bg-teal-100" style={{ color: TEAL }}>
+                {overview!.talentCount} talent in pipeline →
+              </button>
+            )}
+            {integrations && Object.entries(integrations).filter(([, v]) => v && !['connected', 'ok'].includes(v.status)).length > 0 && (
+              <button onClick={() => loadIntegrations()} className="rounded-full px-3 py-1.5 text-[11px] font-bold bg-purple-50 text-purple-700 hover:bg-purple-100">
+                {Object.entries(integrations).filter(([, v]) => v && !['connected', 'ok'].includes(v.status)).length} integration{Object.entries(integrations).filter(([, v]) => v && !['connected', 'ok'].includes(v.status)).length > 1 ? 's' : ''} need attention →
+              </button>
+            )}
+            {!(overview?.corporateOnboardingIncomplete) && !(overview?.talentCount) && (
+              <span className="rounded-full px-3 py-1.5 text-[11px] font-bold bg-emerald-50 text-emerald-600">All clear today</span>
+            )}
+          </div>
+
+          {/* Needs attention + company snapshot */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+              <h3 className="text-[13px] font-extrabold text-gray-900 mb-3">Needs attention</h3>
+              <div className="space-y-2 text-[12px]">
+                {(overview?.corporateOnboardingIncomplete || 0) > 0 && (
+                  <div className="flex items-center justify-between rounded-xl bg-amber-50 px-3 py-2">
+                    <span className="text-amber-700 font-semibold">{overview!.corporateOnboardingIncomplete} corporate member{overview!.corporateOnboardingIncomplete > 1 ? 's' : ''} mid-onboarding</span>
+                    <button onClick={() => setSuperTab('corporate')} className="text-amber-700 font-bold underline">Open</button>
+                  </div>
+                )}
+                {(health?.hotels || []).filter((h) => !h.isActive).map((h) => (
+                  <div key={h.id} className="flex items-center justify-between rounded-xl bg-red-50 px-3 py-2">
+                    <span className="text-red-600 font-semibold">{h.name} is inactive</span>
+                    <button onClick={() => setSuperTab('properties')} className="text-red-600 font-bold underline">Fix</button>
+                  </div>
+                ))}
+                {integrations && Object.entries(integrations).filter(([, v]) => v && !['connected', 'ok'].includes(v.status)).map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between rounded-xl bg-purple-50 px-3 py-2">
+                    <span className="text-purple-700 font-semibold capitalize">{k.replace('_', ' ')}: {v.status}</span>
+                  </div>
+                ))}
+                {(overview?.corporateOnboardingIncomplete || 0) === 0 && (health?.hotels || []).every((h) => h.isActive) && (!integrations || Object.entries(integrations).every(([, v]) => !v || ['connected', 'ok'].includes(v.status))) && (
+                  <div className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-600 font-semibold">Nothing blocked — company is running clean.</div>
+                )}
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+              <h3 className="text-[13px] font-extrabold text-gray-900 mb-3">Company snapshot</h3>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Corporate', value: overview?.corporateUsers ?? '—' },
+                  { label: 'Talent', value: overview?.talentCount ?? '—' },
+                  { label: 'Partners', value: overview?.partnerCount ?? '—' },
+                  { label: 'Properties', value: health ? `${health.totals.activeHotels}/${health.totals.hotels}` : '—' },
+                  { label: 'Rooms', value: health?.totals.rooms ?? '—' },
+                  { label: 'Prop. staff', value: overview?.staffTotal ?? '—' },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-xl bg-gray-50 px-3 py-2.5">
+                    <p className="text-[9px] text-gray-400 uppercase font-bold">{s.label}</p>
+                    <p className="text-[18px] font-extrabold text-gray-800">{s.value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 text-[11px]">
+                <span className="text-gray-400">Revenue this month</span>
+                <span className="font-extrabold text-emerald-600">${(health?.totals.revenue || 0).toFixed(0)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Implementation snapshot */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm mb-6">
+            <h3 className="text-[13px] font-extrabold text-gray-900 mb-3">Implementation status</h3>
+            <div className="space-y-1.5">
+              {(health?.hotels || []).map((h) => {
+                const launched = !!h.metrics.lastActivity;
+                return (
+                  <div key={h.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2">
+                    <span className="text-[12px] font-bold text-gray-700">{h.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-gray-400">{h.metrics.requestsToday || 0} req today · {h.metrics.lastActivity ? relTime(h.metrics.lastActivity) : 'no activity yet'}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase ${launched ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{launched ? 'Live' : 'Pre-launch'}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              {!health && <div className="text-[12px] text-gray-400">Loading properties…</div>}
+            </div>
+          </div>
+
+          {/* Recent activity */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <h3 className="text-[13px] font-extrabold text-gray-900 mb-3">Recent activity</h3>
+            <div className="space-y-2">
+              {(overview?.recent || []).map((r, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-xl bg-gray-50 px-3 py-2">
+                  <span className={`h-2 w-2 rounded-full ${r.kind === 'corporate' ? 'bg-teal-500' : r.kind === 'talent' ? 'bg-blue-400' : r.kind === 'partner' ? 'bg-purple-400' : 'bg-amber-400'}`} />
+                  <span className="text-[12px] font-bold text-gray-700">{r.label}</span>
+                  <span className="text-[11px] text-gray-400">{r.kind === 'corporate' ? 'joined Corporate' : r.kind === 'talent' ? 'applied to Talent' : r.kind === 'partner' ? 'partner inquiry' : 'property added'}</span>
+                  <span className="ml-auto text-[10px] text-gray-300">{relTime(r.at)}</span>
+                </div>
+              ))}
+              {!(overview?.recent || []).length && <div className="text-[12px] text-gray-400">No activity yet.</div>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {superTab === 'properties' ? (
       <div className="max-w-3xl mx-auto px-8 py-8">
@@ -856,13 +1056,160 @@ interface PlatformHealth {
           )}
         </div>
       </div>
-      ) : (
+      ) : superTab === 'people' ? (
+        <div className="max-w-5xl mx-auto px-8 py-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[18px] font-extrabold text-gray-900">People — all properties</h2>
+            <div className="flex gap-2">
+              <button onClick={async () => { setStaffLoading(true); try { setStaff((await callAdmin('list_all_staff')).data || []); } catch { } finally { setStaffLoading(false); } }} className="flex items-center gap-1 text-[12px] text-gray-400 hover:text-teal-600">
+                <RefreshCw size={12} /> Refresh
+              </button>
+              <button onClick={() => setShowAddStaff(true)} className="flex items-center gap-1 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold hover:opacity-90" style={{ backgroundColor: TEAL }}>
+                <UserPlus size={12} /> Add Staff
+              </button>
+            </div>
+          </div>
+          <input value={staffSearch} onChange={(e) => setStaffSearch(e.target.value)} placeholder="Search name, email, or property…"
+            className="w-full mb-4 bg-white rounded-xl px-4 py-2.5 text-[13px] border border-gray-200 focus:outline-none focus:border-teal-400" />
+          <div className="space-y-2">
+            {staffLoading && <div className="bg-white rounded-2xl border border-gray-200 p-6 text-[12px] text-gray-400 text-center">Loading staff…</div>}
+            {staff.filter((s) => {
+              const h = Array.isArray(s.hotels) ? s.hotels[0] : s.hotels;
+              const hay = `${s.name} ${s.email || ''} ${h?.name || ''}`.toLowerCase();
+              return hay.includes(staffSearch.toLowerCase());
+            }).map((s) => {
+              const h = Array.isArray(s.hotels) ? s.hotels[0] : s.hotels;
+              return (
+                <div key={s.id} className="bg-white rounded-2xl border border-gray-200 px-4 py-3 shadow-sm flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center shrink-0">
+                    <Users size={15} className="text-teal-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[13px] font-extrabold text-gray-900 truncate">{s.name}</p>
+                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase ${s.role === 'admin' ? 'bg-purple-100 text-purple-700' : s.role === 'manager' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>{s.role}</span>
+                      {!s.active && <span className="rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase bg-red-100 text-red-600">Inactive</span>}
+                    </div>
+                    <p className="text-[11px] text-gray-400 truncate">{s.email || 'No email'} · {h?.name || 'No property'}</p>
+                  </div>
+                  <button onClick={() => { setEditStaff(s); setEditStaffForm({ name: s.name, email: s.email || '', role: s.role, pin: '', active: s.active }); }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-gray-500 hover:bg-gray-100">
+                    <Pencil size={11} /> Edit
+                  </button>
+                  <button onClick={async () => {
+                    const pin = prompt('New PIN (4-6 digits):');
+                    if (!pin || !/^\d{4,6}$/.test(pin)) { if (pin !== null) alert('PIN must be 4-6 digits.'); return; }
+                    setResettingPin(s.id);
+                    try { await callAdmin('update_staff', { id: s.id, updates: { pin_code: pin } }); alert('PIN updated.'); }
+                    catch (e) { alert('Failed: ' + (e as Error).message); }
+                    finally { setResettingPin(null); }
+                  }} disabled={resettingPin === s.id}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-amber-600 hover:bg-amber-50 disabled:opacity-50">
+                    <KeyRound size={11} /> Reset PIN
+                  </button>
+                </div>
+              );
+            })}
+            {!staffLoading && !staff.length && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+                <Users size={36} className="text-gray-300 mx-auto mb-3" />
+                <p className="text-[13px] text-gray-500">No staff yet. Add the first team member.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Add staff modal */}
+          {showAddStaff && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+              <div className="w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="font-extrabold text-gray-900">Add staff member</div>
+                  <button onClick={() => setShowAddStaff(false)}><X size={18} className="text-gray-400" /></button>
+                </div>
+                <div className="space-y-2.5">
+                  <select value={staffForm.hotelId} onChange={(e) => setStaffForm({ ...staffForm, hotelId: e.target.value })}
+                    className="w-full bg-gray-50 rounded-xl px-3.5 py-2.5 text-sm border border-gray-100 focus:outline-none focus:border-teal-400">
+                    <option value="">Select property…</option>
+                    {(health?.hotels || []).map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+                  </select>
+                  <input value={staffForm.name} onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })} placeholder="Full name"
+                    className="w-full bg-gray-50 rounded-xl px-3.5 py-2.5 text-sm border border-gray-100 focus:outline-none focus:border-teal-400" />
+                  <input value={staffForm.email} onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })} placeholder="Email (for login)"
+                    className="w-full bg-gray-50 rounded-xl px-3.5 py-2.5 text-sm border border-gray-100 focus:outline-none focus:border-teal-400" />
+                  <div className="flex gap-2">
+                    <select value={staffForm.role} onChange={(e) => setStaffForm({ ...staffForm, role: e.target.value })}
+                      className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-sm border border-gray-100 focus:outline-none focus:border-teal-400">
+                      <option value="staff">Staff</option><option value="manager">Manager</option><option value="admin">Admin</option>
+                    </select>
+                    <input value={staffForm.pin} onChange={(e) => setStaffForm({ ...staffForm, pin: e.target.value.replace(/\D/g, '').slice(0, 6) })} placeholder="PIN (4-6 digits)"
+                      className="w-36 bg-gray-50 rounded-xl px-3.5 py-2.5 text-sm border border-gray-100 focus:outline-none focus:border-teal-400" />
+                  </div>
+                  {staffError && <p className="text-red-500 text-[12px] bg-red-50 py-2 px-3 rounded-lg">{staffError}</p>}
+                  <button onClick={async () => {
+                    if (!staffForm.hotelId || !staffForm.name || !staffForm.pin || !/^\d{4,6}$/.test(staffForm.pin)) { setStaffError('Property, name and a 4-6 digit PIN are required.'); return; }
+                    setStaffSaving(true); setStaffError('');
+                    try {
+                      await callAdmin('create_staff', { data: { hotel_id: staffForm.hotelId, name: staffForm.name, email: staffForm.email || null, role: staffForm.role, pin_code: staffForm.pin } });
+                      setShowAddStaff(false);
+                      setStaffForm({ hotelId: '', name: '', email: '', role: 'staff', pin: '' });
+                      setStaff((await callAdmin('list_all_staff')).data || []);
+                    } catch (e) { setStaffError((e as Error).message); }
+                    finally { setStaffSaving(false); }
+                  }} disabled={staffSaving}
+                    className="w-full py-3 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                    {staffSaving ? 'Creating…' : 'Create staff account'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Edit staff modal */}
+          {editStaff && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+              <div className="w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="font-extrabold text-gray-900">Edit {editStaff.name}</div>
+                  <button onClick={() => setEditStaff(null)}><X size={18} className="text-gray-400" /></button>
+                </div>
+                <div className="space-y-2.5">
+                  <input value={editStaffForm.name} onChange={(e) => setEditStaffForm({ ...editStaffForm, name: e.target.value })} placeholder="Name"
+                    className="w-full bg-gray-50 rounded-xl px-3.5 py-2.5 text-sm border border-gray-100 focus:outline-none focus:border-teal-400" />
+                  <input value={editStaffForm.email} onChange={(e) => setEditStaffForm({ ...editStaffForm, email: e.target.value })} placeholder="Email"
+                    className="w-full bg-gray-50 rounded-xl px-3.5 py-2.5 text-sm border border-gray-100 focus:outline-none focus:border-teal-400" />
+                  <div className="flex gap-2">
+                    <select value={editStaffForm.role} onChange={(e) => setEditStaffForm({ ...editStaffForm, role: e.target.value })}
+                      className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-sm border border-gray-100 focus:outline-none focus:border-teal-400">
+                      <option value="staff">Staff</option><option value="manager">Manager</option><option value="admin">Admin</option>
+                    </select>
+                    <label className="flex items-center gap-2 px-3 rounded-xl bg-gray-50 border border-gray-100 text-[12px] font-bold text-gray-600">
+                      <input type="checkbox" checked={editStaffForm.active} onChange={(e) => setEditStaffForm({ ...editStaffForm, active: e.target.checked })} /> Active
+                    </label>
+                  </div>
+                  <button onClick={async () => {
+                    setStaffSaving(true);
+                    try {
+                      await callAdmin('update_staff', { id: editStaff.id, updates: { name: editStaffForm.name, email: editStaffForm.email || null, role: editStaffForm.role, active: editStaffForm.active } });
+                      setEditStaff(null);
+                      setStaff((await callAdmin('list_all_staff')).data || []);
+                    } catch (e) { setStaffError((e as Error).message); }
+                    finally { setStaffSaving(false); }
+                  }} disabled={staffSaving}
+                    className="w-full py-3 rounded-xl text-white text-sm font-bold disabled:opacity-40" style={{ backgroundColor: TEAL }}>
+                    {staffSaving ? 'Saving…' : 'Save changes'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : superTab === 'ops-tools' ? (
         <div className="max-w-5xl mx-auto px-8 py-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-[18px] font-extrabold text-gray-900">Ops Tools Catalog ({allOpsTools.length})</h2>
-            <div className="flex gap-2">
-              <button onClick={async () => setAllOpsTools((await callAdmin('get_ops_tools')).data)} className="flex items-center gap-1 text-[12px] text-gray-400 hover:text-teal-600 transition-colors">
-                <RefreshCw size={12} /> Refresh
+             <div className="flex gap-2">
+               <button onClick={async () => setAllOpsTools((await callAdmin('get_ops_tools')).data)} className="flex items-center gap-1 text-[12px] text-gray-400 hover:text-teal-600 transition-colors">
+                 <RefreshCw size={12} /> Refresh
               </button>
               <button onClick={() => setShowNewTool(true)} className="flex items-center gap-1 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold hover:opacity-90" style={{backgroundColor:TEAL}}>
                 <Plus size={12} /> New Tool
@@ -1015,6 +1362,24 @@ interface PlatformHealth {
               </div>
             ));
           })()}
+        </div>
+      ) : null}
+      {superTab === 'corporate' && (
+        <div className="h-[calc(100vh-140px)] w-full overflow-y-auto" style={{ background: '#07231F' }}>
+          {/* Corporate console — own brand look, dark teal */}
+          <div className="mx-auto max-w-6xl px-4 py-6" style={{ fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}>
+            <div className="mb-5">
+              <div className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: '#5ECFC0' }}>Attenda Corporate</div>
+              <h2 className="mt-1 text-2xl font-extrabold text-white">
+                Tenant Manager
+                <span className="ml-3 rounded-full px-2.5 py-1 align-middle text-[9px] font-bold uppercase tracking-wider" style={{ background: 'rgba(94,207,192,0.15)', color: '#5ECFC0' }}>Team · Tenants · Pitches</span>
+              </h2>
+              <p className="mt-1 text-[12px]" style={{ color: '#8FBCB5' }}>Onboard people and hotels, assign teams, share pitch links, walk the snapshot with every member.</p>
+            </div>
+            <div className="overflow-hidden rounded-3xl" style={{ background: '#0B3B36', boxShadow: '0 20px 60px rgba(0,0,0,.35)' }}>
+              <iframe src="/corporate/admin" title="Attenda Corporate Console" className="h-[72vh] w-full border-0" allow="clipboard-write" />
+            </div>
+          </div>
         </div>
       )}
     </div>

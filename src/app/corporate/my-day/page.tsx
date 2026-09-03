@@ -1,0 +1,597 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Loader2, Building2, ClipboardCheck, Calendar, TrendingUp, Flag, Users, Plus, X,
+  Check, ChevronRight, LogOut, Globe, Megaphone, Target,
+} from 'lucide-react';
+
+const TEAL = '#158A7C';
+
+type Task = { id: string; title: string; detail: string | null; kind: string; status: string; priority: string; due_date: string | null; client_id: string | null; assignee_id: string | null };
+type Event = { id: string; title: string; detail: string | null; start_at: string; client_id: string | null };
+type Deal = { id: string; name: string; property_name: string | null; stage: string; value: number | null; next_follow_up: string | null; owner_id: string | null; client_id: string | null };
+type Client = { id: string; slug: string; name: string; brand: string | null; rooms: number | null; status: string };
+type Team = { id: string; name: string | null; title: string | null; confirmed_position: string | null };
+type Comment = { id: string; parent_type: string; parent_id: string; author_id: string; body: string; created_at: string };
+type Snapshot = {
+  client: Client & { address?: string | null };
+  activity: { last7: number; done30: number; pending30: number; inProgress30: number; openNow: number; byType: { type: string; count: number }[] } | null;
+  productivity: { score: number; done: number; total: number } | null;
+  goals: any[];
+  team: { id: string; name: string | null; title: string | null }[];
+};
+type Me = {
+  corporate: boolean;
+  user: { id: string; name: string; title: string | null; onboarding_completed: boolean };
+  authorizedPositions: { key: string; title: string; color: string }[];
+  duties: { position_key: string; title: string; detail: string | null }[];
+  assignments: { id: string; client: Client }[];
+  isSuperAdmin: boolean;
+};
+
+const STAGES = ['lead', 'qualified', 'proposal', 'negotiation', 'won'] as const;
+
+export default function MyDay() {
+  const router = useRouter();
+  const [me, setMe] = useState<Me | null>(null);
+  const [snap, setSnap] = useState<Snapshot | null>(null);
+  const [snapLoading, setSnapLoading] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [team, setTeam] = useState<Team[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [scope, setScope] = useState<string>('all'); // 'all' | client_id | 'corporate'
+  const [loading, setLoading] = useState(true);
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [nt, setNt] = useState({ title: '', client_id: '', due_date: '' });
+  const [showNewDeal, setShowNewDeal] = useState(false);
+  const [nd, setNd] = useState({ name: '', property_name: '', value: '' });
+  const [announcements, setAnnouncements] = useState<{ id: string; title: string; body: string; pinned: boolean; created_at: string }[]>([]);
+  const [myAssignedTasks, setMyAssignedTasks] = useState<Task[]>([]);
+
+  const load = useCallback(async () => {
+    const { supabase } = await import('@/lib/supabase');
+    const { data: s } = await supabase.auth.getSession();
+    const token = s.session?.access_token;
+    if (!token) { router.replace('/corporate'); return; }
+    const meRes = await fetch('/api/corporate/me', { headers: { Authorization: `Bearer ${token}` } });
+    if (!meRes.ok) { router.replace('/corporate'); return; }
+    const meData = await meRes.json();
+    if (!meData.onboardingCompleted) { router.replace('/corporate/onboarding'); return; }
+    setMe(meData);
+    const dRes = await fetch('/api/corporate/data', { headers: { Authorization: `Bearer ${token}` } });
+    if (dRes.ok) {
+      const d = await dRes.json();
+      setTasks(d.tasks || []); setEvents(d.events || []); setDeals(d.pipeline || []);
+      setClients(d.clients || []); setTeam(d.team || []); setComments(d.comments || []);
+    }
+    // Company feed (announcements) — silent, non-blocking
+    try {
+      const aRes = await fetch('/api/corporate/announcements', { headers: { Authorization: `Bearer ${token}` } });
+      if (aRes.ok) { const a = await aRes.json(); setAnnouncements(a.announcements || []); }
+    } catch { /* silent */ }
+    // Tasks assigned to me via the corporate task system — silent if route not deployed yet
+    try {
+      const tRes = await fetch('/api/corporate/tasks', { headers: { Authorization: `Bearer ${token}` } });
+      if (tRes.ok) {
+        const t = await tRes.json();
+        const rows = (t.tasks || []).filter((x: { status?: string }) => x.status !== 'done');
+        setMyAssignedTasks(rows.map((x: { id: string; title: string; detail: string | null; status: string; due_date: string | null }) => ({
+          id: x.id, title: x.title, detail: x.detail, kind: 'assigned', status: x.status, priority: 'normal',
+          due_date: x.due_date, client_id: null, assignee_id: null,
+        })));
+      }
+    } catch { /* silent */ }
+    setLoading(false);
+  }, [router]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const act = async (payload: Record<string, unknown>) => {
+    const { supabase } = await import('@/lib/supabase');
+    const { data: s } = await supabase.auth.getSession();
+    const token = s.session?.access_token;
+    await fetch('/api/corporate/data', {
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    load();
+  };
+
+  const signOut = async () => {
+    const { supabase } = await import('@/lib/supabase');
+    await supabase.auth.signOut();
+    router.replace('/corporate');
+  };
+
+  // ---- scoping: property switcher filters everything ----
+  const inScope = (clientId: string | null) => {
+    if (scope === 'all') return true;
+    if (scope === 'corporate') return clientId === null;
+    return clientId === scope;
+  };
+  const myTasks = tasks.filter((t) => inScope(t.client_id));
+  const myEvents = events.filter((e) => inScope(e.client_id));
+  const myDeals = deals.filter((d) => inScope(d.client_id));
+
+  const positions = me?.authorizedPositions || [];
+  const duties = me?.duties || [];
+  const posKeys = positions.map((p) => p.key);
+  const myClientIds = (me?.assignments || []).map((a) => a.client?.id);
+  const snapshotClients = clients.filter((c) => myClientIds.includes(c.id) || me?.isSuperAdmin);
+  const visibleClients = scope === 'all' || scope === 'corporate'
+    ? clients.filter((c) => myClientIds.includes(c.id) || me?.isSuperAdmin)
+    : clients.filter((c) => c.id === scope);
+
+  // Live inline snapshot — follows the scope switcher (specific client shows that one, All shows first assigned)
+  const snapTarget = scope !== 'all' && scope !== 'corporate' ? clients.find((c) => c.id === scope) : (snapshotClients[0] || null);
+  useEffect(() => {
+    let dead = false;
+    setSnap(null);
+    if (!snapTarget?.slug || !me) return;
+    setSnapLoading(true);
+    (async () => {
+      const { supabase } = await import('@/lib/supabase');
+      const { data: s } = await supabase.auth.getSession();
+      const token = s.session?.access_token;
+      if (!token) return;
+      const r = await fetch(`/api/corporate/client-snapshot?slug=${snapTarget.slug}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) { if (!dead) setSnapLoading(false); return; }
+      const j = await r.json();
+      if (!dead) { setSnap(j); setSnapLoading(false); }
+    })();
+    return () => { dead = true; };
+  }, [snapTarget?.slug, me?.user?.id]);
+  const isField = posKeys.includes('field_ops');
+  const isSales = posKeys.includes('sales');
+  const isController = posKeys.includes('controller');
+  const isTrainer = posKeys.includes('trainer');
+  const isLeader = posKeys.includes('property_leader');
+
+  const today = new Date().toISOString().slice(0, 10);
+  const auditTasks = myTasks.filter((t) => t.kind === 'checklist');
+  const openTasks = myTasks.filter((t) => t.kind === 'task' && t.status === 'open');
+  const flags = myTasks.filter((t) => t.kind === 'flag' && t.status === 'open');
+  const reports = myTasks.filter((t) => t.kind === 'report');
+  const followUps = myDeals.filter((d) => d.next_follow_up && d.stage !== 'won' && d.next_follow_up <= new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10));
+  const upcoming = myEvents.filter((e) => e.start_at >= new Date().toISOString()).slice(0, 4);
+
+  const addTask = async () => {
+    if (!nt.title) return;
+    await act({ action: 'create-task', title: nt.title, client_id: nt.client_id || null, due_date: nt.due_date || null });
+    setShowNewTask(false); setNt({ title: '', client_id: '', due_date: '' });
+  };
+  const addDeal = async () => {
+    if (!nd.name) return;
+    await act({ action: 'create-pipeline', name: nd.name, property_name: nd.property_name || null, value: nd.value ? parseFloat(nd.value) : null });
+    setShowNewDeal(false); setNd({ name: '', property_name: '', value: '' });
+  };
+
+  const firstName = me?.user?.name?.split(' ')[0] || 'there';
+  const primary = positions[0];
+
+  if (loading || !me) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F6FAF9]">
+        <Loader2 className="h-6 w-6 animate-spin" style={{ color: TEAL }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F6FAF9] pb-24">
+      {/* Header */}
+      <div className="sticky top-0 z-20 border-b border-teal-100 bg-white/90 backdrop-blur">
+        <div className="mx-auto max-w-3xl px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: TEAL }}>Attenda Corporate</div>
+              <div className="text-xl font-bold text-gray-900" style={{ fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}>Good morning, {firstName}</div>
+            </div>
+            <div className="flex items-center gap-2">
+              {primary && (
+                <span className="rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-white" style={{ background: primary.color }}>
+                  {primary.title}
+                </span>
+              )}
+              <button onClick={signOut} className="rounded-lg p-2 text-gray-300 hover:text-gray-500" title="Sign out"><LogOut className="h-4 w-4" /></button>
+            </div>
+          </div>
+          {/* Property switcher */}
+          <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+            <button onClick={() => setScope('all')}
+              className="flex flex-shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-bold"
+              style={scope === 'all' ? { background: TEAL, color: '#fff' } : { background: '#fff', color: '#64748b', border: '1px solid #e4f2ef' }}>
+              <Globe className="h-3 w-3" /> All
+            </button>
+            {clients.filter((c) => myClientIds.includes(c.id) || me.isSuperAdmin).map((c) => (
+              <button key={c.id} onClick={() => setScope(c.id)}
+                className="flex flex-shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-bold"
+                style={scope === c.id ? { background: TEAL, color: '#fff' } : { background: '#fff', color: '#64748b', border: '1px solid #e4f2ef' }}>
+                <Building2 className="h-3 w-3" /> {c.name.split(' ').slice(0, 2).join(' ')}{c.rooms ? ` · ${c.rooms}` : ''}
+              </button>
+            ))}
+            <button onClick={() => setScope('corporate')}
+              className="flex flex-shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-bold"
+              style={scope === 'corporate' ? { background: TEAL, color: '#fff' } : { background: '#fff', color: '#64748b', border: '1px solid #e4f2ef' }}>
+              Corporate
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-3xl space-y-6 px-4 py-5">
+      {/* PROPERTY SNAPSHOT — live inline, follows scope */}
+      {scope !== 'corporate' && snapTarget && (
+        <section>
+          <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Property snapshot" count={snap?.productivity ? `${snap.productivity.score}% productive` : undefined} />
+          <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-teal-50">
+            {snapLoading && (
+              <div className="flex items-center gap-2 py-6 text-xs text-gray-400"><Loader2 className="h-4 w-4 animate-spin" style={{ color: TEAL }} /> Loading live snapshot…</div>
+            )}
+            {!snapLoading && snap && (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-base font-extrabold text-gray-900">{snap.client.name}</div>
+                    <div className="text-[11px] text-gray-400">{snap.client.rooms ? `${snap.client.rooms} rooms` : ''}{snap.client.address ? ` · ${snap.client.address}` : ''}</div>
+                  </div>
+                  <span className="rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider" style={{ background: '#E8F4F1', color: TEAL }}>live</span>
+                </div>
+                {snap.activity ? (
+                  <>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {[['Requests · 7d', snap.activity.last7], ['Done · 30d', snap.activity.done30], ['Open now', snap.activity.openNow]].map(([label, v]) => (
+                        <div key={label as string} className="rounded-2xl bg-[#F6FAF9] p-3">
+                          <div className="text-2xl font-extrabold text-gray-900">{v as number}</div>
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{label as string}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {snap.productivity && (
+                      <div className="mt-3">
+                        <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-gray-400"><span className="uppercase tracking-wider">Productivity</span><span style={{ color: TEAL }}>{snap.productivity.score}%</span></div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                          <div className="h-full rounded-full" style={{ width: `${snap.productivity.score}%`, background: `linear-gradient(90deg,#5ECFC0,${TEAL})` }} />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="mt-3 rounded-2xl bg-[#F6FAF9] p-3 text-[11px] leading-relaxed text-gray-500">Live guest activity connects here once this property is onboarded on the platform.</div>
+                )}
+                {(snap.goals?.length || 0) > 0 && (
+                  <div className="mt-3 space-y-1.5">
+                    {snap.goals.slice(0, 2).map((g: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between rounded-xl border border-teal-50 px-3 py-2">
+                        <span className="text-[11px] font-bold text-gray-700">{g.title || g.name || g.metric_name || 'Goal'}</span>
+                        {g.target && <span className="text-[10px] text-gray-400">{g.target}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* YOUR DUTIES — compact, per position */}
+      {duties.length > 0 && (
+        <section>
+          <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title="Your duties" count={`${duties.length}`} />
+          <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-teal-50">
+            {duties.slice(0, 8).map((d, i) => (
+              <div key={`${d.position_key}-${i}`} className={i > 0 ? 'mt-2 border-t border-teal-50 pt-2' : ''}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-[12px] font-bold text-gray-800">{d.title}</span>
+                  <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-gray-300">{positions.find((p) => p.key === d.position_key)?.title || d.position_key}</span>
+                </div>
+                {d.detail && <div className="truncate text-[11px] text-gray-500">{d.detail}</div>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* FIELD OPS */}
+        {isField && (
+          <section>
+            <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title={scope === 'corporate' ? 'Checklists' : 'Daily audit'} count={`${auditTasks.filter((t) => t.status === 'done').length}/${auditTasks.length}`} />
+            <div className="space-y-2">
+              {auditTasks.length ? auditTasks.map((t) => <TaskRow key={t.id} t={t} onToggle={() => act({ action: 'toggle-task', task_id: t.id, done: t.status !== 'done' })} />) : <Empty label="No checklist items in this scope yet" />}
+            </div>
+            <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Property visits & tasks" />
+            <div className="space-y-2">
+              {openTasks.map((t) => <TaskRow key={t.id} t={t} onToggle={() => act({ action: 'toggle-task', task_id: t.id, done: true })} />)}
+              {!openTasks.length && <Empty label="No open tasks — clean day" />}
+            </div>
+          </section>
+        )}
+
+        {/* SALES */}
+        {isSales && (
+          <section>
+            <SectionTitle icon={<TrendingUp className="h-4 w-4" />} title="Pipeline" count={`${myDeals.length} deals`} />
+            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+              {STAGES.map((stage) => (
+                <div key={stage} className="w-40 flex-shrink-0">
+                  <div className="mb-1.5 border-b-2 pb-1 text-[9px] font-extrabold uppercase tracking-wider text-gray-400" style={{ borderColor: stage === 'won' ? '#0E6B60' : stage === 'proposal' ? '#3BBCAC' : stage === 'qualified' ? '#5ECFC0' : '#94a3b8' }}>{stage}</div>
+                  <div className="space-y-1.5">
+                    {myDeals.filter((d) => d.stage === stage).map((d) => (
+                      <div key={d.id} className="rounded-xl border border-teal-50 bg-white p-2.5 shadow-sm" style={stage === 'won' ? { background: '#E8F4F1' } : {}}>
+                        <div className="text-[11px] font-bold leading-tight text-gray-800">{d.name}</div>
+                        <div className="mt-0.5 text-[9.5px] text-gray-400">
+                          {d.value ? `$${d.value}/mo · ` : ''}{d.next_follow_up ? `follow-up ${d.next_follow_up}` : d.property_name || ''}
+                        </div>
+                        {stage !== 'won' && (
+                          <button onClick={() => act({ action: 'move-pipeline', deal_id: d.id, stage: STAGES[STAGES.indexOf(stage) + 1] })}
+                            className="mt-1 flex items-center gap-0.5 text-[9px] font-bold" style={{ color: TEAL }}>
+                            advance <ChevronRight className="h-2.5 w-2.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setShowNewDeal(true)} className="mt-2 flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold text-white" style={{ background: TEAL }}>
+              <Plus className="h-3 w-3" /> Add deal
+            </button>
+            <SectionTitle icon={<Flag className="h-4 w-4" />} title="Follow-ups due" count={`${followUps.length}`} />
+            <div className="space-y-2">
+              {followUps.map((d) => (
+                <div key={d.id} className="flex items-center justify-between rounded-2xl border border-amber-100 bg-amber-50/60 p-3">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800">{d.name}</div>
+                    <div className="text-xs text-gray-400">Due {d.next_follow_up}</div>
+                  </div>
+                  <button onClick={() => act({ action: 'move-pipeline', deal_id: d.id, stage: d.stage, next_follow_up: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10) })}
+                    className="rounded-lg px-2.5 py-1 text-[10px] font-bold text-white" style={{ background: TEAL }}>Snooze 7d</button>
+                </div>
+              ))}
+              {!followUps.length && <Empty label="Nothing due in the next 3 days" />}
+            </div>
+          </section>
+        )}
+
+        {/* CONTROLLER */}
+        {isController && (
+          <section>
+            <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title="Reports to review" count={`${reports.length}`} />
+            <div className="space-y-2">
+              {reports.map((t) => <TaskRow key={t.id} t={t} onToggle={() => act({ action: 'toggle-task', task_id: t.id, done: t.status !== 'done' })} />)}
+              {!reports.length && <Empty label="No pending reports" />}
+            </div>
+            <SectionTitle icon={<Flag className="h-4 w-4" />} title="Flags" count={`${flags.length}`} />
+            <div className="space-y-2">
+              {flags.map((t) => (
+                <div key={t.id} className="rounded-2xl border border-red-100 bg-red-50/50 p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-bold text-gray-800">{t.title}</div>
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-[9px] font-bold text-red-700">FLAG</span>
+                  </div>
+                  {t.detail && <div className="mt-0.5 text-xs text-gray-500">{t.detail}</div>}
+                  <button onClick={() => act({ action: 'toggle-task', task_id: t.id, done: true })} className="mt-1.5 text-[10px] font-bold" style={{ color: TEAL }}>Mark resolved</button>
+                </div>
+              ))}
+              {!flags.length && <Empty label="No open flags" />}
+            </div>
+          </section>
+        )}
+
+        {/* TRAINER */}
+        {isTrainer && (
+          <section>
+            <SectionTitle icon={<Users className="h-4 w-4" />} title="Team & certification" />
+            <div className="space-y-2">
+              {team.map((m) => (
+                <div key={m.id} className="flex items-center justify-between rounded-2xl border border-teal-50 bg-white p-3 shadow-sm">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: TEAL }}>{(m.name || '?')[0]}</div>
+                    <div>
+                      <div className="text-sm font-bold text-gray-800">{m.name}</div>
+                      <div className="text-[10px] text-gray-400">{m.title || '—'}</div>
+                    </div>
+                  </div>
+                  <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase"
+                    style={m.confirmed_position ? { background: '#E8F4F1', color: TEAL } : { background: '#fef3c7', color: '#b45309' }}>
+                    {m.confirmed_position ? 'certified' : 'in training'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* LEADER */}
+        {isLeaderCheck(posKeys) && (
+          <section>
+            <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Your property" />
+            <div className="space-y-2">
+              {(visibleClients.length ? visibleClients : clients.slice(0, 1)).map((c) => (
+                <div key={c.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-teal-50">
+                  <div className="font-bold text-gray-900">{c.name}</div>
+                  <div className="text-xs text-gray-400">{c.rooms} rooms · {c.brand}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* COMPANY — announcements feed */}
+        <section>
+          <SectionTitle icon={<Megaphone className="h-4 w-4" />} title="Company" count={announcements.length ? `${announcements.length}` : undefined} />
+          <div className="space-y-2">
+            {announcements.slice(0, 4).map((a) => (
+              <div key={a.id} className="rounded-2xl border border-teal-50 bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-2">
+                  {a.pinned && <span className="rounded-full bg-[#E8F4F1] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider" style={{ color: TEAL }}>Pinned</span>}
+                  <div className="text-sm font-bold text-gray-800">{a.title}</div>
+                </div>
+                <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-gray-500">{a.body}</p>
+                <div className="mt-1.5 text-[10px] text-gray-300">{new Date(a.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+              </div>
+            ))}
+            {!announcements.length && <Empty label="No announcements yet" />}
+          </div>
+        </section>
+
+        {/* ASSIGNED TO ME — tasks delegated through the corporate task system */}
+        {myAssignedTasks.length > 0 && (
+          <section>
+            <SectionTitle icon={<Target className="h-4 w-4" />} title="Assigned to me" count={`${myAssignedTasks.length}`} />
+            <div className="space-y-2">
+              {myAssignedTasks.map((t) => (
+                <TaskRow key={t.id} t={t} onToggle={async () => {
+                  const { supabase } = await import('@/lib/supabase');
+                  const { data: s } = await supabase.auth.getSession();
+                  const token = s.session?.access_token;
+                  await fetch('/api/corporate/tasks', {
+                    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'complete', id: t.id }),
+                  }).catch(() => null);
+                  load();
+                }} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* SHARED CALENDAR */}
+        <section>
+          <SectionTitle icon={<Calendar className="h-4 w-4" />} title="Corporate calendar" count={scope === 'all' ? 'all' : undefined} />
+          <div className="space-y-2">
+            {upcoming.map((e) => (
+              <div key={e.id} className="flex items-center justify-between rounded-2xl border border-teal-50 bg-white p-3 shadow-sm">
+                <div>
+                  <div className="text-sm font-bold text-gray-800">{e.title}</div>
+                  <div className="text-xs text-gray-400">
+                    {new Date(e.start_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {new Date(e.start_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                    {' · '}tagged: {e.client_id ? clients.find((c) => c.id === e.client_id)?.name || 'property' : 'Corporate'}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!upcoming.length && <Empty label="No upcoming events" />}
+          </div>
+        </section>
+
+        {/* ALL TASKS + ADD */}
+        <section>
+          <SectionTitle icon={<Check className="h-4 w-4" />} title="All tasks" count={`${myTasks.filter((t) => t.status === 'open').length} open`} />
+          <div className="space-y-2">
+            {myTasks.filter((t) => !['checklist'].includes(t.kind) || isField || isController).slice(0, 10).map((t) => (
+              <TaskRow key={t.id} t={t} onToggle={() => act({ action: 'toggle-task', task_id: t.id, done: t.status !== 'done' })} />
+            ))}
+            {!myTasks.length && <Empty label="Nothing yet — add the first task" />}
+          </div>
+          <button onClick={() => setShowNewTask(true)} className="mt-3 flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-sm" style={{ background: TEAL }}>
+            <Plus className="h-3.5 w-3.5" /> New task
+          </button>
+        </section>
+
+        {/* CLIENT WORKSPACES */}
+        <section>
+          <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Clients" />
+          <div className="grid gap-2 sm:grid-cols-2">
+            {visibleClients.map((c) => (
+              <button key={c.id} onClick={() => setScope(c.id)} className="rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-teal-50 hover:ring-teal-200">
+                <div className="font-bold text-gray-900">{c.name}</div>
+                <div className="text-xs text-gray-400">{c.rooms ? `${c.rooms} rooms` : '—'} · {c.brand || c.status}</div>
+                <div className="mt-1.5 text-[10px] font-bold" style={{ color: TEAL }}>Open workspace →</div>
+              </button>
+            ))}
+            {!visibleClients.length && <Empty label="No client assignments yet" />}
+          </div>
+        </section>
+      </div>
+
+      {/* New task modal */}
+      {showNewTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="font-bold text-gray-900">New task</div>
+              <button onClick={() => setShowNewTask(false)}><X className="h-5 w-5 text-gray-400" /></button>
+            </div>
+            <div className="space-y-2.5">
+              <input value={nt.title} onChange={(e) => setNt({ ...nt, title: e.target.value })} placeholder="What needs to happen?"
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
+              <div className="flex gap-2">
+                <select value={nt.client_id} onChange={(e) => setNt({ ...nt, client_id: e.target.value })}
+                  className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-teal-400">
+                  <option value="">Corporate (no property)</option>
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <input type="date" value={nt.due_date} onChange={(e) => setNt({ ...nt, due_date: e.target.value })}
+                  className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-teal-400" />
+              </div>
+              <button onClick={addTask} className="w-full rounded-xl py-3 text-sm font-bold text-white shadow-md" style={{ background: `linear-gradient(135deg,#3BBCAC,${TEAL})` }}>Create task</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New deal modal */}
+      {showNewDeal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="font-bold text-gray-900">New deal</div>
+              <button onClick={() => setShowNewDeal(false)}><X className="h-5 w-5 text-gray-400" /></button>
+            </div>
+            <div className="space-y-2.5">
+              <input value={nd.name} onChange={(e) => setNd({ ...nd, name: e.target.value })} placeholder="Property / group name"
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
+              <input value={nd.property_name} onChange={(e) => setNd({ ...nd, property_name: e.target.value })} placeholder="Notes (e.g. 3 properties, owner met)"
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
+              <input value={nd.value} onChange={(e) => setNd({ ...nd, value: e.target.value })} placeholder="Monthly value ($)"
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
+              <button onClick={addDeal} className="w-full rounded-xl py-3 text-sm font-bold text-white shadow-md" style={{ background: `linear-gradient(135deg,#3BBCAC,${TEAL})` }}>Add to pipeline</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function isLeaderCheck(keys: string[]) { return keys.includes('property_leader'); }
+
+function SectionTitle({ icon, title, count }: { icon: React.ReactNode; title: string; count?: string }) {
+  return (
+    <div className="mb-2 mt-1 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider" style={{ color: TEAL }}>
+      {icon} {title}
+      {count && <span className="ml-auto rounded-full bg-[#E8F4F1] px-2 py-0.5 text-[10px] font-bold normal-case tracking-normal" style={{ color: TEAL }}>{count}</span>}
+    </div>
+  );
+}
+
+function TaskRow({ t, onToggle }: { t: Task; onToggle: () => void }) {
+  const done = t.status === 'done';
+  const today = new Date().toISOString().slice(0, 10);
+  return (
+    <button onClick={onToggle} className="flex w-full items-center gap-3 rounded-2xl border border-teal-50 bg-white p-3 text-left shadow-sm">
+      <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 ${done ? 'border-teal-600' : 'border-gray-300'}`}
+        style={done ? { background: TEAL, borderColor: TEAL } : {}}>
+        {done && <Check className="h-3.5 w-3.5 text-white" />}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className={`truncate text-sm font-semibold ${done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{t.title}</div>
+        {t.detail && <div className="truncate text-xs text-gray-400">{t.detail}</div>}
+      </div>
+      {t.priority === 'high' && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[9px] font-bold text-red-600">HIGH</span>}
+      {t.due_date && !done && <span className="text-[10px] font-semibold text-gray-400">{t.due_date === today ? 'today' : t.due_date.slice(5)}</span>}
+    </button>
+  );
+}
+
+function Empty({ label }: { label: string }) {
+  return <div className="rounded-2xl border border-dashed border-teal-100 bg-white/60 p-4 text-center text-xs text-gray-400">{label}</div>;
+}
