@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import ExperienceViewer, { ExperienceBlock, LogKind } from '@/components/experience/ExperienceViewer';
+import ExperienceViewer, { ExperienceBlock, ExperienceCreds, LogKind } from '@/components/experience/ExperienceViewer';
 
 // Public experience surface — /e/<slug>. No chrome. Elegant 404 when missing/unpublished.
 
@@ -38,6 +38,21 @@ export default function PublicExperiencePage() {
     }).catch(() => {});
   };
 
+  const onSubmit = async (c: Record<string, string>): Promise<ExperienceCreds | null> => {
+    try {
+      const r = await fetch('/api/experience', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create-account', slug, contact: c }),
+      });
+      if (!r.ok) return null;
+      const j = await r.json();
+      return j?.creds || null;
+    } catch {
+      return null;
+    }
+  };
+
   if (state === 'loading') {
     return (
       <div className="flex min-h-screen items-center justify-center" style={{ background: '#07231F' }}>
@@ -60,5 +75,5 @@ export default function PublicExperiencePage() {
     );
   }
 
-  return <ExperienceViewer title={exp.title} subtitle={exp.subtitle} mode={exp.mode} blocks={exp.blocks || []} onLog={onLog} forName={forName} />;
+  return <ExperienceViewer title={exp.title} subtitle={exp.subtitle} mode={exp.mode} blocks={exp.blocks || []} onLog={onLog} onSubmit={onSubmit} forName={forName} />;
 }

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, isSuperAdmin } from '@/lib/supabase-admin';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { notifyNewTalent, notifyNewPartner } from '@/lib/notify';
+import { notifyNewTalent, notifyNewPartner, notifyOnboardedCredentials } from '@/lib/notify';
+import crypto from 'node:crypto';
 
 export const dynamic = 'force-dynamic';
+
+// per-instance IP rate limit for public account creation (8/hour)
+const acctAttempts = new Map<string, number[]>();
 
 // Attenda Experience Engine — experiences + analytics + public serving.
 
@@ -26,7 +30,7 @@ export async function GET(req: NextRequest) {
   // ── Public fetch (published only) ─────────────────────────
   if (url.searchParams.get('public') === '1') {
     const slug = url.searchParams.get('slug') || '';
-    const { data } = await db.from('corporate_experiences').select('slug, title, subtitle, mode, blocks').eq('slug', slug).eq('published', true).maybeSingle();
+    const { data } = await db.from('corporate_experiences').select('slug, title, subtitle, mode, blocks, type').eq('slug', slug).eq('published', true).maybeSingle();
     if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ experience: data });
   }
@@ -122,6 +126,55 @@ export async function POST(req: NextRequest) {
       }
     }
     return NextResponse.json({ ok: true });
+  }
+
+  // ── Public onboarding account creation (published onboarding experiences only) ──
+  if (action === 'create-account') {
+    const slug = String(b.slug || '');
+    const contact = b.contact && typeof b.contact === 'object' ? (b.contact as Record<string, string>) : null;
+    if (!contact) return NextResponse.json({ error: 'Missing contact' }, { status: 400 });
+
+    // basic per-instance IP rate limit — 8 attempts/hour
+    const ip = req.headers.get('x-nf-client-connection-ip') || req.headers.get('x-forwarded-for') || 'unknown';
+    const now = Date.now();
+    const recent = (acctAttempts.get(ip) || []).filter((t) => now - t < 3600_000);
+    if (recent.length >= 8) return NextResponse.json({ error: 'Too many attempts' }, { status: 429 });
+    recent.push(now);
+    acctAttempts.set(ip, recent);
+
+    const name = String(contact.name || '').trim();
+    const email = String(contact.email || '').trim().toLowerCase();
+    const phone = String(contact.phone || '').trim() || null;
+    if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return NextResponse.json({ error: 'Name and valid email required' }, { status: 400 });
+    }
+
+    const { data: exp } = await db.from('corporate_experiences').select('id, type').eq('slug', slug).eq('published', true).eq('type', 'onboarding').maybeSingle();
+    if (!exp) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    const password = crypto.randomBytes(12).toString('base64url');
+    try {
+      const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email, password, email_confirm: true,
+        user_metadata: { full_name: name, phone, source: 'experience-onboarding' },
+      });
+      if (createErr) {
+        if (/already|registered|exists/i.test(createErr.message || '')) {
+          return NextResponse.json({ ok: true, creds: { username: email, password: null, existing: true } });
+        }
+        return NextResponse.json({ error: 'Could not create account' }, { status: 500 });
+      }
+      const userId = created.user?.id;
+      if (!userId) return NextResponse.json({ error: 'Could not create account' }, { status: 500 });
+      const { error: cuErr } = await db.from('corporate_users').upsert({
+        id: userId, email, name, phone, active: true, onboarding_completed: false, onboarding_progress: [],
+      });
+      if (cuErr) console.error('corporate_users upsert failed:', cuErr.message);
+      notifyOnboardedCredentials({ name, email, password }).catch(() => {});
+      return NextResponse.json({ ok: true, creds: { username: email, password } });
+    } catch {
+      return NextResponse.json({ error: 'Could not create account' }, { status: 500 });
+    }
   }
 
   // ── Super-admin mutations ─────────────────────────────────
