@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import HqPanel from '@/components/corporate/HqPanel';
 import {
   Loader2, Building2, ClipboardCheck, Calendar, TrendingUp, Flag, Users, Plus, X,
   Check, ChevronRight, LogOut, Home, Megaphone, Target, Send, Image as ImageIcon, Zap, Info,
@@ -128,7 +129,10 @@ export default function MyDay() {
     if (scope === 'corporate') return clientId === null;
     return clientId === scope;
   };
-  const myTasks = tasks.filter((t) => inScope(t.client_id));
+  // Dedupe by title+client — the demo seed double-inserted tasks; never show the same task twice.
+  const myTasks = tasks
+    .filter((t) => inScope(t.client_id))
+    .filter((t, i, arr) => arr.findIndex((x) => x.title === t.title && x.client_id === t.client_id) === i);
   const myEvents = events.filter((e) => inScope(e.client_id));
   const myDeals = deals.filter((d) => inScope(d.client_id));
 
@@ -313,9 +317,6 @@ export default function MyDay() {
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => router.push('/corporate/hq')} className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-[11px] font-bold text-white/90 transition hover:bg-white/20" title="Attenda HQ">
-                  <Zap className="h-3.5 w-3.5" /> HQ
-                </button>
                 <button onClick={signOut} className="rounded-lg p-2 text-white/40 transition hover:bg-white/10 hover:text-white" title="Sign out"><LogOut className="h-4 w-4" /></button>
               </div>
             </div>
@@ -387,7 +388,6 @@ export default function MyDay() {
                   {primary.title}
                 </span>
               )}
-              <button onClick={() => router.push('/corporate/hq')} className="rounded-lg p-2 text-white/70 transition hover:bg-white/10 hover:text-white" title="Attenda HQ"><Zap className="h-4 w-4" /></button>
               <button onClick={signOut} className="rounded-lg p-2 text-white/40 transition hover:bg-white/10 hover:text-white" title="Sign out"><LogOut className="h-4 w-4" /></button>
             </div>
           </div>
@@ -410,26 +410,18 @@ export default function MyDay() {
               style={scope === 'corporate' ? { background: '#fff', color: '#07231F', boxShadow: '0 4px 14px -4px rgba(0,0,0,0.4)' } : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.12)' }}>
               Corporate
             </button>
-            <button onClick={() => router.push('/corporate/hq')}
-              className="flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition"
-              style={{ background: 'linear-gradient(90deg,#15b79e,#0E6B60)', color: '#fff', boxShadow: '0 4px 14px -4px rgba(14,107,96,0.55)' }}>
-              <Zap className="h-3 w-3" /> HQ
-            </button>
-            <button onClick={() => router.push('/corporate/story')}
-              className="flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition"
-              style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.12)' }}>
-              <Info className="h-3 w-3" /> About
-            </button>
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-5 md:px-6 md:py-8">
-      {isMyDay ? (
-        <div className="space-y-6 lg:grid lg:grid-cols-12 lg:gap-x-6 lg:gap-y-6 lg:space-y-0">
+      {scope === 'corporate' ? (
+        <HqPanel />
+      ) : isMyDay ? (
+        <div className="space-y-6">
         {/* PROPERTY SNAPSHOT — full width on desktop */}
         {scope !== 'corporate' && snapTarget && can('property_condition') && (
-        <section className="lg:col-span-12">
+        <section>
             <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Property snapshot" count={snap?.productivity ? `${snap.productivity.score}% productive` : undefined} />
             <div className="rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
               {snapLoading && (
@@ -484,7 +476,7 @@ export default function MyDay() {
 
         {/* FOLLOW-UPS DUE — money at risk, always visible (desktop: left rail) */}
         {followUps.length > 0 && can('pipeline') && (
-          <section className="lg:col-span-4 lg:self-start">
+          <section>
             <SectionTitle icon={<Flag className="h-4 w-4" />} title="Follow-ups due" count={`${followUps.length}`} />
             <div className="space-y-2">
               {followUps.map((d) => (
@@ -506,7 +498,7 @@ export default function MyDay() {
         )}
 
         {/* TODAY — one deduped list: audits, tasks, reports, flags, delegated. Nothing repeats. */}
-        <section className="lg:col-span-8 lg:row-start-1 lg:col-start-5">
+        <section>
           <SectionTitle icon={<Check className="h-4 w-4" />} title="Today" count={`${todayList.length} open`} />
           <div className="space-y-2">
             {todayList.map((t) => t.kind === 'flag' ? (
@@ -529,7 +521,7 @@ export default function MyDay() {
         </section>
 
         {/* MORE — compact grid, tap a card to expand that section (one at a time, no mega-scroll) */}
-        <section className="lg:col-span-12">
+        <section>
           <SectionTitle icon={<ChevronRight className="h-4 w-4" />} title="More" />
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {moreCards.map((c) => (
@@ -651,7 +643,7 @@ export default function MyDay() {
         <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-x-6 lg:space-y-0">
         {/* ===== CLIENT WORKSPACE — focused on one property ===== */}
         {/* PROPERTY BOARD — shared team updates: notes + photos, everyone assigned sees everything */}
-        <section className="lg:col-span-2">
+        <section>
           <SectionTitle icon={<ImageIcon className="h-4 w-4" />} title="Property board" count={`${boardUpdates.length} updates`} />
           <div className="rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
             <textarea value={nu.body} onChange={(e) => setNu((v) => ({ ...v, body: e.target.value }))} rows={2}
@@ -709,7 +701,7 @@ export default function MyDay() {
         </section>
 
         {duties.length > 0 && (
-          <section className="lg:col-span-2">
+          <section>
             <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title="Your duties" count={`${duties.length}`} />
             <div className="rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
               {duties.slice(0, 8).map((d, i) => (

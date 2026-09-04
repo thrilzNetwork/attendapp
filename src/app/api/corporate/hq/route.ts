@@ -46,6 +46,18 @@ export async function GET(req: NextRequest) {
   const myClients = (assignments.data || []).map((a: { client: unknown }) => a.client).filter(Boolean) as { id: string; slug: string; name: string; brand: string | null; rooms: number | null }[];
   const myClientIds = myClients.map((c) => c.id);
 
+  // Phase 2A: my work + property workspaces (defensive — missing columns degrade to empty lists)
+  const [myTasksRes, teamRes, allClientsRes] = await Promise.all([
+    db.from('corporate_tasks').select('id, title, status, due_date, priority, client_id, client:corporate_clients(name)')
+      .eq('assignee_id', me.id).neq('status', 'done').order('due_date', { ascending: true, nullsFirst: false }).limit(12),
+    (myClientIds.length || isSuper)
+      ? isSuper
+        ? db.from('corporate_client_assignments').select('client_id, corporate_users(name, title)').eq('active', true)
+        : db.from('corporate_client_assignments').select('client_id, corporate_users(name, title)').eq('active', true).in('client_id', myClientIds)
+      : Promise.resolve({ data: [] as unknown[] }),
+    isSuper ? db.from('corporate_clients').select('id, name, brand, rooms, slug') : Promise.resolve({ data: [] as unknown[] }),
+  ]);
+
   // Spaces: client spaces for my clients + company capability spaces (open to all active members).
   const visibleSpaces = (spaces.data || []).filter((s: { kind: string; client_id: string | null }) => {
     if (isSuper) return true;
@@ -80,6 +92,9 @@ export async function GET(req: NextRequest) {
     clientCapabilities: (clientCaps.data || []).filter((cc: { client_id: string }) => isSuper || myClientIds.includes(cc.client_id)),
     signals: signals || [],
     people: people || [],
+    myTasks: (myTasksRes.data || []) as unknown[],
+    teamAssignments: (teamRes.data || []) as unknown[],
+    allClients: (allClientsRes.data || []) as unknown[],
   });
 }
 
