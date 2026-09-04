@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Loader2, Building2, ClipboardCheck, Calendar, TrendingUp, Flag, Users, Plus, X,
-  Check, ChevronRight, LogOut, Home, Megaphone, Target, Send, Image as ImageIcon,
+  Check, ChevronRight, LogOut, Home, Megaphone, Target, Send, Image as ImageIcon, Zap,
 } from 'lucide-react';
 
 const TEAL = '#158A7C';
@@ -312,7 +312,12 @@ export default function MyDay() {
                   {greeting}, <span className="text-[#8ADBCD]">{firstName}</span>
                 </div>
               </div>
-              <button onClick={signOut} className="rounded-lg p-2 text-white/40 transition hover:bg-white/10 hover:text-white" title="Sign out"><LogOut className="h-4 w-4" /></button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => router.push('/corporate/hq')} className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-[11px] font-bold text-white/90 transition hover:bg-white/20" title="Attenda HQ">
+                  <Zap className="h-3.5 w-3.5" /> HQ
+                </button>
+                <button onClick={signOut} className="rounded-lg p-2 text-white/40 transition hover:bg-white/10 hover:text-white" title="Sign out"><LogOut className="h-4 w-4" /></button>
+              </div>
             </div>
             <div className="mt-3.5 flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
               {visibleClients.map((c) => (
