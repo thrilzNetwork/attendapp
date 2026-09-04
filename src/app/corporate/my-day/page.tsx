@@ -49,9 +49,11 @@ export default function MyDay() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showNewTask, setShowNewTask] = useState(false);
-  const [nt, setNt] = useState({ title: '', client_id: '', due_date: '' });
+  const [nt, setNt] = useState({ title: '', detail: '', client_id: '', due_date: '', priority: 'normal', assignee_id: '' });
+  const [showNewEvent, setShowNewEvent] = useState(false);
+  const [ne, setNe] = useState({ title: '', start_at: '', client_id: '' });
   const [showNewDeal, setShowNewDeal] = useState(false);
-  const [nd, setNd] = useState({ name: '', property_name: '', value: '' });
+  const [nd, setNd] = useState({ name: '', property_name: '', value: '', client_id: '' });
   const [announcements, setAnnouncements] = useState<{ id: string; title: string; body: string; pinned: boolean; created_at: string }[]>([]);
   const [myAssignedTasks, setMyAssignedTasks] = useState<Task[]>([]);
 
@@ -194,13 +196,21 @@ export default function MyDay() {
 
   const addTask = async () => {
     if (!nt.title) return;
-    await act({ action: 'create-task', title: nt.title, client_id: nt.client_id || null, due_date: nt.due_date || null });
-    setShowNewTask(false); setNt({ title: '', client_id: '', due_date: '' });
+    await act({ action: 'create-task', title: nt.title, detail: nt.detail || null, client_id: nt.client_id || null, due_date: nt.due_date || null, priority: nt.priority, assignee_id: nt.assignee_id || null });
+    setShowNewTask(false); setNt({ title: '', detail: '', client_id: '', due_date: '', priority: 'normal', assignee_id: '' });
+  };
+  const addEvent = async () => {
+    if (!ne.title || !ne.start_at) return;
+    await act({ action: 'create-event', title: ne.title, start_at: new Date(ne.start_at).toISOString(), client_id: ne.client_id || null });
+    setShowNewEvent(false); setNe({ title: '', start_at: '', client_id: '' });
+  };
+  const deleteEvent = async (id: string) => {
+    await act({ action: 'delete-event', event_id: id });
   };
   const addDeal = async () => {
     if (!nd.name) return;
-    await act({ action: 'create-pipeline', name: nd.name, property_name: nd.property_name || null, value: nd.value ? parseFloat(nd.value) : null });
-    setShowNewDeal(false); setNd({ name: '', property_name: '', value: '' });
+    await act({ action: 'create-pipeline', name: nd.name, property_name: nd.property_name || null, value: nd.value ? parseFloat(nd.value) : null, client_id: nd.client_id || null });
+    setShowNewDeal(false); setNd({ name: '', property_name: '', value: '', client_id: '' });
   };
 
   const toggleToday = async (t: Task) => {
@@ -278,12 +288,12 @@ export default function MyDay() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl space-y-6 px-4 py-5">
+      <div className="mx-auto max-w-4xl space-y-6 px-4 py-5 md:px-6 md:py-8">
       {isMyDay ? (
-        <>
-        {/* PROPERTY SNAPSHOT — live inline, follows scope (hidden in Corporate scope) */}
+        <div className="space-y-6 lg:grid lg:grid-cols-12 lg:gap-x-6 lg:gap-y-6 lg:space-y-0">
+        {/* PROPERTY SNAPSHOT — full width on desktop */}
         {scope !== 'corporate' && snapTarget && (
-          <section>
+        <section className="lg:col-span-12">
             <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Property snapshot" count={snap?.productivity ? `${snap.productivity.score}% productive` : undefined} />
             <div className="rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
               {snapLoading && (
@@ -336,19 +346,23 @@ export default function MyDay() {
           </section>
         )}
 
-        {/* FOLLOW-UPS DUE — money at risk, always visible */}
+        {/* FOLLOW-UPS DUE — money at risk, always visible (desktop: left rail) */}
         {followUps.length > 0 && (
-          <section>
+          <section className="lg:col-span-4 lg:self-start">
             <SectionTitle icon={<Flag className="h-4 w-4" />} title="Follow-ups due" count={`${followUps.length}`} />
             <div className="space-y-2">
               {followUps.map((d) => (
-                <div key={d.id} className="flex items-center justify-between rounded-2xl border border-amber-100 bg-amber-50/60 p-3">
-                  <div>
+                <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-100 bg-amber-50/60 p-3.5">
+                  <div className="min-w-0">
                     <div className="text-sm font-semibold text-gray-800">{d.name}</div>
                     <div className="text-xs text-gray-400">Due {d.next_follow_up}</div>
                   </div>
-                  <button onClick={() => act({ action: 'move-pipeline', deal_id: d.id, stage: d.stage, next_follow_up: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10) })}
-                    className="rounded-lg px-2.5 py-1 text-[10px] font-bold text-white" style={{ background: TEAL }}>Snooze 7d</button>
+                  <div className="flex shrink-0 gap-2">
+                    <button onClick={() => act({ action: 'move-pipeline', deal_id: d.id, stage: 'won' })}
+                      className="rounded-lg px-3.5 py-2.5 text-[11px] font-bold text-white transition hover:opacity-90 active:scale-95" style={{ background: '#0E6B60' }}>Won</button>
+                    <button onClick={() => act({ action: 'move-pipeline', deal_id: d.id, stage: d.stage, next_follow_up: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10) })}
+                      className="rounded-lg px-3.5 py-2.5 text-[11px] font-bold text-white transition hover:opacity-90 active:scale-95" style={{ background: TEAL }}>Snooze 7d</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -356,7 +370,7 @@ export default function MyDay() {
         )}
 
         {/* TODAY — one deduped list: audits, tasks, reports, flags, delegated. Nothing repeats. */}
-        <section>
+        <section className="lg:col-span-8 lg:row-start-1 lg:col-start-5">
           <SectionTitle icon={<Check className="h-4 w-4" />} title="Today" count={`${todayList.length} open`} />
           <div className="space-y-2">
             {todayList.map((t) => t.kind === 'flag' ? (
@@ -379,7 +393,7 @@ export default function MyDay() {
         </section>
 
         {/* MORE — compact grid, tap a card to expand that section (one at a time, no mega-scroll) */}
-        <section>
+        <section className="lg:col-span-12">
           <SectionTitle icon={<ChevronRight className="h-4 w-4" />} title="More" />
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {moreCards.map((c) => (
@@ -428,18 +442,22 @@ export default function MyDay() {
             <div className="mt-3 rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
               <div className="space-y-2">
                 {upcoming.map((e) => (
-                  <div key={e.id} className="flex items-center justify-between rounded-2xl border border-teal-50 p-3">
-                    <div>
+                  <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-teal-50 p-3.5">
+                    <div className="min-w-0">
                       <div className="text-sm font-bold text-gray-800">{e.title}</div>
                       <div className="text-xs text-gray-400">
                         {new Date(e.start_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {new Date(e.start_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                         {' · '}{e.client_id ? clients.find((c) => c.id === e.client_id)?.name || 'property' : 'Corporate'}
                       </div>
                     </div>
+                    <button onClick={() => deleteEvent(e.id)} className="shrink-0 rounded-lg p-2.5 text-gray-300 transition hover:bg-red-50 hover:text-red-500 active:scale-90" title="Delete event"><X className="h-4 w-4" /></button>
                   </div>
                 ))}
                 {!upcoming.length && <Empty label="No upcoming events" />}
               </div>
+              <button onClick={() => setShowNewEvent(true)} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl py-3 text-xs font-bold text-white shadow-sm transition active:scale-[0.98]" style={{ background: TEAL }}>
+                <Plus className="h-3.5 w-3.5" /> Add event
+              </button>
             </div>
           )}
 
@@ -492,12 +510,12 @@ export default function MyDay() {
             </div>
           )}
         </section>
-        </>
+        </div>
       ) : (
-        <>
+        <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-x-6 lg:space-y-0">
         {/* ===== CLIENT WORKSPACE — focused on one property ===== */}
         {duties.length > 0 && (
-          <section>
+          <section className="lg:col-span-2">
             <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title="Your duties" count={`${duties.length}`} />
             <div className="rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
               {duties.slice(0, 8).map((d, i) => (
@@ -559,13 +577,17 @@ export default function MyDay() {
             <SectionTitle icon={<Flag className="h-4 w-4" />} title="Follow-ups due" count={`${followUps.length}`} />
             <div className="space-y-2">
               {followUps.map((d) => (
-                <div key={d.id} className="flex items-center justify-between rounded-2xl border border-amber-100 bg-amber-50/60 p-3">
-                  <div>
+                <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-100 bg-amber-50/60 p-3.5">
+                  <div className="min-w-0">
                     <div className="text-sm font-semibold text-gray-800">{d.name}</div>
                     <div className="text-xs text-gray-400">Due {d.next_follow_up}</div>
                   </div>
-                  <button onClick={() => act({ action: 'move-pipeline', deal_id: d.id, stage: d.stage, next_follow_up: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10) })}
-                    className="rounded-lg px-2.5 py-1 text-[10px] font-bold text-white" style={{ background: TEAL }}>Snooze 7d</button>
+                  <div className="flex shrink-0 gap-2">
+                    <button onClick={() => act({ action: 'move-pipeline', deal_id: d.id, stage: 'won' })}
+                      className="rounded-lg px-3.5 py-2.5 text-[11px] font-bold text-white transition hover:opacity-90 active:scale-95" style={{ background: '#0E6B60' }}>Won</button>
+                    <button onClick={() => act({ action: 'move-pipeline', deal_id: d.id, stage: d.stage, next_follow_up: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10) })}
+                      className="rounded-lg px-3.5 py-2.5 text-[11px] font-bold text-white transition hover:opacity-90 active:scale-95" style={{ background: TEAL }}>Snooze 7d</button>
+                  </div>
                 </div>
               ))}
               {!followUps.length && <Empty label="Nothing due in the next 3 days" />}
@@ -647,7 +669,7 @@ export default function MyDay() {
         <button onClick={() => setShowNewTask(true)} className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-sm" style={{ background: TEAL }}>
           <Plus className="h-3.5 w-3.5" /> New task
         </button>
-        </>
+        </div>
       )}
       </div>
 
@@ -662,6 +684,8 @@ export default function MyDay() {
             <div className="space-y-2.5">
               <input value={nt.title} onChange={(e) => setNt({ ...nt, title: e.target.value })} placeholder="What needs to happen?"
                 className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
+              <input value={nt.detail} onChange={(e) => setNt({ ...nt, detail: e.target.value })} placeholder="Details (optional)"
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
               <div className="flex gap-2">
                 <select value={nt.client_id} onChange={(e) => setNt({ ...nt, client_id: e.target.value })}
                   className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-teal-400">
@@ -671,7 +695,43 @@ export default function MyDay() {
                 <input type="date" value={nt.due_date} onChange={(e) => setNt({ ...nt, due_date: e.target.value })}
                   className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-teal-400" />
               </div>
+              <div className="flex gap-2">
+                <select value={nt.priority} onChange={(e) => setNt({ ...nt, priority: e.target.value })}
+                  className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-teal-400">
+                  <option value="normal">Normal priority</option>
+                  <option value="high">High priority</option>
+                </select>
+                <select value={nt.assignee_id} onChange={(e) => setNt({ ...nt, assignee_id: e.target.value })}
+                  className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-teal-400">
+                  <option value="">Assign to: me</option>
+                  {team.map((m) => <option key={m.id} value={m.id}>{m.name || 'Teammate'}</option>)}
+                </select>
+              </div>
               <button onClick={addTask} className="w-full rounded-xl py-3 text-sm font-bold text-white shadow-md" style={{ background: `linear-gradient(135deg,#3BBCAC,${TEAL})` }}>Create task</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New event modal */}
+      {showNewEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="font-bold text-gray-900">Add event</div>
+              <button onClick={() => setShowNewEvent(false)}><X className="h-5 w-5 text-gray-400" /></button>
+            </div>
+            <div className="space-y-2.5">
+              <input value={ne.title} onChange={(e) => setNe({ ...ne, title: e.target.value })} placeholder="Event title (e.g. Owner check-in call)"
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
+              <input type="datetime-local" value={ne.start_at} onChange={(e) => setNe({ ...ne, start_at: e.target.value })}
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
+              <select value={ne.client_id} onChange={(e) => setNe({ ...ne, client_id: e.target.value })}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-teal-400">
+                <option value="">Corporate (no property)</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <button onClick={addEvent} className="w-full rounded-xl py-3 text-sm font-bold text-white shadow-md" style={{ background: `linear-gradient(135deg,#3BBCAC,${TEAL})` }}>Add to calendar</button>
             </div>
           </div>
         </div>
@@ -690,8 +750,15 @@ export default function MyDay() {
                 className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
               <input value={nd.property_name} onChange={(e) => setNd({ ...nd, property_name: e.target.value })} placeholder="Notes (e.g. 3 properties, owner met)"
                 className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
-              <input value={nd.value} onChange={(e) => setNd({ ...nd, value: e.target.value })} placeholder="Monthly value ($)"
-                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
+              <div className="flex gap-2">
+                <input value={nd.value} onChange={(e) => setNd({ ...nd, value: e.target.value })} placeholder="Monthly value ($)"
+                  className="flex-1 rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
+                <select value={nd.client_id} onChange={(e) => setNd({ ...nd, client_id: e.target.value })}
+                  className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-teal-400">
+                  <option value="">No property link</option>
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
               <button onClick={addDeal} className="w-full rounded-xl py-3 text-sm font-bold text-white shadow-md" style={{ background: `linear-gradient(135deg,#3BBCAC,${TEAL})` }}>Add to pipeline</button>
             </div>
           </div>
