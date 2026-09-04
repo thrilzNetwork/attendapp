@@ -10,10 +10,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Loader2, Building2, Zap, Users, Bot, Wrench, MessagesSquare, Hammer, LayoutGrid,
-  Check, Send, ClipboardCheck, ShieldCheck,
+  Check, Send, ClipboardCheck, ShieldCheck, Flag, ArrowRight,
 } from 'lucide-react';
 
-const TEAL = '#158A7C';
+const TEAL = '#006077';
 const INK = '#07231F';
 
 type Capability = { key: string; name: string; why: string | null; coverage: string; maturity: string | null; sort_order: number | null };
@@ -136,58 +136,22 @@ export default function HqPanel() {
         <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
-      {/* COMPANY PULSE — only operationally meaningful numbers */}
+      {/* §3 NEEDS YOUR ATTENTION — priority feed: signals + overdue */}
       <section>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {pulse.map((p) => (
-            <div key={p.label} className="rounded-3xl bg-white p-3.5 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
-              <p className="text-2xl font-extrabold" style={{ color: p.warn ? '#B45309' : INK }}>{p.n}</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mt-0.5">{p.label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* MY WORK — what am I supposed to be doing */}
-      <section>
-        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2">
-          <ClipboardCheck className="w-4 h-4" style={{ color: TEAL }} /> My work
-          {overdueCount > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">{overdueCount} overdue</span>}
-        </h2>
-        {d.myTasks.length === 0 ? (
-          <p className="text-sm text-gray-500 bg-white rounded-2xl p-4">Nothing assigned. Clear day.</p>
-        ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-50">
-            {d.myTasks.map((t) => {
-              const late = t.due_date && t.due_date < todayISO;
-              return (
-                <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{t.title}</p>
-                    <p className="text-[11px] text-gray-400">
-                      {t.client?.name || 'Corporate'}{t.due_date ? ` · due ${t.due_date}` : ' · no due date'}{t.priority === 'high' ? ' · HIGH' : ''}
-                    </p>
-                  </div>
-                  <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${late ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {late ? 'OVERDUE' : (t.priority === 'high' ? 'HIGH' : 'OPEN')}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* SIGNALS — every signal has a path to action */}
-      <section>
-        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2">
-          <Zap className="w-4 h-4" style={{ color: TEAL }} /> Signals needing attention
+        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}>
+          <Zap className="w-4 h-4" style={{ color: TEAL }} /> Needs your attention
           {mySigs.length > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">{mySigs.length}</span>}
         </h2>
-        {mySigs.length === 0 ? (
-          <p className="text-sm text-gray-500 bg-white rounded-2xl p-4">No open signals. Quiet building.</p>
+        {mySigs.length === 0 && overdueCount === 0 ? (
+          <p className="text-sm text-gray-500 bg-white rounded-2xl p-4">Nothing needs you right now. Quiet building.</p>
         ) : (
           <div className="space-y-2">
+            {overdueCount > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100" style={{ borderLeft: '3px solid #B45309' }}>
+                <p className="text-[10px] tracking-wide font-semibold text-gray-400 uppercase">My work</p>
+                <p className="text-sm text-gray-800 mt-0.5">{overdueCount} task{overdueCount > 1 ? 's' : ''} overdue — see Today below</p>
+              </div>
+            )}
             {mySigs.map((sig) => (
               <div key={sig.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                 <div className="flex items-start justify-between gap-3">
@@ -215,20 +179,29 @@ export default function HqPanel() {
         )}
       </section>
 
-      {/* MY CAPABILITIES */}
+      {/* §3 TODAY — priorities, deadlines, follow-ups */}
       <section>
-        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2"><Users className="w-4 h-4" style={{ color: TEAL }} /> My capabilities</h2>
-        {myCaps.length === 0 ? (
-          <p className="text-sm text-gray-500 bg-white rounded-2xl p-4">No capabilities assigned yet.</p>
+        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}>
+          <ClipboardCheck className="w-4 h-4" style={{ color: TEAL }} /> Today
+          {overdueCount > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">{overdueCount} overdue</span>}
+        </h2>
+        {d.myTasks.length === 0 ? (
+          <p className="text-sm text-gray-500 bg-white rounded-2xl p-4">Nothing assigned. Clear day.</p>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {myCaps.map((c) => {
-              const cap = d.capabilities.find((x) => x.key === c.key);
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-50">
+            {d.myTasks.map((t) => {
+              const late = t.due_date && t.due_date < todayISO;
               return (
-                <div key={c.key} className="bg-white rounded-full pl-4 pr-2 py-2 shadow-sm border border-gray-100 flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-800">{cap?.name || c.key}</span>
-                  {c.accountable && <ShieldCheck className="w-3.5 h-3.5" style={{ color: TEAL }} />}
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 uppercase">{c.proficiency}</span>
+                <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{t.title}</p>
+                    <p className="text-[11px] text-gray-400">
+                      {t.client?.name || 'Corporate'}{t.due_date ? ` · due ${t.due_date}` : ' · no due date'}{t.priority === 'high' ? ' · HIGH' : ''}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${late ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {late ? 'OVERDUE' : (t.priority === 'high' ? 'HIGH' : 'OPEN')}
+                  </span>
                 </div>
               );
             })}
@@ -236,79 +209,9 @@ export default function HqPanel() {
         )}
       </section>
 
-      {/* MY CLIENTS → WORKSPACES with assigned team */}
-      {d.myClients.length > 0 && (
-        <section>
-          <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2"><Building2 className="w-4 h-4" style={{ color: TEAL }} /> My clients</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {d.myClients.map((c) => {
-              const team = d.teamAssignments.filter((ta) => ta.client_id === c.id);
-              return (
-                <div key={c.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                  <p className="text-sm font-semibold text-gray-900">{c.name}</p>
-                  <p className="text-[11px] text-gray-500">{c.brand || 'Client'}{c.rooms ? ` · ${c.rooms} rooms` : ''}</p>
-                  <p className="text-[11px] text-gray-400 mt-1">{d.clientCapabilities.filter((cc) => cc.client_id === c.id).length} capabilities mapped</p>
-                  {team.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {team.map((ta, i) => {
-                        const u = Array.isArray(ta.corporate_users) ? ta.corporate_users[0] : ta.corporate_users;
-                        return u?.name ? (
-                          <span key={i} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#E8F4F1] text-[#0B3B36]">
-                            {u.name}{u.title ? ` · ${u.title}` : ''}
-                          </span>
-                        ) : null;
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* MY AGENTS */}
+      {/* §3 CONTINUE WORKING — resumable workspaces */}
       <section>
-        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2"><Bot className="w-4 h-4" style={{ color: TEAL }} /> AI agents {isSuper ? `(${d.agents.length})` : 'extending my work'}</h2>
-        <div className="space-y-2">
-          {(isSuper ? d.agents : d.agents.filter((a) => a.mine)).map((a) => (
-            <div key={a.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-gray-900">{a.name}</p>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 uppercase">{a.status}</span>
-              </div>
-              <p className="text-[13px] text-gray-600 mt-1">{a.purpose}</p>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {(a.tools || []).map((t) => <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100">{t}</span>)}
-              </div>
-              {isSuper && (a.actions_require_approval || []).length > 0 && (
-                <p className="text-[11px] text-amber-700 mt-2">⚠ Requires approval: {(a.actions_require_approval || []).join(', ')}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* MY TOOLS */}
-      <section>
-        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2"><Wrench className="w-4 h-4" style={{ color: TEAL }} /> My tools</h2>
-        {d.myTools.length === 0 ? (
-          <p className="text-sm text-gray-500 bg-white rounded-2xl p-4">No tool access assigned yet.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {d.myTools.map((t) => (
-              <div key={t.id} className="bg-white rounded-full px-4 py-2 shadow-sm border border-gray-100 flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-800">{t.name}</span>
-                {t.access_granted && <Check className="w-3.5 h-3.5 text-emerald-600" />}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* SPACES */}
-      <section>
-        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2"><MessagesSquare className="w-4 h-4" style={{ color: TEAL }} /> Spaces</h2>
+        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}><MessagesSquare className="w-4 h-4" style={{ color: TEAL }} /> Continue working</h2>
         <div className="space-y-2">
           {d.spaces.map((s) => {
             const posts = d.spacePosts.filter((p) => p.space_id === s.id);
@@ -357,9 +260,113 @@ export default function HqPanel() {
         </div>
       </section>
 
+      {/* §3 COMPANY PULSE — only operationally meaningful numbers */}
+      <section>
+        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}><Flag className="w-4 h-4" style={{ color: TEAL }} /> Company pulse</h2>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {pulse.map((p) => (
+            <div key={p.label} className="rounded-3xl bg-white p-3.5 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
+              <p className="text-2xl font-extrabold" style={{ color: p.warn ? '#B45309' : INK }}>{p.n}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mt-0.5">{p.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* MY CAPABILITIES */}
+      <section>
+        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}><Users className="w-4 h-4" style={{ color: TEAL }} /> My capabilities</h2>
+        {myCaps.length === 0 ? (
+          <p className="text-sm text-gray-500 bg-white rounded-2xl p-4">No capabilities assigned yet.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {myCaps.map((c) => {
+              const cap = d.capabilities.find((x) => x.key === c.key);
+              return (
+                <div key={c.key} className="bg-white rounded-full pl-4 pr-2 py-2 shadow-sm border border-gray-100 flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-800">{cap?.name || c.key}</span>
+                  {c.accountable && <ShieldCheck className="w-3.5 h-3.5" style={{ color: TEAL }} />}
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 uppercase">{c.proficiency}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* MY CLIENTS → WORKSPACES with assigned team */}
+      {d.myClients.length > 0 && (
+        <section>
+          <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}><Building2 className="w-4 h-4" style={{ color: TEAL }} /> My clients</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {d.myClients.map((c) => {
+              const team = d.teamAssignments.filter((ta) => ta.client_id === c.id);
+              return (
+                <div key={c.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                  <p className="text-sm font-semibold text-gray-900">{c.name}</p>
+                  <p className="text-[11px] text-gray-500">{c.brand || 'Client'}{c.rooms ? ` · ${c.rooms} rooms` : ''}</p>
+                  <p className="text-[11px] text-gray-400 mt-1">{d.clientCapabilities.filter((cc) => cc.client_id === c.id).length} capabilities mapped</p>
+                  {team.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {team.map((ta, i) => {
+                        const u = Array.isArray(ta.corporate_users) ? ta.corporate_users[0] : ta.corporate_users;
+                        return u?.name ? (
+                          <span key={i} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#E8F4F1] text-[#0B3B36]">
+                            {u.name}{u.title ? ` · ${u.title}` : ''}
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* MY AGENTS */}
+      <section>
+        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}><Bot className="w-4 h-4" style={{ color: TEAL }} /> AI agents {isSuper ? `(${d.agents.length})` : 'extending my work'}</h2>
+        <div className="space-y-2">
+          {(isSuper ? d.agents : d.agents.filter((a) => a.mine)).map((a) => (
+            <div key={a.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-gray-900">{a.name}</p>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 uppercase">{a.status}</span>
+              </div>
+              <p className="text-[13px] text-gray-600 mt-1">{a.purpose}</p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {(a.tools || []).map((t) => <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100">{t}</span>)}
+              </div>
+              {isSuper && (a.actions_require_approval || []).length > 0 && (
+                <p className="text-[11px] text-amber-700 mt-2">⚠ Requires approval: {(a.actions_require_approval || []).join(', ')}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* MY TOOLS */}
+      <section>
+        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}><Wrench className="w-4 h-4" style={{ color: TEAL }} /> My tools</h2>
+        {d.myTools.length === 0 ? (
+          <p className="text-sm text-gray-500 bg-white rounded-2xl p-4">No tool access assigned yet.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {d.myTools.map((t) => (
+              <div key={t.id} className="bg-white rounded-full px-4 py-2 shadow-sm border border-gray-100 flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-800">{t.name}</span>
+                {t.access_granted && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* CAPABILITY LIBRARY */}
       <section>
-        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2"><LayoutGrid className="w-4 h-4" style={{ color: TEAL }} /> Capability library
+        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}><LayoutGrid className="w-4 h-4" style={{ color: TEAL }} /> Capability library
           <span className="text-[11px] font-normal text-gray-400">tap coverage to cycle{isSuper ? '' : ' (super admin)'}</span>
         </h2>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-50">
@@ -397,7 +404,7 @@ export default function HqPanel() {
 
       {/* BUILDING ATTENDA */}
       <section>
-        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2"><Hammer className="w-4 h-4" style={{ color: TEAL }} /> Building Attenda</h2>
+        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}><Hammer className="w-4 h-4" style={{ color: TEAL }} /> Building Attenda</h2>
         <div className="space-y-2">
           {d.building.map((p) => (
             <div key={p.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
@@ -453,7 +460,7 @@ export default function HqPanel() {
       {/* PEOPLE (super admin) */}
       {isSuper && d.people.length > 0 && (
         <section>
-          <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2"><Users className="w-4 h-4" style={{ color: TEAL }} /> People</h2>
+          <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}><Users className="w-4 h-4" style={{ color: TEAL }} /> People</h2>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-50">
             {d.people.map((p) => (
               <div key={p.id} className="flex items-center justify-between px-4 py-3">
