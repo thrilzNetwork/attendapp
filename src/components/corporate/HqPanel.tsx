@@ -19,7 +19,7 @@ const INK = '#07231F';
 type Capability = { key: string; name: string; why: string | null; coverage: string; maturity: string | null; sort_order: number | null };
 type MyCap = { key: string; proficiency: string; accountable: boolean };
 type Holder = { key: string; user_id: string; name: string | null; accountable: boolean; proficiency: string };
-type Agent = { id: string; name: string; purpose: string | null; status: string; capabilities: string[] | null; tools: string[] | null; data_permissions: string | null; actions_permitted: string[] | null; actions_require_approval: string[] | null; supervisor_id: string | null; mine: boolean };
+type Agent = { id: string; name: string; purpose: string | null; status: string; capabilities: string[] | null; tools: string[] | null; data_permissions: string | null; actions_permitted: unknown; actions_require_approval: unknown; supervisor_id: string | null; mine: boolean };
 type Tool = { id: string; name: string; category: string | null; why: string | null; url: string | null; access_granted?: boolean; note?: string | null };
 type Space = { id: string; kind: string; title: string; client_id: string | null };
 type SpacePost = { id: string; space_id: string; kind: string; body: string; created_at: string; corporate_users: { name: string | null } | null; hq_agents: { name: string | null } | null };
@@ -56,6 +56,7 @@ const COV_STYLE: Record<string, string> = {
   gap: 'bg-red-100 text-red-700',
 };
 const COV_LABEL: Record<string, string> = { covered: 'COVERED', partial: 'PARTIAL', gap: 'GAP' };
+const asList = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : v ? [String(v)] : []);
 const KIND_ICON: Record<string, string> = { now: '●', win: '▲', gap: '■', opportunity: '◆', update: '○' };
 
 export default function HqPanel() {
@@ -342,10 +343,10 @@ export default function HqPanel() {
               </div>
               <p className="text-[13px] text-gray-600 mt-1">{a.purpose}</p>
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {(a.tools || []).map((t) => <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100">{t}</span>)}
+                {asList(a.tools).map((t) => <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100">{t}</span>)}
               </div>
-              {isSuper && (a.actions_require_approval || []).length > 0 && (
-                <p className="text-[11px] text-amber-700 mt-2">⚠ Requires approval: {(a.actions_require_approval || []).join(', ')}</p>
+              {isSuper && asList(a.actions_require_approval).length > 0 && (
+                <p className="text-[11px] text-amber-700 mt-2">⚠ Requires approval: {asList(a.actions_require_approval).join(' · ')}</p>
               )}
             </div>
           ))}
