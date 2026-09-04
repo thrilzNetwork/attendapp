@@ -74,7 +74,7 @@ export default function HqPanel() {
     const token = s.session?.access_token;
     if (!token) { setError('Session expired'); setLoading(false); return; }
     const hqRes = await fetch(`/api/corporate/hq?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!hqRes.ok) { setError('HQ unavailable'); setLoading(false); return; }
+    if (!hqRes.ok) { setError(`HQ unavailable (${hqRes.status})`); setLoading(false); return; }
     const d: Hq = await hqRes.json();
     setHq(d);
     setLoading(false);
@@ -113,7 +113,12 @@ export default function HqPanel() {
     );
   }
   if (error && !hq) {
-    return <div className="rounded-3xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">{error}</div>;
+    return (
+      <div className="rounded-3xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100 flex items-center justify-between gap-3">
+        <span>{error}</span>
+        <button onClick={() => { setError(null); setLoading(true); load(); }} className="shrink-0 rounded-full bg-white px-3.5 py-2 text-[11px] font-bold ring-1 ring-red-200" style={{ color: '#b91c1c' }}>Retry</button>
+      </div>
+    );
   }
 
   const d = hq;

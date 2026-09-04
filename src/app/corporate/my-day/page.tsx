@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Component, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import HqPanel from '@/components/corporate/HqPanel';
 import {
@@ -21,6 +21,9 @@ type Snapshot = {
   client: Client & { address?: string | null };
   activity: { last7: number; done30: number; pending30: number; inProgress30: number; openNow: number; byType: { type: string; count: number }[] } | null;
   productivity: { score: number; done: number; total: number } | null;
+  property?: { manager_name: string | null; team_photo_url: string | null; room_count: number | null } | null;
+  staffing?: { total: number; active: number; fullTime: number; byDept: Record<string, number> } | null;
+  labor?: { items: { label: string; weeklyHours: number | null; note: string }[]; totalBudgetHours: number; scheduledHours: number | null; utilizationPct: number | null } | null;
   goals: any[];
   team: { id: string; name: string | null; title: string | null }[];
 };
@@ -454,7 +457,7 @@ export default function MyDay() {
 
           <div className="mx-auto max-w-4xl space-y-6 px-4 py-5 md:px-6 md:py-6">
       {scope === 'corporate' ? (
-        <HqPanel />
+        <HqBoundary><HqPanel /></HqBoundary>
       ) : isMyDay ? (
         <div className="space-y-6">
         {/* PROPERTY SNAPSHOT — full width on desktop */}
@@ -468,12 +471,49 @@ export default function MyDay() {
               {!snapLoading && snap && (
                 <>
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="text-base font-extrabold text-gray-900">{snap.client.name}</div>
-                      <div className="text-[11px] text-gray-400">{snap.client.rooms ? `${snap.client.rooms} rooms` : ''}{snap.client.address ? ` · ${snap.client.address}` : ''}</div>
+                    <div className="flex min-w-0 items-start gap-3">
+                      {snap.property?.team_photo_url
+                        ? /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={snap.property.team_photo_url} alt={`${snap.client.name} team`} className="h-16 w-24 shrink-0 rounded-2xl object-cover" />
+                        : <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded-2xl" style={{ background: 'linear-gradient(135deg,#0E6B60,#006077)' }}><Building2 className="h-6 w-6 text-white/80" /></div>}
+                      <div className="min-w-0">
+                        <div className="text-base font-extrabold text-gray-900">{snap.client.name}</div>
+                        <div className="text-[11px] text-gray-400">{snap.client.address || ''}</div>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {snap.client.rooms ? <span className="flex items-center gap-1 rounded-full bg-[#F0F7F5] px-2.5 py-1 text-[10px] font-bold text-[#0B3B36]"><Building2 className="h-3 w-3" style={{ color: TEAL }} />{snap.client.rooms} rooms</span> : null}
+                          {snap.staffing && <span className="flex items-center gap-1 rounded-full bg-[#F0F7F5] px-2.5 py-1 text-[10px] font-bold text-[#0B3B36]"><Users className="h-3 w-3" style={{ color: TEAL }} />{snap.staffing.active} staff{snap.staffing.total > snap.staffing.active ? ` · ${snap.staffing.total} total` : ''}</span>}
+                          {snap.property?.manager_name && <span className="rounded-full bg-[#F0F7F5] px-2.5 py-1 text-[10px] font-bold text-[#0B3B36]">GM · {snap.property.manager_name}</span>}
+                        </div>
+                      </div>
                     </div>
                     <span className="rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider" style={{ background: '#E8F4F1', color: TEAL }}>live</span>
                   </div>
+                  {snap.labor && snap.labor.items.length > 0 && (
+                    <div className="mt-3 rounded-2xl bg-[#F6FAF9] p-3">
+                      <div className="mb-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                        <span>Weekly labor budget</span>
+                        <span style={{ color: TEAL }}>{snap.labor.totalBudgetHours ? `${snap.labor.totalBudgetHours}h budgeted` : ''}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {snap.labor.items.map((li, i) => (
+                          <span key={i} className="rounded-full border border-teal-100 bg-white px-2.5 py-1 text-[10px] font-bold text-gray-600">
+                            {li.label} {li.weeklyHours ? `· ${li.weeklyHours}h/wk` : li.note ? `· ${li.note}` : ''}
+                          </span>
+                        ))}
+                        {snap.staffing && Object.keys(snap.staffing.byDept).length > 0 && Object.entries(snap.staffing.byDept).slice(0, 4).map(([dept, n]) => (
+                          <span key={dept} className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-gray-400 border border-gray-100">{dept} {n}</span>
+                        ))}
+                      </div>
+                      {snap.labor.utilizationPct != null && (
+                        <div className="mt-2">
+                          <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-gray-400"><span className="uppercase tracking-wider">Utilization</span><span style={{ color: TEAL }}>{snap.labor.utilizationPct}% · {snap.labor.scheduledHours}h scheduled</span></div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                            <div className="h-full rounded-full" style={{ width: `${Math.min(snap.labor.utilizationPct, 100)}%`, background: `linear-gradient(90deg,#5ECFC0,${TEAL})` }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {snap.activity ? (
                     <>
                       <div className="mt-3 grid grid-cols-3 gap-2">
@@ -1026,6 +1066,23 @@ function TaskRow({ t, onToggle, badge }: { t: Task; onToggle: () => void; badge?
       {t.due_date && !done && <span className="shrink-0 text-[10px] font-semibold text-gray-400">{t.due_date === today ? 'today' : t.due_date.slice(5)}</span>}
     </button>
   );
+}
+
+class HqBoundary extends Component<{ children: React.ReactNode }, { err: string | null }> {
+  state = { err: null as string | null };
+  static getDerivedStateFromError(e: unknown) { return { err: e instanceof Error ? e.message : 'HQ hit an error' }; }
+  render() {
+    if (this.state.err) {
+      return (
+        <div className="rounded-3xl bg-white p-6 ring-1 ring-red-100">
+          <p className="text-sm font-bold text-gray-900">HQ hit a snag</p>
+          <p className="mt-1 text-xs text-red-600">{this.state.err}</p>
+          <button onClick={() => this.setState({ err: null })} className="mt-3 rounded-xl px-4 py-2.5 text-xs font-bold text-white" style={{ background: TEAL }}>Try again</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 function Empty({ label }: { label: string }) {
