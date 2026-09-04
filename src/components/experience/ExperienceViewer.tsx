@@ -17,12 +17,12 @@ const TEAL = '#158A7C';
 const TEAL_BRIGHT = '#15b79e';
 const MINT = '#E8F4F1';
 const WHITE = '#FFFFFF';
-const WHITE_85 = 'rgba(255,255,255,0.85)';
+const WHITE_85 = 'rgba(255,255,255,0.92)';
 const WHITE_75 = 'rgba(255,255,255,0.75)';
 const WHITE_60 = 'rgba(255,255,255,0.6)';
 const WHITE_45 = 'rgba(255,255,255,0.45)';
 const GLASS_BG = 'rgba(255,255,255,0.055)';
-const IMG_CARD_BG = 'rgba(7,35,31,0.62)';
+const IMG_CARD_BG = 'rgba(7,35,31,0.74)';
 const GLASS_BORDER = 'rgba(255,255,255,0.14)';
 const HEAD_FONT = 'Sora, Plus Jakarta Sans, Inter, sans-serif';
 const SERIF = '"Instrument Serif", Georgia, serif';
@@ -126,10 +126,10 @@ function SceneBackdrop({ blocks, idx }: { blocks: ExperienceBlock[]; idx: number
       {layers.map((l, i) => (
         <div key={l.key} className="exf-bgfade absolute inset-0" style={{ opacity: i === layers.length - 1 ? 1 : 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={l.src} alt="" className="exf-kb h-full w-full object-cover" />
+          <img src={l.src} alt="" className="exf-kb h-full w-full object-cover" style={{ filter: 'blur(6px) brightness(0.72) saturate(0.9)' }} />
         </div>
       ))}
-      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(7,35,31,0.74), rgba(7,35,31,0.5) 42%, rgba(7,35,31,0.93))' }} />
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(7,35,31,0.8), rgba(7,35,31,0.62) 42%, rgba(7,35,31,0.95))' }} />
       <div className="absolute inset-0" style={{ background: 'radial-gradient(900px 480px at 70% 8%, rgba(11,59,54,0.38), transparent 70%)' }} />
     </div>
   );
@@ -222,8 +222,8 @@ function PinnedBg({ src, tall }: { src: string; tall?: boolean }) {
   return (
     <div className={`absolute inset-0 ${tall ? 'min-h-screen' : ''}`} aria-hidden>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" className="exf-kb h-full w-full object-cover" />
-      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(7,35,31,0.66), rgba(7,35,31,0.42) 45%, rgba(7,35,31,0.94))' }} />
+      <img src={src} alt="" className="exf-kb h-full w-full object-cover" style={{ filter: 'blur(6px) brightness(0.72) saturate(0.9)' }} />
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(7,35,31,0.78), rgba(7,35,31,0.6) 45%, rgba(7,35,31,0.95))' }} />
     </div>
   );
 }
@@ -339,7 +339,7 @@ function BlockView({ block, contact, setContact, markStart, handleSubmit, markCo
       return (
         <div className="text-center">
           {p.eyebrow ? <div className="mb-4 text-[11px] font-extrabold uppercase tracking-[0.42em]" style={{ color: TEAL_BRIGHT, textShadow: '0 1px 20px rgba(0,0,0,0.6)' }}>{f('eyebrow')}</div> : null}
-          <h1 className="text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 40px rgba(0,0,0,0.55)' }}>{f('title')}</h1>
+          <h1 className="text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 18px rgba(0,0,0,0.85), 0 0 50px rgba(0,0,0,0.5)' }}>{f('title')}</h1>
           {p.subtitle ? <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed sm:text-base" style={{ color: WHITE_85 }}>{f('subtitle')}</p> : null}
         </div>
       );
@@ -348,7 +348,7 @@ function BlockView({ block, contact, setContact, markStart, handleSubmit, markCo
       return (
         <div className="text-center">
           {p.eyebrow ? <div className="mb-4 text-[11px] font-extrabold uppercase tracking-[0.42em]" style={{ color: TEAL_BRIGHT, textShadow: '0 1px 20px rgba(0,0,0,0.6)' }}>{f('eyebrow')}</div> : null}
-          <h2 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 40px rgba(0,0,0,0.55)' }}>{f('heading')}</h2>
+          <h2 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 18px rgba(0,0,0,0.85), 0 0 50px rgba(0,0,0,0.5)' }}>{f('heading')}</h2>
           {p.body ? <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed sm:text-base" style={{ color: WHITE_85 }}>{f('body')}</p> : null}
         </div>
       );
@@ -357,7 +357,7 @@ function BlockView({ block, contact, setContact, markStart, handleSubmit, markCo
       return (
         <div>
           {p.eyebrow ? <div className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.4em]" style={{ color: TEAL_BRIGHT, textShadow: '0 1px 20px rgba(0,0,0,0.6)' }}>{f('eyebrow')}</div> : null}
-          <h2 className="text-2xl font-extrabold leading-snug tracking-tight sm:text-4xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 40px rgba(0,0,0,0.55)' }}>{f('heading')}</h2>
+          <h2 className="text-2xl font-extrabold leading-snug tracking-tight sm:text-4xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 18px rgba(0,0,0,0.85), 0 0 50px rgba(0,0,0,0.5)' }}>{f('heading')}</h2>
           {p.body ? <p className="mt-4 whitespace-pre-wrap text-[15px] leading-relaxed sm:text-base" style={{ color: WHITE_85 }}>{f('body')}</p> : null}
         </div>
       );
@@ -389,7 +389,7 @@ function BlockView({ block, contact, setContact, markStart, handleSubmit, markCo
     case 'features':
       return (
         <div>
-          {p.heading ? <h2 className="mb-5 text-center text-2xl font-extrabold tracking-tight sm:text-3xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 40px rgba(0,0,0,0.55)' }}>{f('heading')}</h2> : null}
+          {p.heading ? <h2 className="mb-5 text-center text-2xl font-extrabold tracking-tight sm:text-3xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 18px rgba(0,0,0,0.85), 0 0 50px rgba(0,0,0,0.5)' }}>{f('heading')}</h2> : null}
           <div className="grid gap-3 sm:grid-cols-2">
             {(Array.isArray(p.items) ? p.items : []).map((it: { icon?: string; title?: string; body?: string }, i: number) => (
               <div key={i} className="rounded-2xl border p-5 shadow-lg shadow-black/20" style={{ borderColor: GLASS_BORDER, background: cardBg, backdropFilter: cardBlur, WebkitBackdropFilter: cardBlur }}>
@@ -586,7 +586,7 @@ function BlockView({ block, contact, setContact, markStart, handleSubmit, markCo
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full shadow-xl shadow-black/40" style={{ background: `linear-gradient(135deg, ${TEAL_BRIGHT}, ${TEAL})` }}>
             <CheckCircle2 className="h-8 w-8 text-white" />
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 40px rgba(0,0,0,0.55)' }}>{f('heading') || 'You are in.'}</h2>
+          <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 18px rgba(0,0,0,0.85), 0 0 50px rgba(0,0,0,0.5)' }}>{f('heading') || 'You are in.'}</h2>
           {p.body ? <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed" style={{ color: WHITE_85 }}>{f('body')}</p> : null}
         </div>
       );
@@ -629,7 +629,7 @@ if (typeof document !== 'undefined') {
     style.textContent = `
 @keyframes exf{from{opacity:0;transform:translateY(26px) scale(.985);filter:blur(10px)}to{opacity:1;transform:none;filter:blur(0)}}
 .anim-scene{animation:exf .7s cubic-bezier(.22,.61,.36,1) both}
-@keyframes exf-kb{0%{transform:scale(1.03) translateY(0)}100%{transform:scale(1.14) translateY(-2%)}}
+@keyframes exf-kb{0%{transform:scale(1.1) translateY(0)}100%{transform:scale(1.2) translateY(-2%)}}
 .exf-kb{animation:exf-kb 20s ease-out both}
 .exf-bgfade{transition:opacity 1.2s ease}
 .exf-grain{position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.07;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='0.5'/></svg>");background-size:160px 160px}
