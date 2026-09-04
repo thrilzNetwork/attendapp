@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Loader2, Building2, ClipboardCheck, Calendar, TrendingUp, Flag, Users, Plus, X,
-  Check, ChevronRight, LogOut, Home, Megaphone, Target,
+  Check, ChevronRight, LogOut, Home, Megaphone, Target, Send, Image as ImageIcon,
 } from 'lucide-react';
 
 const TEAL = '#158A7C';
@@ -15,6 +15,7 @@ type Deal = { id: string; name: string; property_name: string | null; stage: str
 type Client = { id: string; slug: string; name: string; brand: string | null; rooms: number | null; status: string };
 type Team = { id: string; name: string | null; title: string | null; confirmed_position: string | null };
 type Comment = { id: string; parent_type: string; parent_id: string; author_id: string; body: string; created_at: string };
+type Update = { id: string; client_id: string; author_id: string; body: string; image_path: string | null; created_at: string };
 type Snapshot = {
   client: Client & { address?: string | null };
   activity: { last7: number; done30: number; pending30: number; inProgress30: number; openNow: number; byType: { type: string; count: number }[] } | null;
@@ -54,6 +55,10 @@ export default function MyDay() {
   const [ne, setNe] = useState({ title: '', start_at: '', client_id: '' });
   const [showNewDeal, setShowNewDeal] = useState(false);
   const [nd, setNd] = useState({ name: '', property_name: '', value: '', client_id: '' });
+  const [updates, setUpdates] = useState<Update[]>([]);
+  const [nu, setNu] = useState<{ body: string; image: string | null }>({ body: '', image: null });
+  const [posting, setPosting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [announcements, setAnnouncements] = useState<{ id: string; title: string; body: string; pinned: boolean; created_at: string }[]>([]);
   const [myAssignedTasks, setMyAssignedTasks] = useState<Task[]>([]);
 
@@ -72,6 +77,7 @@ export default function MyDay() {
       const d = await dRes.json();
       setTasks(d.tasks || []); setEvents(d.events || []); setDeals(d.pipeline || []);
       setClients(d.clients || []); setTeam(d.team || []); setComments(d.comments || []);
+      setUpdates(d.updates || []);
     }
     // Company feed (announcements) — silent, non-blocking
     try {
@@ -167,6 +173,16 @@ export default function MyDay() {
   const reports = myTasks.filter((t) => t.kind === 'report');
   const followUps = myDeals.filter((d) => d.next_follow_up && d.stage !== 'won' && d.next_follow_up <= new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10));
   const upcoming = myEvents.filter((e) => e.start_at >= new Date().toISOString()).slice(0, 4);
+  // Property board — shared team updates for the property in focus
+  const boardUpdates = scope !== 'all' && scope !== 'corporate' ? updates.filter((u) => u.client_id === scope).slice(0, 30) : [];
+  const mediaUrl = (p: string) => `https://zhhhyrodqndeyjxveszu.supabase.co/storage/v1/object/public/corporate-media/${p}`;
+  const timeAgo = (iso: string) => {
+    const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
 
   // ONE deduped, prioritized list for My day — every task kind lives here exactly once
   const todayList: Task[] = (() => {
@@ -211,6 +227,35 @@ export default function MyDay() {
     if (!nd.name) return;
     await act({ action: 'create-pipeline', name: nd.name, property_name: nd.property_name || null, value: nd.value ? parseFloat(nd.value) : null, client_id: nd.client_id || null });
     setShowNewDeal(false); setNd({ name: '', property_name: '', value: '', client_id: '' });
+  };
+
+  const postUpdate = async () => {
+    if (!nu.body && !nu.image) return;
+    setPosting(true);
+    try {
+      await act({ action: 'add-update', client_id: scope, body: nu.body || '', image: nu.image || null });
+      setNu({ body: '', image: null });
+    } finally { setPosting(false); }
+  };
+  const onPickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new window.Image();
+      img.onload = () => {
+        const MAX = 1280;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setNu((v) => ({ ...v, image: canvas.toDataURL('image/jpeg', 0.82) }));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
   };
 
   const toggleToday = async (t: Task) => {
@@ -514,6 +559,64 @@ export default function MyDay() {
       ) : (
         <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-x-6 lg:space-y-0">
         {/* ===== CLIENT WORKSPACE — focused on one property ===== */}
+        {/* PROPERTY BOARD — shared team updates: notes + photos, everyone assigned sees everything */}
+        <section className="lg:col-span-2">
+          <SectionTitle icon={<ImageIcon className="h-4 w-4" />} title="Property board" count={`${boardUpdates.length} updates`} />
+          <div className="rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
+            <textarea value={nu.body} onChange={(e) => setNu((v) => ({ ...v, body: e.target.value }))} rows={2}
+              placeholder={`Post an update for the team… what's happening at ${clients.find((c) => c.id === scope)?.name || 'this property'}?`}
+              className="w-full resize-none rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-400" />
+            {nu.image && (
+              <div className="relative mt-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={nu.image} alt="attachment preview" className="max-h-44 w-full rounded-xl object-cover" />
+                <button onClick={() => setNu((v) => ({ ...v, image: null }))} className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white transition active:scale-90" title="Remove photo"><X className="h-3.5 w-3.5" /></button>
+              </div>
+            )}
+            <div className="mt-2.5 flex items-center justify-between gap-2">
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickImage} />
+              <button onClick={() => fileRef.current?.click()}
+                className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3.5 py-2.5 text-[11px] font-bold text-gray-500 transition hover:border-teal-300 hover:text-teal-600 active:scale-95">
+                <ImageIcon className="h-4 w-4" /> Photo
+              </button>
+              <button onClick={postUpdate} disabled={posting || (!nu.body && !nu.image)}
+                className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition active:scale-95 disabled:opacity-40" style={{ background: TEAL }}>
+                {posting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Post to team
+              </button>
+            </div>
+          </div>
+          <div className="mt-2 space-y-2">
+            {boardUpdates.map((u) => {
+              const author = team.find((t) => t.id === u.author_id);
+              const canDelete = u.author_id === me?.user?.id || me?.isSuperAdmin;
+              return (
+                <div key={u.id} className="rounded-2xl bg-white p-3.5 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_8px_20px_-14px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: TEAL }}>{(author?.name || '?')[0]}</div>
+                      <div className="min-w-0">
+                        <div className="truncate text-[13px] font-bold text-gray-800">{author?.name || 'Team member'}</div>
+                        <div className="text-[10px] text-gray-400">{author?.title ? `${author.title} · ` : ''}{timeAgo(u.created_at)}</div>
+                      </div>
+                    </div>
+                    {canDelete && (
+                      <button onClick={() => act({ action: 'delete-update', update_id: u.id })} className="shrink-0 rounded-lg p-2 text-gray-300 transition hover:bg-red-50 hover:text-red-500 active:scale-90" title="Delete update"><X className="h-4 w-4" /></button>
+                    )}
+                  </div>
+                  {u.body && <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-gray-700">{u.body}</p>}
+                  {u.image_path && (
+                    <a href={mediaUrl(u.image_path)} target="_blank" rel="noreferrer" className="mt-2 block">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={mediaUrl(u.image_path)} alt="update photo" loading="lazy" className="max-h-72 w-full rounded-xl object-cover" />
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+            {!boardUpdates.length && <Empty label="No updates yet — post the first note or photo for the team" />}
+          </div>
+        </section>
+
         {duties.length > 0 && (
           <section className="lg:col-span-2">
             <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title="Your duties" count={`${duties.length}`} />

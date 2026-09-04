@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin, getCaller } from '@/lib/supabase-admin';
+import { getSupabaseAdmin, getCaller, isSuperAdmin } from '@/lib/supabase-admin';
 import { noStoreJson } from '@/lib/http';
 
 export const dynamic = 'force-dynamic';
@@ -16,13 +16,14 @@ export async function GET(req: NextRequest) {
   const { data: me } = await db.from('corporate_users').select('*').eq('id', caller.userId).maybeSingle();
   if (!me || !me.active) return NextResponse.json({ error: 'Not a corporate user' }, { status: 403 });
 
-  const [tasks, events, pipeline, clients, team, comments] = await Promise.all([
+  const [tasks, events, pipeline, clients, team, comments, updates] = await Promise.all([
     db.from('corporate_tasks').select('*').order('created_at', { ascending: false }).limit(200),
     db.from('corporate_events').select('*').order('start_at').limit(300),
     db.from('corporate_pipeline').select('*').order('created_at', { ascending: false }),
     db.from('corporate_clients').select('*').order('name'),
     db.from('corporate_users').select('id, name, title, confirmed_position, avatar_url').eq('active', true),
     db.from('corporate_comments').select('*').order('created_at').limit(500),
+    db.from('corporate_property_updates').select('*').order('created_at', { ascending: false }).limit(300),
   ]);
 
   return noStoreJson({
@@ -33,12 +34,14 @@ export async function GET(req: NextRequest) {
     clients: clients.data || [],
     team: team.data || [],
     comments: comments.data || [],
+    updates: updates.data || [],
   });
 }
 
 // POST /api/corporate/data — action-dispatched writes.
 // actions: create-task | toggle-task | create-event | delete-event |
-//          create-pipeline | move-pipeline | add-comment
+//          create-pipeline | move-pipeline | add-comment |
+//          add-update | delete-update
 export async function POST(req: NextRequest) {
   const caller = await getCaller(req);
   if (!caller?.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -119,6 +122,52 @@ export async function POST(req: NextRequest) {
       }).select().single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true, comment: data });
+    }
+
+    if (action === 'add-update') {
+      // Shared property board post — note + optional photo, visible to the whole assigned team.
+      const client_id = b.client_id as string;
+      if (!client_id) return NextResponse.json({ error: 'client_id required' }, { status: 400 });
+      // Membership check: assigned to this property or super admin
+      let allowed = await isSuperAdmin(caller.userId);
+      if (!allowed) {
+        const { data: asg } = await db.from('corporate_client_assignments').select('id')
+          .eq('user_id', me.id).eq('client_id', client_id).eq('active', true).maybeSingle();
+        allowed = !!asg;
+      }
+      if (!allowed) return NextResponse.json({ error: 'Not assigned to this property' }, { status: 403 });
+
+      let image_path: string | null = null;
+      if (b.image && typeof b.image === 'string' && b.image.startsWith('data:image/')) {
+        const m = b.image.match(/^data:image\/([a-z0-9+]+);base64,(.+)$/i);
+        if (!m) return NextResponse.json({ error: 'Invalid image' }, { status: 400 });
+        const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+        const buf = Buffer.from(m[2], 'base64');
+        if (buf.length > 6 * 1024 * 1024) return NextResponse.json({ error: 'Image too large (max 6MB)' }, { status: 413 });
+        const path = `updates/${client_id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error: upErr } = await db.storage.from('corporate-media').upload(path, buf, {
+          contentType: `image/${m[1]}`, upsert: false,
+        });
+        if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+        image_path = path;
+      }
+
+      const { data, error } = await db.from('corporate_property_updates').insert({
+        client_id, author_id: me.id, body: (b.body || '').slice(0, 2000) || '', image_path,
+      }).select().single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, update: data });
+    }
+
+    if (action === 'delete-update') {
+      // Author or super admin only
+      const { data: row } = await db.from('corporate_property_updates').select('id, author_id, image_path').eq('id', b.update_id).maybeSingle();
+      if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      const isAdmin = await isSuperAdmin(caller.userId);
+      if (row.author_id !== me.id && !isAdmin) return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
+      if (row.image_path) await db.storage.from('corporate-media').remove([row.image_path]);
+      await db.from('corporate_property_updates').delete().eq('id', b.update_id);
+      return NextResponse.json({ ok: true });
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
