@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import HqPanel from '@/components/corporate/HqPanel';
 import {
   Loader2, Building2, ClipboardCheck, Calendar, TrendingUp, Flag, Users, Plus, X,
-  Check, ChevronRight, LogOut, Home, Megaphone, Target, Send, Image as ImageIcon, Zap, Info,
+  Check, ChevronRight, LogOut, Home, Megaphone, Target, Send, Image as ImageIcon, Zap, Info, Menu,
 } from 'lucide-react';
 
-const TEAL = '#158A7C';
+const TEAL = '#006077';
 
 type Task = { id: string; title: string; detail: string | null; kind: string; status: string; priority: string; due_date: string | null; client_id: string | null; assignee_id: string | null };
 type Event = { id: string; title: string; detail: string | null; start_at: string; client_id: string | null };
@@ -50,6 +50,7 @@ export default function MyDay() {
   const [team, setTeam] = useState<Team[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [scope, setScope] = useState<string>('all'); // 'all' (My day) | client_id | 'corporate'
+  const [navOpen, setNavOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showNewTask, setShowNewTask] = useState(false);
@@ -369,52 +370,89 @@ export default function MyDay() {
 
   const isMyDay = scope === 'all' || scope === 'corporate';
 
+  // Sidebar body — shared by the desktop rail and the mobile drawer
+  const navBody = (
+    <>
+      <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-base font-black text-white" style={{ background: '#0E6B60' }}>A</div>
+        <div className="min-w-0">
+          <div className="text-sm font-extrabold tracking-tight text-white">Attenda</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-[#7FD4C7]">Corporate</div>
+        </div>
+      </div>
+      <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">
+        <div className="px-2 pb-1 pt-2 text-[9px] font-bold uppercase tracking-[0.18em] text-white/30">Workspace</div>
+        <SideNav icon={<Home className="h-4 w-4" />} label="My day" active={scope === 'all'} onClick={() => { setScope('all'); setExpanded(null); setNavOpen(false); }} />
+        {clients.filter((c) => myClientIds.includes(c.id) || me.isSuperAdmin).length > 0 && (
+          <div className="px-2 pb-1 pt-3 text-[9px] font-bold uppercase tracking-[0.18em] text-white/30">Clients</div>
+        )}
+        {clients.filter((c) => myClientIds.includes(c.id) || me.isSuperAdmin).map((c) => (
+          <SideNav key={c.id} icon={<Building2 className="h-4 w-4" />} label={c.name.split(' ').slice(0, 2).join(' ')} active={scope === c.id} onClick={() => { setScope(c.id); setExpanded(null); setNavOpen(false); }}
+            trailing={c.rooms ? <span className="ml-auto shrink-0 text-[10px] font-bold text-white/30">{c.rooms}</span> : undefined} />
+        ))}
+        <div className="px-2 pb-1 pt-3 text-[9px] font-bold uppercase tracking-[0.18em] text-white/30">Company</div>
+        <SideNav icon={<Zap className="h-4 w-4" />} label="Corporate" active={scope === 'corporate'} onClick={() => { setScope('corporate'); setExpanded(null); setNavOpen(false); }} />
+      </nav>
+      <div className="border-t border-white/10 p-3">
+        <div className="flex items-center gap-2.5 rounded-xl px-2 py-1.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: '#0E6B60' }}>{(me.user.name || '?')[0]}</div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-bold text-white">{me.user.name}</div>
+            <div className="truncate text-[10px] text-white/40">{primary?.title || me.user.title || 'Corporate'}</div>
+          </div>
+          <button onClick={signOut} className="shrink-0 rounded-lg p-2 text-white/40 transition hover:bg-white/10 hover:text-white" title="Sign out"><LogOut className="h-4 w-4" /></button>
+        </div>
+      </div>
+    </>
+  );
+
   return (
-    <div className="min-h-screen bg-[#F6FAF9] pb-24" style={{ backgroundImage: 'radial-gradient(1200px 400px at 50% -80px, rgba(21,134,124,0.09), transparent 70%)' }}>
-      {/* Header — dark command bar */}
-      <div className="sticky top-0 z-20 bg-[#07231F]/95 shadow-[0_12px_32px_-16px_rgba(7,35,31,0.55)] backdrop-blur-md">
-        <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg,#15b79e,#0E6B60 55%,rgba(14,107,96,0))' }} />
-        <div className="mx-auto max-w-3xl px-4 pb-3 pt-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#7FD4C7]">Attenda Corporate</div>
-              <div className="mt-1 text-2xl font-extrabold tracking-tight text-white" style={{ fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}>
-                {greeting}, <span className="text-[#8ADBCD]">{firstName}</span>
+    <div className="min-h-screen bg-[#F6FAF9]" style={{ backgroundImage: 'radial-gradient(1200px 400px at 50% -80px, rgba(21,134,124,0.09), transparent 70%)' }}>
+      {/* Mobile top bar — slim, hamburger opens the sidebar */}
+      <div className="sticky top-0 z-30 flex items-center justify-between bg-[#07231F] px-3 py-2 lg:hidden">
+        <button onClick={() => setNavOpen(true)} className="flex h-11 w-11 items-center justify-center rounded-xl text-white/70 transition hover:bg-white/10 hover:text-white" title="Menu" aria-label="Open menu"><Menu className="h-5 w-5" /></button>
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg text-[11px] font-black text-white" style={{ background: '#0E6B60' }}>A</div>
+          <span className="text-[13px] font-extrabold tracking-tight text-white">Attenda</span>
+        </div>
+        <button onClick={signOut} className="flex h-11 w-11 items-center justify-center rounded-xl text-white/40 transition hover:bg-white/10 hover:text-white" title="Sign out"><LogOut className="h-4 w-4" /></button>
+      </div>
+
+      <div className="flex">
+        {/* Desktop sidebar — dark rail, ChatGPT-style */}
+        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-[#07231F] shadow-[12px_0_32px_-24px_rgba(7,35,31,0.6)] lg:flex">
+          {navBody}
+        </aside>
+
+        {/* Mobile drawer */}
+        {navOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setNavOpen(false)} />
+            <aside className="absolute inset-y-0 left-0 flex w-72 flex-col bg-[#07231F] shadow-2xl">
+              {navBody}
+            </aside>
+          </div>
+        )}
+
+        {/* Content column */}
+        <main className="min-w-0 flex-1 pb-24 lg:pb-6">
+          <div className="mx-auto max-w-4xl px-4 pt-5 md:px-6 md:pt-7">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.28em]" style={{ color: TEAL }}>Attenda Corporate</div>
+                <div className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900" style={{ fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}>
+                  {greeting}, <span style={{ color: TEAL }}>{firstName}</span>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
               {primary && (
-                <span className="rounded-full bg-white/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-[#8ADBCD] ring-1 ring-white/15">
+                <span className="mt-1 shrink-0 rounded-full px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider" style={{ background: '#E8F4F1', color: '#0B3B36' }}>
                   {primary.title}
                 </span>
               )}
-              <button onClick={signOut} className="rounded-lg p-2 text-white/40 transition hover:bg-white/10 hover:text-white" title="Sign out"><LogOut className="h-4 w-4" /></button>
             </div>
           </div>
-          {/* Property switcher — My day = home, tap a property to focus, Corporate = internal-only */}
-          <div className="mt-3.5 flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
-            <button onClick={() => { setScope('all'); setExpanded(null); }}
-              className="flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition"
-              style={scope === 'all' ? { background: '#fff', color: '#07231F', boxShadow: '0 4px 14px -4px rgba(0,0,0,0.4)' } : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.12)' }}>
-              <Home className="h-3 w-3" /> My day
-            </button>
-            {clients.filter((c) => myClientIds.includes(c.id) || me.isSuperAdmin).map((c) => (
-              <button key={c.id} onClick={() => { setScope(c.id); setExpanded(null); }}
-                className="flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition"
-                style={scope === c.id ? { background: '#fff', color: '#07231F', boxShadow: '0 4px 14px -4px rgba(0,0,0,0.4)' } : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.12)' }}>
-                <Building2 className="h-3 w-3" /> {c.name.split(' ').slice(0, 2).join(' ')}{c.rooms ? ` · ${c.rooms}` : ''}
-              </button>
-            ))}
-            <button onClick={() => { setScope('corporate'); setExpanded(null); }}
-              className="flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition"
-              style={scope === 'corporate' ? { background: '#fff', color: '#07231F', boxShadow: '0 4px 14px -4px rgba(0,0,0,0.4)' } : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.12)' }}>
-              Corporate
-            </button>
-          </div>
-        </div>
-      </div>
 
-      <div className="mx-auto max-w-4xl space-y-6 px-4 py-5 md:px-6 md:py-8">
+          <div className="mx-auto max-w-4xl space-y-6 px-4 py-5 md:px-6 md:py-6">
       {scope === 'corporate' ? (
         <HqPanel />
       ) : isMyDay ? (
@@ -858,6 +896,8 @@ export default function MyDay() {
         </div>
       )}
       </div>
+      </main>
+      </div>
 
       {/* New task modal */}
       {showNewTask && (
@@ -990,4 +1030,18 @@ function TaskRow({ t, onToggle, badge }: { t: Task; onToggle: () => void; badge?
 
 function Empty({ label }: { label: string }) {
   return <div className="rounded-2xl border border-dashed border-teal-100 bg-white/50 p-5 text-center text-xs font-medium text-gray-400">{label}</div>;
+}
+
+function SideNav({ icon, label, active, onClick, trailing }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; trailing?: React.ReactNode }) {
+  return (
+    <button onClick={onClick}
+      className={`flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition ${active ? '' : 'hover:bg-white/5'}`}
+      style={active
+        ? { background: 'rgba(21,134,124,0.24)', color: '#fff', boxShadow: 'inset 2px 0 0 #15b79e' }
+        : { color: 'rgba(255,255,255,0.62)' }}>
+      {icon}
+      <span className="truncate">{label}</span>
+      {trailing}
+    </button>
+  );
 }
