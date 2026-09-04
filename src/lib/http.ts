@@ -13,10 +13,14 @@ import { NextResponse } from 'next/server';
  * Every per-user corporate GET (me, data, tasks, onboarding) must return
  * through this helper, otherwise one user's response can be replayed to
  * another (or a stale pre-update body replayed after a write).
+ *
+ * NOTE: we deliberately do NOT set `Netlify-Vary` here. Varying on
+ * `authorization` opts the CDN into per-token caching of /me — the root
+ * cause of the Andrés/Drashti login-loop (one user's /me replayed to
+ * another). With no-store on the response the CDN must not cache at all.
  */
 export function noStoreJson(body: unknown, init?: ResponseInit) {
   const res = NextResponse.json(body as Record<string, unknown>, init);
   res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-  res.headers.set('Netlify-Vary', 'header=authorization,query');
   return res;
 }
