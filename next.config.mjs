@@ -19,6 +19,24 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // Per-user dynamic API routes — Netlify's Durable CDN keys GETs by path
+        // only; without these headers it replays one cached body for all users.
+        // no-store disables the response cache; Netlify-Vary forces the cache key
+        // to include the Authorization header + full query string as a second layer.
+        source: '/api/corporate/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
+          { key: 'Netlify-Vary', value: 'header=authorization,query' },
+        ],
+      },
+      {
+        source: '/api/experience',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
+          { key: 'Netlify-Vary', value: 'header=authorization,query' },
+        ],
+      },
+      {
         source: '/(.*)',
         headers: [
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },

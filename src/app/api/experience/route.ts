@@ -170,6 +170,32 @@ export async function POST(req: NextRequest) {
         id: userId, email, name, phone, active: true, onboarding_completed: false, onboarding_progress: [],
       });
       if (cuErr) console.error('corporate_users upsert failed:', cuErr.message);
+
+      // ── Auto-equip: starter position + Best Western Fort Lauderdale assignment + first-day tasks ──
+      try {
+        const STARTER_POSITION = 'field_ops';
+        const BW_CLIENT_ID = '45884763-7293-4119-82f6-090aad32b4a2';
+        const { data: existingPos } = await db.from('corporate_user_positions').select('position_key').eq('user_id', userId);
+        if (!existingPos || existingPos.length === 0) {
+          await db.from('corporate_user_positions').insert({ user_id: userId, position_key: STARTER_POSITION, authorized_at: new Date().toISOString() });
+        }
+        const { data: existingAssign } = await db.from('corporate_client_assignments').select('id').eq('user_id', userId).eq('client_id', BW_CLIENT_ID).limit(1);
+        if (!existingAssign || existingAssign.length === 0) {
+          await db.from('corporate_client_assignments').insert({ user_id: userId, client_id: BW_CLIENT_ID, position_key: STARTER_POSITION, active: true });
+        }
+        const firstDay = [
+          { title: 'Meet the BW team', detail: 'Say hello to your property lead and get introduced to the team.' },
+          { title: 'Review your property snapshot', detail: 'Open Best Western Fort Lauderdale on your dashboard and study the live numbers.' },
+          { title: 'Complete your first-day checklist', detail: 'Work through the daily audit for Best Western Fort Lauderdale.' },
+        ];
+        await db.from('corporate_tasks').insert(firstDay.map((t) => ({
+          title: t.title, detail: t.detail, kind: 'task', status: 'open', priority: 'normal',
+          owner_user_id: userId, entity_type: 'client', entity_id: BW_CLIENT_ID, entity_label: 'Best Western Fort Lauderdale',
+        })));
+      } catch (e) {
+        console.error('auto-equip failed:', (e as Error).message);
+      }
+
       notifyOnboardedCredentials({ name, email, password }).catch(() => {});
       return NextResponse.json({ ok: true, creds: { username: email, password } });
     } catch {

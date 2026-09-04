@@ -151,6 +151,10 @@ export default function MyDay() {
   const isController = posKeys.includes('controller');
   const isTrainer = posKeys.includes('trainer');
   const isLeader = posKeys.includes('property_leader');
+  // kinds already rendered inside role sections — don't repeat them in "All tasks"
+  const coveredKinds = new Set<string>();
+  if (isField) { coveredKinds.add('checklist'); coveredKinds.add('task'); }
+  if (isController) { coveredKinds.add('report'); coveredKinds.add('flag'); }
 
   const today = new Date().toISOString().slice(0, 10);
   const auditTasks = myTasks.filter((t) => t.kind === 'checklist');
@@ -173,6 +177,8 @@ export default function MyDay() {
 
   const firstName = me?.user?.name?.split(' ')[0] || 'there';
   const primary = positions[0];
+  const hr = new Date().getHours();
+  const greeting = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
 
   if (loading || !me) {
     return (
@@ -482,11 +488,11 @@ export default function MyDay() {
           </div>
         </section>
 
-        {/* ALL TASKS + ADD */}
+      {/* ALL TASKS + ADD — only kinds not already shown in a role section above */}
         <section>
           <SectionTitle icon={<Check className="h-4 w-4" />} title="All tasks" count={`${myTasks.filter((t) => t.status === 'open').length} open`} />
           <div className="space-y-2">
-            {myTasks.filter((t) => !['checklist'].includes(t.kind) || isField || isController).slice(0, 10).map((t) => (
+            {myTasks.filter((t) => (t.kind === 'checklist' ? (isField || isController) : !coveredKinds.has(t.kind))).slice(0, 10).map((t) => (
               <TaskRow key={t.id} t={t} onToggle={() => act({ action: 'toggle-task', task_id: t.id, done: t.status !== 'done' })} />
             ))}
             {!myTasks.length && <Empty label="Nothing yet — add the first task" />}
@@ -496,7 +502,8 @@ export default function MyDay() {
           </button>
         </section>
 
-        {/* CLIENT WORKSPACES */}
+        {/* CLIENT WORKSPACES — picker in All view; hidden inside a specific property scope (switcher already covers it) */}
+        {scope === 'all' && (
         <section>
           <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Clients" />
           <div className="grid gap-2 sm:grid-cols-2">
@@ -510,6 +517,7 @@ export default function MyDay() {
             {!visibleClients.length && <Empty label="No client assignments yet" />}
           </div>
         </section>
+        )}
       </div>
 
       {/* New task modal */}
