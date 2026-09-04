@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Loader2, Building2, ClipboardCheck, Calendar, TrendingUp, Flag, Users, Plus, X,
-  Check, ChevronRight, LogOut, Globe, Megaphone, Target,
+  Check, ChevronRight, LogOut, Home, Megaphone, Target,
 } from 'lucide-react';
 
 const TEAL = '#158A7C';
@@ -32,6 +32,7 @@ type Me = {
 };
 
 const STAGES = ['lead', 'qualified', 'proposal', 'negotiation', 'won'] as const;
+const KIND_BADGE: Record<string, string> = { checklist: 'AUDIT', task: 'TASK', report: 'REPORT', flag: 'FLAG', assigned: 'DELEGATED' };
 
 export default function MyDay() {
   const router = useRouter();
@@ -44,7 +45,8 @@ export default function MyDay() {
   const [clients, setClients] = useState<Client[]>([]);
   const [team, setTeam] = useState<Team[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [scope, setScope] = useState<string>('all'); // 'all' | client_id | 'corporate'
+  const [scope, setScope] = useState<string>('all'); // 'all' (My day) | client_id | 'corporate'
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showNewTask, setShowNewTask] = useState(false);
   const [nt, setNt] = useState({ title: '', client_id: '', due_date: '' });
@@ -127,7 +129,7 @@ export default function MyDay() {
     ? clients.filter((c) => myClientIds.includes(c.id) || me?.isSuperAdmin)
     : clients.filter((c) => c.id === scope);
 
-  // Live inline snapshot — follows the scope switcher (specific client shows that one, All shows first assigned)
+  // Live inline snapshot — follows the scope switcher (specific client shows that one, My day shows first assigned)
   const snapTarget = scope !== 'all' && scope !== 'corporate' ? clients.find((c) => c.id === scope) : (snapshotClients[0] || null);
   useEffect(() => {
     let dead = false;
@@ -151,7 +153,7 @@ export default function MyDay() {
   const isController = posKeys.includes('controller');
   const isTrainer = posKeys.includes('trainer');
   const isLeader = posKeys.includes('property_leader');
-  // kinds already rendered inside role sections — don't repeat them in "All tasks"
+  // kinds already rendered inside role sections (client workspace) — don't repeat them in "Other tasks"
   const coveredKinds = new Set<string>();
   if (isField) { coveredKinds.add('checklist'); coveredKinds.add('task'); }
   if (isController) { coveredKinds.add('report'); coveredKinds.add('flag'); }
@@ -164,6 +166,32 @@ export default function MyDay() {
   const followUps = myDeals.filter((d) => d.next_follow_up && d.stage !== 'won' && d.next_follow_up <= new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10));
   const upcoming = myEvents.filter((e) => e.start_at >= new Date().toISOString()).slice(0, 4);
 
+  // ONE deduped, prioritized list for My day — every task kind lives here exactly once
+  const todayList: Task[] = (() => {
+    const seen = new Set<string>();
+    const rows: Task[] = [];
+    for (const t of [...myTasks, ...myAssignedTasks]) {
+      if (seen.has(t.id) || t.status === 'done') continue;
+      seen.add(t.id);
+      rows.push(t);
+    }
+    return rows.sort((a, b) => {
+      if ((a.priority === 'high') !== (b.priority === 'high')) return a.priority === 'high' ? -1 : 1;
+      if (!!a.due_date !== !!b.due_date) return a.due_date ? -1 : 1;
+      return (a.due_date || '').localeCompare(b.due_date || '');
+    });
+  })();
+  const otherInScope = myTasks.filter((t) => (t.kind === 'checklist' ? !(isField || isController) : !coveredKinds.has(t.kind)));
+
+  // Compact "More" grid — secondary sections collapsed until tapped
+  const moreCards: { key: string; icon: React.ReactNode; label: string; sub: string }[] = [
+    ...(scope === 'all' ? [{ key: 'clients', icon: <Building2 className="h-3.5 w-3.5" />, label: 'Clients', sub: `${visibleClients.length} assigned` }] : []),
+    ...(isSales ? [{ key: 'pipeline', icon: <TrendingUp className="h-3.5 w-3.5" />, label: 'Pipeline', sub: `${myDeals.length} deals · ${followUps.length} due` }] : []),
+    { key: 'calendar', icon: <Calendar className="h-3.5 w-3.5" />, label: 'Calendar', sub: `${upcoming.length} upcoming` },
+    ...(isTrainer ? [{ key: 'team', icon: <Users className="h-3.5 w-3.5" />, label: 'Team', sub: `${team.length} members` }] : []),
+    { key: 'company', icon: <Megaphone className="h-3.5 w-3.5" />, label: 'Company', sub: `${announcements.length} posts` },
+  ];
+
   const addTask = async () => {
     if (!nt.title) return;
     await act({ action: 'create-task', title: nt.title, client_id: nt.client_id || null, due_date: nt.due_date || null });
@@ -173,6 +201,21 @@ export default function MyDay() {
     if (!nd.name) return;
     await act({ action: 'create-pipeline', name: nd.name, property_name: nd.property_name || null, value: nd.value ? parseFloat(nd.value) : null });
     setShowNewDeal(false); setNd({ name: '', property_name: '', value: '' });
+  };
+
+  const toggleToday = async (t: Task) => {
+    if (t.kind === 'assigned') {
+      const { supabase } = await import('@/lib/supabase');
+      const { data: s } = await supabase.auth.getSession();
+      const token = s.session?.access_token;
+      await fetch('/api/corporate/tasks', {
+        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'complete', id: t.id }),
+      }).catch(() => null);
+      load();
+    } else {
+      act({ action: 'toggle-task', task_id: t.id, done: t.status !== 'done' });
+    }
   };
 
   const firstName = me?.user?.name?.split(' ')[0] || 'there';
@@ -188,42 +231,47 @@ export default function MyDay() {
     );
   }
 
+  const isMyDay = scope === 'all' || scope === 'corporate';
+
   return (
-    <div className="min-h-screen bg-[#F6FAF9] pb-24">
-      {/* Header */}
-      <div className="sticky top-0 z-20 border-b border-teal-100 bg-white/90 backdrop-blur">
-        <div className="mx-auto max-w-3xl px-4 py-3">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-[#F6FAF9] pb-24" style={{ backgroundImage: 'radial-gradient(1200px 400px at 50% -80px, rgba(21,134,124,0.09), transparent 70%)' }}>
+      {/* Header — dark command bar */}
+      <div className="sticky top-0 z-20 bg-[#07231F]/95 shadow-[0_12px_32px_-16px_rgba(7,35,31,0.55)] backdrop-blur-md">
+        <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg,#15b79e,#0E6B60 55%,rgba(14,107,96,0))' }} />
+        <div className="mx-auto max-w-3xl px-4 pb-3 pt-4">
+          <div className="flex items-start justify-between">
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: TEAL }}>Attenda Corporate</div>
-              <div className="text-xl font-bold text-gray-900" style={{ fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}>Good morning, {firstName}</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#7FD4C7]">Attenda Corporate</div>
+              <div className="mt-1 text-2xl font-extrabold tracking-tight text-white" style={{ fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}>
+                {greeting}, <span className="text-[#8ADBCD]">{firstName}</span>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {primary && (
-                <span className="rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-white" style={{ background: primary.color }}>
+                <span className="rounded-full bg-white/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-[#8ADBCD] ring-1 ring-white/15">
                   {primary.title}
                 </span>
               )}
-              <button onClick={signOut} className="rounded-lg p-2 text-gray-300 hover:text-gray-500" title="Sign out"><LogOut className="h-4 w-4" /></button>
+              <button onClick={signOut} className="rounded-lg p-2 text-white/40 transition hover:bg-white/10 hover:text-white" title="Sign out"><LogOut className="h-4 w-4" /></button>
             </div>
           </div>
-          {/* Property switcher */}
-          <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
-            <button onClick={() => setScope('all')}
-              className="flex flex-shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-bold"
-              style={scope === 'all' ? { background: TEAL, color: '#fff' } : { background: '#fff', color: '#64748b', border: '1px solid #e4f2ef' }}>
-              <Globe className="h-3 w-3" /> All
+          {/* Property switcher — My day = home, tap a property to focus, Corporate = internal-only */}
+          <div className="mt-3.5 flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+            <button onClick={() => { setScope('all'); setExpanded(null); }}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition"
+              style={scope === 'all' ? { background: '#fff', color: '#07231F', boxShadow: '0 4px 14px -4px rgba(0,0,0,0.4)' } : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <Home className="h-3 w-3" /> My day
             </button>
             {clients.filter((c) => myClientIds.includes(c.id) || me.isSuperAdmin).map((c) => (
-              <button key={c.id} onClick={() => setScope(c.id)}
-                className="flex flex-shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-bold"
-                style={scope === c.id ? { background: TEAL, color: '#fff' } : { background: '#fff', color: '#64748b', border: '1px solid #e4f2ef' }}>
+              <button key={c.id} onClick={() => { setScope(c.id); setExpanded(null); }}
+                className="flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition"
+                style={scope === c.id ? { background: '#fff', color: '#07231F', boxShadow: '0 4px 14px -4px rgba(0,0,0,0.4)' } : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.12)' }}>
                 <Building2 className="h-3 w-3" /> {c.name.split(' ').slice(0, 2).join(' ')}{c.rooms ? ` · ${c.rooms}` : ''}
               </button>
             ))}
-            <button onClick={() => setScope('corporate')}
-              className="flex flex-shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-bold"
-              style={scope === 'corporate' ? { background: TEAL, color: '#fff' } : { background: '#fff', color: '#64748b', border: '1px solid #e4f2ef' }}>
+            <button onClick={() => { setScope('corporate'); setExpanded(null); }}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition"
+              style={scope === 'corporate' ? { background: '#fff', color: '#07231F', boxShadow: '0 4px 14px -4px rgba(0,0,0,0.4)' } : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.12)' }}>
               Corporate
             </button>
           </div>
@@ -231,83 +279,243 @@ export default function MyDay() {
       </div>
 
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-5">
-      {/* PROPERTY SNAPSHOT — live inline, follows scope */}
-      {scope !== 'corporate' && snapTarget && (
-        <section>
-          <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Property snapshot" count={snap?.productivity ? `${snap.productivity.score}% productive` : undefined} />
-          <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-teal-50">
-            {snapLoading && (
-              <div className="flex items-center gap-2 py-6 text-xs text-gray-400"><Loader2 className="h-4 w-4 animate-spin" style={{ color: TEAL }} /> Loading live snapshot…</div>
-            )}
-            {!snapLoading && snap && (
-              <>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="text-base font-extrabold text-gray-900">{snap.client.name}</div>
-                    <div className="text-[11px] text-gray-400">{snap.client.rooms ? `${snap.client.rooms} rooms` : ''}{snap.client.address ? ` · ${snap.client.address}` : ''}</div>
+      {isMyDay ? (
+        <>
+        {/* PROPERTY SNAPSHOT — live inline, follows scope (hidden in Corporate scope) */}
+        {scope !== 'corporate' && snapTarget && (
+          <section>
+            <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Property snapshot" count={snap?.productivity ? `${snap.productivity.score}% productive` : undefined} />
+            <div className="rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
+              {snapLoading && (
+                <div className="flex items-center gap-2 py-6 text-xs text-gray-400"><Loader2 className="h-4 w-4 animate-spin" style={{ color: TEAL }} /> Loading live snapshot…</div>
+              )}
+              {!snapLoading && snap && (
+                <>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-base font-extrabold text-gray-900">{snap.client.name}</div>
+                      <div className="text-[11px] text-gray-400">{snap.client.rooms ? `${snap.client.rooms} rooms` : ''}{snap.client.address ? ` · ${snap.client.address}` : ''}</div>
+                    </div>
+                    <span className="rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider" style={{ background: '#E8F4F1', color: TEAL }}>live</span>
                   </div>
-                  <span className="rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider" style={{ background: '#E8F4F1', color: TEAL }}>live</span>
-                </div>
-                {snap.activity ? (
-                  <>
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      {[['Requests · 7d', snap.activity.last7], ['Done · 30d', snap.activity.done30], ['Open now', snap.activity.openNow]].map(([label, v]) => (
-                        <div key={label as string} className="rounded-2xl bg-[#F6FAF9] p-3">
-                          <div className="text-2xl font-extrabold text-gray-900">{v as number}</div>
-                          <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{label as string}</div>
+                  {snap.activity ? (
+                    <>
+                      <div className="mt-3 grid grid-cols-3 gap-2">
+                        {[['Requests · 7d', snap.activity.last7], ['Done · 30d', snap.activity.done30], ['Open now', snap.activity.openNow]].map(([label, v]) => (
+                          <div key={label as string} className="rounded-2xl bg-[#F6FAF9] p-3">
+                            <div className="text-2xl font-extrabold text-gray-900">{v as number}</div>
+                            <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{label as string}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {snap.productivity && (
+                        <div className="mt-3">
+                          <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-gray-400"><span className="uppercase tracking-wider">Productivity</span><span style={{ color: TEAL }}>{snap.productivity.score}%</span></div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                            <div className="h-full rounded-full" style={{ width: `${snap.productivity.score}%`, background: `linear-gradient(90deg,#5ECFC0,${TEAL})` }} />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="mt-3 rounded-2xl bg-[#F6FAF9] p-3 text-[11px] leading-relaxed text-gray-500">Live guest activity connects here once this property is onboarded on the platform.</div>
+                  )}
+                  {(snap.goals?.length || 0) > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      {snap.goals.slice(0, 2).map((g: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between rounded-xl border border-teal-50 px-3 py-2">
+                          <span className="text-[11px] font-bold text-gray-700">{g.title || g.name || g.metric_name || 'Goal'}</span>
+                          {g.target && <span className="text-[10px] text-gray-400">{g.target}</span>}
                         </div>
                       ))}
                     </div>
-                    {snap.productivity && (
-                      <div className="mt-3">
-                        <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-gray-400"><span className="uppercase tracking-wider">Productivity</span><span style={{ color: TEAL }}>{snap.productivity.score}%</span></div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                          <div className="h-full rounded-full" style={{ width: `${snap.productivity.score}%`, background: `linear-gradient(90deg,#5ECFC0,${TEAL})` }} />
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="mt-3 rounded-2xl bg-[#F6FAF9] p-3 text-[11px] leading-relaxed text-gray-500">Live guest activity connects here once this property is onboarded on the platform.</div>
-                )}
-                {(snap.goals?.length || 0) > 0 && (
-                  <div className="mt-3 space-y-1.5">
-                    {snap.goals.slice(0, 2).map((g: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between rounded-xl border border-teal-50 px-3 py-2">
-                        <span className="text-[11px] font-bold text-gray-700">{g.title || g.name || g.metric_name || 'Goal'}</span>
-                        {g.target && <span className="text-[10px] text-gray-400">{g.target}</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </section>
-      )}
+                  )}
+                </>
+              )}
+            </div>
+          </section>
+        )}
 
-      {/* YOUR DUTIES — compact, per position */}
-      {duties.length > 0 && (
-        <section>
-          <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title="Your duties" count={`${duties.length}`} />
-          <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-teal-50">
-            {duties.slice(0, 8).map((d, i) => (
-              <div key={`${d.position_key}-${i}`} className={i > 0 ? 'mt-2 border-t border-teal-50 pt-2' : ''}>
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-[12px] font-bold text-gray-800">{d.title}</span>
-                  <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-gray-300">{positions.find((p) => p.key === d.position_key)?.title || d.position_key}</span>
+        {/* FOLLOW-UPS DUE — money at risk, always visible */}
+        {followUps.length > 0 && (
+          <section>
+            <SectionTitle icon={<Flag className="h-4 w-4" />} title="Follow-ups due" count={`${followUps.length}`} />
+            <div className="space-y-2">
+              {followUps.map((d) => (
+                <div key={d.id} className="flex items-center justify-between rounded-2xl border border-amber-100 bg-amber-50/60 p-3">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800">{d.name}</div>
+                    <div className="text-xs text-gray-400">Due {d.next_follow_up}</div>
+                  </div>
+                  <button onClick={() => act({ action: 'move-pipeline', deal_id: d.id, stage: d.stage, next_follow_up: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10) })}
+                    className="rounded-lg px-2.5 py-1 text-[10px] font-bold text-white" style={{ background: TEAL }}>Snooze 7d</button>
                 </div>
-                {d.detail && <div className="truncate text-[11px] text-gray-500">{d.detail}</div>}
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* TODAY — one deduped list: audits, tasks, reports, flags, delegated. Nothing repeats. */}
+        <section>
+          <SectionTitle icon={<Check className="h-4 w-4" />} title="Today" count={`${todayList.length} open`} />
+          <div className="space-y-2">
+            {todayList.map((t) => t.kind === 'flag' ? (
+              <div key={t.id} className="rounded-2xl border border-red-100 bg-red-50/50 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-bold text-gray-800">{t.title}</div>
+                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-[9px] font-bold text-red-700">FLAG</span>
+                </div>
+                {t.detail && <div className="mt-0.5 text-xs text-gray-500">{t.detail}</div>}
+                <button onClick={() => act({ action: 'toggle-task', task_id: t.id, done: true })} className="mt-1.5 text-[10px] font-bold" style={{ color: TEAL }}>Mark resolved</button>
               </div>
+            ) : (
+              <TaskRow key={t.id} t={t} badge={KIND_BADGE[t.kind]} onToggle={() => toggleToday(t)} />
+            ))}
+            {!todayList.length && <Empty label="Clean day — nothing open" />}
+          </div>
+          <button onClick={() => setShowNewTask(true)} className="mt-3 flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-sm" style={{ background: TEAL }}>
+            <Plus className="h-3.5 w-3.5" /> New task
+          </button>
+        </section>
+
+        {/* MORE — compact grid, tap a card to expand that section (one at a time, no mega-scroll) */}
+        <section>
+          <SectionTitle icon={<ChevronRight className="h-4 w-4" />} title="More" />
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {moreCards.map((c) => (
+              <button key={c.key} onClick={() => setExpanded(expanded === c.key ? null : c.key)}
+                className={`rounded-2xl bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(7,35,31,0.05),0_8px_20px_-14px_rgba(7,35,31,0.3)] ring-1 transition ${expanded === c.key ? 'ring-teal-300' : 'ring-teal-50/80 hover:-translate-y-px hover:ring-teal-200'}`}>
+                <div className="flex items-center gap-1.5" style={{ color: TEAL }}>
+                  {c.icon}<span className="text-[11px] font-extrabold uppercase tracking-wider">{c.label}</span>
+                </div>
+                <div className="mt-1 text-xs text-gray-500">{c.sub}</div>
+              </button>
             ))}
           </div>
-        </section>
-      )}
 
-      {/* FIELD OPS */}
+          {expanded === 'pipeline' && isSales && (
+            <div className="mt-3 rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
+              <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                {STAGES.map((stage) => (
+                  <div key={stage} className="w-40 flex-shrink-0">
+                    <div className="mb-1.5 border-b-2 pb-1 text-[9px] font-extrabold uppercase tracking-wider text-gray-400" style={{ borderColor: stage === 'won' ? '#0E6B60' : stage === 'proposal' ? '#3BBCAC' : stage === 'qualified' ? '#5ECFC0' : '#94a3b8' }}>{stage}</div>
+                    <div className="space-y-1.5">
+                      {myDeals.filter((d) => d.stage === stage).map((d) => (
+                        <div key={d.id} className="rounded-xl border border-teal-50 bg-white p-2.5 shadow-sm" style={stage === 'won' ? { background: '#E8F4F1' } : {}}>
+                          <div className="text-[11px] font-bold leading-tight text-gray-800">{d.name}</div>
+                          <div className="mt-0.5 text-[9.5px] text-gray-400">
+                            {d.value ? `$${d.value}/mo · ` : ''}{d.next_follow_up ? `follow-up ${d.next_follow_up}` : d.property_name || ''}
+                          </div>
+                          {stage !== 'won' && (
+                            <button onClick={() => act({ action: 'move-pipeline', deal_id: d.id, stage: STAGES[STAGES.indexOf(stage) + 1] })}
+                              className="mt-1 flex items-center gap-0.5 text-[9px] font-bold" style={{ color: TEAL }}>
+                              advance <ChevronRight className="h-2.5 w-2.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => setShowNewDeal(true)} className="mt-2 flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold text-white" style={{ background: TEAL }}>
+                <Plus className="h-3 w-3" /> Add deal
+              </button>
+            </div>
+          )}
+
+          {expanded === 'calendar' && (
+            <div className="mt-3 rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
+              <div className="space-y-2">
+                {upcoming.map((e) => (
+                  <div key={e.id} className="flex items-center justify-between rounded-2xl border border-teal-50 p-3">
+                    <div>
+                      <div className="text-sm font-bold text-gray-800">{e.title}</div>
+                      <div className="text-xs text-gray-400">
+                        {new Date(e.start_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {new Date(e.start_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                        {' · '}{e.client_id ? clients.find((c) => c.id === e.client_id)?.name || 'property' : 'Corporate'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {!upcoming.length && <Empty label="No upcoming events" />}
+              </div>
+            </div>
+          )}
+
+          {expanded === 'company' && (
+            <div className="mt-3 space-y-2">
+              {announcements.slice(0, 4).map((a) => (
+                <div key={a.id} className="rounded-2xl border border-teal-50 bg-white p-4 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    {a.pinned && <span className="rounded-full bg-[#E8F4F1] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider" style={{ color: TEAL }}>Pinned</span>}
+                    <div className="text-sm font-bold text-gray-800">{a.title}</div>
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-gray-500">{a.body}</p>
+                  <div className="mt-1.5 text-[10px] text-gray-300">{new Date(a.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+                </div>
+              ))}
+              {!announcements.length && <Empty label="No announcements yet" />}
+            </div>
+          )}
+
+          {expanded === 'team' && isTrainer && (
+            <div className="mt-3 space-y-2">
+              {team.map((m) => (
+                <div key={m.id} className="flex items-center justify-between rounded-2xl border border-teal-50 bg-white p-3 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_8px_20px_-14px_rgba(7,35,31,0.3)]">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: TEAL }}>{(m.name || '?')[0]}</div>
+                    <div>
+                      <div className="text-sm font-bold text-gray-800">{m.name}</div>
+                      <div className="text-[10px] text-gray-400">{m.title || '—'}</div>
+                    </div>
+                  </div>
+                  <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase"
+                    style={m.confirmed_position ? { background: '#E8F4F1', color: TEAL } : { background: '#fef3c7', color: '#b45309' }}>
+                    {m.confirmed_position ? 'certified' : 'in training'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {expanded === 'clients' && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {visibleClients.map((c) => (
+                <button key={c.id} onClick={() => { setScope(c.id); setExpanded(null); }} className="rounded-2xl bg-white p-4 text-left shadow-[0_1px_2px_rgba(7,35,31,0.05),0_8px_20px_-14px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80 transition hover:-translate-y-px hover:ring-teal-200">
+                  <div className="font-bold text-gray-900">{c.name}</div>
+                  <div className="text-xs text-gray-400">{c.rooms ? `${c.rooms} rooms` : '—'} · {c.brand || c.status}</div>
+                  <div className="mt-1.5 text-[10px] font-bold" style={{ color: TEAL }}>Open workspace →</div>
+                </button>
+              ))}
+              {!visibleClients.length && <Empty label="No client assignments yet" />}
+            </div>
+          )}
+        </section>
+        </>
+      ) : (
+        <>
+        {/* ===== CLIENT WORKSPACE — focused on one property ===== */}
+        {duties.length > 0 && (
+          <section>
+            <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title="Your duties" count={`${duties.length}`} />
+            <div className="rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
+              {duties.slice(0, 8).map((d, i) => (
+                <div key={`${d.position_key}-${i}`} className={i > 0 ? 'mt-2 border-t border-teal-50 pt-2' : ''}>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[12px] font-bold text-gray-800">{d.title}</span>
+                    <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-gray-300">{positions.find((p) => p.key === d.position_key)?.title || d.position_key}</span>
+                  </div>
+                  {d.detail && <div className="truncate text-[11px] text-gray-500">{d.detail}</div>}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {isField && (
           <section>
-            <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title={scope === 'corporate' ? 'Checklists' : 'Daily audit'} count={`${auditTasks.filter((t) => t.status === 'done').length}/${auditTasks.length}`} />
+            <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title="Daily audit" count={`${auditTasks.filter((t) => t.status === 'done').length}/${auditTasks.length}`} />
             <div className="space-y-2">
               {auditTasks.length ? auditTasks.map((t) => <TaskRow key={t.id} t={t} onToggle={() => act({ action: 'toggle-task', task_id: t.id, done: t.status !== 'done' })} />) : <Empty label="No checklist items in this scope yet" />}
             </div>
@@ -319,7 +527,6 @@ export default function MyDay() {
           </section>
         )}
 
-        {/* SALES */}
         {isSales && (
           <section>
             <SectionTitle icon={<TrendingUp className="h-4 w-4" />} title="Pipeline" count={`${myDeals.length} deals`} />
@@ -366,7 +573,6 @@ export default function MyDay() {
           </section>
         )}
 
-        {/* CONTROLLER */}
         {isController && (
           <section>
             <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title="Reports to review" count={`${reports.length}`} />
@@ -391,13 +597,12 @@ export default function MyDay() {
           </section>
         )}
 
-        {/* TRAINER */}
         {isTrainer && (
           <section>
             <SectionTitle icon={<Users className="h-4 w-4" />} title="Team & certification" />
             <div className="space-y-2">
               {team.map((m) => (
-                <div key={m.id} className="flex items-center justify-between rounded-2xl border border-teal-50 bg-white p-3 shadow-sm">
+                <div key={m.id} className="flex items-center justify-between rounded-2xl border border-teal-50 bg-white p-3 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_8px_20px_-14px_rgba(7,35,31,0.3)]">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: TEAL }}>{(m.name || '?')[0]}</div>
                     <div>
@@ -415,13 +620,12 @@ export default function MyDay() {
           </section>
         )}
 
-        {/* LEADER */}
-        {isLeaderCheck(posKeys) && (
+        {isLeader && (
           <section>
             <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Your property" />
             <div className="space-y-2">
               {(visibleClients.length ? visibleClients : clients.slice(0, 1)).map((c) => (
-                <div key={c.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-teal-50">
+                <div key={c.id} className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_8px_20px_-14px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
                   <div className="font-bold text-gray-900">{c.name}</div>
                   <div className="text-xs text-gray-400">{c.rooms} rooms · {c.brand}</div>
                 </div>
@@ -430,94 +634,21 @@ export default function MyDay() {
           </section>
         )}
 
-        {/* COMPANY — announcements feed */}
-        <section>
-          <SectionTitle icon={<Megaphone className="h-4 w-4" />} title="Company" count={announcements.length ? `${announcements.length}` : undefined} />
-          <div className="space-y-2">
-            {announcements.slice(0, 4).map((a) => (
-              <div key={a.id} className="rounded-2xl border border-teal-50 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                  {a.pinned && <span className="rounded-full bg-[#E8F4F1] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider" style={{ color: TEAL }}>Pinned</span>}
-                  <div className="text-sm font-bold text-gray-800">{a.title}</div>
-                </div>
-                <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-gray-500">{a.body}</p>
-                <div className="mt-1.5 text-[10px] text-gray-300">{new Date(a.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
-              </div>
-            ))}
-            {!announcements.length && <Empty label="No announcements yet" />}
-          </div>
-        </section>
-
-        {/* ASSIGNED TO ME — tasks delegated through the corporate task system */}
-        {myAssignedTasks.length > 0 && (
+        {/* OTHER TASKS — only kinds not already shown above, so nothing repeats */}
+        {otherInScope.length > 0 && (
           <section>
-            <SectionTitle icon={<Target className="h-4 w-4" />} title="Assigned to me" count={`${myAssignedTasks.length}`} />
+            <SectionTitle icon={<Check className="h-4 w-4" />} title="Other tasks" count={`${otherInScope.filter((t) => t.status === 'open').length} open`} />
             <div className="space-y-2">
-              {myAssignedTasks.map((t) => (
-                <TaskRow key={t.id} t={t} onToggle={async () => {
-                  const { supabase } = await import('@/lib/supabase');
-                  const { data: s } = await supabase.auth.getSession();
-                  const token = s.session?.access_token;
-                  await fetch('/api/corporate/tasks', {
-                    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'complete', id: t.id }),
-                  }).catch(() => null);
-                  load();
-                }} />
-              ))}
+              {otherInScope.map((t) => <TaskRow key={t.id} t={t} onToggle={() => act({ action: 'toggle-task', task_id: t.id, done: t.status !== 'done' })} />)}
             </div>
           </section>
         )}
 
-        {/* SHARED CALENDAR */}
-        <section>
-          <SectionTitle icon={<Calendar className="h-4 w-4" />} title="Corporate calendar" count={scope === 'all' ? 'all' : undefined} />
-          <div className="space-y-2">
-            {upcoming.map((e) => (
-              <div key={e.id} className="flex items-center justify-between rounded-2xl border border-teal-50 bg-white p-3 shadow-sm">
-                <div>
-                  <div className="text-sm font-bold text-gray-800">{e.title}</div>
-                  <div className="text-xs text-gray-400">
-                    {new Date(e.start_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {new Date(e.start_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                    {' · '}tagged: {e.client_id ? clients.find((c) => c.id === e.client_id)?.name || 'property' : 'Corporate'}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {!upcoming.length && <Empty label="No upcoming events" />}
-          </div>
-        </section>
-
-      {/* ALL TASKS + ADD — only kinds not already shown in a role section above */}
-        <section>
-          <SectionTitle icon={<Check className="h-4 w-4" />} title="All tasks" count={`${myTasks.filter((t) => t.status === 'open').length} open`} />
-          <div className="space-y-2">
-            {myTasks.filter((t) => (t.kind === 'checklist' ? (isField || isController) : !coveredKinds.has(t.kind))).slice(0, 10).map((t) => (
-              <TaskRow key={t.id} t={t} onToggle={() => act({ action: 'toggle-task', task_id: t.id, done: t.status !== 'done' })} />
-            ))}
-            {!myTasks.length && <Empty label="Nothing yet — add the first task" />}
-          </div>
-          <button onClick={() => setShowNewTask(true)} className="mt-3 flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-sm" style={{ background: TEAL }}>
-            <Plus className="h-3.5 w-3.5" /> New task
-          </button>
-        </section>
-
-        {/* CLIENT WORKSPACES — picker in All view; hidden inside a specific property scope (switcher already covers it) */}
-        {scope === 'all' && (
-        <section>
-          <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Clients" />
-          <div className="grid gap-2 sm:grid-cols-2">
-            {visibleClients.map((c) => (
-              <button key={c.id} onClick={() => setScope(c.id)} className="rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-teal-50 hover:ring-teal-200">
-                <div className="font-bold text-gray-900">{c.name}</div>
-                <div className="text-xs text-gray-400">{c.rooms ? `${c.rooms} rooms` : '—'} · {c.brand || c.status}</div>
-                <div className="mt-1.5 text-[10px] font-bold" style={{ color: TEAL }}>Open workspace →</div>
-              </button>
-            ))}
-            {!visibleClients.length && <Empty label="No client assignments yet" />}
-          </div>
-        </section>
-        )}
+        <button onClick={() => setShowNewTask(true)} className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-sm" style={{ background: TEAL }}>
+          <Plus className="h-3.5 w-3.5" /> New task
+        </button>
+        </>
+      )}
       </div>
 
       {/* New task modal */}
@@ -574,32 +705,36 @@ function isLeaderCheck(keys: string[]) { return keys.includes('property_leader')
 
 function SectionTitle({ icon, title, count }: { icon: React.ReactNode; title: string; count?: string }) {
   return (
-    <div className="mb-2 mt-1 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider" style={{ color: TEAL }}>
-      {icon} {title}
-      {count && <span className="ml-auto rounded-full bg-[#E8F4F1] px-2 py-0.5 text-[10px] font-bold normal-case tracking-normal" style={{ color: TEAL }}>{count}</span>}
+    <div className="mb-2.5 mt-1 flex items-center gap-2 px-1">
+      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-teal-100" style={{ color: TEAL }}>
+        {icon}
+      </span>
+      <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#0B3B36]">{title}</span>
+      {count && <span className="ml-auto rounded-full bg-white px-2.5 py-0.5 text-[10px] font-bold shadow-sm ring-1 ring-teal-100 normal-case tracking-normal" style={{ color: TEAL }}>{count}</span>}
     </div>
   );
 }
 
-function TaskRow({ t, onToggle }: { t: Task; onToggle: () => void }) {
+function TaskRow({ t, onToggle, badge }: { t: Task; onToggle: () => void; badge?: string }) {
   const done = t.status === 'done';
   const today = new Date().toISOString().slice(0, 10);
   return (
-    <button onClick={onToggle} className="flex w-full items-center gap-3 rounded-2xl border border-teal-50 bg-white p-3 text-left shadow-sm">
-      <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 ${done ? 'border-teal-600' : 'border-gray-300'}`}
+    <button onClick={onToggle} className="group flex w-full items-center gap-3 rounded-2xl bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(7,35,31,0.05),0_8px_24px_-16px_rgba(7,35,31,0.25)] ring-1 ring-teal-50 transition hover:-translate-y-px hover:shadow-[0_2px_4px_rgba(7,35,31,0.06),0_14px_32px_-16px_rgba(7,35,31,0.3)] hover:ring-teal-100 active:scale-[0.995]">
+      <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 transition ${done ? '' : 'border-gray-300 group-hover:border-teal-400'}`}
         style={done ? { background: TEAL, borderColor: TEAL } : {}}>
         {done && <Check className="h-3.5 w-3.5 text-white" />}
       </div>
       <div className="min-w-0 flex-1">
-        <div className={`truncate text-sm font-semibold ${done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{t.title}</div>
+        <div className={`truncate text-sm font-semibold ${done ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{t.title}</div>
         {t.detail && <div className="truncate text-xs text-gray-400">{t.detail}</div>}
       </div>
-      {t.priority === 'high' && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[9px] font-bold text-red-600">HIGH</span>}
-      {t.due_date && !done && <span className="text-[10px] font-semibold text-gray-400">{t.due_date === today ? 'today' : t.due_date.slice(5)}</span>}
+      {badge && !done && <span className="shrink-0 rounded-full bg-[#F0F7F5] px-2 py-0.5 text-[9px] font-bold text-[#0B3B36] ring-1 ring-teal-50">{badge}</span>}
+      {t.priority === 'high' && <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-[9px] font-bold text-red-600 ring-1 ring-red-100">HIGH</span>}
+      {t.due_date && !done && <span className="shrink-0 text-[10px] font-semibold text-gray-400">{t.due_date === today ? 'today' : t.due_date.slice(5)}</span>}
     </button>
   );
 }
 
 function Empty({ label }: { label: string }) {
-  return <div className="rounded-2xl border border-dashed border-teal-100 bg-white/60 p-4 text-center text-xs text-gray-400">{label}</div>;
+  return <div className="rounded-2xl border border-dashed border-teal-100 bg-white/50 p-5 text-center text-xs font-medium text-gray-400">{label}</div>;
 }
