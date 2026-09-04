@@ -6,10 +6,23 @@ import { Loader2, Plus, X, RefreshCcw, Eye, EyeOff, Check, Copy, ExternalLink } 
 
 const TEAL = '#158A7C';
 
+// Dashboard views — what the super admin can grant each person.
+// Keys must match my-day's can() checks.
+const DASH_VIEWS: { key: string; label: string }[] = [
+  { key: 'property_condition', label: 'Property condition & audits' },
+  { key: 'pipeline', label: 'Pipeline & follow-ups' },
+  { key: 'reports', label: 'Reports & flags' },
+  { key: 'team', label: 'Team & certification' },
+  { key: 'adr_scores', label: 'Scores / ADR' },
+  { key: 'compset', label: 'Comp set' },
+  { key: 'shuttle', label: 'Shuttle ops' },
+];
+
 type Position = { key: string; title: string; description: string | null; color: string; active: boolean };
 type User = {
   id: string; email: string; name: string | null; title: string | null;
   onboarding_completed: boolean; onboarding_progress: string[]; confirmed_position: string | null; active: boolean;
+  status?: string; dashboard_views?: string[];
 };
 type Client = { id: string; slug: string; name: string; brand: string | null; rooms: number | null; status: string; address: string | null; notes?: string | null; pitch_key?: string | null };
 type Page = { slug: string; title: string; audience: string; body: string; sort_order: number; published: boolean };
@@ -311,6 +324,41 @@ export default function CorporateAdmin() {
                           );
                         })}
                         {!clients.length && <span className="text-xs text-gray-400">No clients yet — add one in the Clients tab.</span>}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 border-t border-gray-50 pt-3">
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Dashboard access</div>
+                        <button onClick={async () => {
+                          const next = u.status === 'pending' ? 'active' : 'pending';
+                          await act({ action: 'set-user-status', user_id: u.id, status: next });
+                          load();
+                        }}
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider ring-1 transition ${u.status === 'pending' ? 'bg-amber-50 text-amber-700 ring-amber-200 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-700 ring-emerald-200 hover:bg-emerald-100'}`}>
+                          {u.status === 'pending' ? '⏳ Pending — tap to confirm' : '✓ Active — tap to hold'}
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {DASH_VIEWS.map((v) => {
+                          const cur = Array.isArray(u.dashboard_views) ? u.dashboard_views : [];
+                          const has = cur.includes(v.key);
+                          return (
+                            <button key={v.key} onClick={async () => {
+                              const next = has ? cur.filter((k) => k !== v.key) : [...cur, v.key];
+                              await act({ action: 'set-user-views', user_id: u.id, views: next });
+                              load();
+                            }}
+                              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${has ? 'border-transparent bg-[#0B3B36] text-white' : 'border-gray-200 text-gray-400 hover:border-teal-300 hover:text-teal-600'}`}>
+                              {has ? '👁 ' : '+ '}{v.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-1.5 text-[10px] leading-relaxed text-gray-400">
+                        {Array.isArray(u.dashboard_views) && u.dashboard_views.length
+                          ? 'Curated: they see exactly these sections.'
+                          : 'No views assigned — they see role-based defaults.'}
                       </div>
                     </div>
 

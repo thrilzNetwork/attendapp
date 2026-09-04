@@ -68,7 +68,7 @@ export default function CorporateOnboarding() {
     const token = sess.session?.access_token;
     if (!token) { router.replace('/corporate'); return; }
     const [meRes, obRes] = await Promise.all([
-      fetch('/api/corporate/me', { headers: { Authorization: `Bearer ${token}` } }),
+      await fetch(`/api/corporate/me?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }),
       fetch('/api/corporate/onboarding', { headers: { Authorization: `Bearer ${token}` } }),
     ]);
     if (!meRes.ok) { router.replace('/corporate'); return; }

@@ -20,7 +20,7 @@ export default function CorporateLogin() {
       const { data } = await supabase.auth.getSession();
       if (data.session?.access_token) {
         // Already signed in — check corporate membership server-side.
-        const res = await fetch('/api/corporate/me', {
+        const res = await fetch(`/api/corporate/me?t=${Date.now()}`, {
           headers: { Authorization: `Bearer ${data.session.access_token}` },
         });
         if (res.ok) {
@@ -42,7 +42,7 @@ export default function CorporateLogin() {
     if (err) { setError(err.message); setSigning(false); return; }
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
-    const res = await fetch('/api/corporate/me', { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(`/api/corporate/me?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) {
       setError('This account is not an Attenda Corporate member.');
       await supabase.auth.signOut();

@@ -64,6 +64,8 @@ export async function GET(req: NextRequest) {
   return noStoreJson({
     corporate: true,
     user,
+    status: user.status || 'active',
+    dashboardViews: Array.isArray(user.dashboard_views) ? user.dashboard_views : [],
     authorizedPositions: authorized,
     confirmedPosition: user.confirmed_position, // display-only
     onboardingCompleted: !!user.onboarding_completed,

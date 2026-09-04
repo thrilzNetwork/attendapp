@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attenda Corporate — Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --teal:#158A7C; --teal-b:#15b79e; --mint:#E8F4F1; --ink:#0B3B36;
+    --g1:#5ECFC0; --g2:#1E9E8F; --g3:#3BBCAC; --g4:#0E6B60;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:linear-gradient(160deg,#07231F,#0B3B36 55%,#07231F);font-family:Inter,sans-serif;padding:32px 20px 60px;color:#fff}
+  .head{max-width:1240px;margin:0 auto 26px;text-align:center}
+  .kicker{font-size:11px;font-weight:700;letter-spacing:.25em;text-transform:uppercase;color:var(--g1)}
+  h1{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-size:clamp(22px,4vw,34px);margin:8px 0 6px}
+  .sub{color:rgba(255,255,255,.55);font-size:14px;max-width:640px;margin:0 auto;line-height:1.55}
+  .gallery{display:flex;flex-wrap:wrap;gap:34px;justify-content:center;max-width:1400px;margin:0 auto}
+  .item{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--g1);text-align:center;max-width:340px;line-height:1.5}
+  .label small{display:block;font-weight:500;letter-spacing:0;text-transform:none;color:rgba(255,255,255,.45);margin-top:2px}
+  .phone{width:340px;height:720px;background:#F6FAF9;border-radius:38px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 10px #10231f,0 0 0 12px rgba(94,207,192,.25);position:relative;display:flex;flex-direction:column}
+  .notch{height:26px;background:#07231f;display:flex;justify-content:center;align-items:flex-end;padding-bottom:6px;flex-shrink:0}
+  .notch i{display:block;width:90px;height:5px;border-radius:3px;background:#1c3a35}
+  .scr{flex:1;overflow-y:auto;scrollbar-width:none}
+  .scr::-webkit-scrollbar{display:none}
+  .sticky{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid #d7ece8;padding:12px 16px 10px}
+  .brandline{font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--teal)}
+  .row{display:flex;align-items:center;justify-content:space-between}
+  .htitle{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:700;color:#0f172a;margin-top:2px}
+  .tiny{font-size:10px;color:#94a3b8}
+  .prog{height:6px;border-radius:4px;background:#dcefeb;margin-top:9px;overflow:hidden}
+  .prog i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--g1),var(--teal))}
+  .pad{padding:14px 16px 90px}
+  .card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(15,60,55,.06);border:1px solid #e4f2ef}
+  .chip{display:inline-flex;align-items:center;gap:5px;background:var(--mint);color:var(--teal);font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:99px}
+  .body-t{color:#475569;font-size:12.5px;line-height:1.65;margin-top:10px}
+  .body-t b{color:var(--g4);font-weight:600}
+  .bullet{display:flex;gap:8px;margin-top:8px;font-size:12px;color:#475569;line-height:1.5}
+  .bullet i{width:6px;height:6px;border-radius:99px;background:var(--teal);margin-top:6px;flex-shrink:0}
+  .num{display:flex;gap:9px;margin-top:10px;font-size:12px;color:#475569;line-height:1.5}
+  .num{width:22px;height:22px;border-radius:99px;background:var(--teal);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+  .stat{display:flex;gap:10px;margin-top:10px}
+  .stat div{flex:1;background:var(--mint);border-radius:12px;padding:10px;text-align:center}
+  .stat b{display:block;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;color:var(--g4)}
+  .stat span{font-size:9px;color:#5f8a83;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .btnbar{position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.96);border-top:1px solid #d7ece8;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+  .btn{background:linear-gradient(135deg,var(--g3),var(--teal));color:#fff;font-size:12px;font-weight:700;padding:11px 18px;border-radius:12px;border:none;box-shadow:0 4px 14px rgba(21,138,124,.35)}
+  .btn.ghost{background:none;box-shadow:none;color:#94a3b8;font-weight:600}
+  .check-card{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid #e4f2ef;border-radius:12px;margin-top:8px;background:#fff}
+  .cb{width:20px;height:20px;border-radius:6px;border:2px solid #cbd5e1;flex-shrink:0}
+  .cb.on{background:var(--teal);border-color:var(--teal);position:relative}
+  .cb.on:after{content:'';position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .cc-t{font-size:12px;font-weight:600;color:#1e293b}
+  .cc-s{font-size:10px;color:#94a3b8;margin-top:1px}
+  .pill{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;padding:4px 9px;border-radius:99px;background:#f1f5f9;color:#64748b}
+  .pill.t{background:var(--mint);color:var(--teal)}
+  .pill.a{background:#fef3c7;color:#b45309}
+  .pill.r{background:#fee2e2;color:#b91c1c}
+  .switcher{display:flex;gap:6px;margin-top:8px}
+  .switcher span{font-size:10px;font-weight:600;padding:6px 11px;border-radius:99px;background:#fff;border:1px solid #e4f2ef;color:#64748b}
+  .switcher span.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+  .pipe{display:flex;gap:7px;overflow:hidden;margin-top:10px}
+  .col{flex:1;min-width:0}
+  .col-h{font-size:8.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;padding-bottom:5px;border-bottom:2px solid;margin-bottom:7px}
+  .deal{background:#fff;border:1px solid #e4f2ef;border-radius:10px;padding:8px;margin-bottom:6px}
+  .deal b{font-size:10.5px;color:#1e293b;display:block;line-height:1.3}
+  .deal span{font-size:9px;color:#94a3b8}
+  .avatar{width:34px;height:34px;border-radius:99px;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  /* login */
+  .login{background:linear-gradient(180deg,#0B3B36,#0E4A43 60%,#0B3B36);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;height:100%}
+  .ltile{width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+  .ltile svg{width:28px;height:28px;stroke:var(--g1)}
+  .login h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;color:#fff}
+  .login p{font-size:12px;color:rgba(255,255,255,.55);margin-top:3px}
+  .lcard{background:#fff;border-radius:22px;padding:18px;width:100%;margin-top:22px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .lcard label{font-size:10px;font-weight:600;color:#64748b;display:block;margin-bottom:5px}
+  .inp{width:100%;border:1px solid #e2e8f0;border-radius:11px;padding:11px 12px;font-size:12px;color:#0f172a;background:#fff;margin-bottom:10px;outline:none}
+  .lbtn{width:100%;background:linear-gradient(135deg,var(--g3),var(--teal));border:none;border-radius:11px;padding:12px;color:#fff;font-weight:700;font-size:13px;box-shadow:0 6px 18px rgba(21,138,124,.4)}
+  .hint{font-size:9.5px;color:#94a3b8;text-align:center;margin-top:10px;line-height:1.5}
+  .badge{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.06em;padding:4px 9px;border-radius:99px;color:#fff}
+  .sec-t{font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);margin:14px 0 7px}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .kpi{border:1px solid #e4f2ef;border-radius:12px;padding:9px}
+  .kpi b{display:block;font-size:11px;color:#1e293b}
+  .kpi span{font-size:9.5px;font-weight:800;color:var(--teal)}
+  .jumpnav{position:sticky;top:0;z-index:50;display:flex;gap:6px;overflow-x:auto;max-width:1240px;margin:0 auto 18px;padding:10px 12px;background:rgba(7,35,31,.92);backdrop-filter:blur(8px);border:1px solid rgba(94,207,192,.22);border-radius:14px;scrollbar-width:none}
+  .jumpnav::-webkit-scrollbar{display:none}
+  .jumpnav a{flex-shrink:0;font-size:11px;font-weight:700;color:#5ECFC0;text-decoration:none;padding:8px 13px;border-radius:99px;background:rgba(94,207,192,.08);border:1px solid rgba(94,207,192,.18)}
+  .jumpnav a.hot{background:#5ECFC0;color:#07231F;border-color:#5ECFC0}
+  .foot{max-width:900px;margin:36px auto 0;text-align:center;color:rgba(255,255,255,.4);font-size:12px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="head">
+  <div class="kicker">Attenda Corporate · Internal Workspace</div>
+  <h1>The digital corporate office — screen preview</h1>
+  <p class="sub">Onboarding gates access · Super admin grants positions · Confirmation never grants permissions · My Day is built per role &amp; client assignment · Client #2 is just a new record.</p>
+</div>
+
+<div class="jumpnav"><a class="hot" href="#s2">▶ ONBOARDING</a><a href="#s1">Login</a><a href="#s3">Case study</a><a href="#s4">Confirm position</a><a href="#s5">My Day · Juan</a><a href="#s6">My Day · Su</a><a href="#s7">My Day · Drashti</a><a href="#s8">Super admin</a><a href="#s9">Client workspace</a></div>
+
+<div class="gallery">
+
+  <!-- 1 LOGIN -->
+  <div class="item" id="s1">
+    <div class="label">1 · Login<span>Grants controlled by super admin only</small></div>
+    <div class="phone"><div class="notch"><i></i></div>
+      <div class="scr">
+        <div class="login">
+          <div class="ltile"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5M9 11h.01M15 11h.01M9 15h.01M15 15h.01"/></svg></div>
+          <h2>Attenda Corporate</h2>
+          <p>The digital corporate office</p>
+          <div class="lcard">
+            <label>Work email</label>
+            <div class="inp" style="color:#94a3b8">juan@attenda.com</div>
+            <label>Password</label>
+            <div class="inp" style="color:#94a3b8">••••••••</div>
+            <button class="lbtn">Sign in</button>
+            <div class="hint">Access is granted by the super admin. Onboarding must be completed before the workspace unlocks.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="label" style="letter-spacing:.02em;text-transform:none;font-weight:500;color:rgba(255,255,255,.4)">Dark teal, premium, zero HR-software vibes</div>
+  </div>
+
+  <!-- 2 ONBOARDING WELCOME -->
+  <div class="item" id="s2">
+    <div class="label">2 · Onboarding — Welcome<small>Universal page · gates all access</small></div>
+    <div class="phone"><div class="notch"><i></i></div>
+      <div class="scr">
+        <div class="sticky">
+          <div class="row"><div><div class="brandline">Attenda Corporate</div><div class="htitle">Welcome to Attenda</div></div>
+          <div style="text-align:right"><div style="font-size:11px;font-weight:700;color:#64748b">1/8 read</div><div class="tiny">Onboarding</div></div></div>
+          <div class="prog"><i style="width:12%"></i></div>
+        </div>
+        <div class="pad">
+          <div class="card">
+            <span class="chip chip-t">Everyone</span>
+            <div class="body-t">You are here because you run things. Attenda Corporate is the internal workspace where our team operates every client property from one place — one login, every property, zero chaos.</div>
+            <div class="bullet"><i></i><span><b>The digital corporate office.</b> Tasks, calendars, checklists, reports and client records live here, not in text threads.</span></div>
+            <div class="bullet"><i></i><span><b>One company, many properties.</b> You will be assigned to the clients you serve. Switch between them without switching logins.</span></div>
+            <div class="bullet"><i></i><span><b>Your role, your tools.</b> What you see is shaped by your position. Nothing generic. Nothing you do not need.</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="btnbar"><button class="btn ghost">Back</button><button class="btn">Mark read →</button></div>
+    </div>
+  </div>
+
+  <!-- 3 CASE STUDY -->
+  <div class="item" id="s3">
+    <div class="label">3 · Case Study — Best Western<small>Stored as CMS content · editable by super admin</small></div>
+    <div class="phone"><div class="notch"><i></i></div>
+      <div class="scr">
+        <div class="sticky">
+          <div class="row"><div><div class="brandline">Attenda Corporate</div><div class="htitle">Case Study: Best Western</div></div>
+          <div style="text-align:right"><div style="font-size:11px;font-weight:700;color:#64748b">5/8 read</div><div class="tiny">Onboarding</div></div></div>
+          <div class="prog"><i style="width:62%"></i></div>
+        </div>
+        <div class="pad">
+          <div class="card">
+            <span class="chip chip-t">Everyone</span>
+            <div class="body-t">Our flagship result. The client property was sliding: guest satisfaction collapsing, revenue flat, no operating rhythm.</div>
+            <div class="body-t" style="font-weight:600;color:#1e293b">In 30 days:</div>
+            <div class="stat">
+              <div><b>74.4 → 80+</b><span>Satisfaction</span></div>
+              <div><b>$3,300/mo</b><span>New revenue</span></div>
+            </div>
+            <div class="bullet"><i></i><span>Daily audits, checklists and escalation paths installed — the property now runs on rhythm, not reaction.</span></div>
+            <div class="bullet"><i></i><span>Every new client gets the same treatment: audit first, rhythm second, revenue third.</span></div>
+          </div>
+          <div class="sec-t" style="margin-top:12px">Coming up</div>
+          <div class="card" style="padding:12px"><div class="cc-t">Next: The Vision → Startup Expectations → Confirm position</div><div class="cc-s">Progress saves automatically as you read</div></div>
+        </div>
+      </div>
+      <div class="btnbar"><button class="btn ghost">Back</button><button class="btn">Mark read →</button></div>
+    </div>
+  </div>
+
+  <!-- 4 POSITION CONFIRM -->
+  <div class="item" id="s4">
+    <div class="label">4 · Position Confirmation<small>Preselected when single · never grants permissions</small></div>
+    <div class="phone"><div class="notch"><i></i></div>
+      <div class="scr">
+        <div class="sticky">
+          <div class="row"><div><div class="brandline">Attenda Corporate</div><div class="htitle">Confirm your position</div></div>
+          <div style="text-align:right"><div style="font-size:11px;font-weight:700;color:#64748b">8/8 read</div><div class="tiny">Last step</div></div></div>
+          <div class="prog"><i style="width:100%"></i></div>
+        </div>
+        <div class="pad">
+          <div class="card">
+            <div class="body-t" style="margin-top:0">Your position was set by the super admin. Confirmation records your role for display — it never grants permissions.</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;border:2px solid var(--teal);background:var(--mint);border-radius:14px;padding:13px;margin-top:12px">
+              <div><div style="font-size:13px;font-weight:700;color:#0f172a">Field Operations Manager</div><div class="cc-s">Authorized for you</div></div>
+              <div style="width:24px;height:24px;border-radius:99px;background:var(--teal);position:relative"><i style="position:absolute;left:8px;top:5px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)"></i></div>
+            </div>
+            <button class="btn" style="width:100%;margin-top:12px;text-align:center">Confirm Field Operations Manager</button>
+            <div class="hint" style="margin-top:12px">Only roles authorized by the super admin appear here. If only one role is authorized, it is preselected.</div>
+          </div>
+        </div>
+      </div>
+      <div class="btnbar"><button class="btn ghost">Back</button><button class="btn">✓ Enter Attenda Corporate</button></div>
+    </div>
+  </div>
+
+  <!-- 5 MY DAY — JUAN -->
+  <div class="item" id="s5">
+    <div class="label">5 · My Day — Juan (Field Ops)<small>Dynamically built per role + client assignments</small></div>
+    <div class="phone"><div class="notch"><i></i></div>
+      <div class="scr">
+        <div class="sticky">
+          <div class="row"><div><div class="brandline">Attenda Corporate</div><div class="htitle">Good morning, Juan</div></div>
+          <span class="badge" style="background:var(--teal)">FIELD OPS</span></div>
+          <div class="switcher"><span class="on">🏨 Best Western · 54</span><span>+ Corporate</span></div>
+        </div>
+        <div class="pad">
+          <div class="sec-t" style="margin-top:0">Daily audit — BW 10272</div>
+          <div class="check-card"><div class="cb on"></div><div><div class="cc-t">Walk lobby + entrance</div><div class="cc-s">Photo log attached · 7:42 AM</div></div></div>
+          <div class="check-card"><div class="cb on"></div><div><div class="cc-t">Breakfast area check</div><div class="cc-s">Verified against checklist</div></div></div>
+          <div class="check-card"><div class="cb"></div><div><div class="cc-t">Room 214 post-maintenance inspection</div><div class="cc-s">Work order #WO-118 · due today</div></div></div>
+          <div class="check-card"><div class="cb"></div><div><div class="cc-t">Parking program revenue verify</div><div class="cc-s">Daily · reconcile with Controller</div></div></div>
+          <div class="sec-t">Property visits</div>
+          <div class="card" style="padding:12px"><div class="row"><div class="cc-t">BW Fort Lauderdale — full walk</div><span class="pill a">SCHEDULED</span></div><div class="cc-s">Tomorrow 9:00 AM · checklist auto-attached</div></div>
+          <div class="sec-t">Tasks &amp; escalations</div>
+          <div class="card" style="padding:12px"><div class="row"><div class="cc-t">Escalate: elevator service delay</div><span class="pill r">HIGH</span></div><div class="cc-s">Tagged: Best Western · comment thread active</div></div>
+        </div>
+      </div>
+      <div class="btnbar"><span class="pill t">3 of 4 audit items</span><button class="btn">+ Log</button></div>
+    </div>
+  </div>
+
+  <!-- 6 MY DAY — SU -->
+  <div class="item" id="s6">
+    <div class="label">6 · My Day — Su (Sales &amp; BD)<small>Pipeline + follow-ups</small></div>
+    <div class="phone"><div class="notch"><i></i></div>
+      <div class="scr">
+        <div class="sticky">
+          <div class="row"><div><div class="brandline">Attenda Corporate</div><div class="htitle">Good morning, Su</div></div>
+          <span class="badge" style="background:var(--g3)">SALES &amp; BD</span></div>
+          <div class="switcher"><span class="on">Pipeline</span><span>Follow-ups</span><span>Corporate</span></div>
+        </div>
+        <div class="pad">
+          <div class="sec-t" style="margin-top:0">Pipeline</div>
+          <div class="pipe">
+            <div class="col"><div class="col-h" style="border-color:#94a3b8">Lead</div>
+              <div class="deal"><b>Casa Marina Group</b><span>3 properties · follow-up Fri</span></div></div>
+            <div class="col"><div class="col-h" style="border-color:var(--g1)">Qualified</div>
+              <div class="deal"><b>Sunrise Inn · Dania</b><span>HOT · owner met</span></div></div>
+            <div class="col"><div class="col-h" style="border-color:var(--g3)">Proposal</div>
+              <div class="deal"><b>BW Pembroke Pines</b><span>$497/mo · sent Tue</span></div></div>
+            <div class="col"><div class="col-h" style="border-color:var(--g4)">Won</div>
+              <div class="deal" style="background:var(--mint)"><b style="color:var(--g4)">Best Western 10272</b><span>Flagship client ✓</span></div></div>
+          </div>
+          <div class="sec-t">Follow-ups due</div>
+          <div class="card" style="padding:12px"><div class="row"><div><div class="cc-t">Casa Marina — send deck v2</div><div class="cc-s">Due tomorrow · @Alejandro tagged</div></div><span class="pill a">DUE</span></div></div>
+          <div class="card" style="padding:12px;margin-top:8px"><div class="row"><div><div class="cc-t">Sunrise Inn — schedule walkthrough</div><div class="cc-s">Due Thu · tag: Best Western</div></div><span class="pill t">ON TRACK</span></div></div>
+        </div>
+      </div>
+      <div class="btnbar"><span class="pill t">4 deals moving</span><button class="btn">+ Deal</button></div>
+    </div>
+  </div>
+
+  <!-- 7 MY DAY — DRASHTI -->
+  <div class="item" id="s7">
+    <div class="label">7 · My Day — Drashti (Controller)<small>Reports to review + flags</small></div>
+    <div class="phone"><div class="notch"><i></i></div>
+      <div class="scr">
+        <div class="sticky">
+          <div class="row"><div><div class="brandline">Attenda Corporate</div><div class="htitle">Good morning, Drashti</div></div>
+          <span class="badge" style="background:var(--g4)">CONTROLLER</span></div>
+          <div class="switcher"><span class="on">All clients</span><span>Best Western</span><span>Corporate</span></div>
+        </div>
+        <div class="pad">
+          <div class="sec-t" style="margin-top:0">Daily audit review</div>
+          <div class="card" style="padding:12px"><div class="row"><div><div class="cc-t">BW 10272 — morning audit</div><div class="cc-s">Submitted 8:05 AM by Juan · pending review</div></div><span class="pill a">REVIEW</span></div></div>
+          <div class="sec-t">Flags</div>
+          <div class="card" style="padding:12px"><div class="row"><div><div class="cc-t">Rate variance vs compset — BW weekend</div><div class="cc-s">−$9 ADR gap · flagged by field</div></div><span class="pill r">FLAG</span></div></div>
+          <div class="card" style="padding:12px;margin-top:8px"><div class="row"><div><div class="cc-t">Parking revenue up 12% MoM</div><div class="cc-s">Reconciled · include in owner pack</div></div><span class="pill t">OK</span></div></div>
+          <div class="sec-t">Calendar ownership</div>
+          <div class="card" style="padding:12px"><div class="row"><div><div class="cc-t">Monthly owner presentation</div><div class="cc-s">Sep 5 · shared corporate calendar</div></div><span class="pill t">DAY 5 ✓</span></div></div>
+        </div>
+      </div>
+      <div class="btnbar"><span class="pill t">1 audit to review</span><button class="btn">Review</button></div>
+    </div>
+  </div>
+
+  <!-- 8 SUPER ADMIN -->
+  <div class="item" id="s8">
+    <div class="label">8 · Super Admin Console<small>Positions · clients · content · onboarding resets</small></div>
+    <div class="phone"><div class="notch"><i></i></div>
+      <div class="scr">
+        <div class="sticky">
+          <div class="row"><div><div class="brandline">Attenda Corporate</div><div class="htitle">Super Admin</div></div>
+          <div><span class="pill t">Users</span> <span class="pill">Clients</span> <span class="pill">Content</span></div>
+        </div>
+        <div class="pad">
+          <div class="sec-t" style="margin-top:0">Team member</div>
+          <div class="card">
+            <div class="row"><div style="display:flex;gap:10px;align-items:center"><div class="avatar" style="background:var(--teal)">J</div><div><div style="font-size:13px;font-weight:700;color:#0f172a">Juan</div><div class="cc-s">juan@attenda.com · Field Ops</div></div></div><span class="pill t">DONE</span></div>
+            <div class="sec-t">Authorized positions</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <span class="pill t">✓ Field Operations Manager</span>
+              <span class="pill">+ Sales &amp; BD</span>
+              <span class="pill">+ Controller</span>
+              <span class="pill">+ Trainer</span>
+              <span class="pill">+ Property Leader</span>
+            </div>
+            <div class="sec-t">Assigned clients</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <span class="pill t">✓ Best Western · 54 rooms</span>
+              <span class="pill" style="border:1px dashed #cbd5e1;background:#fff">+ assign client</span>
+            </div>
+            <div class="sec-t">Controls</div>
+            <div style="display:flex;gap:6px"><span class="pill">↺ Reset onboarding</span><span class="pill">👁 Deactivate</span></div>
+          </div>
+          <div class="sec-t">Add client #2</div>
+          <div class="card" style="padding:12px;border:1px dashed #b8ddd6;background:#fbfefd">
+            <div class="cc-t" style="color:var(--g4)">Just create a client record + assign staff.</div>
+            <div class="cc-s">No new corporate onboarding. The system absorbs the growth.</div>
+          </div>
+        </div>
+      </div>
+      <div class="btnbar"><span class="pill t">1 user · 1 client</span><button class="btn">+ Add member</button></div>
+    </div>
+  </div>
+
+  <!-- 9 CLIENT WORKSPACE -->
+  <div class="item" id="s9">
+    <div class="label">9 · Client Workspace<small>Clients → Best Western · global property switcher</small></div>
+    <div class="phone"><div class="notch"><i></i></div>
+      <div class="scr">
+        <div class="sticky">
+          <div class="row"><div><div class="brandline">Clients</div><div class="htitle">Best Western Fort Lauderdale</div></div>
+          <span class="pill t">ACTIVE</span></div>
+          <div class="switcher"><span class="on">Overview</span><span>Tasks</span><span>Calendar</span><span>KPIs</span></div>
+        </div>
+        <div class="pad">
+          <div class="stat" style="margin-top:0">
+            <div><b>54</b><span>Rooms</span></div>
+            <div><b>80+</b><span>Satisfaction</span></div>
+            <div><b>$3.3K</b><span>New rev / mo</span></div>
+          </div>
+          <div class="sec-t">Attached record</div>
+          <div class="card" style="padding:12px"><div class="cc-t">840 W State Road 84, Fort Lauderdale FL</div><div class="cc-s">Linked to live property record · anchor case study</div></div>
+          <div class="sec-t">Shared corporate calendar (tagged)</div>
+          <div class="card" style="padding:12px"><div class="row"><div><div class="cc-t">Fire inspection</div><div class="cc-s">Sep 12 · tagged: Best Western</div></div><span class="pill a">SOON</span></div></div>
+          <div class="card" style="padding:12px;margin-top:8px"><div class="row"><div><div class="cc-t">Team sync — parking program</div><div class="cc-s">Sep 8 · tagged: Corporate</div></div><span class="pill t">WEEKLY</span></div></div>
+          <div class="sec-t">Team on this client</div>
+          <div style="display:flex;gap:8px">
+            <div class="avatar" style="background:var(--teal)">J</div>
+            <div class="avatar" style="background:var(--g4)">D</div>
+            <div class="avatar" style="background:var(--g3)">F</div>
+            <div class="avatar" style="background:#1C9284">DQ</div>
+          </div>
+        </div>
+      </div>
+      <div class="btnbar"><span class="pill t">4 assigned</span><button class="btn">Open property tools</button></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="foot">
+  <b style="color:rgba(255,255,255,.6)">Static design preview</b> of the Corporate Staff system now being built into attendaapp.com.<br>
+  Live build status: data model ✅ · APIs ✅ · login + onboarding ✅ · super admin console + My Day in progress.<br>
+  Copy shown is pulled from the real CMS seed content.
+</div>
+
+</body>
+</html>

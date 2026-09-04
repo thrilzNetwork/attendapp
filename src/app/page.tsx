@@ -356,7 +356,7 @@ function AttendaLandingPage() {
             <a href="#modules" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Product</a>
             <a href="#revenue" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Case Study</a>
             <a href="/blog" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Field Notes</a>
-            <a href="#founder" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">About</a>
+            <a href="/about" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">About</a>
             <a href="/staff" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Log in</a>
             <button onClick={() => scrollTo(enrollRef)}
               className="px-5 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all active:scale-[0.97] shadow-sm"
@@ -388,14 +388,14 @@ function AttendaLandingPage() {
           <div className="max-w-xl">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border border-white/20 bg-white/10 backdrop-blur-sm animate-scale-in" style={{ animationDelay: '0.1s' }}>
               <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-              <span className="text-[12px] font-bold text-white/90 tracking-wide uppercase">Shuttle operations, live</span>
+              <span className="text-[12px] font-bold text-white/90 tracking-wide uppercase">One operating system for hotels</span>
             </div>
             <h1 className="text-[40px] md:text-[58px] lg:text-[64px] leading-[1.04] font-black tracking-tight text-white mb-6 animate-scale-in" style={{ animationDelay: '0.2s', textShadow: '0 2px 18px rgba(0,0,0,0.5)' }}>
-              Stop answering<br />
-              <span style={{ color: '#5eead4' }}>"where's the shuttle?"</span>
+              Hotel operations,<br />
+              <span style={{ color: '#5eead4' }}>finally in one place.</span>
             </h1>
             <p className="text-[18px] text-white leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s', textShadow: '0 1px 12px rgba(0,0,0,0.6)' }}>
-              Attenda gives airport and cruise-port hotels a live shuttle schedule and guest-service workflow — without a PMS replacement, guest app, or in-room QR. Guests schedule their return through a welcome letter, lobby station, or text link. Your staff gets one live board. Live in 11 days.
+              Attenda is one operating system for hotels — guest requests, housekeeping, maintenance, transportation, schedules, knowledge, and revenue moments in a single platform your whole team can actually use. Built by hotel operators, not consultants. No PMS replacement. Live in days, not months.
             </p>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-scale-in" style={{ animationDelay: '0.4s' }}>
               <a href="#founding"
@@ -1300,6 +1300,7 @@ function AttendaLandingPage() {
             <div>
               <h4 className="text-[11px] font-bold tracking-widest uppercase text-gray-500 mb-4">Company</h4>
               <ul className="space-y-2.5 text-[14px] text-gray-700">
+                <li><a href="/about" className="hover:text-gray-900">About Us</a></li>
                 <li><a href="#revenue" className="hover:text-gray-900">Case Study</a></li>
                 <li><a href="#platform" className="hover:text-gray-900">Platform</a></li>
                 <li><a href="/staff" className="hover:text-gray-900">Staff Login</a></li>

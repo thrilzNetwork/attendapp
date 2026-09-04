@@ -146,6 +146,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    if (action === 'set-user-status') {
+      // Super admin confirms a person's dashboard: pending → active (+ optional views in the same call).
+      const status = b.status === 'pending' ? 'pending' : 'active';
+      const views = Array.isArray(b.dashboard_views) ? b.dashboard_views.slice(0, 20).map(String) : undefined;
+      const update: Record<string, unknown> = { status };
+      if (views) update.dashboard_views = views;
+      const { error } = await db.from('corporate_users').update(update).eq('id', b.user_id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === 'set-user-views') {
+      const views = Array.isArray(b.views) ? b.views.slice(0, 20).map(String) : [];
+      const { error } = await db.from('corporate_users').update({ dashboard_views: views }).eq('id', b.user_id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true });
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Server error' }, { status: 500 });

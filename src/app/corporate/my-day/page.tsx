@@ -30,6 +30,8 @@ type Me = {
   duties: { position_key: string; title: string; detail: string | null }[];
   assignments: { id: string; client: Client }[];
   isSuperAdmin: boolean;
+  status?: string;
+  dashboardViews?: string[];
 };
 
 const STAGES = ['lead', 'qualified', 'proposal', 'negotiation', 'won'] as const;
@@ -67,11 +69,13 @@ export default function MyDay() {
     const { data: s } = await supabase.auth.getSession();
     const token = s.session?.access_token;
     if (!token) { router.replace('/corporate'); return; }
-    const meRes = await fetch('/api/corporate/me', { headers: { Authorization: `Bearer ${token}` } });
+    const meRes = await fetch(`/api/corporate/me?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } });
     if (!meRes.ok) { router.replace('/corporate'); return; }
     const meData = await meRes.json();
     if (!meData.onboardingCompleted) { router.replace('/corporate/onboarding'); return; }
     setMe(meData);
+    // Pending = super admin hasn't confirmed the account / assigned views yet → clean empty dashboard, no data.
+    if ((meData.status || 'active') === 'pending') { setLoading(false); return; }
     const dRes = await fetch('/api/corporate/data', { headers: { Authorization: `Bearer ${token}` } });
     if (dRes.ok) {
       const d = await dRes.json();
@@ -166,6 +170,12 @@ export default function MyDay() {
   if (isField) { coveredKinds.add('checklist'); coveredKinds.add('task'); }
   if (isController) { coveredKinds.add('report'); coveredKinds.add('flag'); }
 
+  // Dashboard views — super admin curates what each person sees (set-user-views).
+  // Empty list = role-based defaults (existing behavior). Non-empty = strict allow-list.
+  const myViews = me?.dashboardViews || [];
+  const curated = myViews.length > 0;
+  const can = (view: string) => !!me?.isSuperAdmin || !curated || myViews.includes(view);
+
   const today = new Date().toISOString().slice(0, 10);
   const auditTasks = myTasks.filter((t) => t.kind === 'checklist');
   const openTasks = myTasks.filter((t) => t.kind === 'task' && t.status === 'open');
@@ -204,7 +214,7 @@ export default function MyDay() {
   // Compact "More" grid — secondary sections collapsed until tapped
   const moreCards: { key: string; icon: React.ReactNode; label: string; sub: string }[] = [
     ...(scope === 'all' ? [{ key: 'clients', icon: <Building2 className="h-3.5 w-3.5" />, label: 'Clients', sub: `${visibleClients.length} assigned` }] : []),
-    ...(isSales ? [{ key: 'pipeline', icon: <TrendingUp className="h-3.5 w-3.5" />, label: 'Pipeline', sub: `${myDeals.length} deals · ${followUps.length} due` }] : []),
+    ...(isSales && can('pipeline') ? [{ key: 'pipeline', icon: <TrendingUp className="h-3.5 w-3.5" />, label: 'Pipeline', sub: `${myDeals.length} deals · ${followUps.length} due` }] : []),
     { key: 'calendar', icon: <Calendar className="h-3.5 w-3.5" />, label: 'Calendar', sub: `${upcoming.length} upcoming` },
     ...(isTrainer ? [{ key: 'team', icon: <Users className="h-3.5 w-3.5" />, label: 'Team', sub: `${team.length} members` }] : []),
     { key: 'company', icon: <Megaphone className="h-3.5 w-3.5" />, label: 'Company', sub: `${announcements.length} posts` },
@@ -286,6 +296,71 @@ export default function MyDay() {
     );
   }
 
+  // PENDING — super admin hasn't confirmed this account yet: empty dashboard,
+  // assigned clients + duties only. No data until Alejandro flips them to active.
+  if (me && (me.status || 'active') === 'pending') {
+    return (
+      <div className="min-h-screen bg-[#F6FAF9] pb-24" style={{ backgroundImage: 'radial-gradient(1200px 400px at 50% -80px, rgba(21,134,124,0.09), transparent 70%)' }}>
+        {/* Header — same dark command bar, read-only */}
+        <div className="sticky top-0 z-20 bg-[#07231F]/95 shadow-[0_12px_32px_-16px_rgba(7,35,31,0.55)] backdrop-blur-md">
+          <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg,#15b79e,#0E6B60 55%,rgba(14,107,96,0))' }} />
+          <div className="mx-auto max-w-3xl px-4 pb-3 pt-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#7FD4C7]">Attenda Corporate</div>
+                <div className="mt-1 text-2xl font-extrabold tracking-tight text-white" style={{ fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}>
+                  {greeting}, <span className="text-[#8ADBCD]">{firstName}</span>
+                </div>
+              </div>
+              <button onClick={signOut} className="rounded-lg p-2 text-white/40 transition hover:bg-white/10 hover:text-white" title="Sign out"><LogOut className="h-4 w-4" /></button>
+            </div>
+            <div className="mt-3.5 flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+              {visibleClients.map((c) => (
+                <span key={c.id} className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-3.5 py-2 text-[11px] font-bold text-white/85">
+                  <Building2 className="h-3 w-3" /> {c.name}
+                </span>
+              ))}
+              {!visibleClients.length && <span className="rounded-full bg-white/10 px-3.5 py-2 text-[11px] font-bold text-white/60">No client assigned yet</span>}
+            </div>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 md:px-6 md:py-8">
+          <div className="rounded-3xl bg-white p-6 text-center shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-amber-100">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50">
+              <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
+            </div>
+            <div className="mt-3 text-lg font-extrabold text-gray-900">Your dashboard is being set up</div>
+            <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-gray-500">
+              You&apos;re fully onboarded, {firstName}. Alejandro is assigning your dashboard views, duties and checklists — everything appears here the moment your account is confirmed.
+            </p>
+            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-700 ring-1 ring-amber-100">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Status: Pending — awaiting super admin
+            </span>
+          </div>
+
+          {duties.length > 0 && (
+            <div className="rounded-3xl bg-white p-5 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
+              <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#0B3B36]">Your role &amp; duties</div>
+              <div className="mt-2">
+                {duties.slice(0, 8).map((d, i) => (
+                  <div key={`${d.position_key}-${i}`} className={i > 0 ? 'mt-2 border-t border-teal-50 pt-2' : ''}>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[12px] font-bold text-gray-800">{d.title}</span>
+                      <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-gray-300">{positions.find((p) => p.key === d.position_key)?.title || d.position_key}</span>
+                    </div>
+                    {d.detail && <div className="text-[11px] text-gray-500">{d.detail}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <p className="pb-4 text-center text-[11px] text-gray-400">Questions? Reach Alejandro directly — your account is one tap away from going live.</p>
+        </div>
+      </div>
+    );
+  }
+
   const isMyDay = scope === 'all' || scope === 'corporate';
 
   return (
@@ -337,7 +412,7 @@ export default function MyDay() {
       {isMyDay ? (
         <div className="space-y-6 lg:grid lg:grid-cols-12 lg:gap-x-6 lg:gap-y-6 lg:space-y-0">
         {/* PROPERTY SNAPSHOT — full width on desktop */}
-        {scope !== 'corporate' && snapTarget && (
+        {scope !== 'corporate' && snapTarget && can('property_condition') && (
         <section className="lg:col-span-12">
             <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Property snapshot" count={snap?.productivity ? `${snap.productivity.score}% productive` : undefined} />
             <div className="rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
@@ -392,7 +467,7 @@ export default function MyDay() {
         )}
 
         {/* FOLLOW-UPS DUE — money at risk, always visible (desktop: left rail) */}
-        {followUps.length > 0 && (
+        {followUps.length > 0 && can('pipeline') && (
           <section className="lg:col-span-4 lg:self-start">
             <SectionTitle icon={<Flag className="h-4 w-4" />} title="Follow-ups due" count={`${followUps.length}`} />
             <div className="space-y-2">
@@ -634,7 +709,7 @@ export default function MyDay() {
           </section>
         )}
 
-        {isField && (
+        {isField && can('property_condition') && (
           <section>
             <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title="Daily audit" count={`${auditTasks.filter((t) => t.status === 'done').length}/${auditTasks.length}`} />
             <div className="space-y-2">
@@ -648,7 +723,7 @@ export default function MyDay() {
           </section>
         )}
 
-        {isSales && (
+        {isSales && can('pipeline') && (
           <section>
             <SectionTitle icon={<TrendingUp className="h-4 w-4" />} title="Pipeline" count={`${myDeals.length} deals`} />
             <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
@@ -698,7 +773,7 @@ export default function MyDay() {
           </section>
         )}
 
-        {isController && (
+        {isController && can('reports') && (
           <section>
             <SectionTitle icon={<ClipboardCheck className="h-4 w-4" />} title="Reports to review" count={`${reports.length}`} />
             <div className="space-y-2">
@@ -722,7 +797,7 @@ export default function MyDay() {
           </section>
         )}
 
-        {isTrainer && (
+        {isTrainer && can('team') && (
           <section>
             <SectionTitle icon={<Users className="h-4 w-4" />} title="Team & certification" />
             <div className="space-y-2">
@@ -745,7 +820,7 @@ export default function MyDay() {
           </section>
         )}
 
-        {isLeader && (
+        {isLeader && can('property_condition') && (
           <section>
             <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Your property" />
             <div className="space-y-2">
