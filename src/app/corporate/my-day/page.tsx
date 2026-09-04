@@ -193,6 +193,8 @@ export default function MyDay() {
   const upcoming = myEvents.filter((e) => e.start_at >= new Date().toISOString()).slice(0, 4);
   // Property board — shared team updates for the property in focus
   const boardUpdates = scope !== 'all' && scope !== 'corporate' ? updates.filter((u) => u.client_id === scope).slice(0, 30) : [];
+  // Latest staff post for the snapshot card — shows what the property team is actually inputting
+  const latestUpdateForSnap = snapTarget ? (updates.filter((u) => u.client_id === snapTarget.id).sort((a, b) => b.created_at.localeCompare(a.created_at))[0] || null) : null;
   const mediaUrl = (p: string) => `https://zhhhyrodqndeyjxveszu.supabase.co/storage/v1/object/public/corporate-media/${p}`;
   const timeAgo = (iso: string) => {
     const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -720,6 +722,89 @@ export default function MyDay() {
       ) : (
         <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-x-6 lg:space-y-0">
         {/* ===== CLIENT WORKSPACE — focused on one property ===== */}
+        {/* PROPERTY SNAPSHOT — live property state + latest staff input, first thing in client scope */}
+        {snapTarget && can('property_condition') && (
+          <section className="lg:col-span-2">
+            <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Property snapshot" count={snap?.productivity ? `${snap.productivity.score}% productive` : undefined} />
+            <div className="rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(7,35,31,0.05),0_12px_28px_-18px_rgba(7,35,31,0.3)] ring-1 ring-teal-50/80">
+              {snapLoading && <div className="flex items-center gap-2 py-6 text-xs text-gray-400"><Loader2 className="h-4 w-4 animate-spin" style={{ color: TEAL }} /> Loading live snapshot…</div>}
+              {!snapLoading && !snap && <div className="py-2 text-[11px] text-gray-400">Live snapshot unavailable right now.</div>}
+              {!snapLoading && snap && (
+                <>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-start gap-3">
+                      {snap.property?.team_photo_url
+                        ? /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={snap.property.team_photo_url} alt={`${snap.client.name} team`} className="h-16 w-24 shrink-0 rounded-2xl object-cover" />
+                        : <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded-2xl" style={{ background: 'linear-gradient(135deg,#0E6B60,#006077)' }}><Building2 className="h-6 w-6 text-white/80" /></div>}
+                      <div className="min-w-0">
+                        <div className="text-base font-extrabold text-gray-900">{snap.client.name}</div>
+                        <div className="text-[11px] text-gray-400">{snap.client.address || ''}</div>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {snap.client.rooms ? <span className="flex items-center gap-1 rounded-full bg-[#F0F7F5] px-2.5 py-1 text-[10px] font-bold text-[#0B3B36]"><Building2 className="h-3 w-3" style={{ color: TEAL }} />{snap.client.rooms} rooms</span> : null}
+                          {snap.staffing && <span className="flex items-center gap-1 rounded-full bg-[#F0F7F5] px-2.5 py-1 text-[10px] font-bold text-[#0B3B36]"><Users className="h-3 w-3" style={{ color: TEAL }} />{snap.staffing.active} staff{snap.staffing.total > snap.staffing.active ? ` · ${snap.staffing.total} total` : ''}</span>}
+                          {snap.property?.manager_name && <span className="rounded-full bg-[#F0F7F5] px-2.5 py-1 text-[10px] font-bold text-[#0B3B36]">GM · {snap.property.manager_name}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider" style={{ background: '#E8F4F1', color: TEAL }}>live</span>
+                  </div>
+                  {latestUpdateForSnap && (
+                    <div className="mt-3 flex items-start gap-2.5 rounded-2xl bg-[#F6FAF9] p-3">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: TEAL }}>{(team.find((t) => t.id === latestUpdateForSnap.author_id)?.name || '?')[0]}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Latest from the team</div>
+                        <p className="mt-0.5 text-[12px] leading-relaxed text-gray-700">{latestUpdateForSnap.body || 'Posted a photo'}</p>
+                        <div className="text-[10px] text-gray-400">{team.find((t) => t.id === latestUpdateForSnap.author_id)?.name || 'Team member'} · {timeAgo(latestUpdateForSnap.created_at)}</div>
+                      </div>
+                      {latestUpdateForSnap.image_path && (
+                        <a href={mediaUrl(latestUpdateForSnap.image_path)} target="_blank" rel="noreferrer" className="shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={mediaUrl(latestUpdateForSnap.image_path)} alt="latest post" className="h-12 w-16 rounded-lg object-cover" />
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  {snap.labor && snap.labor.items.length > 0 && (
+                    <div className="mt-3 rounded-2xl bg-[#F6FAF9] p-3">
+                      <div className="mb-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                        <span>Weekly labor budget</span>
+                        <span style={{ color: TEAL }}>{snap.labor.totalBudgetHours ? `${snap.labor.totalBudgetHours}h budgeted` : ''}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {snap.labor.items.map((li, i) => (
+                          <span key={i} className="rounded-full border border-teal-100 bg-white px-2.5 py-1 text-[10px] font-bold text-gray-600">
+                            {li.label} {li.weeklyHours ? `· ${li.weeklyHours}h/wk` : li.note ? `· ${li.note}` : ''}
+                          </span>
+                        ))}
+                      </div>
+                      {snap.labor.utilizationPct != null && (
+                        <div className="mt-2">
+                          <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-gray-400"><span className="uppercase tracking-wider">Utilization</span><span style={{ color: TEAL }}>{snap.labor.utilizationPct}% · {snap.labor.scheduledHours}h scheduled</span></div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                            <div className="h-full rounded-full" style={{ width: `${Math.min(snap.labor.utilizationPct, 100)}%`, background: `linear-gradient(90deg,#5ECFC0,${TEAL})` }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {snap.activity ? (
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {[['Requests · 7d', snap.activity.last7], ['Done · 30d', snap.activity.done30], ['Open now', snap.activity.openNow]].map(([label, v]) => (
+                        <div key={label as string} className="rounded-2xl bg-[#F6FAF9] p-3">
+                          <div className="text-2xl font-extrabold text-gray-900">{v as number}</div>
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{label as string}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-2xl bg-[#F6FAF9] p-3 text-[11px] leading-relaxed text-gray-500">Live guest activity connects here once this property is onboarded on the platform.</div>
+                  )}
+                </>
+              )}
+            </div>
+          </section>
+        )}
         {/* PROPERTY BOARD — shared team updates: notes + photos, everyone assigned sees everything */}
         <section>
           <SectionTitle icon={<ImageIcon className="h-4 w-4" />} title="Property board" count={`${boardUpdates.length} updates`} />
