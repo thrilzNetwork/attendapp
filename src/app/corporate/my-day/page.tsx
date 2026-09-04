@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Loader2, Building2, ClipboardCheck, Calendar, TrendingUp, Flag, Users, Plus, X,
-  Check, ChevronRight, LogOut, Home, Megaphone, Target, Send, Image as ImageIcon, Zap,
+  Check, ChevronRight, LogOut, Home, Megaphone, Target, Send, Image as ImageIcon, Zap, Info,
 } from 'lucide-react';
 
 const TEAL = '#158A7C';
@@ -387,6 +387,7 @@ export default function MyDay() {
                   {primary.title}
                 </span>
               )}
+              <button onClick={() => router.push('/corporate/hq')} className="rounded-lg p-2 text-white/70 transition hover:bg-white/10 hover:text-white" title="Attenda HQ"><Zap className="h-4 w-4" /></button>
               <button onClick={signOut} className="rounded-lg p-2 text-white/40 transition hover:bg-white/10 hover:text-white" title="Sign out"><LogOut className="h-4 w-4" /></button>
             </div>
           </div>
@@ -408,6 +409,16 @@ export default function MyDay() {
               className="flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition"
               style={scope === 'corporate' ? { background: '#fff', color: '#07231F', boxShadow: '0 4px 14px -4px rgba(0,0,0,0.4)' } : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.12)' }}>
               Corporate
+            </button>
+            <button onClick={() => router.push('/corporate/hq')}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition"
+              style={{ background: 'linear-gradient(90deg,#15b79e,#0E6B60)', color: '#fff', boxShadow: '0 4px 14px -4px rgba(14,107,96,0.55)' }}>
+              <Zap className="h-3 w-3" /> HQ
+            </button>
+            <button onClick={() => router.push('/corporate/story')}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition"
+              style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <Info className="h-3 w-3" /> About
             </button>
           </div>
         </div>
