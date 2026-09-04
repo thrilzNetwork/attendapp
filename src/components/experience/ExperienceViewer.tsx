@@ -405,14 +405,41 @@ function BlockView({ block, contact, setContact, markStart, handleSubmit, markCo
       );
 
     case 'founder': {
+      const people = Array.isArray(p.people) ? (p.people as { initials?: string; name?: string; role?: string; line?: string }[]) : null;
       const initials = String(p.initials || 'A');
+      const isDuo = !!people && people.length > 1;
       return (
         <div className="text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full text-lg font-extrabold text-white shadow-lg shadow-black/40" style={{ background: `linear-gradient(135deg, ${TEAL_BRIGHT}, ${TEAL})`, fontFamily: HEAD_FONT }}>{initials}</div>
-          <div className="text-[10px] font-extrabold uppercase tracking-[0.4em]" style={{ color: TEAL_BRIGHT, textShadow: '0 1px 20px rgba(0,0,0,0.6)' }}>The founder</div>
+          {isDuo ? (
+            <div className="mx-auto mb-5 flex justify-center -space-x-3">
+              {people!.map((per, i) => (
+                <div key={i} className="flex h-16 w-16 items-center justify-center rounded-full text-lg font-extrabold text-white shadow-lg shadow-black/40" style={{ background: `linear-gradient(135deg, ${TEAL_BRIGHT}, ${TEAL})`, border: '2px solid rgba(255,255,255,0.25)', fontFamily: HEAD_FONT }}>{String(per.initials || '?')}</div>
+              ))}
+            </div>
+          ) : (
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full text-lg font-extrabold text-white shadow-lg shadow-black/40" style={{ background: `linear-gradient(135deg, ${TEAL_BRIGHT}, ${TEAL})`, fontFamily: HEAD_FONT }}>{initials}</div>
+          )}
+          <div className="text-[10px] font-extrabold uppercase tracking-[0.4em]" style={{ color: TEAL_BRIGHT, textShadow: '0 1px 20px rgba(0,0,0,0.6)' }}>{isDuo ? 'From the founders' : 'The founder'}</div>
           <h2 className="mt-3 text-2xl font-extrabold leading-snug tracking-tight sm:text-3xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 18px rgba(0,0,0,0.85), 0 0 50px rgba(0,0,0,0.5)' }}>{f('heading')}</h2>
           {p.body ? <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed" style={{ color: WHITE_85 }}>{f('body')}</p> : null}
-          {p.sign ? <p className="mt-4 text-xl italic" style={{ fontFamily: SERIF, color: WHITE_75 }}>{f('sign')}</p> : null}
+          {isDuo ? (
+            <div className="mx-auto mt-6 grid max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
+              {people!.map((per, i) => (
+                <div key={i} className="rounded-2xl border p-4 text-left shadow-xl shadow-black/25" style={cardStyle}>
+                  <p className="text-[15px] italic leading-snug" style={{ fontFamily: SERIF, color: WHITE }}>{String(per.line || '')}</p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white" style={{ background: `linear-gradient(135deg, ${TEAL_BRIGHT}, ${TEAL})`, fontFamily: HEAD_FONT }}>{String(per.initials || '?')}</div>
+                    <div>
+                      <div className="text-xs font-extrabold" style={{ fontFamily: HEAD_FONT, color: WHITE }}>{String(per.name || '')}</div>
+                      <div className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: WHITE_60 }}>{String(per.role || '')}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            p.sign ? <p className="mt-4 text-xl italic" style={{ fontFamily: SERIF, color: WHITE_75 }}>{f('sign')}</p> : null
+          )}
         </div>
       );
     }
