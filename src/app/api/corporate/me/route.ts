@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, getCaller } from '@/lib/supabase-admin';
+import { noStoreJson } from '@/lib/http';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
     ? await db.from('corporate_responsibilities').select('position_key, title, detail').in('position_key', posKeys).order('sort_order')
     : { data: [] as any[] };
 
-  return NextResponse.json({
+  return noStoreJson({
     corporate: true,
     user,
     authorizedPositions: authorized,

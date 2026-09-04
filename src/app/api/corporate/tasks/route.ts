@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, getCaller } from '@/lib/supabase-admin';
+import { noStoreJson } from '@/lib/http';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
   const tasks = rows.map((r) => ({ ...r, owner_name: nameById[r.owner_user_id as string] || 'Team' }));
   const openCount = tasks.filter((t) => t.status !== 'done').length;
 
-  return NextResponse.json({ tasks, openCount });
+  return noStoreJson({ tasks, openCount });
 }
 
 export async function POST(req: NextRequest) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, getCaller } from '@/lib/supabase-admin';
+import { noStoreJson } from '@/lib/http';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     db.from('corporate_comments').select('*').order('created_at').limit(500),
   ]);
 
-  return NextResponse.json({
+  return noStoreJson({
     me: { id: me.id, name: me.name, title: me.title, confirmedPosition: me.confirmed_position },
     tasks: tasks.data || [],
     events: events.data || [],
