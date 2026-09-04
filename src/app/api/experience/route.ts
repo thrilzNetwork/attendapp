@@ -134,11 +134,11 @@ export async function POST(req: NextRequest) {
     const contact = b.contact && typeof b.contact === 'object' ? (b.contact as Record<string, string>) : null;
     if (!contact) return NextResponse.json({ error: 'Missing contact' }, { status: 400 });
 
-    // basic per-instance IP rate limit — 8 attempts/hour
+    // basic per-instance IP rate limit — 40 attempts/hour (team onboarding bursts)
     const ip = req.headers.get('x-nf-client-connection-ip') || req.headers.get('x-forwarded-for') || 'unknown';
     const now = Date.now();
     const recent = (acctAttempts.get(ip) || []).filter((t) => now - t < 3600_000);
-    if (recent.length >= 8) return NextResponse.json({ error: 'Too many attempts' }, { status: 429 });
+    if (recent.length >= 40) return NextResponse.json({ error: 'Too many attempts' }, { status: 429 });
     recent.push(now);
     acctAttempts.set(ip, recent);
 
