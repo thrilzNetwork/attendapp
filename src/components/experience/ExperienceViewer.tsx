@@ -30,7 +30,7 @@ const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 
 export type ExperienceBlockType =
   'hero' | 'text' | 'image' | 'video' | 'stat' | 'features' | 'quote' | 'fullbleed'
-  | 'question' | 'mc' | 'select' | 'multi' | 'contact' | 'credentials' | 'cta' | 'divider' | 'confirm';
+  | 'founder' | 'question' | 'mc' | 'select' | 'multi' | 'contact' | 'credentials' | 'cta' | 'divider' | 'confirm';
 
 export type ExperienceBlock = {
   id: string;
@@ -183,9 +183,9 @@ function InteractiveFlow({ blocks, title, subtitle, markStart, markComplete, onS
   }, [last]);
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen" style={{ minHeight: '100dvh' }}>
       <SceneBackdrop blocks={blocks} idx={idx} />
-      <div className="relative z-10 flex min-h-screen flex-col">
+      <div className="relative z-10 flex min-h-screen flex-col" style={{ minHeight: '100dvh' }}>
         <div className="pt-5 text-center text-[10px] font-extrabold uppercase tracking-[0.5em]" style={{ color: WHITE_60 }}>Attenda</div>
         <div className="mt-3 flex items-center justify-center gap-1.5 px-4">
           {blocks.map((b, i) => (
@@ -193,18 +193,18 @@ function InteractiveFlow({ blocks, title, subtitle, markStart, markComplete, onS
           ))}
         </div>
 
-        <div className="flex flex-1 items-center justify-center px-4 py-10">
-          <div key={idx} className="w-full max-w-xl anim-scene">
+        <div className="flex flex-1 justify-center overflow-y-auto px-4 pb-6 pt-8 sm:py-10" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div key={idx} className="my-auto w-full max-w-xl anim-scene">
             <BlockView block={blocks[idx]} contact={contact} setContact={setContact} markStart={markStart} handleSubmit={handleSubmit} markComplete={() => markComplete()} busy={busy} creds={creds} sceneIdx={idx} onImage />
           </div>
         </div>
 
-        <div className="flex items-center justify-between px-5 pb-6">
-          <button onClick={back} disabled={idx === 0} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold transition-opacity disabled:opacity-0" style={{ color: WHITE_75 }}>
+        <div className="flex items-center justify-between px-5" style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}>
+          <button onClick={back} disabled={idx === 0} className="flex min-h-[44px] items-center gap-1.5 rounded-full px-3 text-xs font-bold transition-opacity disabled:opacity-0" style={{ color: WHITE_75 }}>
             <ArrowLeft className="h-3.5 w-3.5" /> Back
           </button>
           {!last && (
-            <button onClick={() => { if (!busy) next(); }} className="flex items-center gap-1.5 rounded-full px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-black/30 transition-transform hover:scale-[1.04]" style={{ background: `linear-gradient(135deg, ${TEAL_BRIGHT}, ${TEAL})` }}>
+            <button onClick={() => { if (!busy) next(); }} className="flex min-h-[44px] touch-manipulation items-center gap-1.5 rounded-full px-6 py-3 text-xs font-bold text-white shadow-lg shadow-black/30 transition-transform hover:scale-[1.04] active:scale-[0.97]" style={{ background: `linear-gradient(135deg, ${TEAL_BRIGHT}, ${TEAL})` }}>
               Continue <ArrowRight className="h-3.5 w-3.5" />
             </button>
           )}
@@ -269,7 +269,7 @@ function ScrollStory({ blocks, title, subtitle, mode, markStart, markComplete, o
   );
 
   return (
-    <div className="w-full">
+    <div className="w-full" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="relative z-10 pt-5 pb-2 text-center text-[10px] font-extrabold uppercase tracking-[0.5em]" style={{ color: WHITE_60 }}>Attenda</div>
       {blocks.map((b, i) => {
         const focused = mode === 'hybrid' && FOCUS_TYPES.includes(b.type);
@@ -339,7 +339,7 @@ function BlockView({ block, contact, setContact, markStart, handleSubmit, markCo
       return (
         <div className="text-center">
           {p.eyebrow ? <div className="mb-4 text-[11px] font-extrabold uppercase tracking-[0.42em]" style={{ color: TEAL_BRIGHT, textShadow: '0 1px 20px rgba(0,0,0,0.6)' }}>{f('eyebrow')}</div> : null}
-          <h1 className="text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 18px rgba(0,0,0,0.85), 0 0 50px rgba(0,0,0,0.5)' }}>{f('title')}</h1>
+          <h1 className="text-[2rem] font-extrabold leading-[1.08] tracking-tight sm:text-6xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 18px rgba(0,0,0,0.85), 0 0 50px rgba(0,0,0,0.5)' }}>{f('title')}</h1>
           {p.subtitle ? <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed sm:text-base" style={{ color: WHITE_85 }}>{f('subtitle')}</p> : null}
         </div>
       );
@@ -404,6 +404,19 @@ function BlockView({ block, contact, setContact, markStart, handleSubmit, markCo
         </div>
       );
 
+    case 'founder': {
+      const initials = String(p.initials || 'A');
+      return (
+        <div className="text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full text-lg font-extrabold text-white shadow-lg shadow-black/40" style={{ background: `linear-gradient(135deg, ${TEAL_BRIGHT}, ${TEAL})`, fontFamily: HEAD_FONT }}>{initials}</div>
+          <div className="text-[10px] font-extrabold uppercase tracking-[0.4em]" style={{ color: TEAL_BRIGHT, textShadow: '0 1px 20px rgba(0,0,0,0.6)' }}>The founder</div>
+          <h2 className="mt-3 text-2xl font-extrabold leading-snug tracking-tight sm:text-3xl" style={{ fontFamily: HEAD_FONT, color: WHITE, textShadow: '0 2px 18px rgba(0,0,0,0.85), 0 0 50px rgba(0,0,0,0.5)' }}>{f('heading')}</h2>
+          {p.body ? <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed" style={{ color: WHITE_85 }}>{f('body')}</p> : null}
+          {p.sign ? <p className="mt-4 text-xl italic" style={{ fontFamily: SERIF, color: WHITE_75 }}>{f('sign')}</p> : null}
+        </div>
+      );
+    }
+
     case 'quote':
       return (
         <div className="px-2 py-4 text-center">
@@ -437,7 +450,7 @@ function BlockView({ block, contact, setContact, markStart, handleSubmit, markCo
               const sel = contact[key] === o;
               return (
                 <button key={i} onClick={() => { markStart(); setContact({ ...contact, [key]: o }); }}
-                  className="flex w-full items-center justify-between rounded-2xl border px-4 py-3.5 text-left text-sm font-bold transition-all hover:border-[#15b79e]"
+                  className="flex min-h-[48px] w-full touch-manipulation items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-bold transition-all hover:border-[#15b79e] active:scale-[0.99]"
                   style={{ borderColor: sel ? TEAL_BRIGHT : 'rgba(255,255,255,0.16)', background: sel ? 'rgba(21,183,158,0.2)' : 'rgba(255,255,255,0.05)', color: WHITE }}>
                   {o}
                   {sel && <Check className="h-4 w-4" style={{ color: TEAL_BRIGHT }} />}
@@ -457,7 +470,7 @@ function BlockView({ block, contact, setContact, markStart, handleSubmit, markCo
           <select
             value={contact[key] || ''}
             onChange={(e) => { markStart(); setContact({ ...contact, [key]: e.target.value }); }}
-            className="exf-input mt-5 w-full appearance-none rounded-xl border px-4 py-3.5 text-sm font-semibold outline-none transition-colors focus:border-[#15b79e] [&>option]:bg-white [&>option]:text-slate-900"
+            className="exf-input mt-5 w-full appearance-none rounded-xl border px-4 py-3.5 text-base font-semibold outline-none transition-colors focus:border-[#15b79e] [&>option]:bg-white [&>option]:text-slate-900"
             style={{ background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.16)', color: WHITE }}
           >
             <option value="" disabled>{String(p.placeholder || 'Pick one…')}</option>
@@ -485,7 +498,7 @@ function BlockView({ block, contact, setContact, markStart, handleSubmit, markCo
               const sel = picked.includes(o);
               return (
                 <button key={i} onClick={() => toggle(o)}
-                  className="flex items-center gap-1.5 rounded-full border-2 px-4 py-2.5 text-xs font-bold transition-all"
+                  className="flex min-h-[44px] touch-manipulation items-center gap-1.5 rounded-full border-2 px-4 py-2.5 text-xs font-bold transition-all active:scale-[0.97]"
                   style={{ borderColor: sel ? TEAL_BRIGHT : 'rgba(255,255,255,0.2)', background: sel ? TEAL : 'rgba(255,255,255,0.07)', color: WHITE }}>
                   {sel ? <Check className="h-3.5 w-3.5" /> : null}{o}
                 </button>
