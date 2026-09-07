@@ -93,6 +93,9 @@ const V2Revenue = dynamic(() => import('@/components/v2/V2Revenue'), { ssr: fals
 const V2ScheduleForecast = dynamic(() => import('@/components/v2/V2ScheduleForecast'), { ssr: false });
 const V2RightAnswers = dynamic(() => import('@/components/v2/V2RightAnswers'), { ssr: false });
 const V2FnB = dynamic(() => import('@/components/v2/V2FnB'), { ssr: false });
+const V2Inspections = dynamic(() => import('@/components/v2/V2Inspections'), { ssr: false });
+const V2Housekeeping = dynamic(() => import('@/components/v2/V2Housekeeping'), { ssr: false });
+const V2Maintenance = dynamic(() => import('@/components/v2/V2Maintenance'), { ssr: false });
 const V2Reports = dynamic(() => import('@/components/v2/V2Reports'), { ssr: false });
 const V2ComingSoon = dynamic(() => import('@/components/v2/V2ComingSoon'), { ssr: false });
 import {
@@ -1146,16 +1149,13 @@ function DashboardInner() {
           <V2RightAnswers hotelId={config?.id || ''} isAdmin={isAdmin} userName={s.name} />
         )}
         {tabPanel('inspections', true,
-          <V2ComingSoon icon={ClipboardCheck} title="Inspections" subtitle="Brand, local, safety, and departmental inspections."
-            description="Recurring and special inspections, scoring, deficiencies, corrective actions, evidence, and follow-up will live here. No mockup or backing schema exists yet — future work." />
+          <V2Inspections hotelId={config?.id || ''} userName={s.name} isAdmin={isAdmin} />
         )}
         {tabPanel('maintenance', true,
-          <V2ComingSoon icon={Wrench} title="Maintenance" subtitle="Protect the asset — work orders, PMs, and vendor dependency."
-            description="Work orders, preventive maintenance, asset history, parts/inventory, and spend controls will live here. No mockup or backing schema exists yet — future work." />
+          <V2Maintenance hotelId={config?.id || ''} userName={s.name} isAdmin={isAdmin} />
         )}
         {tabPanel('housekeeping', true,
-          <V2ComingSoon icon={DoorOpen} title="Housekeeping" subtitle="Control rooms, minutes, labor, and supplies."
-            description="Room workload, checkouts/stayovers, housekeeper allocation, productivity, and supply inventory will live here. No mockup or backing schema exists yet — future work." />
+          <V2Housekeeping hotelId={config?.id || ''} userName={s.name} isAdmin={isAdmin} />
         )}
         {tabPanel('fnb', true,
           <V2FnB />
