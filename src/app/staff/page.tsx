@@ -86,6 +86,7 @@ const ReportsView = dynamic(() => import('@/components/staff/ReportsView'), { ss
 const CommandCenterView = dynamic(() => import('@/components/staff/CommandCenterView'), { ssr: false });
 const HousekeepingView = dynamic(() => import('@/components/staff/HousekeepingView'), { ssr: false });
 const MaintenanceView = dynamic(() => import('@/components/staff/MaintenanceView'), { ssr: false });
+const InspectionsView = dynamic(() => import('@/components/staff/InspectionsView'), { ssr: false });
 const ScheduleForecastView = dynamic(() => import('@/components/staff/ScheduleForecastView'), { ssr: false });
 const VendorsView = dynamic(() => import('@/components/staff/VendorsView'), { ssr: false });
 import {
@@ -127,7 +128,7 @@ type NavTab =
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
   | 'shuttle_schedule' | 'forecast' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture'
-  | 'housekeeping' | 'maintenance'
+  | 'housekeeping' | 'maintenance' | 'inspections'
   | 'revenue' | 'reports' | 'vendors' | 'agent';
 
 interface Request {
@@ -195,6 +196,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'shuttle',         label: 'Transportation',      icon: Bus,             roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'housekeeping',     label: 'Housekeeping',        icon: Sparkles,        roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'maintenance',      label: 'Maintenance',         icon: Wrench,          roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'inspections',      label: 'Inspections',         icon: ClipboardCheck,  roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
     { tab: 'culture',         label: 'Culture',             icon: Heart,           roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'knowledge',       label: 'Right Answers',       icon: BookOpen,        roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'learning_hr',     label: 'Learning & HR',       icon: GraduationCap,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
@@ -1140,6 +1142,9 @@ function DashboardInner() {
         )}
         {tabPanel('maintenance', true,
           <MaintenanceView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} />
+        )}
+        {tabPanel('inspections', true,
+          <InspectionsView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} />
         )}
       </main>
     </div>

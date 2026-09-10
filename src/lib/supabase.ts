@@ -2672,9 +2672,10 @@ export async function getWorkOrders(hotelId: string): Promise<WorkOrder[]> {
   return (data || []) as unknown as WorkOrder[];
 }
 
-export async function createWorkOrder(wo: { hotel_id: string; location: string; issue: string; priority: string; status: string; assigned_to?: string; parts_used?: string; created_by?: string }): Promise<void> {
-  const { error } = await supabase.from('work_orders').insert(wo);
+export async function createWorkOrder(wo: { hotel_id: string; location: string; issue: string; priority: string; status: string; assigned_to?: string; parts_used?: string; created_by?: string }): Promise<{ id: string } | null> {
+  const { data, error } = await supabase.from('work_orders').insert(wo).select().single();
   if (error) throw new Error(error.message);
+  return data as { id: string } | null;
 }
 
 export async function updateWorkOrder(id: string, updates: Partial<WorkOrder>): Promise<void> {
@@ -2919,4 +2920,62 @@ export async function getOpenTickets(hotelId: string): Promise<{ total: number; 
     total += 1;
   }
   return { total, byType };
+}
+
+
+// ─── Inspections (findings) ─────────────────────────────────
+export interface InspectionFinding {
+  id: string;
+  hotel_id: string;
+  instance_id?: string;
+  checklist_id?: string;
+  item_id: string;
+  item_label: string;
+  severity: string;
+  status: string;
+  work_order_id?: string;
+  assigned_to?: string;
+  created_by?: string;
+  created_at: string;
+  resolved_at?: string;
+}
+
+export async function getInspectionFindings(hotelId: string, onlyOpen = false): Promise<InspectionFinding[]> {
+  let q = supabase.from('inspection_findings').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false });
+  if (onlyOpen) q = q.eq('status', 'open');
+  const { data } = await q.limit(200);
+  return (data || []) as InspectionFinding[];
+}
+
+export async function createInspectionFinding(f: {
+  hotel_id: string; instance_id?: string; checklist_id?: string;
+  item_id: string; item_label: string; severity: string; created_by?: string;
+}): Promise<InspectionFinding> {
+  const { data, error } = await supabase.from('inspection_findings').insert({
+    ...f, status: 'open',
+  }).select().single();
+  if (error) throw new Error(error.message || JSON.stringify(error));
+  return data as InspectionFinding;
+}
+
+export async function resolveInspectionFinding(id: string) {
+  const { error } = await supabase.from('inspection_findings').update({
+    status: 'resolved', resolved_at: new Date().toISOString(),
+  }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function linkFindingToWorkOrder(id: string, workOrderId: string) {
+  const { error } = await supabase.from('inspection_findings').update({
+    work_order_id: workOrderId, status: 'work_order',
+  }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function createInspectionChecklist(hotelId: string, name: string, department: string, items: { id: string; label: string }[]) {
+  const { data, error } = await supabase.from('staff_checklists').insert({
+    hotel_id: hotelId, name, items, department, assigned_role: 'staff', is_active: true,
+  }).select().single();
+  if (error) throw new Error(error.message || JSON.stringify(error));
+  return data;
 }
