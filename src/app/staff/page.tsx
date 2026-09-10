@@ -28,7 +28,7 @@ import AgentDashboard from '@/components/agent/AgentDashboard';
 import {
   Bell, MessageSquare, Bus, Settings, Users,
   LogOut, RefreshCw, Plus, Trash2, Eye, EyeOff, Save,
-  Hotel as HotelIcon, ExternalLink, Sunrise, type LucideIcon,
+  Hotel as HotelIcon, ExternalLink, type LucideIcon,
   Store, QrCode as QrCodeIcon, Building2, Copy, Check, ChevronDown, ChevronUp,
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
@@ -78,7 +78,6 @@ const HotelSettingsView = dynamic(() => import('@/components/staff/HotelSettings
 const LearningHRView = dynamic(() => import('@/components/staff/LearningHRView'), { ssr: false });
 const KpisView = dynamic(() => import('@/components/staff/KpisView'), { ssr: false });
 const DailyBriefView = dynamic(() => import('@/components/staff/DailyBriefView'), { ssr: false });
-const MyDayView = dynamic(() => import('@/components/staff/MyDayView'), { ssr: false });
 const CompsetView = dynamic(() => import('@/components/staff/CompsetView'), { ssr: false });
 const LeaderboardView = dynamic(() => import('@/components/staff/LeaderboardView'), { ssr: false });
 const CultureView = dynamic(() => import('@/components/staff/CultureView'), { ssr: false });
@@ -124,7 +123,7 @@ type NavTab =
   | 'hotel' | 'staff_mgmt'
   | 'partners' | 'qrcodes' | 'properties'
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
-  | 'dailybrief' | 'myday' | 'property_info'
+  | 'dailybrief' | 'property_info'
   | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
   | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture'
   | 'revenue' | 'reports' | 'vendors' | 'agent';
@@ -186,7 +185,6 @@ const TAB_PERMS: Partial<Record<NavTab, string>> = {
 const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; section?: string }[] = [
   // ── TODAY — what staff needs to do right now ──
   { tab: 'dailybrief',      label: 'Dashboard',          icon: BarChart3,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'myday',           label: 'My Day',             icon: Sunrise,         roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'orders',          label: 'Requests',            icon: Bell,            roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'todos',           label: 'To-Dos',              icon: ClipboardList,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'kpis',            label: 'KPIs',                icon: TrendingUp,      roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
@@ -350,8 +348,6 @@ function DashboardInner() {
           if (staff) {
             const role: Role = staff.role === 'manager' || staff.role === 'admin' ? 'admin' : staff.role === 'supervisor' ? 'supervisor' : staff.role === 'vendor' ? 'vendor' : 'staff';
             setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined, permissions: staff.permissions ?? [], department: staff.department, positions: staff.positions || [] });
-      // §32: staff land in My Day, management lands on Dashboard, vendors on their manifest
-      setTab(role === 'admin' ? 'dailybrief' : role === 'vendor' ? 'orders' : 'myday');
             setAuthMode('authenticated');
             // Save hotel slug to localStorage so config queries work
             if (staff.hotel_id) {
@@ -406,8 +402,6 @@ function DashboardInner() {
       }
 
       setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined, permissions: staff.permissions ?? [], department: staff.department, positions: staff.positions || [] });
-      // §32: staff land in My Day, management lands on Dashboard, vendors on their manifest
-      setTab(role === 'admin' ? 'dailybrief' : role === 'vendor' ? 'orders' : 'myday');
       setAuthMode('authenticated');
 
       // Force password change if using default password
@@ -655,7 +649,7 @@ function DashboardInner() {
                   onClick={() => {
                     setImpersonatingUser({ name: st.name, role: st.role === 'admin' || st.role === 'manager' ? 'admin' : 'staff' });
                     setShowImpersonatePicker(false);
-                    setTab(st.role === 'admin' || st.role === 'manager' ? 'dailybrief' : 'myday');
+                    setTab('dailybrief');
                   }}
                   className="w-full text-left flex items-center justify-between bg-gray-50 hover:bg-gray-100 rounded-xl px-4 py-3 transition-colors"
                 >
@@ -1044,12 +1038,7 @@ function DashboardInner() {
         )}
         {tabPanel('dailybrief', true,
           <ErrorBoundary fallback={<div className="p-4 md:p-8"><div className="bg-red-50 border border-red-200 rounded-2xl p-6"><p className="text-[16px] font-bold text-red-800 mb-2">Dashboard error</p><pre id="error-message" className="text-[12px] text-red-700 whitespace-pre-wrap bg-red-100 p-4 rounded-xl">{/* error will show here */}</pre></div></div>}>
-            <DailyBriefView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} config={config} sessionName={session?.name || ''} department={session?.department} positions={session?.positions} isAdmin={isAdmin} onOpenMyDay={() => setTab('myday')} />
-          </ErrorBoundary>
-        )}
-        {tabPanel('myday', true,
-          <ErrorBoundary fallback={<div className="p-4 md:p-8"><div className="bg-red-50 border border-red-200 rounded-2xl p-6"><p className="text-[16px] font-bold text-red-800 mb-2">My Day error</p><pre className="text-[12px] text-red-700 whitespace-pre-wrap bg-red-100 p-4 rounded-xl">{/* error will show here */}</pre></div></div>}>
-            <MyDayView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} config={config} sessionName={s.name} department={s.department} positions={s.positions} isAdmin={isAdmin} requests={requests} onNavigate={(t) => setTab(t as NavTab)} />
+            <DailyBriefView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} config={config} sessionName={session?.name || ''} department={session?.department} positions={session?.positions} isAdmin={isAdmin} />
           </ErrorBoundary>
         )}
         {tabPanel('property_info', !!config,

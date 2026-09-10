@@ -104,7 +104,7 @@ function saveWidgetPrefs(hotelId: string, prefs: WidgetId[]) {
 }
 
 /* ── Daily Brief View (staff-facing) ──────────────────── */
-export default function DailyBriefView({ hotelId, hotelName, config, sessionName, department, positions, isAdmin, onOpenMyDay }: {
+export default function DailyBriefView({ hotelId, hotelName, config, sessionName, department, positions, isAdmin }: {
   hotelId: string;
   hotelName: string;
   config: HotelConfig | null;
@@ -112,7 +112,6 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
   department?: string;
   positions?: string[];
   isAdmin: boolean;
-  onOpenMyDay?: () => void;
 }) {
   const [recap, setRecap] = useState<{
     requestsToday: number; completedToday: number; pendingNow: number;
@@ -407,31 +406,6 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
           )}
         </div>
       </div>
-
-      {/* ── My Work Today (§7) — preview only; the actual work happens in My Day ── */}
-      {onOpenMyDay && (
-        <div className="rounded-2xl p-4 md:p-5 mb-5 shadow-sm text-white flex items-center justify-between gap-3" style={{ backgroundColor: TEAL }}>
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider opacity-80">My Work Today</p>
-            <p className="text-[14px] font-bold mt-0.5 truncate">
-              {(() => {
-                const remaining = myPosTodoTemplates.filter((t: any) => getPosInstance(t.id)?.status !== 'completed').length;
-                const parts: string[] = [];
-                if (myShiftToday.length > 0 && myShiftToday[0].start_time && myShiftToday[0].end_time) {
-                  const s0 = myShiftToday[0];
-                  const f = (t: string) => { const [h, m] = t.split(':').map(Number); return (h % 12 || 12) + ':' + String(m).padStart(2, '0') + ' ' + (h >= 12 ? 'PM' : 'AM'); };
-                  parts.push('Shift ' + f(s0.start_time) + '–' + f(s0.end_time));
-                }
-                parts.push(remaining === 0 ? 'All to-dos done' : remaining + ' to-do' + (remaining === 1 ? '' : 's') + ' remaining');
-                return parts.join(' · ');
-              })()}
-            </p>
-          </div>
-          <button onClick={onOpenMyDay} className="shrink-0 text-[12px] font-bold px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 transition-colors">
-            Open My Day →
-          </button>
-        </div>
-      )}
 
       {/* ── Today's Brief / GM Notes ── */}
       {on('gm_notes') && (
