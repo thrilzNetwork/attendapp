@@ -12,7 +12,12 @@ import {
   type PositionTodoInstance, type PositionTodoResponse,
   type StaffPosition,
 } from '@/lib/supabase';
-import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList, Move, UserX, DollarSign, BookOpen, Download, CalendarClock } from 'lucide-react';
+import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList, Move, UserX, DollarSign, BookOpen, Download, CalendarClock, GraduationCap, Target } from 'lucide-react';
+import {
+  listCourses, listModules, listModuleCompletions, recordModuleCompletion,
+  listKpiDefinitions, listKpiSubmissions,
+  type OpRecord,
+} from '@/lib/opsStore';
 
 const TEAL = '#158A7C';
 
@@ -206,6 +211,8 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
   const [previewInstance, setPreviewInstance] = useState<PositionTodoInstance | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<CommunityTemplate | null>(null);
   const [shiftPicker, setShiftPicker] = useState<{ tplId: string; tplName: string } | null>(null);
+  const [training, setTraining] = useState<{ courseId: string; course: string; done: number; total: number; nextModule?: string; nextModuleId?: string }[]>([]);
+  const [goals, setGoals] = useState<{ name: string; value: number | null; target: number; unit: string }[]>([]);
 
   // Position management state
   const [positions, setPositions] = useState<StaffPosition[]>([]);
@@ -267,6 +274,72 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
     }
     setLoading(false);
   };
+
+  // ── Role-based additions: training due + collective team goals ──
+  const refreshTraining = async () => {
+    try {
+      const courses = await listCourses(hotelId);
+      const completions = await listModuleCompletions(hotelId);
+      const rows: { courseId: string; course: string; done: number; total: number; nextModule?: string; nextModuleId?: string }[] = [];
+      for (const c of (courses || []) as OpRecord[]) {
+        const cd = c.details as Record<string, unknown>;
+        const mods = await listModules(hotelId, c.id);
+        const mine = (completions || []).filter((mc: OpRecord) => {
+          const md = mc.details as Record<string, unknown>;
+          return (md.course_id as string) === c.id && (md.staff_name as string) === staffName;
+        }).map((mc: OpRecord) => (mc.details as Record<string, unknown>).module_id as string);
+        const next = mods.find(m => !mine.includes(m.id));
+        rows.push({
+          courseId: c.id,
+          course: (cd.title as string) || 'Course',
+          done: mine.length,
+          total: mods.length,
+          nextModule: next ? ((next.details as Record<string, unknown>).title as string) : undefined,
+          nextModuleId: next?.id,
+        });
+      }
+      setTraining(rows.filter(r => r.total > 0));
+    } catch { /* silent — training card stays hidden on error */ }
+  };
+
+  const refreshGoals = async () => {
+    try {
+      const [defs, subs] = await Promise.all([listKpiDefinitions(hotelId), listKpiSubmissions(hotelId)]);
+      const tiles = (defs || []).slice(0, 8).map((def: OpRecord) => {
+        const d = def.details as Record<string, unknown>;
+        const name = ((d.kpi_name as string) || '').toLowerCase();
+        if (name.includes('parking') || name.includes('checklist') || name.includes('completion')) return null;
+        const todayLogs = (subs || []).filter((l: OpRecord) => {
+          const ld = l.details as Record<string, unknown>;
+          return (ld.definition_id as string) === def.id && (ld.shift_date as string) === selectedDate;
+        }).sort((a: OpRecord, b: OpRecord) =>
+          new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
+        const ld = todayLogs[0] ? (todayLogs[0].details as Record<string, unknown>) : null;
+        return {
+          name: (d.kpi_name as string) || 'KPI',
+          value: ld ? Number(ld.value) : null,
+          target: Number(d.target) || 0,
+          unit: (d.unit as string) || '',
+        };
+      }).filter(Boolean) as { name: string; value: number | null; target: number; unit: string }[];
+      setGoals(tiles);
+    } catch { /* silent */ }
+  };
+
+  useEffect(() => {
+    if (!hotelId) return;
+    refreshTraining();
+    refreshGoals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotelId, selectedDate, staffName]);
+
+  // Auto-open the signed-in user's position group (role-based To-Dos)
+  useEffect(() => {
+    if (isAdmin || !department || openDept || positions.length === 0) return;
+    const match = positions.find(p => p.department === department);
+    if (match) setOpenDept(`pos:${match.id}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positions, department, isAdmin]);
 
   useEffect(() => { loadAll(); }, [hotelId, staffId, selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1231,6 +1304,88 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* ── ROLE-BASED: My checklists strip (non-admin) ── */}
+              {!isAdmin && templates.length > 0 && (
+                <div className="bg-teal-50 border border-teal-100 rounded-2xl px-4 py-3 mb-6">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[11px] font-extrabold text-teal-900 uppercase tracking-wide">My Checklists Today</p>
+                    <span className="text-[11px] font-extrabold text-teal-800">{totalCount > 0 ? `${completedCount}/${totalCount} done` : 'Not started'}</span>
+                  </div>
+                  {totalCount > 0 && (
+                    <div className="w-full bg-teal-100 rounded-full h-1.5 overflow-hidden mb-2">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${(completedCount / Math.max(1, totalCount)) * 100}%`, backgroundColor: TEAL }} />
+                    </div>
+                  )}
+                  {totalCount === 0 ? (
+                    <p className="text-[11px] text-teal-700 font-medium">Open your position below and start your first checklist of the day.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {myInstances.filter(i => i.status !== 'completed').map(i => {
+                        const tpl = templates.find(t => t.id === i.template_id);
+                        return (
+                          <span key={i.id} className="text-[10px] font-bold bg-white border border-teal-200 text-teal-800 rounded-lg px-2 py-0.5">{tpl?.name || 'Checklist'} · {i.shift}</span>
+                        );
+                      })}
+                      {myInstances.filter(i => i.status === 'completed').length === totalCount && (
+                        <span className="text-[10px] font-bold text-teal-800">✅ All done — nice work</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── ROLE-BASED: Training due ── */}
+              {training.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 shadow-sm">
+                  <p className="text-[12px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-1.5"><GraduationCap size={14} style={{ color: TEAL }} /> Training</p>
+                  <div className="space-y-2">
+                    {training.map(t => (
+                      <div key={t.courseId} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-bold text-gray-900 truncate">{t.course}</p>
+                          <p className="text-[11px] text-gray-500">{t.done}/{t.total} modules{t.nextModule ? ` · next: ${t.nextModule}` : t.total > 0 && t.done >= t.total ? ' · complete 🎉' : ''}</p>
+                        </div>
+                        {t.nextModuleId && (
+                          <button
+                            onClick={async () => {
+                              setSubmitting(true);
+                              await recordModuleCompletion(hotelId, { staff_name: staffName || 'Staff', module_id: t.nextModuleId || '', course_id: t.courseId, completed_at: new Date().toISOString() });
+                              await refreshTraining();
+                              setSubmitting(false);
+                            }}
+                            disabled={submitting}
+                            className="text-[11px] font-bold text-white rounded-lg px-2.5 py-1.5 shrink-0 disabled:opacity-50"
+                            style={{ backgroundColor: TEAL }}
+                          >Mark module done</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── ROLE-BASED: Collective team goals ── */}
+              {goals.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 shadow-sm">
+                  <p className="text-[12px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-1.5"><Target size={14} style={{ color: TEAL }} /> Team Goals</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {goals.map(g => {
+                      const under = g.value != null && g.target > 0 && g.value < g.target;
+                      return (
+                        <div key={g.name} className="bg-gray-50 rounded-xl px-3 py-2">
+                          <p className="text-[11px] font-medium text-gray-500 truncate">{g.name}</p>
+                          <p className="text-[15px] font-extrabold" style={{ color: g.value == null ? '#9ca3af' : under ? '#EA580C' : TEAL }}>
+                            {g.value == null ? '—' : `${g.value}${g.unit === '%' ? '%' : ''}`}
+                            {g.target > 0 && <span className="text-[10px] text-gray-400 font-bold"> / goal {g.target}{g.unit === '%' ? '%' : ''}</span>}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-2">Logged by staff daily · actual vs goal</p>
                 </div>
               )}
 
