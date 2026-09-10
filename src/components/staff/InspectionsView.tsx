@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ClipboardCheck, Plus, X as XIcon, AlertTriangle, Wrench, CheckCircle2, ChevronDown, Trash2 } from 'lucide-react';
+import { ClipboardCheck, Plus, X as XIcon, AlertTriangle, Wrench, CheckCircle2, ChevronDown } from 'lucide-react';
 import {
   getChecklists, createChecklistInstance, updateChecklistInstance,
   getInspectionFindings, createInspectionFinding, resolveInspectionFinding,

@@ -392,7 +392,7 @@ function AttendaLandingPage() {
             </div>
             <h1 className="text-[40px] md:text-[58px] lg:text-[64px] leading-[1.04] font-black tracking-tight text-white mb-6 animate-scale-in" style={{ animationDelay: '0.2s', textShadow: '0 2px 18px rgba(0,0,0,0.5)' }}>
               Stop answering<br />
-              <span style={{ color: '#5eead4' }}>"where's the shuttle?"</span>
+              <span style={{ color: '#5eead4' }}>&quot;where&apos;s the shuttle?&quot;</span>
             </h1>
             <p className="text-[18px] text-white leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s', textShadow: '0 1px 12px rgba(0,0,0,0.6)' }}>
               Attenda gives airport and cruise-port hotels a live shuttle schedule and guest-service workflow — without a PMS replacement, guest app, or in-room QR. Guests schedule their return through a welcome letter, lobby station, or text link. Your staff gets one live board. Live in 11 days.
@@ -835,7 +835,7 @@ function AttendaLandingPage() {
               Already running shuttle for a hotel? Bring Attenda and connect them. Already a GM? Bring your shuttle vendor and connect them. Either way, the workflow goes live in 11 days.
             </p>
             <a href="#demo" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-bold text-[15px] shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: TEAL }}>
-              Let's talk <ArrowRight size={18} />
+              Let&apos;s talk <ArrowRight size={18} />
             </a>
           </div>
         </div>

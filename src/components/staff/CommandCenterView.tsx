@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  BarChart3, Users, Wrench, ClipboardList, CalendarDays, BedDouble, DollarSign, Star,
+  Users, Wrench, ClipboardList, CalendarDays, BedDouble, DollarSign, Star,
   Plus, Trash2, RefreshCw, AlertTriangle, ChevronRight, Save, TrendingUp,
 } from 'lucide-react';
 import {
@@ -44,7 +44,7 @@ function money(n: number): string {
 interface KpiTile { name: string; value: number | null; target: number; unit: string }
 
 export default function CommandCenterView({
-  hotelId, hotelName, staffName, isAdmin, onNavigate,
+  hotelId, hotelName, isAdmin, onNavigate,
 }: {
   hotelId: string; hotelName: string; staffName: string; isAdmin: boolean;
   onNavigate: (tab: 'schedules' | 'todos' | 'orders' | 'housekeeping' | 'maintenance' | 'compset') => void;

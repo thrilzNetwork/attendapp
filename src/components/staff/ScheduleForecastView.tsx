@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { CalendarDays, TrendingUp, Users, Clock, RefreshCw } from 'lucide-react';
+import { TrendingUp, Users, Clock, RefreshCw } from 'lucide-react';
 import { getStaffSchedulesRange, getForecastsRange, upsertForecastDay } from '@/lib/supabase';
 
 const TEAL = '#158A7C';
@@ -36,7 +36,7 @@ interface Sched { staff_name: string; start_time: string | null; end_time: strin
 interface Fc { date: string; occupancy_pct: number; rooms_occupied: number; arrivals: number; departures: number; total_rooms: number; prev_night_occ: number; adr?: number | null }
 
 export default function ScheduleForecastView({
-  hotelId, hotelName, isAdmin,
+  hotelId, hotelName,
 }: { hotelId: string; hotelName: string; isAdmin: boolean }) {
   const today = localDateStr();
   const weekStart = mondayOf(today);

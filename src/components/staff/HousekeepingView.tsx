@@ -19,7 +19,7 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default function HousekeepingView({
-  hotelId, hotelName, staffName, isAdmin,
+  hotelId, hotelName, staffName,
 }: { hotelId: string; hotelName: string; staffName: string; isAdmin: boolean }) {
   const [rooms, setRooms] = useState<{ id: string; room_number: string; status: string }[]>([]);
   const [linen, setLinen] = useState<{ item_type: string; count: number; par_level: number }[]>([]);
