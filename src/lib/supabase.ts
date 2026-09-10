@@ -1909,6 +1909,7 @@ export interface WeeklyForecast {
   departures: number;        // forecasted departures
   rooms_occupied: number;    // forecasted rooms occupied
   prev_night_occ: number;    // previous night's occupied rooms
+  adr?: number | null;       // average daily rate ($) — owner/manager input
   created_by?: string;
   created_at: string;
   updated_at?: string;
@@ -2766,4 +2767,156 @@ export async function subscribeAgentCalls(hotelId: string, onInsert: (call: Agen
 
 export async function subscribeAgentRequests(hotelId: string, onInsert: (req: AgentRequest) => void) {
   return supabase.channel('agent-requests').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'agent_requests', filter: `hotel_id=eq.${hotelId}` }, (payload) => { onInsert(payload.new as AgentRequest); }).subscribe();
+}
+
+
+/* ── Command Center / Overhaul helpers (Sep 2026) ─────────────────────── */
+
+export interface HotelEvent {
+  id: string;
+  hotel_id: string;
+  title: string;
+  event_date: string;
+  description?: string;
+  emoji?: string;
+  created_at: string;
+}
+
+export async function getHotelEvents(hotelId: string, from: string, to: string): Promise<HotelEvent[]> {
+  const { data, error } = await supabase.from('staff_events').select('*')
+    .eq('hotel_id', hotelId).gte('event_date', from).lte('event_date', to).order('event_date');
+  if (error) return [];
+  return (data || []) as HotelEvent[];
+}
+
+export async function createHotelEvent(hotelId: string, title: string, eventDate: string, description?: string, emoji?: string): Promise<boolean> {
+  const { error } = await supabase.from('staff_events').insert({
+    hotel_id: hotelId, title, event_date: eventDate, description: description || null, emoji: emoji || null,
+  });
+  return !error;
+}
+
+export async function deleteHotelEvent(id: string): Promise<void> {
+  await supabase.from('staff_events').delete().eq('id', id);
+}
+
+export interface HkLaborLog {
+  id: string;
+  hotel_id: string;
+  log_date: string;
+  staff_name: string;
+  rooms_cleaned: number;
+  minutes: number;
+  notes?: string;
+  created_at: string;
+}
+
+export async function getHkLaborLogs(hotelId: string, date?: string): Promise<HkLaborLog[]> {
+  let q = supabase.from('hk_labor_logs').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false });
+  if (date) q = q.eq('log_date', date);
+  const { data } = await q;
+  return (data || []) as HkLaborLog[];
+}
+
+export async function createHkLaborLog(hotelId: string, staffName: string, roomsCleaned: number, minutes: number, notes?: string): Promise<boolean> {
+  const { error } = await supabase.from('hk_labor_logs').insert({
+    hotel_id: hotelId, log_date: localDate(), staff_name: staffName,
+    rooms_cleaned: roomsCleaned, minutes, notes: notes || null,
+  });
+  return !error;
+}
+
+export interface MaintenancePm {
+  id: string;
+  hotel_id: string;
+  title: string;
+  frequency_days: number;
+  last_completed_date?: string | null;
+  assigned_to?: string;
+  notes?: string;
+  active: boolean;
+  created_at: string;
+}
+
+export async function getMaintenancePms(hotelId: string): Promise<MaintenancePm[]> {
+  const { data } = await supabase.from('maintenance_pms').select('*')
+    .eq('hotel_id', hotelId).eq('active', true).order('created_at');
+  return (data || []) as MaintenancePm[];
+}
+
+export async function createMaintenancePm(hotelId: string, title: string, frequencyDays: number, assignedTo?: string): Promise<boolean> {
+  const { error } = await supabase.from('maintenance_pms').insert({
+    hotel_id: hotelId, title, frequency_days: frequencyDays, assigned_to: assignedTo || null,
+  });
+  return !error;
+}
+
+export async function completeMaintenancePm(id: string): Promise<void> {
+  await supabase.from('maintenance_pms').update({ last_completed_date: localDate() }).eq('id', id);
+}
+
+export interface MaintenanceLaborLog {
+  id: string;
+  hotel_id: string;
+  log_date: string;
+  staff_name: string;
+  task: string;
+  minutes: number;
+  created_at: string;
+}
+
+export async function getMaintenanceLaborLogs(hotelId: string, date?: string): Promise<MaintenanceLaborLog[]> {
+  let q = supabase.from('maintenance_labor_logs').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false });
+  if (date) q = q.eq('log_date', date);
+  const { data } = await q;
+  return (data || []) as MaintenanceLaborLog[];
+}
+
+export async function createMaintenanceLaborLog(hotelId: string, staffName: string, task: string, minutes: number): Promise<boolean> {
+  const { error } = await supabase.from('maintenance_labor_logs').insert({
+    hotel_id: hotelId, log_date: localDate(), staff_name: staffName, task, minutes,
+  });
+  return !error;
+}
+
+/** Forecasts in an arbitrary date range (not just one week). Includes adr when present. */
+export async function getForecastsRange(hotelId: string, from: string, to: string): Promise<WeeklyForecast[]> {
+  const { data, error } = await supabase.from('weekly_forecasts').select('*')
+    .eq('hotel_id', hotelId).gte('date', from).lte('date', to).order('date');
+  if (error) return [];
+  return (data || []) as WeeklyForecast[];
+}
+
+/** Upsert a single forecast day (unique on hotel_id+date). Derives rooms from occ when not provided. */
+export async function upsertForecastDay(hotelId: string, weekStart: string, day: {
+  date: string; occupancy_pct: number; adr?: number | null;
+  arrivals: number; rooms_occupied: number; departures: number;
+  total_rooms: number; prev_night_occ: number;
+}): Promise<{ error?: string }> {
+  const row = {
+    hotel_id: hotelId, week_start: weekStart, date: day.date,
+    occupancy_pct: Math.round(day.occupancy_pct),
+    adr: day.adr === null || day.adr === undefined || isNaN(Number(day.adr)) ? null : Number(day.adr),
+    arrivals: Math.round(day.arrivals), rooms_occupied: Math.round(day.rooms_occupied),
+    departures: Math.round(day.departures), total_rooms: Math.round(day.total_rooms),
+    prev_night_occ: Math.round(day.prev_night_occ),
+  };
+  const { error } = await supabase.from('weekly_forecasts').upsert(row, { onConflict: 'hotel_id,date' });
+  return error ? { error: error.message } : {};
+}
+
+/** Real guest/ops tickets — excludes system op-record types (kpi/course/shuttle slots). */
+export async function getOpenTickets(hotelId: string): Promise<{ total: number; byType: Record<string, number> }> {
+  const { data, error } = await supabase.from('requests').select('type')
+    .eq('hotel_id', hotelId).in('status', ['active', 'pending']);
+  if (error) return { total: 0, byType: {} };
+  const OP_TYPES = new Set(['shuttle_slot', 'kpi_submission', 'kpi_definition', 'course', 'course_module', 'module_completion']);
+  const byType: Record<string, number> = {};
+  let total = 0;
+  for (const r of (data || []) as { type: string | null }[]) {
+    if (!r.type || OP_TYPES.has(r.type)) continue;
+    byType[r.type] = (byType[r.type] || 0) + 1;
+    total += 1;
+  }
+  return { total, byType };
 }

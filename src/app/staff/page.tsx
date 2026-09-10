@@ -33,7 +33,7 @@ import {
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
   BarChart3, BarChart2, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign, ShieldCheck, MapPin, PhoneCall, Trophy, Heart, Truck, Bot, Webhook, Wrench,
-} from 'lucide-react';
+  Sparkles } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
   getHotelConfig, updateHotelConfig, HotelConfig,
@@ -77,15 +77,16 @@ const ShuttleViewComponent = dynamic(() => import('@/components/staff/ShuttleVie
 const HotelSettingsView = dynamic(() => import('@/components/staff/HotelSettingsView'), { ssr: false });
 const LearningHRView = dynamic(() => import('@/components/staff/LearningHRView'), { ssr: false });
 const KpisView = dynamic(() => import('@/components/staff/KpisView'), { ssr: false });
-const DailyBriefView = dynamic(() => import('@/components/staff/DailyBriefView'), { ssr: false });
-const CompsetView = dynamic(() => import('@/components/staff/CompsetView'), { ssr: false });
 const LeaderboardView = dynamic(() => import('@/components/staff/LeaderboardView'), { ssr: false });
 const CultureView = dynamic(() => import('@/components/staff/CultureView'), { ssr: false });
 const SuperAdminView = dynamic(() => import('@/components/staff/SuperAdminView'), { ssr: false });
 const MarketplaceView = dynamic(() => import('@/components/staff/MarketplaceView'), { ssr: false });
 const RevenueView = dynamic(() => import('@/components/staff/RevenueView'), { ssr: false });
 const ReportsView = dynamic(() => import('@/components/staff/ReportsView'), { ssr: false });
-const CalloutsView = dynamic(() => import('@/components/staff/CalloutsView'), { ssr: false });
+const CommandCenterView = dynamic(() => import('@/components/staff/CommandCenterView'), { ssr: false });
+const HousekeepingView = dynamic(() => import('@/components/staff/HousekeepingView'), { ssr: false });
+const MaintenanceView = dynamic(() => import('@/components/staff/MaintenanceView'), { ssr: false });
+const ScheduleForecastView = dynamic(() => import('@/components/staff/ScheduleForecastView'), { ssr: false });
 const VendorsView = dynamic(() => import('@/components/staff/VendorsView'), { ssr: false });
 import {
   listOps, createOps, updateOps, deleteOps,
@@ -125,7 +126,8 @@ type NavTab =
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
-  | 'shuttle_schedule' | 'forecast' | 'callouts' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture'
+  | 'shuttle_schedule' | 'forecast' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture'
+  | 'housekeeping' | 'maintenance'
   | 'revenue' | 'reports' | 'vendors' | 'agent';
 
 interface Request {
@@ -178,7 +180,6 @@ const TAB_PERMS: Partial<Record<NavTab, string>> = {
   messages:    'messages',
   shuttle:     'shuttle',
   knowledge:   'knowledge',
-  compset:     'compset',
   marketplace: 'marketplace',
 };
 
@@ -188,13 +189,13 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'orders',          label: 'Requests',            icon: Bell,            roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'todos',           label: 'To-Dos',              icon: ClipboardList,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'kpis',            label: 'KPIs',                icon: TrendingUp,      roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'schedules',       label: 'Schedules',           icon: CalendarDays,    roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'schedules',       label: 'Sched & Forecast',    icon: CalendarDays,    roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
 
   // ── OPERATIONS — property tools & planning ──
   { tab: 'shuttle',         label: 'Transportation',      icon: Bus,             roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'compset',         label: 'Compset',             icon: PhoneCall,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'forecast',        label: 'Forecast',            icon: BarChart3,       roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'culture',         label: 'Culture',             icon: Heart,           roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'housekeeping',     label: 'Housekeeping',        icon: Sparkles,        roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'maintenance',      label: 'Maintenance',         icon: Wrench,          roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+    { tab: 'culture',         label: 'Culture',             icon: Heart,           roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'knowledge',       label: 'Right Answers',       icon: BookOpen,        roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'learning_hr',     label: 'Learning & HR',       icon: GraduationCap,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'marketplace',     label: 'Marketplace',         icon: Store,           roles: ['admin', 'supervisor', 'manager', 'superadmin'], section: 'Operations' },
@@ -203,8 +204,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   // ── ADMIN — settings & management ──
   { tab: 'revenue',         label: 'Revenue',             icon: DollarSign,      roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Admin' },
   { tab: 'reports',         label: 'Reports',             icon: BarChart2,       roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Admin' },
-  { tab: 'callouts',        label: 'Staff Callouts',      icon: ClipboardList,   roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Admin' },
-  { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'], section: 'Admin' },
+    { tab: 'hotel',           label: 'Property Settings',   icon: Settings,        roles: ['admin', 'superadmin'], section: 'Admin' },
   { tab: 'staff_mgmt',      label: 'Staff Management',    icon: Users,           roles: ['admin', 'superadmin'], section: 'Admin' },
   { tab: 'partners',        label: 'Partners & Menu',     icon: Store,           roles: ['admin', 'superadmin'], section: 'Admin' },
   { tab: 'vendors',         label: 'Vendors',            icon: Truck,           roles: ['admin', 'superadmin', 'manager'], section: 'Admin' },
@@ -1038,19 +1038,16 @@ function DashboardInner() {
         )}
         {tabPanel('dailybrief', true,
           <ErrorBoundary fallback={<div className="p-4 md:p-8"><div className="bg-red-50 border border-red-200 rounded-2xl p-6"><p className="text-[16px] font-bold text-red-800 mb-2">Dashboard error</p><pre id="error-message" className="text-[12px] text-red-700 whitespace-pre-wrap bg-red-100 p-4 rounded-xl">{/* error will show here */}</pre></div></div>}>
-            <DailyBriefView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} config={config} sessionName={session?.name || ''} department={session?.department} positions={session?.positions} isAdmin={isAdmin} />
+            <CommandCenterView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} onNavigate={(t) => setTab(t === 'compset' ? 'todos' : t)} />
           </ErrorBoundary>
         )}
         {tabPanel('property_info', !!config,
           <PropertyInfoView config={config!} />
         )}
         {tabPanel('schedules', true,
-          <SchedulesView hotelId={config?.id || ''} isAdmin={isAdmin} weekStartsOn={config?.weekStartsOn || 'Sunday'} staffName={s.name} hotelName={config?.name || 'Hotel'} staffList={staff.map(s => ({ id: s.id, name: s.name, role: s.role, department: s.department, hire_date: s.hire_date, min_hours: s.min_hours || 0, employment_type: s.employment_type, email: s.email || '' }))} />
+          <ScheduleForecastView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} isAdmin={isAdmin} />
         )}
-        {tabPanel('compset', true,
-          <CompsetView hotelId={config?.id || ''} isAdmin={isAdmin} staffId={staff.find(st => st.name === s.name)?.id || ''} staffName={s.name} />
-        )}
-        {tabPanel('leaderboard', true,
+                {tabPanel('leaderboard', true,
           <LeaderboardView hotelId={config?.id || ''} staffName={s.name} isAdmin={isAdmin} />
         )}
         {tabPanel('culture', true,
@@ -1089,7 +1086,7 @@ function DashboardInner() {
           <ShuttleScheduleView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
         {tabPanel('forecast', true,
-          <ForecastView hotelId={config?.id || ''} totalRooms={config?.roomCount || 0} timezone={config?.timezone} />
+          <ScheduleForecastView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} isAdmin={isAdmin} />
         )}
         {tabPanel('todos', true,
           <PositionTodosView hotelId={config?.id || ''} isAdmin={isAdmin} canManage={canManageTodos} staffName={s.name} department={s.department} />
@@ -1138,8 +1135,11 @@ function DashboardInner() {
         {tabPanel('reports', isAdmin,
           <ReportsView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
-        {tabPanel('callouts', isAdmin || s.role === 'staff',
-          <CalloutsView hotelId={config?.id || ''} isAdmin={isAdmin} staffName={s.name} />
+        {tabPanel('housekeeping', true,
+          <HousekeepingView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} />
+        )}
+        {tabPanel('maintenance', true,
+          <MaintenanceView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} />
         )}
       </main>
     </div>
@@ -4883,60 +4883,7 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
 /* ── ADMIN CALLOUTS (requests for changes / time off) ─── */
 // ADMIN CALLOUTS (requests for changes / time off)
 // ============================================================
-function AdminCalloutsView({ hotelId }: { hotelId: string }) {
-  const [reqs, setReqs] = useState<OpRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const r = await listScheduleChangeRequests(hotelId, 'pending');
-      setReqs(r || []);
-      setLoading(false);
-    })();
-  }, [hotelId]);
-
-  const resolve = async (id: string) => {
-    await updateOps(id, { status: 'resolved' });
-    setReqs(reqs.filter(r => r.id !== id));
-  };
-
-  if (loading) return <div className="p-4 text-center text-[13px] text-gray-400 py-12">Loading...</div>;
-
-  return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto">
-      <div className="mb-4">
-        <h1 className="text-[20px] font-extrabold text-gray-900">Staff Callouts</h1>
-        <p className="text-[12px] text-gray-500">Requests for time off, swaps, and changes</p>
-      </div>
-      {reqs.length === 0 ? (
-        <div className="bg-gray-50 rounded-2xl p-8 text-center">
-          <Inbox size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-[14px] text-gray-500 font-medium">No pending callouts</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {reqs.map(r => {
-            const d = r.details as any;
-            return (
-              <div key={r.id} className="bg-white rounded-2xl border border-amber-200 p-4 shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-[14px] font-bold text-gray-900">{d.requested_by} · {d.change_type?.replace('_', ' ')}</p>
-                    <p className="text-[12px] text-gray-500 mt-1">{d.details}</p>
-                    <p className="text-[10px] text-gray-400 mt-2">{d.shift_date} · {d.department}</p>
-                  </div>
-                  <button onClick={() => resolve(r.id)} className="px-3 py-1.5 rounded-lg text-white font-bold text-[11px]" style={{ backgroundColor: TEAL }}>Resolve</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Inline helpers for SVG icons not in lucide
+// Inline helper for SVG icon not in lucide
 const Phone = ({ size, style }: { size: number; style?: React.CSSProperties }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
