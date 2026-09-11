@@ -5,8 +5,8 @@ import { ClipboardCheck, Plus, X as XIcon, AlertTriangle, Wrench, CheckCircle2, 
 import {
   getChecklists, createChecklistInstance, updateChecklistInstance,
   getInspectionFindings, createInspectionFinding, resolveInspectionFinding,
-  linkFindingToWorkOrder, createInspectionChecklist, createWorkOrder,
-  type Checklist, type ChecklistInstance, type InspectionFinding,
+  assignInspectionFinding, linkFindingToWorkOrder, createInspectionChecklist, createWorkOrder,
+  type Checklist, type ChecklistInstance, type InspectionFinding, type StaffAccount,
 } from '@/lib/supabase';
 
 const TEAL = '#14b8a6';
@@ -16,6 +16,7 @@ interface Props {
   hotelName: string;
   staffName: string;
   isAdmin: boolean;
+  staffList?: StaffAccount[];
 }
 
 interface RunItem {
@@ -25,7 +26,7 @@ interface RunItem {
   severity?: string;
 }
 
-export default function InspectionsView({ hotelId, staffName, isAdmin }: Props) {
+export default function InspectionsView({ hotelId, staffName, isAdmin, staffList = [] }: Props) {
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [findings, setFindings] = useState<InspectionFinding[]>([]);
   const [running, setRunning] = useState<{ checklist: Checklist; instance: ChecklistInstance; items: RunItem[] } | null>(null);
@@ -36,6 +37,7 @@ export default function InspectionsView({ hotelId, staffName, isAdmin }: Props) 
   const [busy, setBusy] = useState(false);
   const [showFindings, setShowFindings] = useState(true);
   const [expandedFinding, setExpandedFinding] = useState<string | null>(null);
+  const [mineOnly, setMineOnly] = useState(false);
   const [woLocation, setWoLocation] = useState('');
   const [woPriority, setWoPriority] = useState('normal');
 
@@ -144,7 +146,15 @@ export default function InspectionsView({ hotelId, staffName, isAdmin }: Props) 
     setBusy(false);
   };
 
-  const openFindings = findings.filter(f => f.status !== 'resolved');
+  const assignFinding = async (id: string, assignedTo: string) => {
+    setFindings(prev => prev.map(f => (f.id === id ? { ...f, assigned_to: assignedTo || undefined } : f)));
+    try { await assignInspectionFinding(id, assignedTo || null); } catch { load(); }
+  };
+
+  const mineCount = findings.filter(f => f.status !== 'resolved' && f.assigned_to === staffName).length;
+  const openFindings = findings
+    .filter(f => f.status !== 'resolved')
+    .filter(f => (mineOnly ? f.assigned_to === staffName : true));
   const sevColor = (s: string) => s === 'critical' ? '#dc2626' : s === 'major' ? '#ea580c' : '#ca8a04';
 
   return (
@@ -236,6 +246,15 @@ export default function InspectionsView({ hotelId, staffName, isAdmin }: Props) 
         <button onClick={() => setShowFindings(!showFindings)} className="w-full flex items-center justify-between px-4 py-3">
           <p className="text-[12px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
             <AlertTriangle size={14} style={{ color: '#ea580c' }} /> Open Findings ({openFindings.length})
+            {mineCount > 0 && (
+              <span
+                onClick={e => { e.stopPropagation(); setMineOnly(!mineOnly); }}
+                className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full cursor-pointer select-none ${mineOnly ? 'text-white' : 'text-gray-500 bg-gray-100'}`}
+                style={mineOnly ? { background: TEAL } : undefined}
+              >
+                Mine ({mineCount})
+              </span>
+            )}
           </p>
           <ChevronDown size={16} className={`text-gray-400 transition-transform ${showFindings ? '' : '-rotate-90'}`} />
         </button>
@@ -248,7 +267,7 @@ export default function InspectionsView({ hotelId, staffName, isAdmin }: Props) 
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-[13px] font-semibold text-gray-800 truncate">{f.item_label}</p>
-                    <p className="text-[10px] text-gray-400">{f.created_by || 'Staff'} · {new Date(f.created_at).toLocaleDateString()} {f.work_order_id ? '· work order created' : ''}</p>
+                    <p className="text-[10px] text-gray-400">{f.created_by || 'Staff'} · {new Date(f.created_at).toLocaleDateString()}{f.work_order_id ? ' · work order created' : ''}{f.assigned_to ? ` · → ${f.assigned_to}` : ''}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ color: sevColor(f.severity), background: `${sevColor(f.severity)}14` }}>{f.severity}</span>
@@ -258,6 +277,19 @@ export default function InspectionsView({ hotelId, staffName, isAdmin }: Props) 
                     <button onClick={() => resolveFinding(f.id)} disabled={busy} className="text-gray-400 hover:text-gray-600 disabled:opacity-50"><CheckCircle2 size={16} /></button>
                   </div>
                 </div>
+                {isAdmin && (
+                  <select
+                    value={f.assigned_to || ''}
+                    onChange={e => assignFinding(f.id, e.target.value)}
+                    disabled={busy}
+                    className="mt-2 bg-gray-50 rounded-lg px-2 py-1.5 text-[11px] font-semibold border border-gray-100 text-gray-700 disabled:opacity-50"
+                  >
+                    <option value="">— Unassigned —</option>
+                    {staffList.filter(s => s.active).map(s => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                )}
                 {expandedFinding === f.id && (
                   <div className="mt-2 flex gap-2 items-center bg-gray-50 rounded-xl p-2">
                     <input value={woLocation} onChange={e => setWoLocation(e.target.value)} placeholder="Location (e.g. Room 204)" className="flex-1 bg-white rounded-lg px-3 py-2 text-[12px] border border-gray-100" />

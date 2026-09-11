@@ -33,7 +33,7 @@ import {
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
   BarChart3, BarChart2, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign, ShieldCheck, MapPin, PhoneCall, Trophy, Heart, Truck, Bot, Webhook, Wrench,
-  Sparkles } from 'lucide-react';
+  Sparkles, Target } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
   getHotelConfig, updateHotelConfig, HotelConfig,
@@ -77,6 +77,7 @@ const ShuttleViewComponent = dynamic(() => import('@/components/staff/ShuttleVie
 const HotelSettingsView = dynamic(() => import('@/components/staff/HotelSettingsView'), { ssr: false });
 const LearningHRView = dynamic(() => import('@/components/staff/LearningHRView'), { ssr: false });
 const KpisView = dynamic(() => import('@/components/staff/KpisView'), { ssr: false });
+const SalesView = dynamic(() => import('@/components/staff/SalesView'), { ssr: false });
 const LeaderboardView = dynamic(() => import('@/components/staff/LeaderboardView'), { ssr: false });
 const CultureView = dynamic(() => import('@/components/staff/CultureView'), { ssr: false });
 const SuperAdminView = dynamic(() => import('@/components/staff/SuperAdminView'), { ssr: false });
@@ -126,7 +127,7 @@ type NavTab =
   | 'partners' | 'qrcodes' | 'properties'
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
   | 'dailybrief' | 'property_info'
-  | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
+  | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr' | 'sales'
   | 'shuttle_schedule' | 'forecast' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture'
   | 'housekeeping' | 'maintenance' | 'inspections'
   | 'revenue' | 'reports' | 'vendors' | 'agent';
@@ -189,8 +190,8 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'dailybrief',      label: 'Dashboard',          icon: BarChart3,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'orders',          label: 'Requests',            icon: Bell,            roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'todos',           label: 'To-Dos',              icon: ClipboardList,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'kpis',            label: 'KPIs',                icon: TrendingUp,      roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'schedules',       label: 'Sched & Forecast',    icon: CalendarDays,    roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
+  { tab: 'sales',           label: 'Sales',               icon: Target,          roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
 
   // ── OPERATIONS — property tools & planning ──
   { tab: 'shuttle',         label: 'Transportation',      icon: Bus,             roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
@@ -199,7 +200,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'inspections',      label: 'Inspections',         icon: ClipboardCheck,  roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
     { tab: 'culture',         label: 'Culture',             icon: Heart,           roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'knowledge',       label: 'Right Answers',       icon: BookOpen,        roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'learning_hr',     label: 'Learning & HR',       icon: GraduationCap,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'learning_hr',     label: 'Learning Hub',        icon: GraduationCap,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'marketplace',     label: 'Marketplace',         icon: Store,           roles: ['admin', 'supervisor', 'manager', 'superadmin'], section: 'Operations' },
   { tab: 'property_info',   label: 'Property Info',       icon: HotelIcon,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
 
@@ -1061,6 +1062,9 @@ function DashboardInner() {
         {tabPanel('kpis', true,
           <KpisView hotelId={config?.id || ''} isAdmin={isAdmin} userId="" userName={session?.name || 'Staff'} />
         )}
+        {tabPanel('sales', isAdmin || s.role === 'manager' || s.role === 'supervisor',
+          <SalesView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} />
+        )}
         {tabPanel('marketplace', true,
           <MarketplaceView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
@@ -1144,7 +1148,7 @@ function DashboardInner() {
           <MaintenanceView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} />
         )}
         {tabPanel('inspections', true,
-          <InspectionsView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} />
+          <InspectionsView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} staffList={staff} />
         )}
       </main>
     </div>
@@ -4459,6 +4463,16 @@ function ShuttleScheduleView({ hotelId, isAdmin }: { hotelId: string; isAdmin: b
 // ============================================================
 // INCIDENT / KNOWLEDGE BASE VIEW (paste incident → AI suggestion → save)
 // ============================================================
+// Detect numbered/dashed step lists in KB response text → interactive SOP
+function parseSopSteps(text: string): string[] | null {
+  if (!text) return null;
+  const stepRe = /^(?:\d+[.)]|[-•*])\s+(.{3,})$/;
+  const steps = text.split('\n').map(l => l.trim()).filter(Boolean)
+    .map(l => { const m = l.match(stepRe); return m ? m[1] : null; })
+    .filter((s): s is string => !!s);
+  return steps.length >= 2 ? steps : null;
+}
+
 function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdmin: boolean; userName: string }) {
   const [approved, setApproved] = useState<OpRecord[]>([]);
   const [pending, setPending] = useState<OpRecord[]>([]);
@@ -4480,6 +4494,35 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
   const [pdfUploading, setPdfUploading] = useState(false);
   const [pdfMsg, setPdfMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  // Interactive SOP state (Right Answers): per-entry checked steps + completion
+  const [sopDone, setSopDone] = useState<Record<string, boolean>>({});
+  const [checked, setChecked] = useState<Record<string, number[]>>({});
+  const askSteps = askResult ? parseSopSteps(askResult.response) : null;
+
+  // Load prior SOP completions for this user
+  useEffect(() => {
+    if (!hotelId || !userName) return;
+    listOps(hotelId, 'sop_completion').then(rows => {
+      const map: Record<string, boolean> = {};
+      for (const r of rows || []) if (r.guest_name === userName && r.details?.sop_key) map[r.details.sop_key] = true;
+      setSopDone(map);
+    }).catch(() => {});
+  }, [hotelId, userName]);
+
+  const toggleStepFor = async (id: string, steps: string[], stepIdx: number, title?: string) => {
+    if (steps.length === 0) return;
+    const base = sopDone[id] ? steps.map((_, i) => i) : (checked[id] || []);
+    const next = base.includes(stepIdx) ? base.filter(i => i !== stepIdx) : [...base, stepIdx];
+    setChecked(prev => ({ ...prev, [id]: next }));
+    const complete = next.length === steps.length;
+    setSopDone(prev => ({ ...prev, [id]: complete }));
+    if (!complete) return;
+    try {
+      const existing = await listOps(hotelId, 'sop_completion');
+      const mine = (existing || []).find(r => r.guest_name === userName && r.details?.sop_key === id);
+      if (!mine) await createOps(hotelId, 'sop_completion', { sop_key: id, sop_title: title || '' }, 'completed', { guest_name: userName, room: 'SOP' });
+    } catch { /* in-session state only */ }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -4636,8 +4679,8 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto">
       <div className="mb-4">
-        <h1 className="text-[20px] font-extrabold text-gray-900">Write Answers</h1>
-        <p className="text-[12px] text-gray-500">Knowledge base · best practices · SOPs · GM guidance · what to do in any situation</p>
+        <h1 className="text-[20px] font-extrabold text-gray-900">Right Answers</h1>
+        <p className="text-[12px] text-gray-500">Knowledge base · interactive step-by-step SOPs · best practices · what to do in any situation</p>
       </div>
 
       {/* Ask the KB — chatbot-style search bar */}
@@ -4664,11 +4707,33 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
             <div className="flex items-center gap-2 mb-1.5">
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700 font-semibold capitalize">{askResult.category}</span>
               <span className="text-[10px] text-gray-500">{askResult.title}</span>
+              {askSteps && (
+                <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${askResult.id && sopDone[askResult.id] ? 'text-white' : 'text-gray-500 bg-white border border-gray-200'}`}
+                  style={askResult.id && sopDone[askResult.id] ? { backgroundColor: TEAL } : {}}>
+                  {askResult.id && sopDone[askResult.id] ? '✓ Completed' : `${(checked[askResult.id] || []).length}/${askSteps.length} steps`}
+                </span>
+              )}
             </div>
-            <p className="text-[10px] font-bold text-gray-500 uppercase mt-2 mb-0.5">Situation</p>
-            <p className="text-[12px] text-gray-700">{askResult.situation}</p>
-            <p className="text-[10px] font-bold text-gray-500 uppercase mt-2 mb-0.5">Suggested response</p>
-            <p className="text-[12px] text-gray-700 whitespace-pre-wrap">{askResult.response}</p>
+            {askSteps ? (
+              <div className="mt-2 space-y-1.5">
+                {askSteps.map((st, i) => {
+                  const done = (sopDone[askResult.id] || false) || (checked[askResult.id] || []).includes(i);
+                  return (
+                    <button key={i} onClick={() => toggleStepFor(askResult.id, askSteps, i, askResult.title)}
+                      className="w-full flex items-center gap-2 text-left bg-white rounded-lg px-3 py-2 border border-gray-100">
+                      <span className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 text-[9px] font-bold"
+                        style={done ? { backgroundColor: TEAL, borderColor: TEAL, color: '#fff' } : { borderColor: '#d1d5db', color: 'transparent' }}>✓</span>
+                      <span className={`text-[12px] ${done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{st}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <>
+                <p className="text-[10px] font-bold text-gray-500 uppercase mt-2 mb-0.5">Suggested response</p>
+                <p className="text-[12px] text-gray-700 whitespace-pre-wrap">{askResult.response}</p>
+              </>
+            )}
             <div className="flex gap-2 mt-2">
               <button onClick={() => { navigator.clipboard.writeText(askResult.response); setAskCopied(true); setTimeout(() => setAskCopied(false), 1500); }} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
                 <Copy size={11} /> {askCopied ? 'Copied' : 'Copy response'}
@@ -4816,12 +4881,14 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
             const d = e.details as any;
             const isPending = e.status === 'pending';
             const isRejected = e.status === 'rejected';
+            const steps = d.pdf_url ? null : parseSopSteps(d.response || '');
             return (
               <details key={e.id} className={`bg-white rounded-2xl border shadow-sm group ${isPending ? 'border-amber-200' : isRejected ? 'border-gray-200 opacity-70' : 'border-gray-200'}`}>
                 <summary className="p-4 cursor-pointer list-none flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold capitalize">{d.category}</span>
+                      {steps && sopDone[e.id] && <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold text-white" style={{ backgroundColor: TEAL }}>✓ Done</span>}
                       {isPending && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">⏳ Pending</span>}
                       {isRejected && <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 font-semibold">✗ Rejected</span>}
                       <span className="text-[10px] text-gray-400">{e.created_at?.split('T')[0]}</span>
@@ -4849,8 +4916,26 @@ function IncidentKBView({ hotelId, isAdmin, userName }: { hotelId: string; isAdm
                     </div>
                   ) : (
                     <>
-                      <p className="text-[10px] font-bold text-gray-500 uppercase mt-3 mb-1">Suggested response</p>
-                      <p className="text-[12px] text-gray-700 leading-relaxed whitespace-pre-wrap">{d.response}</p>
+                      {steps ? (
+                        <div className="mt-3 space-y-1.5">
+                          {steps.map((st, i) => {
+                            const done = (sopDone[e.id] || false) || (checked[e.id] || []).includes(i);
+                            return (
+                              <button key={i} onClick={() => toggleStepFor(e.id, steps, i, d.title)}
+                                className="w-full flex items-center gap-2 text-left bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                                <span className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 text-[9px] font-bold"
+                                  style={done ? { backgroundColor: TEAL, borderColor: TEAL, color: '#fff' } : { borderColor: '#d1d5db', color: 'transparent' }}>✓</span>
+                                <span className={`text-[12px] ${done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{st}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-[10px] font-bold text-gray-500 uppercase mt-3 mb-1">Suggested response</p>
+                          <p className="text-[12px] text-gray-700 leading-relaxed whitespace-pre-wrap">{d.response}</p>
+                        </>
+                      )}
                     </>
                   )}
                   <div className="flex items-center gap-2 mt-3">

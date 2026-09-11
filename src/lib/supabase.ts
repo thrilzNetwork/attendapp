@@ -2965,6 +2965,13 @@ export async function resolveInspectionFinding(id: string) {
   if (error) throw error;
 }
 
+export async function assignInspectionFinding(id: string, assignedTo: string | null) {
+  const { error } = await supabase.from('inspection_findings').update({
+    assigned_to: assignedTo,
+  }).eq('id', id);
+  if (error) throw error;
+}
+
 export async function linkFindingToWorkOrder(id: string, workOrderId: string) {
   const { error } = await supabase.from('inspection_findings').update({
     work_order_id: workOrderId, status: 'work_order',

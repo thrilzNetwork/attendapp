@@ -30,6 +30,12 @@ export async function GET(req: NextRequest) {
           { onConflict: 'device_id' }
         );
       }
+      // Persist fuel level when Bouncie reports it (forward-compatible; column may not exist on older schemas)
+      if (v.fuelPercent != null) {
+        try {
+          await db.from('bouncie_devices').update({ fuel_percent: v.fuelPercent }).eq('hotel_id', hotelId).eq('device_id', v.deviceId);
+        } catch { /* fuel column not present — skip */ }
+      }
     }
   } catch (err) {
     if (err instanceof BouncieAuthError) {
@@ -122,9 +128,15 @@ export async function GET(req: NextRequest) {
       ? detectShuttleDirection(loc.lat, loc.lng, hotelCoords.lat, hotelCoords.lng, destCoords.lat, destCoords.lng, loc.heading, loc.speed_mph || 0)
       : null;
 
+    // Parked = device not moving for 10+ min (speed ≤ 2 and position not refreshed recently).
+    // Derived server-side so every UI surface shows a consistent parked state.
+    const locAgeMin = loc?.recorded_at ? (Date.now() - new Date(loc.recorded_at).getTime()) / 60000 : null;
+    const isParked = loc ? (loc.speed_mph || 0) <= 2 && (locAgeMin == null || locAgeMin >= 5) : false;
+
     return {
       ...d,
-      bouncie_locations: loc ? [loc] : [],
+      bouncie_locations: loc ? [{ ...loc, is_parked: isParked }] : [],
+      fuel_percent: (d as Record<string, unknown>).fuel_percent ?? null,
       eta: etaToHotel,
       etaToHotel,
       etaToDest,

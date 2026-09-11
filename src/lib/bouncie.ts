@@ -155,6 +155,10 @@ export interface BouncieVehicle {
   stats?: {
     lastUpdated?: string;
     speed?: number;
+    // fuel level — present on some newer firmware/API shapes (0-100 %); absent on classic
+    fuelLevelPercent?: number;
+    fuel_level_percent?: number;
+    fuel?: number;
     location?: { lat?: number; lon?: number; lng?: number; heading?: number; address?: string };
     // older/alternate shape some firmware reports
     gps?: { lat?: number; lng?: number; lon?: number; speed?: number; heading?: number; accuracy?: number; dt?: string };
@@ -165,6 +169,8 @@ export interface NormalizedVehicle {
   deviceId: string;
   name: string;
   gps: { lat: number; lng: number; speed: number; heading: number; accuracy: number; recordedAt: string } | null;
+  /** Fuel level percent when Bouncie reports it (else null — UI shows nothing) */
+  fuelPercent: number | null;
 }
 
 // Bouncie's /vehicles payload uses `imei` as the identifier, `nickName` for the
@@ -197,7 +203,14 @@ export function normalizeBouncieVehicle(v: BouncieVehicle): NormalizedVehicle | 
     };
   }
 
-  return { deviceId, name, gps };
+  // Fuel: try all known payload variants; Bouncie classic doesn't send it — stays null (UI hides chip)
+  const fuelRaw = v.stats?.fuelLevelPercent ?? v.stats?.fuel_level_percent ?? v.stats?.fuel;
+  const fuelPercent =
+    fuelRaw != null && Number.isFinite(Number(fuelRaw))
+      ? (Number(fuelRaw) <= 1 ? Math.round(Number(fuelRaw) * 100) : Math.round(Number(fuelRaw)))
+      : null;
+
+  return { deviceId, name, gps, fuelPercent };
 }
 
 export async function listBouncieVehicles(accessToken: string): Promise<BouncieVehicle[]> {

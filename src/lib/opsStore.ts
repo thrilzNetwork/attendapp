@@ -53,7 +53,10 @@ export type OpRecordType =
   | 'shuttle_booking'        // guest booking
   | 'call_around_log'        // daily call-around entry
   | 'incident_log'           // bad feedback / incident
-  | 'kb_suggestion';         // AI-suggested KB entry from incident
+  | 'kb_suggestion'          // AI-suggested KB entry from incident
+  | 'sales_goal'             // sales goal (target/unit/period)
+  | 'sales_checkin'          // daily sales check-in value
+  | 'sop_completion';        // staff completed an interactive SOP (Right Answers)
 
 export interface OpRecord {
   id: string;

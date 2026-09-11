@@ -8,7 +8,8 @@ import {
 import {
   getStaffSchedulesRange, getRoomStatuses, getWorkOrders, getLinenCounts,
   getHotelEvents, createHotelEvent, deleteHotelEvent, getForecastsRange, upsertForecastDay,
-  getOpenTickets,
+  getOpenTickets, updateStaffSchedule,
+  type StaffSchedule,
   type WeeklyForecast,
 } from '@/lib/supabase';
 import { listKpiDefinitions, listKpiSubmissions, type OpRecord } from '@/lib/opsStore';
@@ -51,7 +52,7 @@ export default function CommandCenterView({
 }) {
   const today = localDateStr();
   const [loading, setLoading] = useState(true);
-  const [onDuty, setOnDuty] = useState<{ staff_name: string; start_time: string | null; end_time: string | null; role: string }[]>([]);
+  const [onDuty, setOnDuty] = useState<StaffSchedule[]>([]);
   const [rooms, setRooms] = useState<{ room_number: string; status: string }[]>([]);
   const [openWo, setOpenWo] = useState(0);
   const [tickets, setTickets] = useState<{ total: number; byType: Record<string, number> }>({ total: 0, byType: {} });
@@ -184,10 +185,18 @@ export default function CommandCenterView({
     load();
   };
 
-  const dirty = rooms.filter(r => r.status === 'dirty');
+  // Editable In/End time on On Duty rows — persists via updateStaffSchedule
+  const saveShiftTime = async (
+    s: StaffSchedule,
+    field: 'start_time' | 'end_time',
+    value: string,
+  ) => {
+    if (!value) return;
+    setOnDuty(prev => prev.map(row => (row.staff_name === s.staff_name && row.start_time === s.start_time ? { ...row, [field]: value } : row)));
+    await updateStaffSchedule(s.id, { [field]: value });
+  };
+
   const ooo = rooms.filter(r => r.status === 'out_of_order');
-  const clean = rooms.filter(r => r.status === 'clean');
-  const inspected = rooms.filter(r => r.status === 'inspected');
   const occPct = todayFc ? todayFc.occupancy_pct : null;
   const adr = todayFc?.adr ?? null;
   const revpar = occPct != null && adr != null ? (occPct / 100) * adr : null;
@@ -257,10 +266,6 @@ export default function CommandCenterView({
               <span className="text-gray-500 font-medium">Open tickets</span>
               <span className={`font-extrabold ${tickets.total > 0 ? 'text-orange-600' : 'text-teal-700'}`}>{tickets.total}</span>
             </button>
-            <button onClick={() => onNavigate('housekeeping')} className="flex items-center justify-between w-full text-[12px] hover:bg-gray-50 rounded-lg px-1 py-0.5">
-              <span className="text-gray-500 font-medium">Dirty rooms</span>
-              <span className={`font-extrabold ${dirty.length > 0 ? 'text-orange-600' : 'text-teal-700'}`}>{dirty.length}</span>
-            </button>
             <button onClick={() => onNavigate('maintenance')} className="flex items-center justify-between w-full text-[12px] hover:bg-gray-50 rounded-lg px-1 py-0.5">
               <span className="text-gray-500 font-medium">Open work orders</span>
               <span className={`font-extrabold ${openWo > 0 ? 'text-orange-600' : 'text-teal-700'}`}>{openWo}</span>
@@ -316,7 +321,7 @@ export default function CommandCenterView({
         </div>
       </div>
 
-      {/* ── On duty + rooms ── */}
+      {/* ── On duty today ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
         <div className={sec}>
           <div className={secH}>
@@ -328,31 +333,28 @@ export default function CommandCenterView({
           ) : (
             <div className="space-y-1">
               {onDuty.map((s, i) => (
-                <div key={i} className="flex items-center justify-between text-[13px] bg-gray-50 rounded-xl px-3 py-2">
-                  <span className="font-bold text-gray-800 truncate max-w-[170px]">{s.staff_name}</span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-[11px] text-gray-400 font-medium truncate max-w-[110px]">{(s.role || '').trim()}</span>
-                    <span className="font-extrabold text-gray-700 text-[12px]">{fmtTime(s.start_time)}{s.end_time ? ` – ${fmtTime(s.end_time)}` : ''}</span>
+                <div key={i} className="flex items-center justify-between text-[13px] bg-gray-50 rounded-xl px-3 py-2 gap-2">
+                  <span className="font-bold text-gray-800 truncate max-w-[140px]">{s.staff_name}</span>
+                  <span className="text-[11px] text-gray-400 font-medium truncate max-w-[90px] hidden sm:block">{(s.role || '').trim()}</span>
+                  <span className="flex items-center gap-1">
+                    <input
+                      type="time"
+                      value={(s.start_time || '').slice(0, 5)}
+                      onChange={e => saveShiftTime(s, 'start_time', e.target.value)}
+                      className="w-[76px] px-1.5 py-1 border border-gray-200 rounded-lg text-[11px] font-bold text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400"
+                      title="In time"
+                    />
+                    <span className="text-gray-300 font-bold">–</span>
+                    <input
+                      type="time"
+                      value={(s.end_time || '').slice(0, 5)}
+                      onChange={e => saveShiftTime(s, 'end_time', e.target.value)}
+                      className="w-[76px] py-1 border border-gray-200 rounded-lg text-[11px] font-bold text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400"
+                      title="End time"
+                    />
                   </span>
                 </div>
               ))}
-            </div>
-          )}
-        </div>
-        <div className={sec}>
-          <div className={secH}>
-            <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><BedDouble size={14} style={{ color: TEAL }} /> Rooms ({rooms.length})</div>
-            <button onClick={() => onNavigate('housekeeping')} className="flex items-center text-[11px] font-bold text-teal-700 hover:underline">Housekeeping <ChevronRight size={12} /></button>
-          </div>
-          <div className="grid grid-cols-4 gap-2 mb-2">
-            <div className="bg-teal-50 rounded-xl p-2 text-center"><div className="text-[18px] font-extrabold text-teal-800">{inspected.length + clean.length}</div><div className="text-[10px] font-bold text-teal-700">READY</div></div>
-            <div className="bg-orange-50 rounded-xl p-2 text-center"><div className="text-[18px] font-extrabold text-orange-700">{dirty.length}</div><div className="text-[10px] font-bold text-orange-600">DIRTY</div></div>
-            <div className="bg-blue-50 rounded-xl p-2 text-center"><div className="text-[18px] font-extrabold text-blue-700">{clean.length}</div><div className="text-[10px] font-bold text-blue-600">CLEAN</div></div>
-            <div className="bg-red-50 rounded-xl p-2 text-center"><div className="text-[18px] font-extrabold text-red-700">{ooo.length}</div><div className="text-[10px] font-bold text-red-600">OOO</div></div>
-          </div>
-          {dirty.length > 0 && (
-            <div className="text-[12px] text-gray-500">
-              <span className="font-bold text-gray-700">Dirty:</span> {dirty.map(r => r.room_number).slice(0, 12).join(', ')}{dirty.length > 12 ? ` +${dirty.length - 12} more` : ''}
             </div>
           )}
         </div>

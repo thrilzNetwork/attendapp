@@ -10,9 +10,10 @@ import {
   subscribeToShuttleRequests,
   getPartners, supabase,
   getStaffSchedulesRange,
+  getForecastsRange,
   type ShuttleRoute, type ShuttleSlot, type ShuttleBooking, type ShuttleRequest, type Partner, type StaffAccount,
 } from '@/lib/supabase';
-import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, User, Car, CreditCard, ExternalLink } from 'lucide-react';
+import { Bus, Plus, Trash2, X, CheckCircle, AlertCircle, MapPin, RefreshCw, ChevronDown, Settings, Navigation, User, Car, CreditCard, ExternalLink, CalendarDays } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 
 function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -323,6 +324,88 @@ function RouteCard({ route, slots, onDelete, onDeleteSlot, onSaved }: {
 }
 
 /* ── Main ShuttleView ── */
+/* ── Week schedule snapshot — bottom of Today tab (7 day chips: staff · hours · occ) ── */
+function WeekScheduleSnapshot({ hotelId }: { hotelId: string }) {
+  interface SnapSched { shift_date: string; start_time: string | null; end_time: string | null; staff_name: string }
+  interface SnapFc { date: string; occupancy_pct: number }
+  const [days, setDays] = useState<{ date: string; staff: number; hours: number; occ: number | null }[]>([]);
+  const [totalHrs, setTotalHrs] = useState(0);
+  const [weekStart, setWeekStart] = useState('');
+
+  useEffect(() => {
+    if (!hotelId) return;
+    // Monday of current week
+    const d = new Date();
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const monday = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const sunday = new Date(d);
+    sunday.setDate(sunday.getDate() + 6);
+    const sundayStr = `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, '0')}-${String(sunday.getDate()).padStart(2, '0')}`;
+    setWeekStart(monday);
+    Promise.all([
+      getStaffSchedulesRange(hotelId, monday, sundayStr),
+      getForecastsRange(hotelId, monday, sundayStr),
+    ]).then(([scheds, fcs]) => {
+      const hoursFor = (list: SnapSched[]) => list.reduce((acc, s) => {
+        if (!s.start_time || !s.end_time) return acc;
+        const [sh, sm] = s.start_time.split(':').map(Number);
+        const [eh, em] = s.end_time.split(':').map(Number);
+        let h = (eh + em / 60) - (sh + sm / 60);
+        if (h < 0) h += 24;
+        return acc + h;
+      }, 0);
+      const fcMap: Record<string, number | null> = {};
+      for (const f of (fcs || []) as SnapFc[]) fcMap[f.date] = f.occupancy_pct;
+      const week = Array.from({ length: 7 }, (_, i) => {
+        const dd = new Date(d);
+        dd.setDate(d.getDate() + i);
+        const dateStr = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
+        const dayScheds = ((scheds || []) as SnapSched[]).filter(s => s.shift_date === dateStr);
+        return {
+          date: dateStr,
+          staff: dayScheds.length,
+          hours: Math.round(hoursFor(dayScheds)),
+          occ: fcMap[dateStr] ?? null,
+        };
+      });
+      setDays(week);
+      setTotalHrs(week.reduce((a, x) => a + x.hours, 0));
+    }).catch(() => {});
+  }, [hotelId]);
+
+  if (days.length === 0) return null;
+  const today = todayStr();
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <CalendarDays size={14} style={{ color: TEAL }} />
+          <span className="text-[13px] font-bold text-gray-800">Week at a Glance</span>
+        </div>
+        <span className="text-[11px] font-bold text-gray-400">{totalHrs}h scheduled this week</span>
+      </div>
+      <div className="grid grid-cols-7 gap-1.5">
+        {days.map(day => {
+          const isToday = day.date === today;
+          return (
+            <div key={day.date}
+              className={`rounded-xl border p-2 text-center ${isToday ? 'border-transparent text-white' : 'bg-gray-50 border-gray-100'}`}
+              style={isToday ? { background: TEAL } : {}}>
+              <div className={`text-[9px] font-bold uppercase ${isToday ? 'text-white/80' : 'text-gray-400'}`}>{DAYS_SHORT[new Date(day.date + 'T12:00:00').getDay()]}</div>
+              <div className={`text-[12px] font-extrabold ${isToday ? '' : 'text-gray-900'}`}>{new Date(day.date + 'T12:00:00').getDate()}</div>
+              <div className={`text-[9px] font-bold ${isToday ? 'text-white/90' : 'text-gray-600'}`}>{day.staff} staff</div>
+              <div className={`text-[9px] ${isToday ? 'text-white/80' : 'text-gray-400'}`}>{day.hours}h</div>
+              <div className={`text-[9px] font-bold ${isToday ? 'text-white/90' : 'text-teal-600'}`}>{day.occ != null ? `${day.occ}%` : '—'}</div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-gray-400 mt-2">Week of {weekStart} · staff counts from schedules, % from forecast occupancy</p>
+    </div>
+  );
+}
+
 export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props) {
   const [tab,      setTab]      = useState<Tab>('today');
   const [viewDate, setViewDate] = useState(todayStr());
@@ -874,6 +957,9 @@ export default function ShuttleView({ hotelId, isAdmin, staffList = [] }: Props)
                   </div>
                 </div>
               )}
+
+              {/* Week schedule snapshot */}
+              <WeekScheduleSnapshot hotelId={hotelId} />
 
             </div>
           )}

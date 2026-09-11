@@ -9,6 +9,7 @@ interface BouncieLocation {
   speed_mph: number;
   heading: number;
   recorded_at: string;
+  is_parked?: boolean;
 }
 
 interface ETAResult { distanceMiles: number; etaMinutes: number }
@@ -20,6 +21,7 @@ interface BouncieDevice {
   device_id: string;
   vehicle_name: string;
   is_shuttle: boolean;
+  fuel_percent?: number | null;
   bouncie_locations?: BouncieLocation[];
   etaToHotel?: ETAResult | null;
   etaToDest?: ETAResult | null;
@@ -219,9 +221,17 @@ export default function BouncieLiveShuttle({ hotelId, isAdmin }: { hotelId: stri
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <div className={`w-2 h-2 rounded-full ${isMoving ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
-            <span className="text-[10px] font-bold text-gray-600">{isMoving ? 'Moving' : 'Idle'}</span>
+            <div className={`w-2 h-2 rounded-full ${isMoving ? 'bg-emerald-500 animate-pulse' : loc?.is_parked ? 'bg-gray-400' : 'bg-gray-300'}`} />
+            <span className="text-[10px] font-bold text-gray-600">{isMoving ? 'Moving' : loc?.is_parked ? 'Parked' : 'Idle'}</span>
           </div>
+          {shuttle.fuel_percent != null && shuttle.fuel_percent > 0 && (
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${shuttle.fuel_percent < 25 ? 'bg-orange-100 text-orange-700' : 'bg-teal-50 text-teal-700'}`}
+              title={shuttle.fuel_percent < 25 ? 'Low fuel — refuel before next shift' : 'Fuel level reported by Bouncie'}
+            >
+              ⛽ {Math.round(shuttle.fuel_percent)}%
+            </span>
+          )}
           <button onClick={() => load(true)} disabled={refreshing} className="text-gray-400 hover:text-teal-600 disabled:opacity-40">
             <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
           </button>
