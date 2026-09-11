@@ -57,6 +57,7 @@ export type OpRecordType =
   | 'sales_goal'             // sales goal (target/unit/period)
   | 'sales_checkin'          // daily sales check-in value
   | 'schedule_snapshot'      // weekly schedule snapshot (staged → published Wednesday)
+  | 'hk_sod_plan'           // housekeeping start-of-day productivity plan (maids + est end)
   | 'sop_completion';        // staff completed an interactive SOP (Right Answers)
 
 export interface OpRecord {

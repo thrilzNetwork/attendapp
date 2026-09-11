@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Users, Wrench, ClipboardList, CalendarDays, BedDouble, DollarSign, Star,
   Plus, Trash2, RefreshCw, AlertTriangle, ChevronRight, Save, TrendingUp, BarChart3,
+  X, SlidersHorizontal,
 } from 'lucide-react';
 import {
   getStaffSchedulesRange, getRoomStatuses, getWorkOrders, getLinenCounts,
@@ -72,7 +73,8 @@ export default function CommandCenterView({
   const [evEmoji, setEvEmoji] = useState('📅');
 
   // adjust form (first compset row = tenant property → compset_entries)
-  const [showAdjust, setShowAdjust] = useState(false);
+  // Section hidden by default — collapsed behind a small adjust icon
+  const [showNumbers, setShowNumbers] = useState(false);
   const [adjOcc, setAdjOcc] = useState('');
   const [adjAdr, setAdjAdr] = useState('');
   const [adjArr, setAdjArr] = useState('');
@@ -210,7 +212,7 @@ export default function CommandCenterView({
       });
       setAdjFlash(true);
       setTimeout(() => setAdjFlash(false), 1800);
-      setShowAdjust(false);
+      setShowNumbers(false);
       load();
     } finally {
       setSavingAdj(false);
@@ -336,20 +338,26 @@ export default function CommandCenterView({
         </div>
       </div>
 
-      {/* ── Today's numbers (Compset-sourced) ── */}
-      <div className={sec + ' mb-4'}>
-        <div className={secH}>
-          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><TrendingUp size={14} style={{ color: TEAL }} /> Today&apos;s Numbers <span className="text-[11px] font-medium text-gray-400">— from Compset</span></div>
-          <div className="flex items-center gap-2">
-            {adjFlash && <span className="text-[11px] font-bold text-teal-700">✓ Saved</span>}
-            <button onClick={() => setShowAdjust(v => !v)}
-              className="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 hover:text-gray-800 bg-gray-100 rounded-xl px-3 py-2">
-              <Save size={13} /> Adjust
-            </button>
+      {/* ── Today's numbers (Compset-sourced) — hidden behind adjust icon ── */}
+      <div className={sec + ' mb-4 p-3'}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-[12px] text-gray-400 font-medium min-w-0">
+            <TrendingUp size={12} style={{ color: TEAL }} />
+            <span className="truncate">
+              Occupancy <b className="text-gray-700">{occPct != null ? `${occPct}%` : '—'}</b>
+              {' · '}ADR <b className="text-gray-700">{adr != null ? money(adr) : '—'}</b>
+              {' · '}Rooms sold <b className="text-gray-700">{own.roomsSold != null ? own.roomsSold : '—'}</b>
+              {comp.avg != null && <> · Comp avg <b className="text-gray-700">{money(comp.avg)}</b></>}
+            </span>
           </div>
+          <button onClick={() => setShowNumbers(v => !v)}
+            title="Adjust Compset numbers"
+            className="flex items-center justify-center w-8 h-8 shrink-0 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-colors">
+            {showNumbers ? <X size={13} /> : <SlidersHorizontal size={13} />}
+          </button>
         </div>
-        {showAdjust && (
-          <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+        {showNumbers && (
+          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
             {!compHotels.length ? (
               <p className="text-[12px] text-gray-500 font-medium">No property row in Compset yet — add your hotel as the <span className="font-bold">first hotel</span> in Compset (Compset → Add) to enable dashboard adjustments.</p>
             ) : (
@@ -378,15 +386,6 @@ export default function CommandCenterView({
             )}
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-4 text-[13px]">
-          <div><span className="text-gray-400 font-medium">Occupancy: </span><span className="font-extrabold text-gray-900">{occPct != null ? `${occPct}%` : '—'}</span></div>
-          <div><span className="text-gray-400 font-medium">ADR: </span><span className="font-extrabold text-gray-900">{adr != null ? money(adr) : '—'}</span></div>
-          <div><span className="text-gray-400 font-medium">Rooms sold: </span><span className="font-extrabold text-gray-900">{own.roomsSold != null ? own.roomsSold : '—'}</span></div>
-          {comp.avg != null && (
-            <div><span className="text-gray-400 font-medium">Comp avg: </span><span className="font-extrabold text-gray-900">{money(comp.avg)}</span></div>
-          )}
-          <div className="text-[11px] text-gray-400">Entries write to Compset (first row = our hotel) — the dashboard reads Compset only.</div>
-        </div>
       </div>
 
       {/* ── On duty today ── */}
