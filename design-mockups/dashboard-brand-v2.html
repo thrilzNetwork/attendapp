@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Attenda — Command Center (brand v2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F3F0E6; --paper:#FFFFFF; --ink:#15202B;
+    --navy:#1B1F3B; --navy-deep:#13162B;
+    --teal:#2BB8B2; --teal-soft:#D8EEEC; --teal-ink:#0E5F5B;
+    --red:#D64550; --amber:#E8A13C;
+    --line:2px solid var(--ink);
+    --shadow:4px 4px 0 var(--ink);
+    --shadow-sm:2px 2px 0 var(--ink);
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sans:'Archivo',system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);background:var(--cream);color:var(--ink);min-height:100vh;display:flex}
+  .main{flex:1;margin-left:264px;min-height:100vh;position:relative;
+    background-image:linear-gradient(rgba(21,32,43,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(21,32,43,.045) 1px,transparent 1px);
+    background-size:34px 34px;transition:margin .25s ease}
+  body.collapsed .main{margin-left:84px}
+
+  /* ── sidebar ── */
+  .sidebar{position:fixed;inset:0 auto 0 0;width:264px;z-index:50;background:var(--navy);color:#EDEFEA;
+    display:flex;flex-direction:column;border-right:2px solid var(--ink);transition:width .25s ease;overflow:hidden}
+  body.collapsed .sidebar{width:84px}
+  .side-top{padding:18px 14px 10px;display:flex;flex-direction:column;gap:14px}
+  .logo-row{display:flex;align-items:center;gap:10px;padding:2px 4px}
+  .logo-mark{width:40px;height:40px;flex:0 0 40px;background:var(--teal);border:2px solid var(--ink);border-radius:12px;
+    display:grid;place-items:center;font-weight:900;font-size:20px;color:var(--navy-deep);box-shadow:var(--shadow-sm)}
+  .logo-text b{font-size:17px;font-weight:800}
+  .logo-text span{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:#9BA3B8;margin-top:2px}
+  body.collapsed .logo-text,body.collapsed .nav-label,body.collapsed .nav-badge,body.collapsed .search-wrap,
+  body.collapsed .group-label,body.collapsed .side-foot .wide{display:none}
+  .search-wrap{background:var(--navy-deep);border:1.5px solid #3A4060;border-radius:10px;display:flex;align-items:center;
+    gap:8px;padding:9px 10px;color:#9BA3B8;font-size:13px}
+  .search-wrap .kbd{margin-left:auto;font-family:var(--mono);font-size:10px;border:1px solid #3A4060;border-radius:5px;padding:2px 5px}
+  nav{flex:1;overflow-y:auto;padding:4px 14px 10px}
+  nav::-webkit-scrollbar{width:0}
+  .group-label{font-family:var(--mono);font-size:10px;letter-spacing:.24em;color:#7E86A0;margin:16px 6px 6px}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:10px 11px;border-radius:11px;color:#D7DBE6;
+    font-size:14.5px;font-weight:600;text-decoration:none;margin-bottom:2px;border:2px solid transparent;white-space:nowrap}
+  .nav-item svg{flex:0 0 18px;width:18px;height:18px}
+  .nav-item:hover{background:rgba(255,255,255,.06)}
+  .nav-item.active{background:var(--teal);color:var(--navy-deep);border-color:var(--ink);box-shadow:var(--shadow-sm)}
+  .nav-badge{margin-left:auto;font-family:var(--mono);font-size:11px;background:var(--navy-deep);border:1.5px solid #3A4060;
+    border-radius:7px;padding:1px 7px;color:#EDEFEA}
+  .nav-item.active .nav-badge{border-color:var(--ink);color:#fff}
+  .side-foot{border-top:1.5px solid #2B3050;padding:12px 14px 16px;display:flex;flex-direction:column;gap:10px}
+  .profile{display:flex;align-items:center;gap:10px;background:var(--navy-deep);border:1.5px solid #3A4060;
+    border-radius:11px;padding:8px 10px}
+  .profile .av{width:36px;height:36px;flex:0 0 36px}
+  .profile b{font-size:13.5px;display:block}
+  .profile span{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:#9BA3B8}
+  .collapse-btn{display:flex;align-items:center;gap:9px;background:none;border:1.5px dashed #4A5178;color:#9BA3B8;
+    border-radius:10px;padding:8px 10px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;cursor:pointer}
+  .collapse-btn:hover{color:#EDEFEA}
+  .bell-row{display:flex;align-items:center;gap:9px;color:#D7DBE6;font-size:13.5px;font-weight:600;cursor:pointer}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--teal);margin-left:auto}
+  .logout{background:var(--navy-deep);border:1.5px solid #3A4060;color:#EDEFEA;border-radius:10px;padding:9px 10px;
+    font-family:var(--mono);font-size:11px;letter-spacing:.18em;cursor:pointer}
+  .logout:hover{border-color:var(--teal);color:var(--teal)}
+
+  /* ── content ── */
+  .content{max-width:1080px;margin:0 auto;padding:44px 36px 120px}
+  .mock-flag{position:sticky;top:14px;z-index:40;display:flex;justify-content:flex-end}
+  .mock-flag span{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;background:var(--navy);color:#FFD84D;
+    border:2px solid var(--ink);border-radius:999px;padding:6px 12px;box-shadow:var(--shadow-sm)}
+  .eyebrow{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;letter-spacing:.22em}
+  .eyebrow::before{content:'';width:9px;height:9px;background:var(--teal);border:1.5px solid var(--ink);border-radius:2px}
+  h1{font-size:clamp(42px,6.4vw,74px);font-weight:900;letter-spacing:-.03em;line-height:1;margin:10px 0 14px}
+  .meta{font-family:var(--mono);font-size:13px;color:#4A5568}
+  .meta b{color:var(--ink)}
+  .lede{font-size:17px;color:#33414F;margin-top:14px;max-width:560px;line-height:1.5}
+  .head-row{display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+  .search-pair{display:flex;gap:10px;margin-top:6px}
+  .search-pair input{width:min(300px,60vw);background:var(--paper);border:var(--line);border-radius:12px;
+    padding:13px 15px;font-size:14.5px;font-family:var(--sans);outline:none}
+  .search-pair input:focus{box-shadow:var(--shadow-sm)}
+  .btn{font-weight:700;font-size:14.5px;background:var(--teal);color:var(--navy-deep);border:var(--line);
+    border-radius:12px;padding:13px 20px;cursor:pointer;box-shadow:var(--shadow);font-family:var(--sans);transition:transform .08s,box-shadow .08s}
+  .btn:hover{transform:translate(2px,2px);box-shadow:var(--shadow-sm)}
+  .btn.ghost{background:var(--paper);color:var(--ink)}
+  .btn.sm{padding:9px 14px;font-size:13px;border-radius:10px}
+
+  .card{background:var(--paper);border:var(--line);border-radius:18px;padding:22px 24px;margin-top:26px;position:relative}
+  .card .dismiss{position:absolute;top:14px;right:14px;width:30px;height:30px;border:1.5px solid rgba(21,32,43,.25);
+    border-radius:9px;background:none;cursor:pointer;font-size:14px;color:#4A5568}
+  .card-label{font-family:var(--mono);font-size:12px;letter-spacing:.2em;font-weight:600;display:flex;align-items:center;gap:8px}
+  .checks{margin-top:14px;display:flex;flex-direction:column;gap:12px}
+  .check{display:flex;align-items:center;gap:12px;font-size:15.5px;font-weight:600}
+  .box{width:22px;height:22px;flex:0 0 22px;border:var(--line);border-radius:7px;background:var(--paper);
+    display:grid;place-items:center;cursor:pointer;box-shadow:var(--shadow-sm)}
+  .box.done{background:var(--teal)}
+  .check.done span{text-decoration:line-through;color:#7A8694}
+  .check .go{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:2px}
+  .split{display:flex;justify-content:space-between;gap:24px;align-items:center;flex-wrap:wrap}
+  .split h3{font-size:21px;font-weight:800;margin-top:8px}
+  .split p{font-size:14.5px;color:#4A5568;margin-top:6px;max-width:420px;line-height:1.55}
+  .split .actions{display:flex;align-items:center;gap:14px}
+  .hide-link{font-size:13.5px;color:#4A5568;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+  .sec{display:flex;align-items:center;gap:9px;font-size:16.5px;font-weight:800;margin:34px 0 14px}
+  .sec::before{content:'';width:9px;height:9px;background:var(--teal);border:1.5px solid var(--ink);border-radius:2px}
+
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+  .tile{background:var(--paper);border:var(--line);border-radius:16px;padding:16px 18px}
+  .tile .t-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:#4A5568}
+  .tile .t-num{font-size:34px;font-weight:900;letter-spacing:-.02em;margin-top:6px;line-height:1}
+  .tile .t-num small{font-size:16px;font-weight:700;color:#7A8694}
+  .chip{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-family:var(--mono);font-size:11px;
+    border-radius:999px;padding:3px 9px;border:1.5px solid var(--ink);font-weight:600}
+  .chip.ok{background:var(--teal-soft);color:var(--teal-ink)}
+  .chip.low{background:#FBE9E7;color:var(--red)}
+  .chip.mid{background:#FCF3E3;color:#9A6A14}
+
+  .att-list{display:flex;flex-direction:column}
+  .att-item{display:flex;gap:13px;align-items:center;padding:13px 4px;border-top:1.5px dashed rgba(21,32,43,.2)}
+  .att-item:first-child{border-top:none}
+  .att-item .av{width:40px;height:40px;flex:0 0 40px}
+  .att-item .sev{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.08em;flex:0 0 auto;
+    border:1.5px solid var(--ink);border-radius:7px;padding:3px 8px;box-shadow:var(--shadow-sm)}
+  .sev.crit{background:var(--red);color:#fff}
+  .sev.major{background:var(--amber)}
+  .sev.minor{background:var(--paper)}
+  .att-item b{font-size:15px}
+  .att-item p{font-size:13.5px;color:#4A5568;margin-top:3px}
+  .att-item .fix{margin-left:auto;flex:0 0 auto}
+
+  .crew{display:flex;gap:10px;flex-wrap:wrap}
+  .person{display:flex;align-items:center;gap:9px;background:var(--paper);border:var(--line);border-radius:999px;
+    padding:6px 14px 6px 6px;font-size:13.5px;font-weight:700;box-shadow:var(--shadow-sm)}
+  .person .av{width:32px;height:32px}
+  .person span{font-family:var(--mono);font-size:11px;color:#4A5568;font-weight:500}
+
+  .roombar{display:flex;height:34px;border:var(--line);border-radius:12px;overflow:hidden;background:var(--paper)}
+  .roombar div{display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:600}
+  .rb-clean{flex:47;background:var(--teal-soft);color:var(--teal-ink);border-right:1.5px solid var(--ink)}
+  .rb-dirty{flex:6;background:#FCF3E3;color:#9A6A14;border-right:1.5px solid var(--ink)}
+  .rb-ooo{flex:1;background:#FBE9E7;color:var(--red)}
+  .room-legend{display:flex;gap:16px;margin-top:10px;font-family:var(--mono);font-size:11.5px;color:#4A5568}
+  .room-legend i{display:inline-block;width:9px;height:9px;border:1.5px solid var(--ink);border-radius:2px;margin-right:5px}
+
+  .help{position:fixed;right:22px;bottom:22px;z-index:45;display:flex;align-items:center;gap:9px;background:var(--teal);
+    border:var(--line);border-radius:999px;padding:12px 20px;font-weight:800;font-size:14.5px;color:var(--navy-deep);
+    cursor:pointer;box-shadow:var(--shadow)}
+  .help:hover{transform:translate(2px,2px);box-shadow:var(--shadow-sm)}
+
+  .mobilebar{display:none;position:sticky;top:0;z-index:44;background:var(--navy);color:#fff;border-bottom:2px solid var(--ink);
+    padding:12px 16px;align-items:center;gap:12px}
+  .mobilebar .logo-mark{width:34px;height:34px;flex-basis:34px;font-size:16px;box-shadow:none}
+  .hamburger{background:none;border:1.5px solid #3A4060;border-radius:9px;color:#EDEFEA;width:38px;height:38px;
+    display:grid;place-items:center;cursor:pointer}
+  .mobilebar b{font-size:15.5px}
+  .scrim{display:none;position:fixed;inset:0;background:rgba(19,22,43,.5);z-index:49}
+
+  @media (max-width:1023px){
+    .main{margin-left:0}
+    body.collapsed .main{margin-left:0}
+    .sidebar{transform:translateX(-100%);transition:transform .25s ease;width:264px !important}
+    body.nav-open .sidebar{transform:translateX(0)}
+    body.nav-open .scrim{display:block}
+    .sidebar .search-wrap,.sidebar .nav-label,.sidebar .nav-badge,.sidebar .logo-text,
+    .sidebar .group-label,.sidebar .side-foot .wide,.sidebar .profile div{display:flex !important}
+    .mobilebar{display:flex}
+    .content{padding:28px 18px 110px}
+  }
+  @media (max-width:560px){
+    h1{font-size:44px}
+    .search-pair{width:100%}
+    .search-pair input{flex:1;width:auto}
+    .att-item p{display:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ SIDEBAR ══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="side-top">
+    <div class="logo-row">
+      <div class="logo-mark">A</div>
+      <div class="logo-text"><b>attenda</b><span>HOTEL OPS</span></div>
+    </div>
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      Search and go to…
+      <span class="kbd">⌘K</span>
+    </div>
+  </div>
+
+  <nav>
+    <div class="group-label">TODAY</div>
+    <a class="nav-item active" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span class="nav-label">Command Center</span></a>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 11.5 11 13.5 15.5 9"/><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4"/></svg><span class="nav-label">My To-Dos</span><span class="nav-badge">3</span></a>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg><span class="nav-label">Daily Brief</span></a>
+
+    <div class="group-label">OPERATIONS</div>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span class="nav-label">Schedules &amp; Forecast</span></a>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg><span class="nav-label">Housekeeping</span><span class="nav-badge">7</span></a>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14.7 6.3a4.5 4.5 0 0 0-6 6L3 18l3 3 5.7-5.7a4.5 4.5 0 0 0 6-6L14 13l-3-3z"/></svg><span class="nav-label">Maintenance</span><span class="nav-badge">2</span></a>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="7" y="3" width="10" height="18" rx="3"/><path d="m9 15 1.5 1.5L13 14"/></svg><span class="nav-label">Inspections</span><span class="nav-badge">0</span></a>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 11V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4"/><rect x="3" y="11" width="18" height="6" rx="2"/><path d="M6 17v2M18 17v2"/></svg><span class="nav-label">Shuttle</span></a>
+
+    <div class="group-label">MANAGE</div>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20V10M10 20V4M16 20v-8M21 20H3"/></svg><span class="nav-label">KPIs &amp; Reports</span></a>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17.5" cy="9.5" r="2.5"/><path d="M15.5 15.5a5 5 0 0 1 6 4.5"/></svg><span class="nav-label">Team</span></a>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3a7 7 0 0 1 4 12.7V18a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.3A7 7 0 0 1 12 3z"/><path d="M10 22h4"/></svg><span class="nav-label">Right Answers</span></a>
+  </nav>
+
+  <div class="side-foot">
+    <div class="profile">
+      <div class="av" data-av="alex"></div>
+      <div class="wide"><b>Ale Soria</b><span>GM · ALL DAY</span></div>
+    </div>
+    <button class="collapse-btn wide" onclick="document.body.classList.toggle('collapsed')"><span style="font-size:13px">«</span> COLLAPSE THE MENU</button>
+    <div class="bell-row"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>Notifications <i class="dot"></i></div>
+    <button class="logout wide">LOG OUT</button>
+  </div>
+</aside>
+<div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
+
+<!-- ══ MOBILE BAR ══ -->
+<div class="mobilebar">
+  <button class="hamburger" onclick="document.body.classList.add('nav-open')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  <div class="logo-mark">A</div>
+  <b>attenda</b>
+</div>
+
+<!-- ══ MAIN ══ -->
+<main class="main">
+  <div class="content">
+
+    <div class="mock-flag"><span>STYLE MOCKUP — NOT LIVE</span></div>
+
+    <div class="head-row">
+      <div>
+        <div class="eyebrow">BEST WESTERN FTL AIRPORT / CRUISE PORT</div>
+        <h1>Command Center</h1>
+        <div class="meta"><b>Thu Sep 10</b> &nbsp;•&nbsp; 54 rooms &nbsp;•&nbsp; 5 on duty &nbsp;•&nbsp; go run the day</div>
+        <p class="lede">Everything happening at the property right now — what needs you, what's on track, and who's in the building.</p>
+      </div>
+      <div class="search-pair">
+        <input type="text" placeholder="Search requests, rooms, staff…" />
+        <button class="btn">Search</button>
+      </div>
+    </div>
+
+    <!-- Morning checks -->
+    <div class="card">
+      <button class="dismiss">✕</button>
+      <div class="card-label">MORNING CHECKS &nbsp;1/3</div>
+      <div class="checks">
+        <div class="check done"><div class="box done"></div><span>Yesterday's KPIs submitted</span></div>
+        <div class="check"><div class="box"></div><span class="go">Post today's shuttle schedule →</span></div>
+        <div class="check"><div class="box"></div><span class="go">Review arrivals &amp; departures →</span></div>
+      </div>
+    </div>
+
+    <!-- Daily brief -->
+    <div class="card">
+      <button class="dismiss">✕</button>
+      <div class="split">
+        <div>
+          <div class="card-label">YOUR BRIEF</div>
+          <h3>Daily brief</h3>
+          <p>Occupancy, today's pain points and the one thing that matters most — in a 60-second read from the GM.</p>
+        </div>
+        <div class="actions"><button class="btn">▶&ensp;Read the brief</button><span class="hide-link">Hide</span></div>
+      </div>
+    </div>
+
+    <div class="sec">Today's numbers</div>
+    <div class="tiles">
+      <div class="tile"><div class="t-label">OCCUPANCY</div><div class="t-num">88<small>%</small></div><span class="chip ok">▲ vs forecast</span></div>
+      <div class="tile"><div class="t-label">ADR</div><div class="t-num">$142<small>.50</small></div><span class="chip ok">on target</span></div>
+      <div class="tile"><div class="t-label">GUEST SCORE</div><div class="t-num">83.3</div><span class="chip mid">target 85</span></div>
+      <div class="tile"><div class="t-label">NPS</div><div class="t-num">50</div><span class="chip low">target 85</span></div>
+    </div>
+
+    <div class="sec">Needs attention</div>
+    <div class="card" style="margin-top:0;padding:10px 22px">
+      <div class="att-list">
+        <div class="att-item">
+          <span class="sev crit">CRITICAL</span>
+          <div class="av" data-av="marco"></div>
+          <div><b>Room 212 — AC not cooling</b><p>Guest checks in tonight. Marco is en route.</p></div>
+          <button class="btn ghost sm fix">Fix it</button>
+        </div>
+        <div class="att-item">
+          <span class="sev major">MAJOR</span>
+          <div class="av" data-av="maria"></div>
+          <div><b>NPS dipped to 50 vs 85 target</b><p>3 low reviews this week mention shuttle wait times. María drafting response.</p></div>
+          <button class="btn ghost sm fix">Open</button>
+        </div>
+        <div class="att-item">
+          <span class="sev minor">MINOR</span>
+          <div class="av" data-av="sofi"></div>
+          <div><b>2 shuttle alerts unanswered</b><p>Guests waiting for pickup confirmation at the airport. Sofi on it.</p></div>
+          <button class="btn ghost sm fix">Respond</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">On duty today</div>
+    <div class="crew">
+      <div class="person"><div class="av" data-av="maria"></div>María <span>06:00</span></div>
+      <div class="person"><div class="av" data-av="sofi"></div>Sofi <span>09:30</span></div>
+      <div class="person"><div class="av" data-av="marco"></div>Marco <span>09:30</span></div>
+      <div class="person"><div class="av" data-av="berta"></div>Berta <span>10:30</span></div>
+      <div class="person"><div class="av" data-av="kathy"></div>Kathy <span>21:30</span></div>
+      <div class="person" style="border-style:dashed;background:transparent;box-shadow:none;color:#4A5568">+2 evening</div>
+    </div>
+
+    <div class="sec">Rooms right now</div>
+    <div class="roombar">
+      <div class="rb-clean">47 CLEAN</div>
+      <div class="rb-dirty">6</div>
+      <div class="rb-ooo">1</div>
+    </div>
+    <div class="room-legend">
+      <span><i style="background:var(--teal-soft)"></i>Clean 47</span>
+      <span><i style="background:#FCF3E3"></i>Dirty 6</span>
+      <span><i style="background:#FBE9E7"></i>Out of order 1</span>
+    </div>
+
+  </div>
+</main>
+
+<button class="help">
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"/></svg>
+  Help
+</button>
+
+<script>
+/* ── hand-drawn flat avatar crew ── */
+const INK='#15202B', SKIN={warm:'#C68863',deep:'#8D5A3B',light:'#E8AF8B',brown:'#6B4226'};
+function avatar(c){
+  let hair='';
+  if(c.style==='bun') hair=`<circle cx="60" cy="27" r="9" fill="${c.hair}" stroke="${INK}" stroke-width="3"/><path d="M40 52 a20 20 0 0 1 40 0 l0 -6 a20 22 0 0 0 -40 0 z" fill="${c.hair}" stroke="${INK}" stroke-width="3"/>`;
+  else if(c.style==='cap') hair=`<path d="M40 50 a20 20 0 0 1 40 0 l0 -4 a20 22 0 0 0 -40 0 z" fill="${c.hair}" stroke="${INK}" stroke-width="3"/><rect x="36" y="46" width="34" height="6" rx="3" fill="${c.hair}" stroke="${INK}" stroke-width="3"/>`;
+  else if(c.style==='long') hair=`<path d="M38 62 l0 -14 a22 22 0 0 1 44 0 l0 14 a6 6 0 0 1 -8 -6 l0 -8 a20 20 0 0 0 -28 0 l0 8 a6 6 0 0 1 -8 6 z" fill="${c.hair}" stroke="${INK}" stroke-width="3"/>`;
+  else hair=`<path d="M40 50 a20 20 0 0 1 40 0 l0 -5 a20 22 0 0 0 -40 0 z" fill="${c.hair}" stroke="${INK}" stroke-width="3"/>`;
+  let extra='';
+  if(c.glasses) extra+=`<circle cx="52" cy="50" r="6.5" fill="none" stroke="${INK}" stroke-width="2.5"/><circle cx="68" cy="50" r="6.6" fill="none" stroke="${INK}" stroke-width="2.5"/><path d="M58 50 h4" stroke="${INK}" stroke-width="2.5"/>`;
+  if(c.headset) extra+=`<path d="M42 48 a18 18 0 0 1 36 0" fill="none" stroke="${INK}" stroke-width="4"/><rect x="38" y="46" width="7" height="12" rx="3.5" fill="${INK}"/><path d="M42 58 q2 8 12 8" fill="none" stroke="${INK}" stroke-width="3"/><circle cx="55" cy="66" r="2.6" fill="${INK}"/>`;
+  return `<svg viewBox="0 0 120 120" width="100%" height="100%" style="display:block;border-radius:50%">
+    <defs><clipPath id="cp${c.id}"><circle cx="60" cy="60" r="56"/></clipPath></defs>
+    <circle cx="60" cy="60" r="56" fill="${c.bg}" stroke="${INK}" stroke-width="3"/>
+    <g clip-path="url(#cp${c.id})">
+      <path d="M18 122 C22 96 42 88 60 88 C78 88 98 96 102 122 Z" fill="${c.polo}" stroke="${INK}" stroke-width="3"/>
+      <path d="M52 89 L60 102 L68 89" fill="#fff" stroke="${INK}" stroke-width="2.5"/>
+      <circle cx="60" cy="54" r="21" fill="${c.skin}" stroke="${INK}" stroke-width="3"/>
+      ${hair}<circle cx="53" cy="53" r="2.4" fill="${INK}"/><circle cx="67" cy="53" r="2.4" fill="${INK}"/>
+      <path d="M54 61 Q60 66 66 61" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>
+      ${extra}
+    </g></svg>`;
+}
+const CREW={
+  maria:{id:'maria',style:'bun',  skin:SKIN.warm, hair:'#3A2A1E',bg:'#D8EEEC',polo:'#2BB8B2'},
+  marco:{id:'marco',style:'cap',  skin:SKIN.deep, hair:'#1E1710',bg:'#FCF3E3',polo:'#2BB8B2'},
+  sofi: {id:'sofi', style:'long', skin:SKIN.light,hair:'#5A3A21',bg:'#F6E3D4',polo:'#2BB8B2',headset:true},
+  alex: {id:'alex', style:'short',skin:SKIN.brown,hair:'#262019',bg:'#E3E7F2',polo:'#1B1F3B',glasses:true},
+  berta:{id:'berta',style:'bun',  skin:SKIN.deep, hair:'#4A3A2A',bg:'#F6E3D4',polo:'#2BB8B2'},
+  kathy:{id:'kathy',style:'long', skin:SKIN.warm, hair:'#7A4A2A',bg:'#E9E4F6',polo:'#2BB8B2',headset:true},
+};
+document.querySelectorAll('[data-av]').forEach(el=>{const w=CREW[el.dataset.av];if(w)el.innerHTML=avatar(w);});
+
+/* interactions */
+document.querySelectorAll('.nav-item').forEach(el=>el.addEventListener('click',()=>document.body.classList.remove('nav-open')));
+document.querySelectorAll('.check').forEach(row=>{
+  row.addEventListener('click',()=>{
+    row.classList.toggle('done');
+    row.querySelector('.box').classList.toggle('done');
+    row.querySelector('.box').innerHTML = row.classList.contains('done')
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="#15202B" stroke-width="3.4" style="width:13px;height:13px"><path d="m4.5 12.5 5 5 10-11"/></svg>' : '';
+  });
+});
+</script>
+</body>
+</html>

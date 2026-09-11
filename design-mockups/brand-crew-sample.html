@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Attenda — The Crew (brand sample)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F3F0E6; --cream2:#EAE5D4; --paper:#FFFFFF; --ink:#15202B;
+    --navy:#1B1F3B; --navy-deep:#13162B;
+    --teal:#2BB8B2; --teal-soft:#D8EEEC; --teal-ink:#0E5F5B;
+    --red:#D64550; --amber:#E8A13C;
+    --line:2px solid var(--ink);
+    --shadow:4px 4px 0 var(--ink);
+    --shadow-sm:2px 2px 0 var(--ink);
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sans:'Archivo',system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);background:var(--cream);color:var(--ink);
+    background-image:
+      linear-gradient(rgba(21,32,43,.045) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(21,32,43,.045) 1px,transparent 1px);
+    background-size:34px 34px}
+
+  /* top bar */
+  .top{position:sticky;top:0;z-index:40;background:var(--navy);color:#fff;border-bottom:2px solid var(--ink);
+    display:flex;align-items:center;gap:12px;padding:12px 22px}
+  .logo-mark{width:36px;height:36px;background:var(--teal);border:2px solid var(--ink);border-radius:11px;
+    display:grid;place-items:center;font-weight:900;font-size:18px;color:var(--navy-deep);box-shadow:var(--shadow-sm)}
+  .top b{font-size:17px;letter-spacing:-.01em}
+  .top .chip{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+    border:1.5px solid #4A5178;border-radius:999px;padding:5px 11px;color:#FFD84D}
+  .top .navlinks{display:flex;gap:18px;font-size:13.5px;font-weight:600;color:#D7DBE6}
+  .top .navlinks span{cursor:pointer}
+  .top .navlinks span:hover{color:var(--teal)}
+
+  .wrap{max-width:1100px;margin:0 auto;padding:0 28px}
+
+  /* ═══ HERO ═══ */
+  .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:64px 0 56px}
+  .kick{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;
+    letter-spacing:.2em;background:var(--paper);border:var(--line);border-radius:999px;
+    padding:7px 14px;box-shadow:var(--shadow-sm);font-weight:600}
+  .kick::before{content:'';width:8px;height:8px;background:var(--teal);border:1.5px solid var(--ink);border-radius:2px}
+  h1{font-size:clamp(42px,5.6vw,68px);font-weight:900;letter-spacing:-.03em;line-height:.98;margin:18px 0 16px}
+  h1 .hl{background:var(--teal);border:var(--line);border-radius:12px;padding:0 10px;display:inline-block;
+    box-shadow:var(--shadow-sm);color:var(--navy-deep)}
+  .lede{font-size:17px;color:#41505E;line-height:1.55;max-width:480px}
+  .cta-row{display:flex;gap:14px;margin-top:26px;flex-wrap:wrap}
+  .btn{font-weight:800;font-size:15px;background:var(--teal);color:var(--navy-deep);border:var(--line);
+    border-radius:13px;padding:14px 22px;cursor:pointer;box-shadow:var(--shadow);font-family:var(--sans)}
+  .btn.ghost{background:var(--paper);color:var(--ink)}
+  .btn:hover{transform:translate(2px,2px);box-shadow:var(--shadow-sm)}
+
+  /* crew cluster */
+  .crew-stage{position:relative;display:flex;justify-content:center;padding:10px 0}
+  .crew-cluster{display:flex;align-items:flex-end}
+  .memb{position:relative;text-align:center}
+  .memb .av{transition:transform .15s ease}
+  .memb:hover .av{transform:translateY(-6px) rotate(-2deg)}
+  .memb .nm{font-family:var(--mono);font-size:10px;letter-spacing:.14em;background:var(--paper);
+    border:1.5px solid var(--ink);border-radius:7px;padding:3px 8px;display:inline-block;margin-top:8px;
+    box-shadow:var(--shadow-sm);font-weight:600;white-space:nowrap}
+  .memb.m1{z-index:4}.memb.m2{z-index:3;margin-left:-22px}.memb.m3{z-index:2;margin-left:-22px}.memb.m4{z-index:1;margin-left:-22px}
+  .sticker{position:absolute;top:-6px;right:6%;background:var(--amber);border:var(--line);border-radius:11px;
+    font-family:var(--mono);font-size:11px;letter-spacing:.16em;font-weight:600;padding:7px 12px;
+    box-shadow:var(--shadow-sm);transform:rotate(6deg)}
+
+  .av{width:120px;height:120px;display:block}
+  .m1 .av{width:150px;height:150px}
+
+  /* ═══ APP PREVIEW ═══ */
+  .sec-h{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:900;margin:44px 0 18px}
+  .sec-h::before{content:'';width:11px;height:11px;background:var(--teal);border:2px solid var(--ink);border-radius:3px}
+  .app{background:var(--paper);border:3px solid var(--ink);border-radius:20px;overflow:hidden;box-shadow:6px 6px 0 var(--ink);display:grid;grid-template-columns:220px 1fr}
+  .side{background:var(--navy);color:#EDEFEA;padding:16px 12px;display:flex;flex-direction:column;gap:4px}
+  .side .srow{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;font-size:13px;font-weight:600;color:#D7DBE6}
+  .side .srow.on{background:var(--teal);color:var(--navy-deep);border:2px solid var(--ink);box-shadow:var(--shadow-sm)}
+  .side .srow svg{width:15px;height:15px;flex:0 0 15px}
+  .side .grp{font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:#7E86A0;margin:12px 8px 4px}
+  .app-main{padding:22px 24px;background:var(--cream)}
+  .app-main .row1{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .app-main h3{font-size:24px;font-weight:900;letter-spacing:-.02em}
+  .mono{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:#4A5568}
+  .onduty{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}
+  .dchip{display:flex;align-items:center;gap:8px;background:var(--paper);border:var(--line);border-radius:999px;
+    padding:5px 13px 5px 5px;font-size:12.5px;font-weight:700;box-shadow:var(--shadow-sm)}
+  .dchip .av{width:30px;height:30px}
+  .dchip span{font-family:var(--mono);font-size:10px;color:#4A5568;font-weight:500}
+  .tickets{display:flex;flex-direction:column;gap:9px;margin-top:6px}
+  .tick{display:flex;align-items:center;gap:11px;background:var(--paper);border:var(--line);border-radius:12px;
+    padding:10px 12px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow-sm)}
+  .tick .av{width:34px;height:34px;flex:0 0 34px}
+  .tick .sev{font-family:var(--mono);font-size:9px;letter-spacing:.1em;border:1.5px solid var(--ink);
+    border-radius:6px;padding:2px 7px;font-weight:600}
+  .sev.c{background:var(--red);color:#fff}.sev.m{background:var(--amber)}.sev.o{background:var(--teal-soft);color:var(--teal-ink)}
+  .tick .st{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--teal-ink);
+    border:1.5px solid var(--ink);border-radius:999px;padding:3px 9px;background:var(--teal-soft);white-space:nowrap}
+  .tick.dim{opacity:.55}
+  .tick.dim .st{background:var(--paper);color:#7A8694}
+
+  /* ═══ TOKENS ═══ */
+  .tokens{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin:8px 0 10px}
+  .tok{background:var(--paper);border:var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow-sm)}
+  .tok .sw{height:44px;border:2px solid var(--ink);border-radius:9px;margin-bottom:10px}
+  .tok b{font-size:14px}
+  .tok span{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:#4A5568;margin-top:3px}
+
+  .foot{padding:34px 0 46px;text-align:center}
+  .foot .mono{color:#7A8694}
+
+  @media (max-width:880px){
+    .hero{grid-template-columns:1fr;padding:40px 0}
+    .app{grid-template-columns:1fr}
+    .side{flex-direction:row;flex-wrap:wrap;gap:6px}
+    .side .grp{display:none}
+    .top .navlinks{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="logo-mark">A</div>
+  <b>attenda</b>
+  <span class="chip">BRAND SAMPLE · THE CREW</span>
+  <div class="navlinks"><span>Product</span><span>The Crew</span><span>Pricing</span><span>Demo</span></div>
+</div>
+
+<div class="wrap">
+
+  <!-- ═══ HERO ═══ -->
+  <div class="hero">
+    <div>
+      <span class="kick">HOTEL OPS · BUILT FOR THE CREW</span>
+      <h1>Your hotel already has heroes. <span class="hl">Now they have a system.</span></h1>
+      <p class="lede">Attenda turns QR codes, group chats and sticky notes into one thread — housekeeping, maintenance, front desk and the GM, all in the same room at last.</p>
+      <div class="cta-row">
+        <button class="btn">Book a 10-min demo →</button>
+        <button class="btn ghost">See it run</button>
+      </div>
+    </div>
+    <div class="crew-stage">
+      <div class="sticker">THE CREW</div>
+      <div class="crew-cluster">
+        <div class="memb m1"><div class="av" data-av="maria"></div><span class="nm">MARÍA · HK</span></div>
+        <div class="memb m2"><div class="av" data-av="marco"></div><span class="nm">MARCO · MAINT</span></div>
+        <div class="memb m3"><div class="av" data-av="sofi"></div><span class="nm">SOFI · FRONT</span></div>
+        <div class="memb m4"><div class="av" data-av="alex"></div><span class="nm">ALE · GM</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ APP PREVIEW ═══ -->
+  <div class="sec-h">Same crew, inside the app</div>
+  <div class="app">
+    <aside class="side">
+      <div class="grp">TODAY</div>
+      <div class="srow on">▦ Command Center</div>
+      <div class="srow">✓ My To-Dos</div>
+      <div class="grp">OPS</div>
+      <div class="srow">▤ Schedules</div>
+      <div class="srow">⌂ Housekeeping</div>
+      <div class="srow">⚒ Maintenance</div>
+      <div class="grp">MANAGE</div>
+      <div class="srow">▮ KPIs</div>
+      <div class="srow">◉ Right Answers</div>
+    </aside>
+    <div class="app-main">
+      <div class="row1">
+        <div>
+          <div class="mono">BW FTL AIRPORT / CRUISE PORT</div>
+          <h3>Command Center</h3>
+        </div>
+        <span class="mono">THU SEP 10 · 54 ROOMS</span>
+      </div>
+
+      <div class="onduty">
+        <div class="dchip"><div class="av" data-av="maria"></div>María <span>06:00</span></div>
+        <div class="dchip"><div class="av" data-av="sofi"></div>Sofi <span>09:30</span></div>
+        <div class="dchip"><div class="av" data-av="marco"></div>Marco <span>09:30</span></div>
+        <div class="dchip"><div class="av" data-av="alex"></div>Ale <span>ALL DAY</span></div>
+      </div>
+
+      <div class="tickets">
+        <div class="tick">
+          <div class="av" data-av="marco"></div>
+          <span class="sev c">CRIT</span> Room 212 · AC not cooling
+          <span class="st">MARCO · EN ROUTE</span>
+        </div>
+        <div class="tick">
+          <div class="av" data-av="maria"></div>
+          <span class="sev m">MAINT</span> Room 108 · late checkout request
+          <span class="st">MARÍA · 12 MIN</span>
+        </div>
+        <div class="tick dim">
+          <div class="av" data-av="sofi"></div>
+          <span class="sev o">DONE</span> Room 305 · extra towels delivered
+          <span class="st">09:41 · LOGGED</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TOKENS ═══ -->
+  <div class="sec-h">The brand system</div>
+  <div class="tokens">
+    <div class="tok"><div class="sw" style="background:var(--cream)"></div><b>Cream Sheet</b><span>#F3F0E6 · THE PAPER</span></div>
+    <div class="tok"><div class="sw" style="background:var(--navy)"></div><b>Shift Navy</b><span>#1B1F3B · THE INK</span></div>
+    <div class="tok"><div class="sw" style="background:var(--teal)"></div><b>Attenda Teal</b><span>#2BB8B2 · THE ACTION</span></div>
+    <div class="tok"><div class="sw" style="background:var(--amber)"></div><b>Stamp Amber</b><span>#E8A13C · THE FLAG</span></div>
+  </div>
+
+  <div class="foot">
+    <div class="mono">ARCHIVO BLACK + IBM PLEX MONO · 2PX INK BORDERS · OFFSET SHADOWS · HAND-DRAWN CREW</div>
+  </div>
+
+</div>
+
+<script>
+/* hand-drawn flat avatar crew — bold ink outlines, flat fills, zero gradients */
+const SKIN = {warm:'#C68863', deep:'#8D5A3B', light:'#E8AF8B', brown:'#6B4226'};
+const INK = '#15202B';
+function avatar(cfg){
+  const s = cfg.skin, hair = cfg.hair, polo = cfg.polo || 'var(--teal)';
+  let hairSvg = '', extra = '';
+  if(cfg.style === 'bun'){
+    hairSvg = `<circle cx="60" cy="27" r="9" fill="${hair}" stroke="${INK}" stroke-width="3"/>
+      <path d="M40 52 a20 20 0 0 1 40 0 l0 -6 a20 22 0 0 0 -40 0 z" fill="${hair}" stroke="${INK}" stroke-width="3"/>`;
+  } else if(cfg.style === 'cap'){
+    hairSvg = `<path d="M40 50 a20 20 0 0 1 40 0 l0 -4 a20 22 0 0 0 -40 0 z" fill="${hair}" stroke="${INK}" stroke-width="3"/>
+      <rect x="36" y="46" width="34" height="6" rx="3" fill="${hair}" stroke="${INK}" stroke-width="3"/>`;
+  } else if(cfg.style === 'long'){
+    hairSvg = `<path d="M38 62 l0 -14 a22 22 0 0 1 44 0 l0 14 a6 6 0 0 1 -8 -6 l0 -8 a20 20 0 0 0 -28 0 l0 8 a6 6 0 0 1 -8 6 z" fill="${hair}" stroke="${INK}" stroke-width="3"/>`;
+  } else { /* short */
+    hairSvg = `<path d="M40 50 a20 20 0 0 1 40 0 l0 -5 a20 22 0 0 0 -40 0 z" fill="${hair}" stroke="${INK}" stroke-width="3"/>`;
+  }
+  if(cfg.glasses){
+    extra += `<circle cx="52" cy="50" r="6.5" fill="none" stroke="${INK}" stroke-width="2.5"/>
+      <circle cx="68" cy="50" r="6.6" fill="none" stroke="${INK}" stroke-width="2.5"/>
+      <path d="M58 50 h4" stroke="${INK}" stroke-width="2.5"/>`;
+  }
+  if(cfg.headset){
+    extra += `<path d="M42 48 a18 18 0 0 1 36 0" fill="none" stroke="${INK}" stroke-width="4"/>
+      <rect x="38" y="46" width="7" height="12" rx="3.5" fill="${INK}"/>
+      <path d="M42 58 q2 8 12 8" fill="none" stroke="${INK}" stroke-width="3"/>
+      <circle cx="55" cy="66" r="2.6" fill="${INK}"/>`;
+  }
+  return `<svg class="av-svg" viewBox="0 0 120 120" width="100%" height="100%">
+    <defs><clipPath id="cp${cfg.id}"><circle cx="60" cy="60" r="56"/></clipPath></defs>
+    <circle cx="60" cy="60" r="56" fill="${cfg.bg}" stroke="${INK}" stroke-width="3"/>
+    <g clip-path="url(#cp${cfg.id})">
+      <path d="M18 122 C22 96 42 88 60 88 C78 88 98 96 102 122 Z" fill="${polo}" stroke="${INK}" stroke-width="3"/>
+      <path d="M52 89 L60 102 L68 89" fill="#fff" stroke="${INK}" stroke-width="2.5"/>
+      <circle cx="60" cy="54" r="21" fill="${s}" stroke="${INK}" stroke-width="3"/>
+      ${hairSvg}
+      <circle cx="53" cy="53" r="2.4" fill="${INK}"/>
+      <circle cx="67" cy="53" r="2.4" fill="${INK}"/>
+      <path d="M54 61 Q60 66 66 61" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>
+      ${extra}
+    </g>
+  </svg>`;
+}
+const CREW = {
+  maria:{id:'maria', style:'bun',   skin:SKIN.warm,  hair:'#3A2A1E', bg:'#D8EEEC', polo:'#2BB8B2'},
+  marco:{id:'marco', style:'cap',   skin:SKIN.deep,  hair:'#1E1710', bg:'#FCF3E3', polo:'#2BB8B2'},
+  sofi: {id:'sofi',  style:'long',  skin:SKIN.light, hair:'#5A3A21', bg:'#F6E3D4', polo:'#2BB8B2', headset:true},
+  alex: {id:'alex',  style:'short', skin:SKIN.brown, hair:'#262019', bg:'#E3E7F2', polo:'#1B1F3B', glasses:true},
+};
+document.querySelectorAll('[data-av]').forEach(el => {
+  const who = CREW[el.dataset.av];
+  if(who) el.innerHTML = avatar(who);
+});
+</script>
+</body>
+</html>

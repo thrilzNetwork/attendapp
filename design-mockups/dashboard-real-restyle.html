@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Attenda — Command Center (real UI, new style)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F3F0E6; --paper:#FFFFFF; --ink:#15202B;
+    --navy:#1B1F3B; --navy-deep:#13162B;
+    --teal:#2BB8B2; --teal-soft:#D8EEEC; --teal-ink:#0E5F5B;
+    --red:#D64550; --amber:#E8A13C; --amber-soft:#FCF3E3; --red-soft:#FBE9E7; --blue-soft:#E3EAF6; --blue-ink:#3A5490;
+    --line:2px solid var(--ink);
+    --shadow:4px 4px 0 var(--ink);
+    --shadow-sm:2px 2px 0 var(--ink);
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sans:'Archivo',system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);background:var(--cream);color:var(--ink);
+    background-image:linear-gradient(rgba(21,32,43,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(21,32,43,.045) 1px,transparent 1px);
+    background-size:34px 34px;min-height:100vh}
+
+  .wrap{max-width:1060px;margin:0 auto;padding:34px 24px 90px}
+  .flag{position:sticky;top:12px;z-index:40;display:flex;justify-content:flex-end;margin-bottom:-30px}
+  .flag span{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;background:var(--navy);color:#FFD84D;
+    border:2px solid var(--ink);border-radius:999px;padding:6px 12px;box-shadow:var(--shadow-sm)}
+
+  /* ── header (real header structure, restyled) ── */
+  .hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:#4A5568;display:flex;align-items:center;gap:8px}
+  .eyebrow::before{content:'';width:8px;height:8px;background:var(--teal);border:1.5px solid var(--ink);border-radius:2px}
+  h1{font-size:clamp(30px,4.5vw,46px);font-weight:900;letter-spacing:-.02em;line-height:1.02;margin:6px 0 4px}
+  .hdr-date{font-family:var(--mono);font-size:12.5px;color:#4A5568}
+  .btn{font-family:var(--sans);font-weight:700;font-size:13.5px;background:var(--teal);color:var(--navy-deep);
+    border:var(--line);border-radius:12px;padding:11px 17px;cursor:pointer;box-shadow:var(--shadow);
+    display:inline-flex;align-items:center;gap:8px;transition:transform .08s,box-shadow .08s}
+  .btn:hover{transform:translate(2px,2px);box-shadow:var(--shadow-sm)}
+  .btn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
+  .btn:disabled{opacity:.5;pointer-events:none}
+  .btn.ghost{background:var(--paper);color:var(--ink)}
+  .btn.icon{padding:11px 13px}
+  .spin{animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ── cards ── */
+  .card{background:var(--paper);border:var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow-sm)}
+  .card + .card, .grid + .card, .card + .grid, .grid + .grid{margin-top:18px}
+  .card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .card-t{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.18em;display:flex;align-items:center;gap:8px}
+  .card-t svg{width:15px;height:15px;color:var(--teal-ink)}
+  .card-sub{font-family:var(--mono);font-size:10.5px;color:#7A8694;letter-spacing:.08em;font-weight:400}
+  .link{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--teal-ink);
+    background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;
+    text-decoration:underline;text-underline-offset:3px}
+  .link:hover{color:var(--ink)}
+
+  /* ── inputs ── */
+  .field label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:#4A5568;margin-bottom:5px;font-weight:600}
+  .field input{width:104px;background:var(--paper);border:var(--line);border-radius:10px;padding:10px 12px;
+    font-size:15px;font-weight:700;font-family:var(--sans);color:var(--ink);outline:none;box-shadow:var(--shadow-sm)}
+  .field input:focus{box-shadow:var(--shadow);outline:none}
+  .inputs-row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+  .saved-flash{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.14em;color:var(--teal-ink);
+    background:var(--teal-soft);border:1.5px solid var(--ink);border-radius:999px;padding:5px 11px;
+    display:none;animation:pop .25s ease}
+  .saved-flash.show{display:inline-block}
+  @keyframes pop{0%{transform:scale(.8)}100%{transform:scale(1)}}
+  .week-adr{font-family:var(--mono);font-size:10.5px;color:#7A8694;letter-spacing:.06em;margin-top:12px}
+
+  /* ── health tiles ── */
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .tile{background:var(--paper);border:var(--line);border-radius:16px;padding:15px 16px;box-shadow:var(--shadow-sm)}
+  .tile-t{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.16em;color:#4A5568;
+    display:flex;align-items:center;gap:6px;margin-bottom:8px}
+  .tile-t svg{width:13px;height:13px;color:var(--teal-ink)}
+  .big{font-size:30px;font-weight:900;letter-spacing:-.02em;line-height:1}
+  .big small{font-size:15px;color:#7A8694;font-weight:700}
+  .tile-note{font-family:var(--mono);font-size:10px;color:#7A8694;margin-top:7px;letter-spacing:.04em}
+  .kv{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;
+    font-size:12.5px;padding:3px 2px;cursor:pointer;border-radius:8px;font-family:var(--sans)}
+  .kv:hover{background:var(--cream)}
+  .kv .k{color:#4A5568;font-weight:600}
+  .kv .v{font-weight:800;font-size:13px}
+  .v.bad{color:#B4531F}.v.good{color:var(--teal-ink)}.v.crit{color:var(--red)}
+  .v.na{color:#9AA4B0;font-weight:600}
+
+  /* ── duty rows ── */
+  .row{display:flex;align-items:center;gap:11px;background:var(--paper);border:1.5px solid var(--ink);
+    border-radius:12px;padding:8px 12px;box-shadow:var(--shadow-sm)}
+  .row + .row{margin-top:8px}
+  .row .av{width:34px;height:34px;flex:0 0 34px}
+  .row .nm{font-weight:800;font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .role{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:#7A8694;
+    border:1.5px solid rgba(21,32,43,.25);border-radius:6px;padding:2px 7px;white-space:nowrap;text-transform:uppercase}
+  .row .tm{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink);white-space:nowrap}
+
+  /* ── room stats ── */
+  .rooms4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+  .rstat{border:var(--line);border-radius:12px;padding:10px 6px;text-align:center;box-shadow:var(--shadow-sm)}
+  .rstat b{display:block;font-size:21px;font-weight:900;line-height:1}
+  .rstat span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;font-weight:600}
+  .rs-ready{background:var(--teal-soft);color:var(--teal-ink)}
+  .rs-dirty{background:var(--amber-soft);color:#9A6A14}
+  .rs-clean{background:var(--blue-soft);color:var(--blue-ink)}
+  .rs-ooo{background:var(--red-soft);color:var(--red)}
+  .dirty-list{font-family:var(--mono);font-size:11px;color:#4A5568;letter-spacing:.03em}
+  .dirty-list b{color:var(--ink)}
+
+  /* ── calendar ── */
+  .ev-form{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .ev-form input{border:var(--line);border-radius:10px;padding:9px 11px;font-family:var(--sans);font-size:13px;
+    font-weight:600;background:var(--paper);outline:none;box-shadow:var(--shadow-sm);color:var(--ink)}
+  .ev-form input:focus{box-shadow:var(--shadow)}
+  .ev-form .emoji{width:52px;text-align:center}
+  .ev-form .title{flex:1;min-width:150px}
+  .ev-form .date{font-family:var(--mono);font-size:11.5px}
+  .ev-form button{background:var(--teal);border:var(--line);border-radius:10px;width:42px;cursor:pointer;
+    box-shadow:var(--shadow-sm);font-size:18px;font-weight:800;color:var(--navy-deep);font-family:var(--sans)}
+  .ev-form button:active{transform:translate(2px,2px);box-shadow:none}
+  .ev{display:flex;align-items:center;gap:10px;background:var(--cream);border:1.5px solid var(--ink);
+    border-radius:12px;padding:9px 12px}
+  .ev + .ev{margin-top:8px}
+  .ev .em{font-size:16px}
+  .ev .t{font-weight:800;font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ev .d{font-family:var(--mono);font-size:10.5px;color:#4A5568;white-space:nowrap}
+  .ev .del{background:none;border:none;cursor:pointer;color:#9AA4B0;font-size:15px;padding:2px 4px}
+  .ev .del:hover{color:var(--red)}
+  .empty{font-family:var(--mono);font-size:11.5px;color:#9AA4B0;letter-spacing:.06em;padding:6px 2px}
+
+  /* ── jump to ── */
+  .jump{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .jump button{display:flex;align-items:center;gap:10px;background:var(--paper);border:var(--line);border-radius:12px;
+    padding:13px 14px;font-family:var(--sans);font-weight:800;font-size:13.5px;color:var(--ink);cursor:pointer;
+    box-shadow:var(--shadow-sm);transition:transform .08s,box-shadow .08s;text-align:left}
+  .jump button:hover{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+  .jump button svg{width:16px;height:16px;color:var(--teal-ink);flex:0 0 16px}
+  .ticket-note{font-family:var(--mono);font-size:10.5px;color:#7A8694;margin-top:12px;letter-spacing:.04em}
+
+  .foot{margin-top:26px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:#9AA4B0;text-align:center;line-height:1.7}
+
+  @media (max-width:880px){
+    .grid4{grid-template-columns:1fr 1fr}
+    .grid2{grid-template-columns:1fr}
+  }
+  @media (max-width:520px){
+    .rooms4{grid-template-columns:repeat(2,1fr)}
+    .jump{grid-template-columns:1fr 1fr}
+    .field input{width:88px}
+    .row .role{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="flag"><span>STYLE MOCKUP — REAL UI, NEW STYLE</span></div>
+
+  <!-- ══ HEADER (mirrors real header) ══ -->
+  <div class="hdr">
+    <div>
+      <div class="eyebrow">BW FORT LAUDERDALE AIRPORT / CRUISE PORT</div>
+      <h1>Command Center</h1>
+      <div class="hdr-date">Thursday, September 10</div>
+    </div>
+    <button class="btn ghost icon" id="refreshBtn">
+      <svg id="refreshIco" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 3v6h-6"/></svg>
+      Refresh
+    </button>
+  </div>
+
+  <!-- ══ 1 · TODAY'S NUMBERS — NOW FIRST ══ -->
+  <div class="card">
+    <div class="card-h">
+      <div class="card-t">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
+        TODAY'S NUMBERS <span class="card-sub">— STAFF INPUT</span>
+      </div>
+      <span class="saved-flash" id="savedFlash">✓ SAVED</span>
+    </div>
+    <div class="inputs-row">
+      <div class="field"><label>OCCUPANCY %</label><input id="inpOcc" inputmode="decimal" placeholder="e.g. 85" value="88"></div>
+      <div class="field"><label>ADR ($)</label><input id="inpAdr" inputmode="decimal" placeholder="e.g. 129" value="142.50"></div>
+      <div class="field"><label>ARRIVALS</label><input id="inpArr" inputmode="numeric" placeholder="e.g. 18" value="18"></div>
+      <button class="btn" id="saveBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+        <span id="saveLabel">Save</span>
+      </button>
+    </div>
+    <div class="week-adr">WEEK ADR: $129 · $138 · $142 · $141 · $155 · $189 · $164</div>
+  </div>
+
+  <!-- ══ 2 · BUSINESS HEALTH ROW (real tiles, restyled) ══ -->
+  <div class="grid4" style="margin-top:18px">
+    <div class="tile">
+      <div class="tile-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M2 12h20M4 6v12M20 6v12M7 12v3M17 12v3"/><path d="M2 9l3-3 4 3M22 9l-3-3-4 3" opacity=".5"/></svg> OCCUPANCY</div>
+      <div class="big" id="tileOcc">88<small>%</small></div>
+      <div class="tile-note" id="tileOccNote">48 ROOMS · STAFF INPUT</div>
+    </div>
+    <div class="tile">
+      <div class="tile-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> ADR (RATE)</div>
+      <div class="big" id="tileAdr">$142</div>
+      <div class="tile-note" id="tileRevpar">REVPAR $125</div>
+    </div>
+    <div class="tile">
+      <div class="tile-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg> GUEST SCORES</div>
+      <button class="kv"><span class="k">NPS</span><span class="v bad">50 / 85</span></button>
+      <button class="kv"><span class="k">GSS</span><span class="v bad">83.3 / 85</span></button>
+      <button class="kv"><span class="k">Reviews</span><span class="v good">4.6 ★</span></button>
+    </div>
+    <div class="tile">
+      <div class="tile-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg> NEEDS ATTENTION</div>
+      <button class="kv"><span class="k">Open tickets</span><span class="v bad">3</span></button>
+      <button class="kv"><span class="k">Dirty rooms</span><span class="v bad">6</span></button>
+      <button class="kv"><span class="k">Work orders</span><span class="v bad">2</span></button>
+      <button class="kv"><span class="k">Linen below par</span><span class="v bad">1</span></button>
+      <button class="kv"><span class="k">Out of order</span><span class="v crit">1</span></button>
+    </div>
+  </div>
+
+  <!-- ══ 3 · ON DUTY + ROOMS (real sections, avatars added) ══ -->
+  <div class="grid2" style="margin-top:18px">
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17.5" cy="9.5" r="2.5"/><path d="M15.5 15.5a5 5 0 0 1 6 4.5"/></svg> ON DUTY TODAY <span class="card-sub">(5)</span></div>
+        <button class="link">FULL SCHEDULE →</button>
+      </div>
+      <div class="row"><div class="av" data-av="berta"></div><span class="nm">Berta</span><span class="role">Housekeeping</span><span class="tm">6:00 AM – 2:00 PM</span></div>
+      <div class="row"><div class="av" data-av="sofi"></div><span class="nm">Sofi</span><span class="role">Front Desk</span><span class="tm">9:30 AM – 5:30 PM</span></div>
+      <div class="row"><div class="av" data-av="marco"></div><span class="nm">Marco</span><span class="role">Maintenance</span><span class="tm">9:30 AM – 5:30 PM</span></div>
+      <div class="row"><div class="av" data-av="maria"></div><span class="nm">María</span><span class="role">Housekeeping</span><span class="tm">10:30 AM – 6:30 PM</span></div>
+      <div class="row"><div class="av" data-av="kathy"></div><span class="nm">Kathy</span><span class="role">Audit</span><span class="tm">11:00 PM – 7:00 AM</span></div>
+    </div>
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M2 12h20M4 6v12M20 6v12M7 12v3M17 12v3"/></svg> ROOMS <span class="card-sub">(54)</span></div>
+        <button class="link">HOUSEKEEPING →</button>
+      </div>
+      <div class="rooms4">
+        <div class="rstat rs-ready"><b>47</b><span>READY</span></div>
+        <div class="rstat rs-dirty"><b>6</b><span>DIRTY</span></div>
+        <div class="rstat rs-clean"><b>41</b><span>CLEAN</span></div>
+        <div class="rstat rs-ooo"><b>1</b><span>OOO</span></div>
+      </div>
+      <div class="dirty-list"><b>DIRTY:</b> 204, 210, 212, 305, 410, 512</div>
+    </div>
+  </div>
+
+  <!-- ══ 4 · CALENDAR + JUMP TO (real sections) ══ -->
+  <div class="grid2" style="margin-top:18px">
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> PROPERTY CALENDAR</div>
+      </div>
+      <div class="ev-form">
+        <input class="emoji" value="🏈" maxlength="2" id="evEmoji">
+        <input class="title" placeholder="Add event…" id="evTitle">
+        <input class="date" type="date" value="2026-09-10" id="evDate">
+        <button id="evAdd">+</button>
+      </div>
+      <div id="evList"></div>
+    </div>
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 11.5 11 13.5 15.5 9"/><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4"/></svg> JUMP TO</div>
+      </div>
+      <div class="jump">
+        <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 11.5 11 13.5 15.5 9"/><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4"/></svg> To-Dos</button>
+        <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M2 12h20M4 6v12M20 6v12M7 12v3M17 12v3"/></svg> Housekeeping</button>
+        <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M14.7 6.3a4.5 4.5 0 0 0-6 6L3 18l3 3 5.7-5.7a4.5 4.5 0 0 0 6-6L14 13l-3-3z"/></svg> Maintenance</button>
+        <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> Sched &amp; Forecast</button>
+      </div>
+      <div class="ticket-note">3 OPEN TICKET(S): MAINTENANCE (1) · HOUSEKEEPING (2)</div>
+    </div>
+  </div>
+
+  <div class="foot">
+    MIRRORS REAL COMMANDCENTERTVIEW.TSX — TODAY'S NUMBERS PROMOTED TO TOP · SAME BUTTONS/BEHAVIORS RESTYLED<br>
+    REFRESH · SAVE (+✓ FLASH) · FULL SCHEDULE → · HOUSEKEEPING → · ADD/DELETE EVENT · JUMP-TO GRID
+  </div>
+</div>
+
+<script>
+/* crew avatars (same hand-drawn set) */
+const INK='#15202B',SKIN={warm:'#C68863',deep:'#8D5A3B',light:'#E8AF8B',brown:'#6B4226'};
+function avatar(c){
+  let hair='';
+  if(c.style==='bun')hair=`<circle cx="60" cy="27" r="9" fill="${c.hair}" stroke="${INK}" stroke-width="3"/><path d="M40 52 a20 20 0 0 1 40 0 l0 -6 a20 22 0 0 0 -40 0 z" fill="${c.hair}" stroke="${INK}" stroke-width="3"/>`;
+  else if(c.style==='cap')hair=`<path d="M40 50 a20 20 0 0 1 40 0 l0 -4 a20 22 0 0 0 -40 0 z" fill="${c.hair}" stroke="${INK}" stroke-width="3"/><rect x="36" y="46" width="34" height="6" rx="3" fill="${c.hair}" stroke="${INK}" stroke-width="3"/>`;
+  else if(c.style==='long')hair=`<path d="M38 62 l0 -14 a22 22 0 0 1 44 0 l0 14 a6 6 0 0 1 -8 -6 l0 -8 a20 20 0 0 0 -28 0 l0 8 a6 6 0 0 1 -8 6 z" fill="${c.hair}" stroke="${INK}" stroke-width="3"/>`;
+  else hair=`<path d="M40 50 a20 20 0 0 1 40 0 l0 -5 a20 22 0 0 0 -40 0 z" fill="${c.hair}" stroke="${INK}" stroke-width="3"/>`;
+  let extra='';
+  if(c.headset)extra+=`<path d="M42 48 a18 18 0 0 1 36 0" fill="none" stroke="${INK}" stroke-width="4"/><rect x="38" y="46" width="7" height="12" rx="3.5" fill="${INK}"/><path d="M42 58 q2 8 12 8" fill="none" stroke="${INK}" stroke-width="3"/><circle cx="55" cy="66" r="2.6" fill="${INK}"/>`;
+  return `<svg viewBox="0 0 120 120" width="100%" height="100%" style="display:block;border-radius:50%">
+    <defs><clipPath id="cp${c.id}"><circle cx="60" cy="60" r="56"/></clipPath></defs>
+    <circle cx="60" cy="60" r="56" fill="${c.bg}" stroke="${INK}" stroke-width="3"/>
+    <g clip-path="url(#cp${c.id})">
+      <path d="M18 122 C22 96 42 88 60 88 C78 88 98 96 102 122 Z" fill="${c.polo}" stroke="${INK}" stroke-width="3"/>
+      <circle cx="60" cy="54" r="21" fill="${c.skin}" stroke="${INK}" stroke-width="3"/>
+      ${hair}<circle cx="53" cy="53" r="2.4" fill="${INK}"/><circle cx="67" cy="53" r="2.4" fill="${INK}"/>
+      <path d="M54 61 Q60 66 66 61" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>
+      ${extra}
+    </g></svg>`;
+}
+const CREW={
+  maria:{id:'maria',style:'bun',skin:SKIN.warm,hair:'#3A2A1E',bg:'#D8EEEC',polo:'#2BB8B2'},
+  marco:{id:'marco',style:'cap',skin:SKIN.deep,hair:'#1E1710',bg:'#FCF3E3',polo:'#2BB8B2'},
+  sofi:{id:'sofi',style:'long',skin:SKIN.light,hair:'#5A3A21',bg:'#F6E3D4',polo:'#2BB8B2',headset:true},
+  berta:{id:'berta',style:'bun',skin:SKIN.deep,hair:'#4A3A2A',bg:'#E3EAF6',polo:'#2BB8B2'},
+  kathy:{id:'kathy',style:'long',skin:SKIN.warm,hair:'#7A4A2A',bg:'#E9E4F6',polo:'#2BB8B2',headset:true},
+};
+document.querySelectorAll('[data-av]').forEach(el=>{const w=CREW[el.dataset.av];if(w)el.innerHTML=avatar(w);});
+
+/* save flow — updates the health tiles above */
+const $=id=>document.getElementById(id);
+$('saveBtn').addEventListener('click',()=>{
+  const occ=parseFloat($('inpOcc').value), adr=parseFloat($('inpAdr').value);
+  if(!isNaN(occ)&&occ>=0&&occ<=100)$('tileOcc').innerHTML=occ+'<small>%</small>';
+  if(!isNaN(occ))$('tileOccNote').textContent=Math.round(occ/100*54)+' ROOMS · STAFF INPUT';
+  if(!isNaN(adr)){$('tileAdr').textContent='$'+adr.toFixed(0);
+    if(!isNaN(occ))$('tileRevpar').textContent='REVPAR $'+(occ/100*adr).toFixed(0);}
+  $('savedFlash').classList.add('show');
+  setTimeout(()=>$('savedFlash').classList.remove('show'),1800);
+});
+
+/* refresh spin */
+$('refreshBtn').addEventListener('click',()=>{
+  const i=$('refreshIco');i.classList.add('spin');setTimeout(()=>i.classList.remove('spin'),900);
+});
+
+/* events add/remove */
+let EVENTS=[
+  {emoji:'🚢',title:'Cruise turnaround — early arrivals',date:'Sep 12'},
+  {emoji:'🏈',title:'NFL Sunday shuttle runs',date:'Sep 13'},
+  {emoji:'🎂',title:"Berta's birthday",date:'Sep 18'},
+];
+function fmtDate(v){const d=new Date(v+'T00:00:00');return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function renderEv(){
+  const l=$('evList');
+  if(!EVENTS.length){l.innerHTML='<div class="empty">NO UPCOMING EVENTS</div>';return;}
+  l.innerHTML=EVENTS.map((e,i)=>`<div class="ev"><span class="em">${e.emoji}</span><span class="t">${e.title}</span><span class="d">${e.date}</span><button class="del" data-i="${i}">✕</button></div>`).join('');
+  l.querySelectorAll('.del').forEach(b=>b.addEventListener('click',()=>{EVENTS.splice(+b.dataset.i,1);renderEv();}));
+}
+$('evAdd').addEventListener('click',()=>{
+  const t=$('evTitle').value.trim();if(!t)return;
+  EVENTS.push({emoji:$('evEmoji').value||'📅',title:t,date:fmtDate($('evDate').value||'2026-09-10')});
+  EVENTS.sort((a,b)=>new Date('2026 '+a.date)-new Date('2026 '+b.date));
+  $('evTitle').value='';renderEv();
+});
+renderEv();
+</script>
+</body>
+</html>
