@@ -240,6 +240,8 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
   const [newItemLabel, setNewItemLabel] = useState('');
   const [newItemType, setNewItemType] = useState('checkbox');
   const [newItemConfig, setNewItemConfig] = useState('');
+  const [newItemKpi, setNewItemKpi] = useState('');
+  const [kpiDefs, setKpiDefs] = useState<{ id: string; name: string }[]>([]);
   const [newTplItems, setNewTplItems] = useState<{ label: string; item_type: string; config?: Record<string, unknown> }[]>([]);
 
   // Inline form state for operational input types
@@ -308,6 +310,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
   const refreshGoals = async () => {
     try {
       const [defs, subs] = await Promise.all([listKpiDefinitions(hotelId), listKpiSubmissions(hotelId)]);
+      setKpiDefs((defs || []).map((d: OpRecord) => ({ id: d.id, name: ((d.details as Record<string, unknown>).kpi_name as string) || 'KPI' })));
       const tiles = (defs || []).slice(0, 8).map((def: OpRecord) => {
         const d = def.details as Record<string, unknown>;
         const name = ((d.kpi_name as string) || '').toLowerCase();
@@ -486,12 +489,13 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
     const items = itemsByTemplate[templateId] || [];
     let config: Record<string, unknown> = {};
     try { if (newItemConfig.trim()) config = JSON.parse(newItemConfig); } catch {}
+    if (newItemType === 'kpi_field' && newItemKpi) config = { ...config, kpi_id: newItemKpi };
     try {
       await createTemplateItem({
         template_id: templateId, label: newItemLabel.trim(),
         item_type: newItemType, sort_order: items.length, config,
       });
-      setNewItemLabel(''); setNewItemType('checkbox'); setNewItemConfig('');
+      setNewItemLabel(''); setNewItemType('checkbox'); setNewItemConfig(''); setNewItemKpi('');
       const updated = await getTemplateItems(templateId);
       setItemsByTemplate(prev => ({ ...prev, [templateId]: updated }));
     } catch (e) {
@@ -556,6 +560,20 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
     await upsertResponse({ instance_id: instId, item_id: itemId, checked: true, number_value: value });
     const updated = await getInstanceResponses(instId);
     setResponsesByInstance(prev => ({ ...prev, [instId]: updated }));
+    // Mirror kpi_field entries into the KPIs tab (kpi_submission) when the
+    // item is linked to a KPI definition via config.kpi_id.
+    const kpiItems = Object.values(itemsByTemplate).flat();
+    const linkedItem = kpiItems.find(i => i.id === itemId && i.item_type === 'kpi_field' && (i.config as Record<string, unknown> | undefined)?.kpi_id);
+    if (linkedItem) {
+      const defId = (linkedItem.config as Record<string, unknown>).kpi_id as string;
+      const def = kpiDefs.find(x => x.id === defId);
+      if (def) {
+        try {
+          await createKpiSubmission(hotelId, { definition_id: defId, kpi_name: def.name, value, shift_date: selectedDate, submitted_by: staffName || 'Staff' });
+          await refreshGoals();
+        } catch { /* submission mirror is best-effort */ }
+      }
+    }
   };
 
   const handleText = async (instId: string, itemId: string, value: string) => {
@@ -1083,6 +1101,12 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                                               <select value={newItemType} onChange={e => setNewItemType(e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px]">
                                                 {ITEM_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
                                               </select>
+                                              {newItemType === 'kpi_field' && (
+                                                <select value={newItemKpi} onChange={e => setNewItemKpi(e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px]">
+                                                  <option value="">Link KPI…</option>
+                                                  {kpiDefs.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                                </select>
+                                              )}
                                               <button onClick={() => addItem(tpl.id)} disabled={submitting || !newItemLabel.trim()} className="px-3 py-2 rounded-xl text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}><Plus size={14} /></button>
                                             </div>
                                           </div>
