@@ -2845,11 +2845,12 @@ export async function getMaintenancePms(hotelId: string): Promise<MaintenancePm[
   return (data || []) as MaintenancePm[];
 }
 
-export async function createMaintenancePm(hotelId: string, title: string, frequencyDays: number, assignedTo?: string): Promise<boolean> {
-  const { error } = await supabase.from('maintenance_pms').insert({
+export async function createMaintenancePm(hotelId: string, title: string, frequencyDays: number, assignedTo?: string): Promise<{ id: string } | null> {
+  const { data, error } = await supabase.from('maintenance_pms').insert({
     hotel_id: hotelId, title, frequency_days: frequencyDays, assigned_to: assignedTo || null,
-  });
-  return !error;
+  }).select('id').single();
+  if (error) return null;
+  return data as { id: string };
 }
 
 export async function completeMaintenancePm(id: string): Promise<void> {

@@ -3936,7 +3936,7 @@ const DEFAULT_COVERAGE_RULES: CoverageRule[] = [
   { department: 'management',   position: 'Manager on Duty',   ratio: 80, min_staff: 1, max_staff: 2, start_time: '08:00', end_time: '20:00' },
 ];
 
-/* ── Checklists Tab View ─────────────────────────────── */
+/* ── Inspections Tab View (formerly Checklists) ───────── */
 function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boolean }) {
   const [templates, setTemplates] = useState<Checklist[]>([]);
   const [instances, setInstances] = useState<ChecklistInstance[]>([]);
@@ -4029,7 +4029,7 @@ function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boo
     <div className="p-4 md:p-8 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-[22px] font-extrabold text-gray-900">Checklists</h1>
+          <h1 className="text-[22px] font-extrabold text-gray-900">Inspections</h1>
           <p className="text-[13px] text-gray-500">Today&apos;s tasks by department</p>
         </div>
         {isAdmin && (
@@ -4067,7 +4067,7 @@ function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boo
               {open && (
                 <div className="border-t border-gray-100 divide-y divide-gray-100">
                   {deptTemplates.length === 0 ? (
-                    <p className="text-[12px] text-gray-400 px-4 py-4">No checklists for {dept.label} yet. {isAdmin ? 'Create one above.' : 'Ask your manager to add one.'}</p>
+                    <p className="text-[12px] text-gray-400 px-4 py-4">No inspections for {dept.label} yet. {isAdmin ? 'Create one above.' : 'Ask your manager to add one.'}</p>
                   ) : (
                     deptTemplates.map(tpl => {
                       const inst = todaysInstanceFor(tpl.id);
@@ -4149,7 +4149,7 @@ function ChecklistsTabView({ hotelId, isAdmin }: { hotelId: string; isAdmin: boo
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setShowNew(false)}>
           <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[15px] font-bold">New Checklist Template</h2>
+              <h2 className="text-[15px] font-bold">New Inspection Template</h2>
               <button onClick={() => setShowNew(false)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
             </div>
             <p className="text-[12px] text-gray-500 mb-4">Name the checklist and pick a department. Add items next (one per line).</p>

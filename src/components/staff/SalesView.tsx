@@ -16,8 +16,8 @@ function localDateStr(d: Date = new Date()): string {
 interface SalesGoal {
   title: string;
   target: number;
-  unit: string;          // '', '$', '%', 'rooms'…
-  period: 'day' | 'week' | 'month' | 'quarter';
+  unit: string;          // '', '$', '%', 'rooms'… (legacy) — new goals are '$' only
+  period: 'day' | 'week' | 'month' | 'quarter'; // legacy 'day'/'week' still render
   created_by?: string;
 }
 
@@ -40,10 +40,9 @@ export default function SalesView({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // goal form
+  // goal form — high-level financial goals only ($ / monthly+quarterly)
   const [gTitle, setGTitle] = useState('');
   const [gTarget, setGTarget] = useState('');
-  const [gUnit, setGUnit] = useState('$');
   const [gPeriod, setGPeriod] = useState<SalesGoal['period']>('month');
 
   // check-in form
@@ -85,7 +84,7 @@ export default function SalesView({
     if (!gTitle.trim() || isNaN(target) || target <= 0) return;
     setSaving(true);
     await createOps(hotelId, 'sales_goal', {
-      title: gTitle.trim(), target, unit: gUnit, period: gPeriod, created_by: staffName,
+      title: gTitle.trim(), target, unit: '$', period: gPeriod, created_by: staffName,
     } as unknown as Record<string, unknown>, 'active');
     setGTitle(''); setGTarget('');
     setSaving(false);
@@ -118,7 +117,7 @@ export default function SalesView({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900">Sales</h1>
-          <p className="text-[13px] text-gray-500">{hotelName} · goals &amp; daily check-ins</p>
+          <p className="text-[13px] text-gray-500">{hotelName} · financial goals &amp; sales contributions</p>
         </div>
         <button onClick={load} className="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 hover:text-gray-800 bg-gray-100 rounded-xl px-3 py-2">
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
@@ -128,30 +127,24 @@ export default function SalesView({
       {/* Goals */}
       <div className={sec + ' mb-4'}>
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><Target size={14} style={{ color: TEAL }} /> Sales Goals</div>
-          {flash && <span className="text-[11px] font-bold text-teal-700">✓ Check-in logged</span>}
+          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><Target size={14} style={{ color: TEAL }} /> Financial Goals <span className="text-[11px] font-medium text-gray-400">— high level</span></div>
+          {flash && <span className="text-[11px] font-bold text-teal-700">✓ Contribution logged</span>}
         </div>
 
         {isAdmin && (
           <div className="flex flex-wrap items-end gap-2 mb-3 bg-gray-50 rounded-xl p-3">
             <label className="text-[12px] font-medium text-gray-600">Goal
-              <input value={gTitle} onChange={e => setGTitle(e.target.value)} placeholder="Corporate accounts booked"
+              <input value={gTitle} onChange={e => setGTitle(e.target.value)} placeholder="Monthly room revenue"
                 className="block w-56 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
             </label>
-            <label className="text-[12px] font-medium text-gray-600">Target
-              <input value={gTarget} onChange={e => setGTarget(e.target.value)} inputMode="decimal" placeholder="5000"
+            <label className="text-[12px] font-medium text-gray-600">Target ($)
+              <input value={gTarget} onChange={e => setGTarget(e.target.value)} inputMode="decimal" placeholder="250000"
                 className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
-            </label>
-            <label className="text-[12px] font-medium text-gray-600">Unit
-              <select value={gUnit} onChange={e => setGUnit(e.target.value)}
-                className="block mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold text-gray-800 focus:outline-none focus:ring-teal-500 bg-white">
-                <option value="">#</option><option value="$">$</option><option value="%">%</option><option value="rooms">rooms</option>
-              </select>
             </label>
             <label className="text-[12px] font-medium text-gray-600">Period
               <select value={gPeriod} onChange={e => setGPeriod(e.target.value as SalesGoal['period'])}
                 className="block mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold text-gray-800 focus:outline-none focus:ring-teal-500 bg-white">
-                <option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option><option value="quarter">Quarterly</option>
+                <option value="month">Monthly</option><option value="quarter">Quarterly</option>
               </select>
             </label>
             <button onClick={addGoal} disabled={saving} className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50" style={{ background: TEAL }}>
@@ -161,7 +154,7 @@ export default function SalesView({
         )}
 
         {goals.length === 0 ? (
-          <p className="text-[13px] text-gray-400 font-medium py-1">No goals yet{isAdmin ? ' — add one above' : ''}.</p>
+          <p className="text-[13px] text-gray-400 font-medium py-1">No financial goals yet{isAdmin ? ' — add one above' : ''}.</p>
         ) : (
           <div className="space-y-2">
             {goals.map(g => {
@@ -190,11 +183,11 @@ export default function SalesView({
         )}
       </div>
 
-      {/* Daily check-in */}
+      {/* Sales dept contributions */}
       <div className={sec + ' mb-4'}>
-        <div className="flex items-center gap-1.5 mb-3 text-[13px] font-extrabold text-gray-900"><TrendingUp size={14} style={{ color: TEAL }} /> Daily Check-In <span className="text-[11px] font-medium text-gray-400">— {today}</span></div>
+        <div className="flex items-center gap-1.5 mb-3 text-[13px] font-extrabold text-gray-900"><TrendingUp size={14} style={{ color: TEAL }} /> Sales Contributions <span className="text-[11px] font-medium text-gray-400">— {today}</span></div>
         {goals.length === 0 ? (
-          <p className="text-[13px] text-gray-400 font-medium py-1">Create a goal first, then check in against it daily.</p>
+          <p className="text-[13px] text-gray-400 font-medium py-1">Create a financial goal first, then log contributions against it.</p>
         ) : (
           <div className="flex flex-wrap items-end gap-2">
             <label className="text-[12px] font-medium text-gray-600">Goal
@@ -204,21 +197,22 @@ export default function SalesView({
                 {goals.map(g => <option key={g.id} value={g.details.title}>{g.details.title}</option>)}
               </select>
             </label>
-            <label className="text-[12px] font-medium text-gray-600">Value
+            <label className="text-[12px] font-medium text-gray-600">Contribution ($)
               <input value={cValue} onChange={e => setCValue(e.target.value)} inputMode="decimal" placeholder="0"
                 className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
             </label>
             <label className="text-[12px] font-medium text-gray-600">Note
-              <input value={cNote} onChange={e => setCNote(e.target.value)} placeholder="Optional…"
+              <input value={cNote} onChange={e => setCNote(e.target.value)} placeholder="Optional — account or source…"
                 className="block w-52 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-medium focus:outline-none focus:ring-teal-500" />
             </label>
             <button onClick={addCheckin} disabled={saving || !cGoal} className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50" style={{ background: TEAL }}>
-              <span className="flex items-center gap-1"><CheckCircle2 size={13} /> {saving ? 'Saving…' : 'Check in'}</span>
+              <span className="flex items-center gap-1"><CheckCircle2 size={13} /> {saving ? 'Saving…' : 'Log contribution'}</span>
             </button>
           </div>
         )}
         {todaysCheckins.length > 0 && (
           <div className="mt-3 space-y-1">
+            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Today&apos;s contributions</div>
             {todaysCheckins.slice(0, 8).map(c => (
               <div key={c.id} className="flex items-center gap-2 text-[12px] bg-gray-50 rounded-xl px-3 py-2">
                 <span className="font-bold text-gray-700">{c.details.goal_title}</span>

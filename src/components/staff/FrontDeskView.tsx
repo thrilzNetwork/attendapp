@@ -79,7 +79,7 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
         // If tables don't exist yet, fall back to default set
         setEnabledTools([
           { tool: { key: 'recap', name: 'Daily Recap', icon: 'BarChart3', category: 'front_desk', description: '', is_built_in: true, id: '' }, enabled: true },
-          { tool: { key: 'checklists', name: 'Checklists', icon: 'ClipboardList', category: 'front_desk', description: '', is_built_in: true, id: '' }, enabled: true },
+          { tool: { key: 'checklists', name: 'Inspections', icon: 'ClipboardList', category: 'front_desk', description: '', is_built_in: true, id: '' }, enabled: true },
           { tool: { key: 'schedule', name: 'Staff Schedule', icon: 'CalendarDays', category: 'front_desk', description: '', is_built_in: true, id: '' }, enabled: true },
           { tool: { key: 'assistant', name: 'Staff Assistant', icon: 'Bot', category: 'front_desk', description: '', is_built_in: true, id: '' }, enabled: true },
         ]);
@@ -239,7 +239,7 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
         {(() => {
           const tabConfig: Record<string, {label: string}> = {
             'recap': {label:"📊 Daily Recap"},
-            'checklists': {label:"📝 Checklists"},
+            'checklists': {label:"📝 Inspections"},
             'schedule': {label:"📅 Staff Schedule"},
             'assistant': {label:"🤖 Staff Assistant"},
             'call-around': {label:"📞 Call Around"},
@@ -275,7 +275,7 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
           </div>
           {recap && recap.checklistsTotal > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-              <p className="text-[11px] text-gray-400 uppercase font-bold">Checklists Today</p>
+              <p className="text-[11px] text-gray-400 uppercase font-bold">Inspections Today</p>
               <p className="text-[24px] font-extrabold text-gray-800">{recap.checklistsCompleted} / {recap.checklistsTotal} completed</p>
               <div className="w-full bg-gray-100 rounded-full h-2 mt-2"><div className="h-2 rounded-full" style={{width:`${(recap.checklistsCompleted/recap.checklistsTotal)*100}%`,backgroundColor:TEAL}} /></div>
             </div>

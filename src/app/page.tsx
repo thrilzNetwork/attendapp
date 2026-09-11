@@ -569,7 +569,7 @@ function AttendaLandingPage() {
               { photo: '/images/landing/scene-manager.jpg', role: 'For Management', sub: 'See the hotel the way an experienced operator sees it — revenue, checklists, cash, transport, exceptions — from anywhere.',
                 cues: [
                   { icon: DollarSign, title: 'Revenue today · $2,340', sub: 'shuttle · dining · late checkout' },
-                  { icon: CheckCircle, title: 'Checklists · 92% on track', sub: '2 flagged for review' },
+                  { icon: CheckCircle, title: 'Inspections · 92% on track', sub: '2 flagged for review' },
                   { icon: Users, title: 'Occupancy · 82%', sub: '14 arrivals today' },
                   { icon: ShieldCheck, title: 'Cash drop · logged', sub: 'night audit ready' },
                 ] },
@@ -608,7 +608,7 @@ function AttendaLandingPage() {
             {([
               { n: '01', icon: ClipboardList, title: 'Operate', tag: 'Know what’s happening in your hotel.', img: '/images/landing/pillar-ops.jpg',
                 body: 'Daily to-dos, department checklists, cash controls, night-audit prep, schedules, and manager assignments — organized and visible. Your team executes; management sees it happen, from anywhere.',
-                points: ['Daily operational dashboard', 'Checklists & to-dos by department', 'Schedules & manager assignments', 'Staff accountability & visibility'],
+                points: ['Daily operational dashboard', 'Inspections & to-dos by department', 'Schedules & manager assignments', 'Staff accountability & visibility'],
                 scenario: 'A manager off-site opens Attenda and sees the day at a glance — done, pending, requests, transportation, and what needs attention. No group text.' },
               { n: '02', icon: Bell, title: 'Serve', tag: 'Give guests a simple way to reach the hotel.', img: '/images/landing/pillar-guest.jpg',
                 body: 'Guests reach the hotel through whatever touchpoint you choose — a welcome letter, a link, a QR, or check-in. No app, no account. Hotel info, amenities, shuttle, requests, and curated local tips, right on their phone.',

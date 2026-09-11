@@ -8,7 +8,7 @@ const TEAL = '#158A7C';
 
 const TOOL_LABELS: Record<string, string> = {
   recap: '📊 Daily Recap',
-  checklists: '📝 Checklists',
+  checklists: '📝 Inspections',
   schedule: '📅 Schedule',
   assistant: '🤖 Assistant',
   call_around: '📞 Call Around',

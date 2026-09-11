@@ -75,7 +75,7 @@ const ALL_WIDGETS: WidgetDef[] = [
   { id: 'my_todos',     label: 'My Checklist',      description: 'Your position-based tasks for this shift', icon: '✅' },
   { id: 'kpis',         label: 'KPI Snapshot',      description: 'Today\'s KPI values vs targets',        icon: '🎯' },
   { id: 'activity',     label: 'Today\'s Activity', description: 'Request completion progress bar',       icon: '⚡' },
-  { id: 'checklists',   label: 'Checklists',        description: 'Interactive shift checklists',          icon: '✅' },
+  { id: 'checklists',   label: 'Inspections',       description: 'Interactive shift checklists',          icon: '✅' },
   { id: 'forecast_14',  label: 'Forecast',            description: 'Next 7 days occupancy, arrivals & departures', icon: '📈' },
   { id: 'shuttle',      label: "Today's Shuttle",   description: 'Shuttle trips scheduled for today',     icon: '🚌' },
   { id: 'cruise',       label: 'Cruise Ships',      description: 'Upcoming cruise ship arrivals',         icon: '🚢' },

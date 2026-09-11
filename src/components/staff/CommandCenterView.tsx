@@ -7,11 +7,11 @@ import {
 } from 'lucide-react';
 import {
   getStaffSchedulesRange, getRoomStatuses, getWorkOrders, getLinenCounts,
-  getHotelEvents, createHotelEvent, deleteHotelEvent, getForecastsRange, upsertForecastDay,
+  getHotelEvents, createHotelEvent, deleteHotelEvent,
   getOpenTickets, updateStaffSchedule,
-  getCompsetEntries, type CompsetEntry,
+  getCompsetEntries, getCompsetEntriesRange, getCompsetHotels, upsertCompsetEntry,
+  type CompsetEntry,
   type StaffSchedule,
-  type WeeklyForecast,
 } from '@/lib/supabase';
 import { listKpiDefinitions, listKpiSubmissions, type OpRecord } from '@/lib/opsStore';
 
@@ -60,28 +60,30 @@ export default function CommandCenterView({
   const [events, setEvents] = useState<{ id: string; title: string; event_date: string; emoji?: string }[]>([]);
   const [kpis, setKpis] = useState<KpiTile[]>([]);
   const [linenLow, setLinenLow] = useState(0);
-  const [todayFc, setTodayFc] = useState<WeeklyForecast | null>(null);
-  const [weekAdr, setWeekAdr] = useState<{ date: string; adr: number | null; occupancy_pct: number }[]>([]);
+  const [todayFc, setTodayFc] = useState<{ occupancy_pct: number; adr: number | null; arrivals: number } | null>(null);
   const [comp, setComp] = useState<{ avg: number | null; count: number; min: number | null; max: number | null }>({ avg: null, count: 0, min: null, max: null });
-
-  // input state
-  const [inpOcc, setInpOcc] = useState('');
-  const [inpAdr, setInpAdr] = useState('');
-  const [inpArr, setInpArr] = useState('');
-  const [savingOcc, setSavingOcc] = useState(false);
-  const [savedFlash, setSavedFlash] = useState(false);
+  // OWN-property numbers sourced from Compset (special compset_hotels row, name = 'OWN')
+  const [own, setOwn] = useState<{ occ: number | null; adr: number | null; roomsSold: number | null; count: number }>({ occ: null, adr: null, roomsSold: null, count: 0 });
+  const [compHotels, setCompHotels] = useState<{ id: string; name: string }[]>([]);
 
   // event form
   const [evTitle, setEvTitle] = useState('');
   const [evDate, setEvDate] = useState(today);
   const [evEmoji, setEvEmoji] = useState('📅');
 
+  // admin adjust form (OWN row → compset_entries)
+  const [showAdjust, setShowAdjust] = useState(false);
+  const [adjOcc, setAdjOcc] = useState('');
+  const [adjAdr, setAdjAdr] = useState('');
+  const [adjArr, setAdjArr] = useState('');
+  const [savingAdj, setSavingAdj] = useState(false);
+  const [adjFlash, setAdjFlash] = useState(false);
+
   const load = useCallback(async () => {
     if (!hotelId) return;
     setLoading(true);
     try {
-      const weekStart = mondayOf(today);
-      const [scheds, roomsData, wos, tk, evs, defs, logs, fcs, linen, compEntries] = await Promise.all([
+      const [scheds, roomsData, wos, tk, evs, defs, logs, linen, compEntries, compHotelsData] = await Promise.all([
         getStaffSchedulesRange(hotelId, today, today),
         getRoomStatuses(hotelId),
         getWorkOrders(hotelId),
@@ -89,9 +91,9 @@ export default function CommandCenterView({
         getHotelEvents(hotelId, addDaysStr(today, -7), addDaysStr(today, 30)),
         listKpiDefinitions(hotelId),
         listKpiSubmissions(hotelId),
-        getForecastsRange(hotelId, weekStart, addDaysStr(today, 13)),
         getLinenCounts(hotelId, today).catch(() => []),
         getCompsetEntries(hotelId, today).catch(() => []),
+        getCompsetHotels(hotelId).catch(() => []),
       ]);
       setOnDuty((scheds || []).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')));
       setRooms((roomsData || []) as { room_number: string; status: string }[]);
@@ -143,14 +145,33 @@ export default function CommandCenterView({
         max: cRates.length ? Math.max(...cRates) : null,
       });
 
-      const t = (fcs || []).find((f: WeeklyForecast) => f.date === today) || null;
-      setTodayFc(t);
-      if (t) {
-        setInpOcc(String(t.occupancy_pct ?? ''));
-        setInpAdr(t.adr != null ? String(t.adr) : '');
-        setInpArr(String(t.arrivals ?? ''));
+      // OWN property = special compset_hotels row (name 'OWN'); dashboard KPIs read
+      // exclusively from its compset_entries for today — NOT from forecasts.
+      const hotels = (compHotelsData || []).filter(h => h.name.trim().toUpperCase() === 'OWN');
+      setCompHotels(hotels.map(h => ({ id: h.id, name: h.name })));
+      const ownId = hotels[0]?.id;
+      if (ownId) {
+        const ownRows = cRows.filter(e => e.compset_hotel_id === ownId);
+        const withOcc = ownRows.filter(e => e.occupancy_pct != null || e.rooms_sold != null);
+        const latest = ownRows
+          .slice()
+          .sort((a, b) => (b.call_time || '').localeCompare(a.call_time || ''))[0] || null;
+        setOwn({
+          occ: latest?.occupancy_pct ?? null,
+          adr: latest?.rate ?? null,
+          roomsSold: latest?.rooms_sold ?? null,
+          count: withOcc.length,
+        });
+        setTodayFc(latest ? { occupancy_pct: latest.occupancy_pct ?? 0, adr: latest.rate, arrivals: latest.rooms_sold ?? 0 } : null);
+        if (latest) {
+          setAdjOcc(latest.occupancy_pct != null ? String(latest.occupancy_pct) : '');
+          setAdjAdr(latest.rate != null ? String(latest.rate) : '');
+          setAdjArr(latest.rooms_sold != null ? String(latest.rooms_sold) : '');
+        }
+      } else {
+        setOwn({ occ: null, adr: null, roomsSold: null, count: 0 });
+        setTodayFc(null);
       }
-      setWeekAdr((fcs || []).map((f: WeeklyForecast) => ({ date: f.date, adr: f.adr ?? null, occupancy_pct: f.occupancy_pct })));
     } finally {
       setLoading(false);
     }
@@ -158,30 +179,36 @@ export default function CommandCenterView({
 
   useEffect(() => { load(); }, [load]);
 
-  const saveToday = async () => {
-    if (!hotelId) return;
-    const occ = Number(inpOcc);
+  // Admin-only: write OWN property numbers into compset_entries so the dashboard
+  // KPI cards are fed from Compset like every competitor.
+  const saveAdjust = async () => {
+    if (!hotelId || savingAdj) return;
+    const ownId = compHotels[0]?.id;
+    if (!ownId) return;
+    const occ = Number(adjOcc);
     if (isNaN(occ) || occ < 0 || occ > 100) return;
-    setSavingOcc(true);
-    const adr = inpAdr.trim() === '' ? null : Number(inpAdr);
-    const rooms_occupied = Math.round((Number(occ) / 100) * (todayFc?.total_rooms || rooms.length || 54));
-    const arr = Number(inpArr) || 0;
-    const prev = todayFc?.prev_night_occ ?? rooms_occupied;
-    const err = await upsertForecastDay(hotelId, mondayOf(today), {
-      date: today,
-      occupancy_pct: occ,
-      adr,
-      arrivals: arr,
-      rooms_occupied,
-      departures: Math.max(0, prev + arr - rooms_occupied),
-      total_rooms: todayFc?.total_rooms || rooms.length || 54,
-      prev_night_occ: prev,
-    });
-    setSavingOcc(false);
-    if (!err.error) {
-      setSavedFlash(true);
-      setTimeout(() => setSavedFlash(false), 1800);
+    setSavingAdj(true);
+    const adr = adjAdr.trim() === '' ? null : Number(adjAdr);
+    const roomsSold = adjArr.trim() === '' ? null : Number(adjArr);
+    try {
+      await upsertCompsetEntry({
+        hotel_id: hotelId,
+        compset_hotel_id: ownId,
+        call_date: today,
+        call_time: '12:00',
+        rate: adr,
+        rooms_total: null,
+        rooms_sold: roomsSold,
+        occupancy_pct: occ,
+        entered_by: null,
+        entered_by_name: 'Dashboard adjustment',
+      });
+      setAdjFlash(true);
+      setTimeout(() => setAdjFlash(false), 1800);
+      setShowAdjust(false);
       load();
+    } finally {
+      setSavingAdj(false);
     }
   };
 
@@ -210,8 +237,8 @@ export default function CommandCenterView({
   };
 
   const ooo = rooms.filter(r => r.status === 'out_of_order');
-  const occPct = todayFc ? todayFc.occupancy_pct : null;
-  const adr = todayFc?.adr ?? null;
+  const occPct = own.occ != null ? own.occ : (todayFc ? todayFc.occupancy_pct : null);
+  const adr = own.adr != null ? own.adr : (todayFc ? todayFc.adr : null);
   const revpar = occPct != null && adr != null ? (occPct / 100) * adr : null;
 
   const sec = 'bg-white border border-gray-200 rounded-2xl p-4';
@@ -237,10 +264,10 @@ export default function CommandCenterView({
           {occPct != null ? (
             <>
               <div className="text-[26px] font-extrabold text-gray-900 leading-none">{occPct}<span className="text-[14px] text-gray-400">%</span></div>
-              <div className="text-[11px] text-gray-400 mt-1">{todayFc?.rooms_occupied ?? '—'} rooms · staff input</div>
+              <div className="text-[11px] text-gray-400 mt-1">{own.roomsSold != null ? `${own.roomsSold} rooms · ` : ''}from Compset</div>
             </>
           ) : (
-            <div className="text-[13px] text-gray-400 font-medium">Enter below ↓</div>
+            <div className="text-[13px] text-gray-400 font-medium">No Compset entry today</div>
           )}
         </div>
         <div className={sec}>
@@ -256,7 +283,7 @@ export default function CommandCenterView({
               )}
             </>
           ) : (
-            <div className="text-[13px] text-gray-400 font-medium">Enter below ↓</div>
+            <div className="text-[13px] text-gray-400 font-medium">No Compset entry today</div>
           )}
         </div>
         <div className={sec}>
@@ -304,38 +331,58 @@ export default function CommandCenterView({
         </div>
       </div>
 
-      {/* ── Today's numbers input ── */}
+      {/* ── Today's numbers (Compset-sourced) ── */}
       <div className={sec + ' mb-4'}>
         <div className={secH}>
-          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><TrendingUp size={14} style={{ color: TEAL }} /> Today&apos;s Numbers <span className="text-[11px] font-medium text-gray-400">— staff input</span></div>
-          {savedFlash && <span className="text-[11px] font-bold text-teal-700">✓ Saved</span>}
+          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><TrendingUp size={14} style={{ color: TEAL }} /> Today&apos;s Numbers <span className="text-[11px] font-medium text-gray-400">— from Compset</span></div>
+          <div className="flex items-center gap-2">
+            {adjFlash && <span className="text-[11px] font-bold text-teal-700">✓ Saved</span>}
+            {isAdmin && (
+              <button onClick={() => setShowAdjust(v => !v)}
+                className="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 hover:text-gray-800 bg-gray-100 rounded-xl px-3 py-2">
+                <Save size={13} /> Adjust
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="text-[12px] font-medium text-gray-600">
-            Occupancy %
-            <input value={inpOcc} onChange={e => setInpOcc(e.target.value)} inputMode="decimal" placeholder="e.g. 85"
-              className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-          </label>
-          <label className="text-[12px] font-medium text-gray-600">
-            ADR ($)
-            <input value={inpAdr} onChange={e => setInpAdr(e.target.value)} inputMode="decimal" placeholder="e.g. 129"
-              className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-teal-500" />
-          </label>
-          <label className="text-[12px] font-medium text-gray-600">
-            Arrivals
-            <input value={inpArr} onChange={e => setInpArr(e.target.value)} inputMode="numeric" placeholder="e.g. 18"
-              className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-teal-500" />
-          </label>
-          <button onClick={saveToday} disabled={savingOcc}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50"
-            style={{ background: TEAL }}>
-            <Save size={14} /> {savingOcc ? 'Saving…' : 'Save'}
-          </button>
-          {weekAdr.some(w => w.adr != null) && (
-            <div className="text-[11px] text-gray-400 ml-1">
-              Week ADR: {weekAdr.filter(w => w.adr != null).map(w => `$${w.adr!.toFixed(0)}`).join(' · ')}
-            </div>
+        {isAdmin && showAdjust && (
+          <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+            {!compHotels.length ? (
+              <p className="text-[12px] text-gray-500 font-medium">No &quot;OWN&quot; property row in Compset yet — add a compset hotel named <span className="font-bold">OWN</span> (Compset → Add) to enable dashboard adjustments.</p>
+            ) : (
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="text-[12px] font-medium text-gray-600">
+                  Occupancy %
+                  <input value={adjOcc} onChange={e => setAdjOcc(e.target.value)} inputMode="decimal" placeholder="e.g. 85"
+                    className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                </label>
+                <label className="text-[12px] font-medium text-gray-600">
+                  ADR ($)
+                  <input value={adjAdr} onChange={e => setAdjAdr(e.target.value)} inputMode="decimal" placeholder="e.g. 129"
+                    className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-900 focus:ring-teal-500" />
+                </label>
+                <label className="text-[12px] font-medium text-gray-600">
+                  Rooms sold
+                  <input value={adjArr} onChange={e => setAdjArr(e.target.value)} inputMode="numeric" placeholder="e.g. 46"
+                    className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-900 focus:ring-teal-500" />
+                </label>
+                <button onClick={saveAdjust} disabled={savingAdj}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50"
+                  style={{ background: TEAL }}>
+                  <Save size={14} /> {savingAdj ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-4 text-[13px]">
+          <div><span className="text-gray-400 font-medium">Occupancy: </span><span className="font-extrabold text-gray-900">{occPct != null ? `${occPct}%` : '—'}</span></div>
+          <div><span className="text-gray-400 font-medium">ADR: </span><span className="font-extrabold text-gray-900">{adr != null ? money(adr) : '—'}</span></div>
+          <div><span className="text-gray-400 font-medium">Rooms sold: </span><span className="font-extrabold text-gray-900">{own.roomsSold != null ? own.roomsSold : '—'}</span></div>
+          {comp.avg != null && (
+            <div><span className="text-gray-400 font-medium">Comp avg: </span><span className="font-extrabold text-gray-900">{money(comp.avg)}</span></div>
           )}
+          <div className="text-[11px] text-gray-400">Admin adjustments write to Compset (OWN row) — the dashboard reads Compset only.</div>
         </div>
       </div>
 

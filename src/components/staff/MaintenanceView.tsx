@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Wrench, CalendarClock, Timer, Plus, RefreshCw, Check, Clock, CheckCircle2 } from 'lucide-react';
+import { Wrench, CalendarClock, Timer, Plus, RefreshCw, Check, Clock, CheckCircle2, X as XIcon, DoorOpen } from 'lucide-react';
 import {
   getWorkOrders, createWorkOrder, updateWorkOrder,
   getMaintenancePms, createMaintenancePm, completeMaintenancePm,
-  getMaintenanceLaborLogs, createMaintenanceLaborLog,
-  getStaffSchedulesRange, updateStaffSchedule,
-  type StaffSchedule,
+  getStaffSchedulesRange, updateStaffSchedule, getRoomStatuses,
+  type StaffSchedule, type RoomStatus,
 } from '@/lib/supabase';
 
 const TEAL = '#158A7C';
@@ -33,52 +32,62 @@ function expectedEnd(start?: string | null): string | null {
 }
 
 interface Wo { id: string; location: string; issue: string; priority: string; status: string; assigned_to?: string; created_at?: string }
+interface Pm { id: string; title: string; frequency_days: number; last_completed_date?: string | null; assigned_to?: string }
+
+/** Does a PM title reference this room? e.g. "Room 204 — HVAC filter" */
+function pmForRoom(p: Pm, room: string): boolean {
+  const rn = room.replace(/^0+/, '');
+  const t = p.title.replace(/^0+(?=\d)/, '');
+  return new RegExp(`\\b${rn}\\b`).test(t);
+}
+function woForRoom(w: Wo, room: string): boolean {
+  const rn = room.replace(/^0+/, '');
+  const loc = (w.location || '').replace(/^0+(?=\d)/, '');
+  return new RegExp(`\\b${rn}\\b`).test(loc);
+}
 
 export default function MaintenanceView({
   hotelId, hotelName, staffName, isAdmin,
 }: { hotelId: string; hotelName: string; staffName: string; isAdmin: boolean }) {
   const today = localDateStr();
   const [wos, setWos] = useState<Wo[]>([]);
-  const [pms, setPms] = useState<{ id: string; title: string; frequency_days: number; last_completed_date?: string | null; assigned_to?: string }[]>([]);
-  const [labor, setLabor] = useState<{ staff_name: string; task: string; minutes: number }[]>([]);
+  const [pms, setPms] = useState<Pm[]>([]);
   const [mtShifts, setMtShifts] = useState<StaffSchedule[]>([]);
+  const [rooms, setRooms] = useState<RoomStatus[]>([]);
   const [loading, setLoading] = useState(true);
   // work order form
   const [woLoc, setWoLoc] = useState('');
   const [woIssue, setWoIssue] = useState('');
   const [woPri, setWoPri] = useState('medium');
-  // PM form
-  const [pmTitle, setPmTitle] = useState('');
+  // room snapshot modal
+  const [selRoom, setSelRoom] = useState<string | null>(null);
+  const [pmTask, setPmTask] = useState('');
   const [pmFreq, setPmFreq] = useState('30');
-  // work log form
-  const [lbTask, setLbTask] = useState('');
-  const [lbMinutes, setLbMinutes] = useState('');
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!hotelId) return;
     setLoading(true);
-    const [w, p, l, scheds] = await Promise.all([
+    const [w, p, scheds, r] = await Promise.all([
       getWorkOrders(hotelId),
       getMaintenancePms(hotelId),
-      getMaintenanceLaborLogs(hotelId, today),
       getStaffSchedulesRange(hotelId, today, today).catch(() => [] as StaffSchedule[]),
+      getRoomStatuses(hotelId).catch(() => [] as RoomStatus[]),
     ]);
     const sorted = ((w || []) as Wo[]).sort((a, b) => (a.status === 'resolved' ? 1 : 0) - (b.status === 'resolved' ? 1 : 0));
     setWos(sorted);
-    setPms(p || []);
-    setLabor(l || []);
+    setPms((p || []) as Pm[]);
     setMtShifts((scheds || []).filter(s => {
       const d = `${s.department || ''} ${s.role || ''}`.toLowerCase();
-      return d.includes('maint') || d.includes('engineer') || d.includes('engineer') || d.includes('mtce') || d.includes('eng');
+      return d.includes('maint') || d.includes('engineer') || d.includes('mtce') || d.includes('eng');
     }));
+    setRooms(r || []);
     setLoading(false);
   }, [hotelId, today]);
 
   useEffect(() => { load(); }, [load]);
 
   const open = wos.filter(w => w.status !== 'resolved');
-  const minutesToday = labor.reduce((s, l) => s + l.minutes, 0);
   const daysSince = (d?: string | null): number | null => {
     if (!d) return null;
     return Math.floor((Date.now() - new Date(d + 'T00:00:00').getTime()) / 86400000);
@@ -110,17 +119,20 @@ export default function MaintenanceView({
     load();
   };
 
-  const addPm = async () => {
-    if (!pmTitle.trim()) return;
-    setSaving(true);
-    await createMaintenancePm(hotelId, pmTitle.trim(), Number(pmFreq) || 30);
-    setPmTitle('');
-    setSaving(false);
+  const completePm = async (id: string) => {
+    await completeMaintenancePm(id);
     load();
   };
 
-  const completePm = async (id: string) => {
-    await completeMaintenancePm(id);
+  /** Log a completed (or scheduled) PM scoped to a room: title = "Room N — task" */
+  const logRoomPm = async (room: string) => {
+    if (!pmTask.trim()) return;
+    setSaving(true);
+    const created = await createMaintenancePm(hotelId, `Room ${room} — ${pmTask.trim()}`, Number(pmFreq) || 30);
+    // mark it completed today so the per-room history has a real entry
+    if (created?.id) await completeMaintenancePm(created.id);
+    setPmTask('');
+    setSaving(false);
     load();
   };
 
@@ -130,16 +142,6 @@ export default function MaintenanceView({
     await updateStaffSchedule(s.id, { end_time: value });
   };
 
-  const addLabor = async () => {
-    const mm = Number(lbMinutes);
-    if (!lbTask.trim() || isNaN(mm)) return;
-    setSaving(true);
-    await createMaintenanceLaborLog(hotelId, staffName || 'Staff', lbTask.trim(), mm);
-    setLbTask(''); setLbMinutes('');
-    setSaving(false);
-    load();
-  };
-
   const sec = 'bg-white border border-gray-200 rounded-2xl p-4';
   const priStyle: Record<string, string> = {
     high: 'bg-red-50 text-red-700 border-red-200',
@@ -147,22 +149,32 @@ export default function MaintenanceView({
     low: 'bg-gray-50 text-gray-600 border-gray-200',
   };
 
+  // ── per-room PM snapshot data ──
+  const sortedRooms = [...rooms].sort((a, b) => {
+    const na = parseInt(a.room_number, 10), nb = parseInt(b.room_number, 10);
+    return (isNaN(na) || isNaN(nb)) ? a.room_number.localeCompare(b.room_number) : na - nb;
+  });
+  const roomPms = (room: string) => pms.filter(p => pmForRoom(p, room));
+  const roomWos = (room: string) => wos.filter(w => woForRoom(w, room));
+  const roomDue = (room: string) => roomPms(room).filter(p => { const ds = daysSince(p.last_completed_date); return ds === null || ds >= p.frequency_days; });
+  const selRoomData = selRoom ? sortedRooms.find(r => r.room_number === selRoom) : null;
+
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900">Maintenance — Ops Control</h1>
-          <p className="text-[13px] text-gray-500">{hotelName} · PM history, open tickets & work log</p>
+          <p className="text-[13px] text-gray-500">{hotelName} · PM counts, open tickets &amp; per-room PM breakdown</p>
         </div>
         <button onClick={load} className="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 hover:text-gray-800 bg-gray-100 rounded-xl px-3 py-2">
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
         </button>
       </div>
 
-      {/* ── Daily reconciliation: PMs due vs done ── */}
+      {/* ── PM counts + open tickets ── */}
       <div className={sec + ' mb-4'}>
         <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><Timer size={14} style={{ color: TEAL }} /> Daily Reconciliation <span className="text-[11px] font-medium text-gray-400">— PMs due vs done</span></div>
+          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><Timer size={14} style={{ color: TEAL }} /> Today <span className="text-[11px] font-medium text-gray-400">— PMs due vs done</span></div>
           <span className={`text-[10px] font-extrabold rounded-lg px-2 py-1 ${onPace ? 'bg-teal-50 text-teal-800' : 'bg-orange-50 text-orange-700'}`}>
             {onPace ? 'ON PACE' : 'BEHIND'}
           </span>
@@ -174,11 +186,8 @@ export default function MaintenanceView({
             <div className="text-[9px] text-teal-600 font-medium mt-0.5">overdue PMs + high-pri tickets</div>
           </div>
           <div className="bg-gray-50 rounded-xl p-3 text-center"><div className="text-[20px] font-extrabold text-gray-900">{reconActual}</div><div className="text-[10px] font-bold text-gray-500">DONE TODAY</div></div>
-          <div className="bg-gray-50 rounded-xl p-3 text-center"><div className="text-[20px] font-extrabold text-gray-900">{open.length}</div><div className="text-[10px] font-bold text-gray-500">OPEN TICKETS</div></div>
-          <div className="bg-gray-50 rounded-xl p-3 text-center">
-            <div className="text-[20px] font-extrabold" style={{ color: TEAL }}>{minutesToday}</div>
-            <div className="text-[10px] font-bold text-gray-500">MINUTES LOGGED</div>
-          </div>
+          <div className="bg-gray-50 rounded-xl p-3 text-center"><div className="text-[20px] font-extrabold text-gray-900">{open.length}</div><div className="text-[10px] font-bold text-gray-500">OPEN TICKETS</div><div className="text-[9px] text-gray-400 font-medium mt-0.5">{openHigh} high priority</div></div>
+          <div className="bg-gray-50 rounded-xl p-3 text-center"><div className="text-[20px] font-extrabold" style={{ color: TEAL }}>{pms.length}</div><div className="text-[10px] font-bold text-gray-500">TOTAL PM TASKS</div><div className="text-[9px] text-gray-400 font-medium mt-0.5">{pmsDue.length} currently due</div></div>
         </div>
         {reconExpected > 0 && (
           <div>
@@ -283,77 +292,132 @@ export default function MaintenanceView({
         )}
       </div>
 
-      {/* ── PM history + work log (merged) ── */}
+      {/* ── PM breakdown: all rooms ── */}
       <div className={sec}>
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><CalendarClock size={14} style={{ color: TEAL }} /> PM History <span className="text-[11px] font-medium text-gray-400">({pms.length} recurring · {pmsDoneToday.length} done today)</span></div>
-          {isAdmin && (
-            <button onClick={addPm} disabled={saving || !pmTitle.trim()} className="flex items-center gap-1 text-[11px] font-bold text-teal-700 hover:underline disabled:opacity-40 disabled:no-underline"><Plus size={12} /> New PM (below)</button>
-          )}
+          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><CalendarClock size={14} style={{ color: TEAL }} /> PM Room Breakdown <span className="text-[11px] font-medium text-gray-400">({sortedRooms.length} rooms · tap a room for its PM history)</span></div>
+          <span className="text-[11px] font-bold text-gray-500">{pmsDue.length} PM due · {open.length} tickets open</span>
         </div>
-        {isAdmin && (
-          <div className="flex flex-wrap items-end gap-2 mb-3 bg-gray-50 rounded-xl p-3">
-            <label className="text-[12px] font-medium text-gray-600">PM task
-              <input value={pmTitle} onChange={e => setPmTitle(e.target.value)} placeholder="HVAC filter change" onKeyDown={e => { if (e.key === 'Enter') addPm(); }} className="block w-56 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
-            </label>
-            <label className="text-[12px] font-medium text-gray-600">Every (days)
-              <input value={pmFreq} onChange={e => setPmFreq(e.target.value)} inputMode="numeric" className="block w-20 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
-            </label>
-            <button onClick={addPm} disabled={saving} className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50" style={{ background: TEAL }}>
-              <span className="flex items-center gap-1"><Plus size={13} /> Add PM</span>
-            </button>
-          </div>
-        )}
-        {pms.length === 0 ? (
-          <p className="text-[13px] text-gray-400 font-medium py-1">No PM schedules yet — add recurring tasks above</p>
+        {sortedRooms.length === 0 ? (
+          <p className="text-[13px] text-gray-400 font-medium py-2">No rooms on the board yet — rooms appear as housekeeping logs them.</p>
         ) : (
-          <div className="space-y-1 mb-4">
-            {pms.map(p => {
-              const ds = daysSince(p.last_completed_date);
-              const due = ds === null || ds >= p.frequency_days;
-              const doneToday = (p.last_completed_date || '') === today;
+          <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
+            {sortedRooms.map(r => {
+              const due = roomDue(r.room_number).length;
+              const wo = roomWos(r.room_number).filter(w => w.status !== 'resolved').length;
+              const doneToday = roomPms(r.room_number).some(p => (p.last_completed_date || '') === today);
+              const stamp = (r.cleaned_at || '').slice(0, 10) === today;
               return (
-                <div key={p.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-bold text-gray-900 truncate">{p.title}</div>
-                    <div className="text-[11px] text-gray-400 font-medium">Every {p.frequency_days} days{p.last_completed_date ? ` · last ${p.last_completed_date}${ds !== null ? ` (${ds}d ago)` : ''}` : ' · never completed'}{p.assigned_to ? ` · ${p.assigned_to}` : ''}</div>
+                <button key={r.id} onClick={() => setSelRoom(r.room_number)}
+                  title={`Room ${r.room_number} — ${due} PM due · ${wo} open ticket(s)${stamp ? ' · serviced today' : ''}`}
+                  className={`relative rounded-xl border px-1 py-2 text-center transition-colors ${due > 0 ? 'bg-orange-50 border-orange-200 text-orange-700' : doneToday ? 'bg-teal-50 border-teal-200 text-teal-800' : 'bg-gray-50 border-gray-200 text-gray-600'} hover:ring-2 hover:ring-teal-300`}>
+                  <div className="text-[13px] font-extrabold">{r.room_number}</div>
+                  <div className="text-[8px] font-bold uppercase tracking-wide">
+                    {due > 0 ? `${due} PM DUE` : doneToday ? 'PM DONE' : 'OK'}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-[10px] font-bold uppercase rounded-lg px-1.5 py-0.5 ${due ? 'text-orange-600 bg-orange-50' : 'text-teal-700 bg-teal-50'}`}>{doneToday ? 'DONE TODAY' : due ? 'DUE' : 'OK'}</span>
-                    {due && <button onClick={() => completePm(p.id)} className="text-[11px] font-bold text-white rounded-lg px-2 py-1" style={{ background: TEAL }}><span className="flex items-center gap-1"><Check size={12} /> Done</span></button>}
-                  </div>
-                </div>
+                  {wo > 0 && <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-extrabold flex items-center justify-center">{wo}</div>}
+                  {stamp && due === 0 && <div className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full bg-teal-500" />}
+                </button>
               );
             })}
           </div>
         )}
-
-        {/* Work log (merged labor module) */}
-        <div className="border-t border-gray-100 pt-3">
-          <div className="flex items-center gap-1.5 mb-2 text-[13px] font-extrabold text-gray-900"><Timer size={14} style={{ color: TEAL }} /> Work Log <span className="text-[11px] font-medium text-gray-400">— today ({minutesToday} min)</span></div>
-          <div className="flex flex-wrap items-end gap-2 mb-2">
-            <label className="text-[12px] font-medium text-gray-600">Task
-              <input value={lbTask} onChange={e => setLbTask(e.target.value)} placeholder="Replaced AC filter R204" className="block w-56 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
-            </label>
-            <label className="text-[12px] font-medium text-gray-600">Minutes
-              <input value={lbMinutes} onChange={e => setLbMinutes(e.target.value)} inputMode="numeric" placeholder="30" className="block w-20 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
-            </label>
-            <button onClick={addLabor} disabled={saving} className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50" style={{ background: TEAL }}>
-              <span className="flex items-center gap-1"><Plus size={13} /> Log</span>
-            </button>
-          </div>
-          {labor.length > 0 && (
-            <div className="space-y-1">
-              {labor.map((l, i) => (
-                <div key={i} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 text-[13px]">
-                  <span className="font-bold text-gray-800 truncate">{l.task}</span>
-                  <span className="text-[11px] text-gray-400 font-medium">{l.staff_name} · {l.minutes} min</span>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="text-[11px] text-gray-400 mt-2">
+          Orange = PM due · teal = PM completed today · red dot = open ticket(s) · teal corner = serviced today. Tap any room for its PM history &amp; snapshot.
         </div>
       </div>
+
+      {/* ── Per-room PM snapshot modal ── */}
+      {selRoom && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setSelRoom(null)}>
+          <div className="w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl p-5 shadow-xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[16px] font-extrabold text-gray-900 flex items-center gap-2"><DoorOpen size={16} style={{ color: TEAL }} /> Room {selRoom} — PM Snapshot</h2>
+              <button onClick={() => setSelRoom(null)} className="p-1 text-gray-400 hover:text-gray-600"><XIcon size={18} /></button>
+            </div>
+
+            {/* room status stamp */}
+            <div className="bg-gray-50 rounded-xl p-3 mb-3 text-[12px] text-gray-600">
+              {selRoomData ? (
+                <>
+                  <div className="font-bold text-gray-800 mb-1">Last service</div>
+                  Cleaned: {selRoomData.cleaned_by ? `${selRoomData.cleaned_by} · ${new Date(selRoomData.cleaned_at || '').toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : '—'}
+                  <br />
+                  Inspected: {selRoomData.inspected_by ? `${selRoomData.inspected_by} · ${new Date(selRoomData.inspected_at || '').toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : '—'}
+                  {selRoomData.notes && <><br /><span className="text-gray-500">Notes: {selRoomData.notes}</span></>}
+                </>
+              ) : (
+                <span className="text-gray-400">No service stamps logged for this room yet.</span>
+              )}
+            </div>
+
+            {/* PM history for room */}
+            <div className="mb-3">
+              <div className="text-[12px] font-extrabold text-gray-800 mb-1.5">PM HISTORY ({roomPms(selRoom).length})</div>
+              {roomPms(selRoom).length === 0 ? (
+                <p className="text-[12px] text-gray-400 py-1">No PM tasks logged for this room yet{isAdmin ? ' — log one below' : ''}.</p>
+              ) : (
+                <div className="space-y-1">
+                  {roomPms(selRoom).map(p => {
+                    const ds = daysSince(p.last_completed_date);
+                    const isDue = ds === null || ds >= p.frequency_days;
+                    return (
+                      <div key={p.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="text-[12px] font-bold text-gray-900 truncate">{p.title.replace(new RegExp(`^Room ${selRoom.replace(/^0+/, '')}\\s*—\\s*`, 'i'), '')}</div>
+                          <div className="text-[10px] text-gray-400 font-medium">Every {p.frequency_days}d{p.last_completed_date ? ` · last ${p.last_completed_date}${ds !== null ? ` (${ds}d ago)` : ''}` : ' · never completed'}</div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`text-[9px] font-bold uppercase rounded-lg px-1.5 py-0.5 ${(p.last_completed_date || '') === today ? 'text-teal-700 bg-teal-50' : isDue ? 'text-orange-600 bg-orange-50' : 'text-gray-500 bg-gray-100'}`}>{(p.last_completed_date || '') === today ? 'DONE' : isDue ? 'DUE' : 'OK'}</span>
+                          {isDue && <button onClick={() => completePm(p.id)} className="text-[10px] font-bold text-white rounded-lg px-2 py-1" style={{ background: TEAL }}><Check size={11} /></button>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* tickets for room */}
+            {roomWos(selRoom).length > 0 && (
+              <div className="mb-3">
+                <div className="text-[12px] font-extrabold text-gray-800 mb-1.5">TICKETS ({roomWos(selRoom).filter(w => w.status !== 'resolved').length} open / {roomWos(selRoom).length} total)</div>
+                <div className="space-y-1">
+                  {roomWos(selRoom).map(w => (
+                    <div key={w.id} className={`flex items-center justify-between rounded-xl px-3 py-2 border ${w.status === 'resolved' ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-gray-200'}`}>
+                      <div className="text-[12px] font-bold text-gray-900 truncate">{w.issue}</div>
+                      {w.status === 'resolved' ? (
+                        <span className="text-[9px] font-bold text-teal-700 bg-teal-50 rounded-lg px-1.5 py-0.5 shrink-0">RESOLVED</span>
+                      ) : (
+                        <button onClick={() => resolveWo(w.id)} className="text-[10px] font-bold text-white rounded-lg px-2 py-1 shrink-0" style={{ background: TEAL }}>Resolve</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* log PM for room */}
+            {isAdmin && (
+              <div className="border-t border-gray-100 pt-3">
+                <div className="text-[12px] font-extrabold text-gray-800 mb-1.5">LOG PM FOR ROOM {selRoom}</div>
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="text-[12px] font-medium text-gray-600">Task
+                    <input value={pmTask} onChange={e => setPmTask(e.target.value)} placeholder="HVAC filter change" onKeyDown={e => { if (e.key === 'Enter') logRoomPm(selRoom); }} className="block w-48 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
+                  </label>
+                  <label className="text-[12px] font-medium text-gray-600">Every (days)
+                    <input value={pmFreq} onChange={e => setPmFreq(e.target.value)} inputMode="numeric" className="block w-16 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
+                  </label>
+                  <button onClick={() => logRoomPm(selRoom)} disabled={saving || !pmTask.trim()} className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50" style={{ background: TEAL }}>
+                    <span className="flex items-center gap-1"><Plus size={13} /> Log PM</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1.5">Logged PMs are marked completed today and recur on the cycle you set.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
