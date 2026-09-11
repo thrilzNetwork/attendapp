@@ -1050,7 +1050,7 @@ function DashboardInner() {
           <PropertyInfoView config={config!} />
         )}
         {tabPanel('schedules', true,
-          <ScheduleForecastView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} isAdmin={isAdmin} />
+          <ScheduleForecastView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} isAdmin={isAdmin} staffList={staff} />
         )}
                 {tabPanel('leaderboard', true,
           <LeaderboardView hotelId={config?.id || ''} staffName={s.name} isAdmin={isAdmin} />
@@ -1094,7 +1094,7 @@ function DashboardInner() {
           <ShuttleScheduleView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
         {tabPanel('forecast', true,
-          <ScheduleForecastView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} isAdmin={isAdmin} />
+          <ScheduleForecastView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} isAdmin={isAdmin} staffList={staff} />
         )}
         {tabPanel('todos', true,
           <PositionTodosView hotelId={config?.id || ''} isAdmin={isAdmin} canManage={canManageTodos} staffName={s.name} department={s.department} />

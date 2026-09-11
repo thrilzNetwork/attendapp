@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { BedDouble, Timer, Package, Plus, RefreshCw, Clock, CheckCircle2 } from 'lucide-react';
+import { BedDouble, Timer, Package, Plus, RefreshCw, Clock, CheckCircle2, Pencil } from 'lucide-react';
 import {
   getRoomStatuses, updateRoomStatus, getLinenCounts, createLinenCount,
   getHkLaborLogs, createHkLaborLog,
@@ -61,6 +61,9 @@ export default function HousekeepingView({
   const [lbRooms, setLbRooms] = useState('');
   const [lbMinutes, setLbMinutes] = useState('');
   const [saving, setSaving] = useState(false);
+  // Admin edit of an already-logged exit time
+  const [editingEndId, setEditingEndId] = useState<string | null>(null);
+  const [editEndVal, setEditEndVal] = useState('');
 
   const load = useCallback(async () => {
     if (!hotelId) return;
@@ -230,9 +233,40 @@ export default function HousekeepingView({
                   <span className="text-[12px] text-gray-600">In <b>{fmtTime(s.start_time) || '—'}</b></span>
                   <span className="text-[12px] text-gray-400">Expected out <b className="text-gray-600">{fmtTime(exp) || '—'}</b></span>
                   {s.end_time ? (
-                    <span className={`flex items-center gap-1 text-[12px] font-bold ${late ? 'text-orange-600' : 'text-teal-700'}`}>
-                      <CheckCircle2 size={12} /> Out {fmtTime(s.end_time)}{late ? ' (over)' : ''}
-                    </span>
+                    isAdmin ? (
+                      editingEndId === s.id ? (
+                        <span className="flex items-center gap-1 ml-auto">
+                          <input
+                            type="time"
+                            value={editEndVal}
+                            onChange={e => setEditEndVal(e.target.value)}
+                            autoFocus
+                            className="w-[92px] px-1.5 py-1 border border-teal-300 rounded-lg text-[11px] font-bold text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400"
+                            title="Correct actual end time"
+                          />
+                          <button onClick={async () => {
+                            if (!editEndVal) return;
+                            setHkShifts(prev => prev.map(row => (row.id === s.id ? { ...row, end_time: editEndVal } : row)));
+                            setEditingEndId(null);
+                            try { await updateStaffSchedule(s.id, { end_time: editEndVal }); } catch { load(); }
+                          }} className="bg-teal-600 text-white rounded-lg px-2 py-1 text-[10px] font-bold">Save</button>
+                          <button onClick={() => setEditingEndId(null)} className="text-gray-400 hover:text-gray-600 text-[11px]">✕</button>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 ml-auto">
+                          <button onClick={() => { setEditingEndId(s.id); setEditEndVal(s.end_time || ''); }}
+                            className={`flex items-center gap-1 text-[12px] font-bold ${late ? 'text-orange-600' : 'text-teal-700'} hover:opacity-80`}
+                            title="Edit exit time">
+                            <CheckCircle2 size={12} /> Out {fmtTime(s.end_time)}{late ? ' (over)' : ''}
+                          </button>
+                          <Pencil size={11} className="text-gray-400 hover:text-teal-700" />
+                        </span>
+                      )
+                    ) : (
+                      <span className={`flex items-center gap-1 text-[12px] font-bold ${late ? 'text-orange-600' : 'text-teal-700'}`}>
+                        <CheckCircle2 size={12} /> Out {fmtTime(s.end_time)}{late ? ' (over)' : ''}
+                      </span>
+                    )
                   ) : isAdmin ? (
                     <span className="flex items-center gap-1 ml-auto">
                       <input
