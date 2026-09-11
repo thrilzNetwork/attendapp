@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Users, Wrench, ClipboardList, CalendarDays, BedDouble, DollarSign, Star,
-  Plus, Trash2, RefreshCw, AlertTriangle, ChevronRight, Save, TrendingUp,
+  Plus, Trash2, RefreshCw, AlertTriangle, ChevronRight, Save, TrendingUp, BarChart3,
 } from 'lucide-react';
 import {
   getStaffSchedulesRange, getRoomStatuses, getWorkOrders, getLinenCounts,
   getHotelEvents, createHotelEvent, deleteHotelEvent, getForecastsRange, upsertForecastDay,
   getOpenTickets, updateStaffSchedule,
+  getCompsetEntries, type CompsetEntry,
   type StaffSchedule,
   type WeeklyForecast,
 } from '@/lib/supabase';
@@ -61,6 +62,7 @@ export default function CommandCenterView({
   const [linenLow, setLinenLow] = useState(0);
   const [todayFc, setTodayFc] = useState<WeeklyForecast | null>(null);
   const [weekAdr, setWeekAdr] = useState<{ date: string; adr: number | null; occupancy_pct: number }[]>([]);
+  const [comp, setComp] = useState<{ avg: number | null; count: number; min: number | null; max: number | null }>({ avg: null, count: 0, min: null, max: null });
 
   // input state
   const [inpOcc, setInpOcc] = useState('');
@@ -79,7 +81,7 @@ export default function CommandCenterView({
     setLoading(true);
     try {
       const weekStart = mondayOf(today);
-      const [scheds, roomsData, wos, tk, evs, defs, logs, fcs, linen] = await Promise.all([
+      const [scheds, roomsData, wos, tk, evs, defs, logs, fcs, linen, compEntries] = await Promise.all([
         getStaffSchedulesRange(hotelId, today, today),
         getRoomStatuses(hotelId),
         getWorkOrders(hotelId),
@@ -89,6 +91,7 @@ export default function CommandCenterView({
         listKpiSubmissions(hotelId),
         getForecastsRange(hotelId, weekStart, addDaysStr(today, 13)),
         getLinenCounts(hotelId, today).catch(() => []),
+        getCompsetEntries(hotelId, today).catch(() => []),
       ]);
       setOnDuty((scheds || []).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')));
       setRooms((roomsData || []) as { room_number: string; status: string }[]);
@@ -129,6 +132,16 @@ export default function CommandCenterView({
         }
       }
       setLinenLow(below);
+
+      // Compset: today's competitor rate snapshot for the dashboard KPI
+      const cRows = (compEntries || []) as CompsetEntry[];
+      const cRates = cRows.map(e => e.rate).filter((r): r is number => r != null);
+      setComp({
+        avg: cRates.length ? Math.round(cRates.reduce((a, b) => a + b, 0) / cRates.length) : null,
+        count: cRows.length,
+        min: cRates.length ? Math.min(...cRates) : null,
+        max: cRates.length ? Math.max(...cRates) : null,
+      });
 
       const t = (fcs || []).find((f: WeeklyForecast) => f.date === today) || null;
       setTodayFc(t);
@@ -236,6 +249,11 @@ export default function CommandCenterView({
             <>
               <div className="text-[26px] font-extrabold text-gray-900 leading-none">{money(adr)}</div>
               {revpar != null && <div className="text-[11px] text-gray-400 mt-1">RevPAR {money(revpar)}</div>}
+              {comp.avg != null && adr != null && (
+                <div className={`text-[11px] font-bold mt-1 ${adr >= comp.avg ? 'text-teal-700' : 'text-orange-600'}`}>
+                  Comp avg {money(comp.avg)} · {adr >= comp.avg ? '+' : '−'}{money(Math.abs(adr - comp.avg))} vs comp
+                </div>
+              )}
             </>
           ) : (
             <div className="text-[13px] text-gray-400 font-medium">Enter below ↓</div>
@@ -356,6 +374,30 @@ export default function CommandCenterView({
                 </div>
               ))}
             </div>
+          )}
+        </div>
+        <div className={sec}>
+          <div className={secH}>
+            <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><BarChart3 size={14} style={{ color: TEAL }} /> Competitive Rates <span className="text-[11px] font-medium text-gray-400">({comp.count} logged)</span></div>
+            <button onClick={() => onNavigate('compset')} className="flex items-center text-[11px] font-bold text-teal-700 hover:underline">Compset <ChevronRight size={12} /></button>
+          </div>
+          {comp.avg != null ? (
+            <div className="flex items-center gap-5">
+              <div>
+                <div className="text-[26px] font-extrabold text-gray-900 leading-none">{money(comp.avg)}</div>
+                <div className="text-[11px] text-gray-400 mt-1">Comp average rate</div>
+              </div>
+              <div className="text-[12px] space-y-0.5">
+                <div className="text-gray-500">Low {money(comp.min ?? 0)} · High {money(comp.max ?? 0)}</div>
+                {adr != null && (
+                  <div className={`font-bold ${adr >= comp.avg ? 'text-teal-700' : 'text-orange-600'}`}>
+                    {adr >= comp.avg ? '+' : '−'}{money(Math.abs(adr - comp.avg))} vs our ADR
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-[13px] text-gray-400 font-medium py-2">No comp calls logged today{isAdmin ? ' — open Compset to log rates' : ''}</p>
           )}
         </div>
       </div>

@@ -83,6 +83,7 @@ const CultureView = dynamic(() => import('@/components/staff/CultureView'), { ss
 const SuperAdminView = dynamic(() => import('@/components/staff/SuperAdminView'), { ssr: false });
 const MarketplaceView = dynamic(() => import('@/components/staff/MarketplaceView'), { ssr: false });
 const RevenueView = dynamic(() => import('@/components/staff/RevenueView'), { ssr: false });
+const CompsetView = dynamic(() => import('@/components/staff/CompsetView'), { ssr: false });
 const ReportsView = dynamic(() => import('@/components/staff/ReportsView'), { ssr: false });
 const CommandCenterView = dynamic(() => import('@/components/staff/CommandCenterView'), { ssr: false });
 const HousekeepingView = dynamic(() => import('@/components/staff/HousekeepingView'), { ssr: false });
@@ -203,6 +204,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'learning_hr',     label: 'Learning Hub',        icon: GraduationCap,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'marketplace',     label: 'Marketplace',         icon: Store,           roles: ['admin', 'supervisor', 'manager', 'superadmin'], section: 'Operations' },
   { tab: 'property_info',   label: 'Property Info',       icon: HotelIcon,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'compset',         label: 'Compset',             icon: BarChart2,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
 
   // ── ADMIN — settings & management ──
   { tab: 'revenue',         label: 'Revenue',             icon: DollarSign,      roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Admin' },
@@ -1041,7 +1043,7 @@ function DashboardInner() {
         )}
         {tabPanel('dailybrief', true,
           <ErrorBoundary fallback={<div className="p-4 md:p-8"><div className="bg-red-50 border border-red-200 rounded-2xl p-6"><p className="text-[16px] font-bold text-red-800 mb-2">Dashboard error</p><pre id="error-message" className="text-[12px] text-red-700 whitespace-pre-wrap bg-red-100 p-4 rounded-xl">{/* error will show here */}</pre></div></div>}>
-            <CommandCenterView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} onNavigate={(t) => setTab(t === 'compset' ? 'todos' : t)} />
+            <CommandCenterView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} onNavigate={(t) => setTab(t)} />
           </ErrorBoundary>
         )}
         {tabPanel('property_info', !!config,
@@ -1135,10 +1137,10 @@ function DashboardInner() {
         {tabPanel('guests', true,
           <GuestsView hotelId={config?.id || ''} />
         )}
-        {tabPanel('revenue', isAdmin,
+        {tabPanel('revenue', isAdmin || s.role === 'supervisor',
           <RevenueView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
-        {tabPanel('reports', isAdmin,
+        {tabPanel('reports', isAdmin || s.role === 'supervisor',
           <ReportsView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}
         {tabPanel('housekeeping', true,
@@ -1149,6 +1151,9 @@ function DashboardInner() {
         )}
         {tabPanel('inspections', true,
           <InspectionsView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} staffList={staff} />
+        )}
+        {tabPanel('compset', true,
+          <CompsetView hotelId={config?.id || ''} isAdmin={isAdmin} staffId="" staffName={s.name} />
         )}
       </main>
     </div>
