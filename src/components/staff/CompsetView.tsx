@@ -71,6 +71,10 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
 
   const today = todayStr();
 
+  // FIRST compset hotel row (lowest sort_order, then name) = our property.
+  // Everything after it is a competitor. Matches the dashboard's tenant logic.
+  const tenantId = hotels.length > 0 ? hotels[0].id : null;
+
   function formatDisplayDate(d: string) {
     if (d === today) return 'Today';
     if (d === offsetDate(today, -1)) return 'Yesterday';
@@ -111,7 +115,10 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
     if (!hotelForm.name) return;
     setError('');
     try {
-      await createCompsetHotel({ hotel_id: hotelId, name: hotelForm.name, phone: hotelForm.phone, room_keys: hotelForm.room_keys ? parseInt(hotelForm.room_keys, 10) : 0 });
+      // New hotels are always competitors: they go AFTER the tenant row.
+      // If no tenant row exists yet (empty compset), the first added becomes it.
+      const nextSort = hotels.length === 0 ? 0 : Math.max(...hotels.map(h => h.sort_order ?? 0), 0) + 1;
+      await createCompsetHotel({ hotel_id: hotelId, name: hotelForm.name, phone: hotelForm.phone, room_keys: hotelForm.room_keys ? parseInt(hotelForm.room_keys, 10) : 0, sort_order: nextSort });
       setHotelForm({ name: '', phone: '', room_keys: '' });
       setShowHotelForm(false);
       load();
@@ -325,23 +332,30 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
                     </div>
                   </div>
                 ) : (
-                  <div key={h.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                  <div key={h.id} className={`flex items-center justify-between rounded-lg px-3 py-2 ${h.id === tenantId ? 'bg-teal-50 border border-teal-200' : 'bg-gray-50'}`}>
                     <button onClick={() => startEditHotel(h)} className="text-left flex-1">
-                      <p className="text-[12px] font-semibold text-gray-800">{h.name}</p>
+                      <p className="text-[12px] font-semibold text-gray-800 flex items-center gap-1.5">
+                        {h.name}
+                        {h.id === tenantId && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-teal-700 bg-teal-100 rounded px-1.5 py-0.5">Our hotel</span>
+                        )}
+                      </p>
                       <p className="text-[11px] text-gray-400">{h.phone && <span>{h.phone} · </span>}{h.room_keys || 0} room keys</p>
                     </button>
                     <div className="flex items-center gap-2">
                       <button onClick={() => startEditHotel(h)} className="text-gray-400 hover:text-gray-600">
                         <Pencil size={13} />
                       </button>
-                      <button onClick={() => handleDeleteHotel(h.id)} className="text-red-400 hover:text-red-600">
-                        <Trash2 size={13} />
-                      </button>
+                      {h.id !== tenantId && (
+                        <button onClick={() => handleDeleteHotel(h.id)} className="text-red-400 hover:text-red-600">
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
               ))}
-              {hotels.length === 0 && <p className="text-[11px] text-gray-400">No competitor hotels added yet.</p>}
+              {hotels.length === 0 && <p className="text-[11px] text-gray-400">No hotels added yet — the first one you add becomes your own property, the rest are competitors.</p>}
             </div>
           </div>
 
@@ -414,9 +428,14 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
               </thead>
               <tbody>
                 {hotels.map(h => (
-                  <tr key={h.id} className="border-b border-gray-50 last:border-0">
+                  <tr key={h.id} className={`border-b border-gray-50 last:border-0 ${h.id === tenantId ? 'bg-teal-50/40' : ''}`}>
                     <td className="px-5 py-4 min-w-[160px]">
-                      <p className="font-bold text-gray-900 text-[14px]">{h.name}</p>
+                      <p className="font-bold text-gray-900 text-[14px] flex items-center gap-1.5">
+                        {h.name}
+                        {h.id === tenantId && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-teal-700 bg-teal-100 rounded px-1.5 py-0.5">Our hotel</span>
+                        )}
+                      </p>
                       <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
                         {h.phone && <span className="flex items-center gap-1"><Phone size={10} />{h.phone}</span>}
                         {h.phone && ' · '}{h.room_keys || 0} keys
@@ -459,10 +478,15 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
           {/* Mobile cards */}
           <div className="md:hidden space-y-4">
             {hotels.map(h => (
-              <div key={h.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div key={h.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${h.id === tenantId ? 'border-teal-300 ring-1 ring-teal-100' : 'border-gray-200'}`}>
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                   <div>
-                    <p className="font-bold text-gray-900 text-[15px]">{h.name}</p>
+                    <p className="font-bold text-gray-900 text-[15px] flex items-center gap-1.5">
+                      {h.name}
+                      {h.id === tenantId && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-teal-700 bg-teal-100 rounded px-1.5 py-0.5">Our hotel</span>
+                      )}
+                    </p>
                     {h.phone && (
                       <p className="text-[12px] text-gray-400 flex items-center gap-1 mt-0.5">
                         <Phone size={11} />{h.phone}
@@ -526,7 +550,12 @@ export default function CompsetView({ hotelId, isAdmin, staffId, staffName }: {
                   <tr key={e.id} className="border-b border-gray-50 last:border-0">
                     <td className="px-5 py-2.5 text-gray-600">{e.call_date}</td>
                     <td className="px-3 py-2.5 text-gray-600">{formatTime(e.call_time)}</td>
-                    <td className="px-3 py-2.5 font-semibold text-gray-900">{h?.name || '—'}</td>
+                    <td className="px-3 py-2.5 font-semibold text-gray-900 flex items-center gap-1.5">
+                      {h?.name || '—'}
+                      {h && h.id === tenantId && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-teal-700 bg-teal-100 rounded px-1.5 py-0.5">Our hotel</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2.5 text-right text-gray-700">{e.rate != null ? `$${e.rate}` : '—'}</td>
                     <td className="px-3 py-2.5 text-right text-gray-700">{e.rooms_sold ?? '—'} / {e.rooms_total ?? '—'}</td>
                     <td className="px-5 py-2.5 text-right font-semibold text-teal-700">{e.occupancy_pct != null ? `${e.occupancy_pct}%` : '—'}</td>

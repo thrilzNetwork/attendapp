@@ -62,7 +62,7 @@ export default function CommandCenterView({
   const [linenLow, setLinenLow] = useState(0);
   const [todayFc, setTodayFc] = useState<{ occupancy_pct: number; adr: number | null; arrivals: number } | null>(null);
   const [comp, setComp] = useState<{ avg: number | null; count: number; min: number | null; max: number | null }>({ avg: null, count: 0, min: null, max: null });
-  // OWN-property numbers sourced from Compset (special compset_hotels row, name = 'OWN')
+  // Tenant-property numbers sourced from Compset (FIRST compset_hotels row = our hotel)
   const [own, setOwn] = useState<{ occ: number | null; adr: number | null; roomsSold: number | null; count: number }>({ occ: null, adr: null, roomsSold: null, count: 0 });
   const [compHotels, setCompHotels] = useState<{ id: string; name: string }[]>([]);
 
@@ -71,7 +71,7 @@ export default function CommandCenterView({
   const [evDate, setEvDate] = useState(today);
   const [evEmoji, setEvEmoji] = useState('📅');
 
-  // admin adjust form (OWN row → compset_entries)
+  // adjust form (first compset row = tenant property → compset_entries)
   const [showAdjust, setShowAdjust] = useState(false);
   const [adjOcc, setAdjOcc] = useState('');
   const [adjAdr, setAdjAdr] = useState('');
@@ -135,20 +135,25 @@ export default function CommandCenterView({
       }
       setLinenLow(below);
 
-      // Compset: today's competitor rate snapshot for the dashboard KPI
+      // Tenant property = FIRST compset_hotels row (lowest sort_order, then name).
+      // It is NOT a competitor: its entries feed the dashboard KPIs; all other
+      // rows are competitors and feed the comp average.
+      const allHotels = (compHotelsData || []).slice().sort((a, b) =>
+        (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+      const hotels = allHotels.slice(0, 1);
+      setCompHotels(hotels.map(h => ({ id: h.id, name: h.name })));
+      const tenantId = hotels[0]?.id;
+
+      // Competitor rate snapshot — tenant entries EXCLUDED from the average
       const cRows = (compEntries || []) as CompsetEntry[];
-      const cRates = cRows.map(e => e.rate).filter((r): r is number => r != null);
+      const compRows = tenantId ? cRows.filter(e => e.compset_hotel_id !== tenantId) : cRows;
+      const cRates = compRows.map(e => e.rate).filter((r): r is number => r != null);
       setComp({
         avg: cRates.length ? Math.round(cRates.reduce((a, b) => a + b, 0) / cRates.length) : null,
-        count: cRows.length,
+        count: compRows.length,
         min: cRates.length ? Math.min(...cRates) : null,
         max: cRates.length ? Math.max(...cRates) : null,
       });
-
-      // OWN property = special compset_hotels row (name 'OWN'); dashboard KPIs read
-      // exclusively from its compset_entries for today — NOT from forecasts.
-      const hotels = (compHotelsData || []).filter(h => h.name.trim().toUpperCase() === 'OWN');
-      setCompHotels(hotels.map(h => ({ id: h.id, name: h.name })));
       const ownId = hotels[0]?.id;
       if (ownId) {
         const ownRows = cRows.filter(e => e.compset_hotel_id === ownId);
@@ -179,8 +184,8 @@ export default function CommandCenterView({
 
   useEffect(() => { load(); }, [load]);
 
-  // Admin-only: write OWN property numbers into compset_entries so the dashboard
-  // KPI cards are fed from Compset like every competitor.
+  // Staff: write OWN property numbers into compset_entries so the dashboard
+  // KPI cards are fed from Compset like every competitor (everyone can adjust).
   const saveAdjust = async () => {
     if (!hotelId || savingAdj) return;
     const ownId = compHotels[0]?.id;
@@ -337,18 +342,16 @@ export default function CommandCenterView({
           <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><TrendingUp size={14} style={{ color: TEAL }} /> Today&apos;s Numbers <span className="text-[11px] font-medium text-gray-400">— from Compset</span></div>
           <div className="flex items-center gap-2">
             {adjFlash && <span className="text-[11px] font-bold text-teal-700">✓ Saved</span>}
-            {isAdmin && (
-              <button onClick={() => setShowAdjust(v => !v)}
-                className="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 hover:text-gray-800 bg-gray-100 rounded-xl px-3 py-2">
-                <Save size={13} /> Adjust
-              </button>
-            )}
+            <button onClick={() => setShowAdjust(v => !v)}
+              className="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 hover:text-gray-800 bg-gray-100 rounded-xl px-3 py-2">
+              <Save size={13} /> Adjust
+            </button>
           </div>
         </div>
-        {isAdmin && showAdjust && (
+        {showAdjust && (
           <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
             {!compHotels.length ? (
-              <p className="text-[12px] text-gray-500 font-medium">No &quot;OWN&quot; property row in Compset yet — add a compset hotel named <span className="font-bold">OWN</span> (Compset → Add) to enable dashboard adjustments.</p>
+              <p className="text-[12px] text-gray-500 font-medium">No property row in Compset yet — add your hotel as the <span className="font-bold">first hotel</span> in Compset (Compset → Add) to enable dashboard adjustments.</p>
             ) : (
               <div className="flex flex-wrap items-end gap-3">
                 <label className="text-[12px] font-medium text-gray-600">
@@ -382,7 +385,7 @@ export default function CommandCenterView({
           {comp.avg != null && (
             <div><span className="text-gray-400 font-medium">Comp avg: </span><span className="font-extrabold text-gray-900">{money(comp.avg)}</span></div>
           )}
-          <div className="text-[11px] text-gray-400">Admin adjustments write to Compset (OWN row) — the dashboard reads Compset only.</div>
+          <div className="text-[11px] text-gray-400">Entries write to Compset (first row = our hotel) — the dashboard reads Compset only.</div>
         </div>
       </div>
 

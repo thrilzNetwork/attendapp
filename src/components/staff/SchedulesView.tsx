@@ -13,6 +13,7 @@ import {
 import {
   createScheduleChangeRequest, today,
   DEPARTMENTS, type DepartmentKey,
+  listOps, createOps, deleteOps, updateOps, type OpRecord,
 } from '@/lib/opsStore';
 
 const TEAL = '#158A7C';
@@ -134,6 +135,24 @@ export default function SchedulesView({
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [loadingTemplate, setLoadingTemplate] = useState(false);
 
+  // Daily / Weekly view toggle
+  const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('weekly');
+  const [dayFocus, setDayFocus] = useState<string>(today());
+
+  // Weekly snapshot: publish-ready staging + scheduled Wednesday publication
+  // (stored in opsStore as type 'schedule_snapshot', status 'scheduled'/'published')
+  const [snapshot, setSnapshot] = useState<OpRecord | null>(null);
+  const [stagingSnap, setStagingSnap] = useState(false);
+  const [snapStaged, setSnapStaged] = useState(false);
+
+  const nextWednesday = (from: string): string => {
+    const d = new Date(from + 'T00:00:00');
+    const delta = (3 - d.getDay() + 7) % 7; // 3 = Wednesday
+    d.setDate(d.getDate() + (delta === 0 ? 7 : delta));
+    return fmt(d);
+  };
+  const isWednesday = (date: string) => new Date(date + 'T00:00:00').getDay() === 3;
+
   const [addForm, setAddForm] = useState(blankAdd());
   const [reqForm, setReqForm] = useState({ shift_date: today(), is_pto: true, details: '' });
 
@@ -144,12 +163,18 @@ export default function SchedulesView({
   const load = useCallback(async () => {
     const weekEnd = addDays(weekStart, 6);
     try {
-      const [s, f] = await Promise.all([
+      const [s, f, snaps] = await Promise.all([
         getStaffSchedulesRange(hotelId, weekStart, weekEnd),
         getWeeklyForecasts(hotelId, weekStart),
+        listOps(hotelId, 'schedule_snapshot', {}).catch(() => []),
       ]);
       setSchedules(s || []);
       setForecasts(f || []);
+      // latest snapshot for this week (any status)
+      const mine = (snaps as unknown as OpRecord[])
+        .filter((r: OpRecord) => (r.details as Record<string, unknown>)?.week_start === weekStart)
+        .sort((a: OpRecord, b: OpRecord) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
+      setSnapshot(mine[0] || null);
       setError(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load schedule.');
@@ -368,6 +393,50 @@ export default function SchedulesView({
     setPublishing(false);
   };
 
+  // ── Weekly snapshot: stage now, auto-publish on its scheduled Wednesday ─────
+  const stageSnapshot = async () => {
+    setStagingSnap(true); setError(null);
+    try {
+      const weekEnd = addDays(weekStart, 6);
+      const weekShifts = await getStaffSchedulesRange(hotelId, weekStart, weekEnd) || [];
+      const publishDate = nextWednesday(today());
+      const counts: Record<string, number> = {};
+      weekShifts.forEach(s => { counts[s.staff_name] = (counts[s.staff_name] || 0) + 1; });
+      await createOps(hotelId, 'schedule_snapshot', {
+        week_start: weekStart,
+        week_end: weekEnd,
+        shift_count: weekShifts.length,
+        staff_count: Object.keys(counts).length,
+        publish_date: publishDate,
+        staged_by: staffName || 'Admin',
+        staged_at: new Date().toISOString(),
+      } as unknown as Record<string, unknown>, 'scheduled');
+      setSnapStaged(true);
+      setTimeout(() => setSnapStaged(false), 4000);
+      await load();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to stage snapshot');
+    }
+    setStagingSnap(false);
+  };
+
+  // If today is the snapshot's publish date and it's still 'scheduled', flip it to 'published'
+  useEffect(() => {
+    if (!isAdmin || !snapshot || !snapshot.id) return;
+    const d = snapshot.details as Record<string, unknown>;
+    if (snapshot.status === 'scheduled' && typeof d.publish_date === 'string' && d.publish_date <= today()) {
+      updateOps(snapshot.id, { status: 'published', details: { ...d, published_at: new Date().toISOString() } })
+        .then(() => load())
+        .catch(() => {});
+    }
+  }, [isAdmin, snapshot, load]);
+
+  const deleteSnapshot = async () => {
+    if (!snapshot?.id || !confirm('Cancel the scheduled weekly snapshot?')) return;
+    await deleteOps(snapshot.id);
+    await load();
+  };
+
   const submitRequest = async () => {
     if (!reqForm.details.trim()) { setError('Tell us why you need the day off.'); return; }
     setSubmitting(true); setError(null);
@@ -483,13 +552,19 @@ export default function SchedulesView({
           <p className="text-[13px] text-gray-500">{formatDateRange(weekStart, weekEnd)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Daily / Weekly toggle */}
+          <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+            <button onClick={() => setViewMode('daily')} className={`px-3 py-2 text-[12px] font-bold transition-all ${viewMode === 'daily' ? 'text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`} style={viewMode === 'daily' ? { backgroundColor: TEAL } : undefined}>Daily</button>
+            <button onClick={() => setViewMode('weekly')} className={`px-3 py-2 text-[12px] font-bold transition-all ${viewMode === 'weekly' ? 'text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`} style={viewMode === 'weekly' ? { backgroundColor: TEAL } : undefined}>Weekly</button>
+          </div>
+          {/* Add Shift — available to everyone (like the previous schedule tool) */}
+          <button onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-[12px] font-bold transition-all active:scale-95"
+            style={{ backgroundColor: TEAL }}>
+            <Plus size={14} /> Add Shift
+          </button>
           {isAdmin && (
             <>
-              <button onClick={() => setShowAdd(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-[12px] font-bold transition-all active:scale-95"
-                style={{ backgroundColor: TEAL }}>
-                <Plus size={14} /> Add Shift
-              </button>
               <button onClick={handleCopyWeek} disabled={copying || copied}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold border transition-all active:scale-95 ${copied ? 'bg-green-50 border-green-300 text-green-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
                 {copied ? <><CheckCircle2 size={14} /> Copied!</> : copying ? <><Copy size={14} className="animate-pulse" /> Copying…</> : <><Copy size={14} /> Copy Week</>}
@@ -523,6 +598,15 @@ export default function SchedulesView({
 
       {/* Week nav */}
       <div className="flex items-center gap-2 mb-3">
+        {viewMode === 'daily' && (
+          <input type="date" value={dayFocus} max={addDays(weekStart, 6)} min={weekStart}
+            onChange={e => {
+              const v = e.target.value;
+              setDayFocus(v);
+              if (v && (v < weekStart || v > addDays(weekStart, 6))) setWeekStart(getWeekStart(v, weekStartsOn));
+            }}
+            className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-[12px] font-bold text-gray-700" />
+        )}
         <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white border border-gray-200 text-[11px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
           <ArrowLeft size={14} /> Prev
         </button>
@@ -533,6 +617,28 @@ export default function SchedulesView({
           Next <ArrowRight size={14} />
         </button>
       </div>
+
+      {/* Weekly snapshot publication banner */}
+      {isAdmin && (
+        <div className={`mb-3 p-3 rounded-xl border text-[12px] flex flex-wrap items-center gap-2 ${snapshot?.status === 'published' ? 'bg-green-50 border-green-200' : snapshot ? 'bg-teal-50 border-teal-200' : 'bg-gray-50 border-gray-200'}`}>
+          <BookMarked size={14} className={snapshot?.status === 'published' ? 'text-green-600' : 'text-teal-700'} />
+          {snapshot?.status === 'published' ? (
+            <span className="font-bold text-green-700">Weekly snapshot published{snapshot.created_at ? ` · ${new Date(snapshot.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</span>
+          ) : snapshot ? (
+            <span className="font-bold text-teal-800">Weekly snapshot staged — publishes Wednesday {String((snapshot.details as Record<string, unknown>).publish_date ?? '').slice(5)} <span className="font-medium text-teal-600">(Publishes Wed)</span></span>
+          ) : (
+            <span className="text-gray-500">Weekly snapshot: the version published regularly. Stages now, publishes Wednesday.</span>
+          )}
+          {isAdmin && !snapshot && (
+            <button onClick={stageSnapshot} disabled={stagingSnap} className="ml-auto px-3 py-1.5 rounded-lg text-[11px] font-bold text-white disabled:opacity-50" style={{ background: TEAL }}>
+              {stagingSnap ? 'Staging…' : snapStaged ? '✓ Staged' : 'Stage weekly snapshot'}
+            </button>
+          )}
+          {isAdmin && snapshot?.status === 'scheduled' && (
+            <button onClick={deleteSnapshot} className="ml-auto px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white border border-gray-300 text-gray-600 hover:bg-gray-50">Cancel</button>
+          )}
+        </div>
+      )}
 
       {/* Department filter */}
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
@@ -545,8 +651,8 @@ export default function SchedulesView({
         ))}
       </div>
 
-      {/* Schedule grid */}
-      <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 md:grid md:grid-cols-7 md:gap-2 md:overflow-visible md:pb-0 scrollbar-thin">
+      {/* Schedule grid (weekly) */}
+      {viewMode === 'weekly' && <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 md:grid md:grid-cols-7 md:gap-2 md:overflow-visible md:pb-0 scrollbar-thin">
         {weekDates.map(date => {
           const dayStaff = getStaff(date);
           const forecast = forecasts.find(f => f.date === date);
@@ -664,7 +770,79 @@ export default function SchedulesView({
             </div>
           );
         })}
-      </div>
+      </div>}
+
+      {/* Daily view — single day, forecast-integrated */}
+      {viewMode === 'daily' && (() => {
+        const date = dayFocus < weekStart ? weekStart : dayFocus > weekEnd ? weekEnd : dayFocus;
+        const f = forecasts.find(x => x.date === date);
+        const req = requiredStaffing(f);
+        const sched = scheduledStaffByDept(date);
+        const occ = f && f.total_rooms > 0 ? Math.round((f.rooms_occupied / f.total_rooms) * 100) : null;
+        const statuses = DEPARTMENTS.map(d => ({ ...d, req: req[d.key], sched: sched[d.key], status: staffingStatus(req[d.key], sched[d.key]) }));
+        return (
+          <div className="space-y-3">
+            {/* Forecast strip */}
+            <div className="p-4 rounded-2xl border border-gray-200 bg-white">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[13px] font-extrabold text-gray-900 flex items-center gap-2">
+                  <CalendarDays size={14} style={{ color: TEAL }} />
+                  {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </div>
+                <span className="text-[11px] font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-2 py-1">Forecast integrated</span>
+              </div>
+              {f ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div><div className="text-[20px] font-extrabold text-gray-900">{occ}%</div><div className="text-[10px] text-gray-400 font-bold uppercase">Occupancy</div></div>
+                  <div><div className="text-[20px] font-extrabold text-gray-900">{f.rooms_occupied}/{f.total_rooms || 54}</div><div className="text-[10px] text-gray-400 font-bold uppercase">Rooms sold</div></div>
+                  <div><div className="text-[20px] font-extrabold text-teal-700">+{f.arrivals ?? 0}</div><div className="text-[10px] text-gray-400 font-bold uppercase">Arrivals</div></div>
+                  <div><div className="text-[20px] font-extrabold text-orange-600">-{f.departures ?? 0}</div><div className="text-[10px] text-gray-400 font-bold uppercase">Departures</div></div>
+                </div>
+              ) : (
+                <p className="text-[12px] text-gray-400 font-medium">No forecast for this day — staffing cannot be evaluated.</p>
+              )}
+            </div>
+            {/* Required vs scheduled */}
+            <div className="p-4 rounded-2xl border border-gray-200 bg-white">
+              <div className="text-[13px] font-extrabold text-gray-900 mb-2">Required vs scheduled</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                {statuses.map(s => (
+                  <div key={s.key} className={`p-2.5 rounded-xl border text-center ${statusBadge[s.status]}`}>
+                    <div className="text-[10px] font-bold uppercase tracking-wide flex items-center justify-center gap-1">{s.icon} {s.label}</div>
+                    <div className="text-[18px] font-extrabold mt-0.5">{s.sched}/{s.req}</div>
+                    <div className={`text-[9px] font-bold ${s.status === 'under' ? 'text-amber-700' : s.status === 'over' ? 'text-red-700' : 'text-green-700'}`}>
+                      {s.status === 'under' ? 'Add staff' : s.status === 'over' ? 'Overstaffed' : s.status === 'matched' ? 'Matched' : 'No forecast'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Day shifts */}
+            <div className="p-4 rounded-2xl border border-gray-200 bg-white">
+              <div className="text-[13px] font-extrabold text-gray-900 mb-2">Shifts — {getStaff(date).length} scheduled</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {getStaff(date).length === 0 ? (
+                  <p className="text-[12px] text-gray-400 font-medium">No shifts scheduled this day.</p>
+                ) : getStaff(date).map(({ name, shift: s }) => {
+                  const isTbd = !s.end_time;
+                  const color = isTbd ? 'bg-amber-50 border-amber-300 text-amber-900' : shiftColor(staffDept(name));
+                  return (
+                    <div key={s.id} className={`rounded-xl border px-3 py-2 ${color}`}>
+                      <div className="flex items-start justify-between gap-1">
+                        <p className="text-[12px] font-bold truncate flex-1">{name}</p>
+                        {isAdmin && <button onClick={() => openEdit(s)} className="opacity-50 hover:opacity-100" title="Edit shift"><Pencil size={10} /></button>}
+                      </div>
+                      <p className="text-[11px] opacity-80">{formatTime24to12(s.start_time)}{s.end_time ? `–${formatTime24to12(s.end_time)}` : ' → TBD'}</p>
+                      {s.role && s.role !== 'staff' && <p className="text-[9px] opacity-60">{s.role}</p>}
+                      {s.notes && <p className="text-[9px] opacity-60">{s.notes}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Legend */}
       <div className="mt-4 p-3 border border-gray-200 rounded-xl bg-white flex flex-wrap items-center gap-3 text-[10px]">

@@ -606,7 +606,7 @@ export async function getCompsetHotels(hotelId: string): Promise<CompsetHotel[]>
   return data || [];
 }
 
-export async function createCompsetHotel(hotel: { hotel_id: string; name: string; phone: string; room_keys?: number }): Promise<CompsetHotel | null> {
+export async function createCompsetHotel(hotel: { hotel_id: string; name: string; phone: string; room_keys?: number; sort_order?: number }): Promise<CompsetHotel | null> {
   const { data, error } = await supabase.from('compset_hotels').insert({ ...hotel, is_active: true }).select().single();
   if (error) throw error;
   return data;
