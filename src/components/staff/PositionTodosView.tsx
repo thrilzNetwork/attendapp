@@ -15,7 +15,7 @@ import {
 import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList, Move, UserX, DollarSign, BookOpen, Download, CalendarClock, GraduationCap, Target } from 'lucide-react';
 import {
   listCourses, listModules, listModuleCompletions, recordModuleCompletion,
-  listKpiDefinitions, listKpiSubmissions,
+  listKpiDefinitions, listKpiSubmissions, createKpiSubmission,
   type OpRecord,
 } from '@/lib/opsStore';
 
@@ -212,7 +212,10 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
   const [previewTemplate, setPreviewTemplate] = useState<CommunityTemplate | null>(null);
   const [shiftPicker, setShiftPicker] = useState<{ tplId: string; tplName: string } | null>(null);
   const [training, setTraining] = useState<{ courseId: string; course: string; done: number; total: number; nextModule?: string; nextModuleId?: string }[]>([]);
-  const [goals, setGoals] = useState<{ name: string; value: number | null; target: number; unit: string }[]>([]);
+  const [goals, setGoals] = useState<{ def_id: string; name: string; value: number | null; target: number; unit: string }[]>([]);
+  const [goalEdit, setGoalEdit] = useState<string | null>(null);
+  const [goalVal, setGoalVal] = useState('');
+  const [goalSaving, setGoalSaving] = useState(false);
 
   // Position management state
   const [positions, setPositions] = useState<StaffPosition[]>([]);
@@ -316,14 +319,28 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
           new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
         const ld = todayLogs[0] ? (todayLogs[0].details as Record<string, unknown>) : null;
         return {
+          def_id: def.id,
           name: (d.kpi_name as string) || 'KPI',
           value: ld ? Number(ld.value) : null,
           target: Number(d.target) || 0,
           unit: (d.unit as string) || '',
         };
-      }).filter(Boolean) as { name: string; value: number | null; target: number; unit: string }[];
+      }).filter(Boolean) as { def_id: string; name: string; value: number | null; target: number; unit: string }[];
       setGoals(tiles);
     } catch { /* silent */ }
+  };
+
+  const saveGoal = async (defId: string, name: string) => {
+    const val = Number(goalVal);
+    if (isNaN(val)) return;
+    setGoalSaving(true);
+    try {
+      await createKpiSubmission(hotelId, { definition_id: defId, kpi_name: name, value: val, shift_date: selectedDate, submitted_by: staffName || 'Staff' });
+      setGoalEdit(null);
+      setGoalVal('');
+      await refreshGoals();
+    } catch { /* tile keeps previous value on failure */ }
+    setGoalSaving(false);
   };
 
   useEffect(() => {
@@ -1374,18 +1391,27 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
                   <div className="grid grid-cols-2 gap-2">
                     {goals.map(g => {
                       const under = g.value != null && g.target > 0 && g.value < g.target;
+                      const editing = goalEdit === g.def_id;
                       return (
-                        <div key={g.name} className="bg-gray-50 rounded-xl px-3 py-2">
+                        <div key={g.def_id} className="bg-gray-50 rounded-xl px-3 py-2 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => { setGoalEdit(editing ? null : g.def_id); setGoalVal(g.value != null ? String(g.value) : ''); }}>
                           <p className="text-[11px] font-medium text-gray-500 truncate">{g.name}</p>
-                          <p className="text-[15px] font-extrabold" style={{ color: g.value == null ? '#9ca3af' : under ? '#EA580C' : TEAL }}>
-                            {g.value == null ? '—' : `${g.value}${g.unit === '%' ? '%' : ''}`}
-                            {g.target > 0 && <span className="text-[10px] text-gray-400 font-bold"> / goal {g.target}{g.unit === '%' ? '%' : ''}</span>}
-                          </p>
+                          {editing ? (
+                            <div className="flex items-center gap-1.5 mt-0.5" onClick={e => e.stopPropagation()}>
+                              <input autoFocus value={goalVal} onChange={e => setGoalVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveGoal(g.def_id, g.name); if (e.key === 'Escape') setGoalEdit(null); }} inputMode="decimal" placeholder="Value" className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-[13px] font-bold focus:outline-none focus:ring-1 focus:ring-teal-400" />
+                              <button onClick={() => saveGoal(g.def_id, g.name)} disabled={goalSaving} className="text-[10px] font-bold text-white rounded-lg px-2 py-1 disabled:opacity-50" style={{ backgroundColor: TEAL }}>{goalSaving ? '…' : 'Save'}</button>
+                              <button onClick={() => setGoalEdit(null)} className="text-[10px] font-bold text-gray-400 hover:text-gray-600 px-1">✕</button>
+                            </div>
+                          ) : (
+                            <p className="text-[15px] font-extrabold" style={{ color: g.value == null ? '#9ca3af' : under ? '#EA580C' : TEAL }}>
+                              {g.value == null ? '—' : `${g.value}${g.unit === '%' ? '%' : ''}`}
+                              {g.target > 0 && <span className="text-[10px] text-gray-400 font-bold"> / goal {g.target}{g.unit === '%' ? '%' : ''}</span>}
+                            </p>
+                          )}
                         </div>
                       );
                     })}
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-2">Logged by staff daily · actual vs goal</p>
+                  <p className="text-[10px] text-gray-400 mt-2">Tap a tile to log today's number · actual vs goal</p>
                 </div>
               )}
 

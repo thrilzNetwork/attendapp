@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
           .update({
             week_start: scopedForecast.week_start,
             occupancy_pct: scopedForecast.occupancy_pct,
+            adr: scopedForecast.adr ?? null,
             arrivals: scopedForecast.arrivals,
             rooms_occupied: scopedForecast.rooms_occupied,
             departures: scopedForecast.departures || 0,

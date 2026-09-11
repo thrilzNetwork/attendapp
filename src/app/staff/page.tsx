@@ -121,7 +121,7 @@ import {
 } from '@/lib/opsStore';
 
 /* ── Types ─────────────────────────────────────────────── */
-type Role = 'admin' | 'staff' | 'superadmin' | 'vendor' | 'manager' | 'supervisor';
+type Role = 'admin' | 'staff' | 'superadmin' | 'vendor' | 'manager' | 'supervisor' | 'owner';
 type NavTab =
   | 'orders' | 'messages' | 'shuttle'
   | 'hotel' | 'staff_mgmt'
@@ -351,7 +351,7 @@ function DashboardInner() {
         }
         getStaffAccountByEmail(email).then(staff => {
           if (staff) {
-            const role: Role = staff.role === 'manager' || staff.role === 'admin' ? 'admin' : staff.role === 'supervisor' ? 'supervisor' : staff.role === 'vendor' ? 'vendor' : 'staff';
+            const role: Role = staff.role === 'manager' || staff.role === 'admin' || staff.role === 'owner' ? 'admin' : staff.role === 'supervisor' ? 'supervisor' : staff.role === 'vendor' ? 'vendor' : 'staff';
             setSession({ name: staff.name, role, vendorType: staff.vendor_type || undefined, permissions: staff.permissions ?? [], department: staff.department, positions: staff.positions || [] });
             setAuthMode('authenticated');
             // Save hotel slug to localStorage so config queries work
@@ -393,7 +393,7 @@ function DashboardInner() {
       }
 
       // Log in directly — no PIN 2FA needed
-      const role: Role = staff.role === 'manager' || staff.role === 'admin' ? 'admin' : staff.role === 'vendor' ? 'vendor' : 'staff';
+      const role: Role = staff.role === 'manager' || staff.role === 'admin' || staff.role === 'owner' ? 'admin' : staff.role === 'vendor' ? 'vendor' : 'staff';
 
       // Auto-populate JWT metadata with hotel_id if missing
       // This ensures RLS policies (which check get_user_hotel_id() from JWT) work
@@ -488,7 +488,7 @@ function DashboardInner() {
       return;
     }
 
-    const isManager = role === 'admin' || role === 'superadmin' || role === 'manager';
+    const isManager = role === 'owner' || role === 'admin' || role === 'superadmin' || role === 'manager';
     const [req, msg, staffRows] = await Promise.all([
       supabase.from('requests').select('*').eq('hotel_id', hotelId).neq('room', 'STAFF').order('created_at', { ascending: false }),
       supabase.from('messages').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),

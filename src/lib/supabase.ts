@@ -2889,7 +2889,8 @@ export async function getForecastsRange(hotelId: string, from: string, to: strin
   return (data || []) as WeeklyForecast[];
 }
 
-/** Upsert a single forecast day (unique on hotel_id+date). Derives rooms from occ when not provided. */
+/** Upsert a single forecast day (unique on hotel_id+date). Goes through /api/ops-data
+ *  (service role) so superadmin/manager sessions never fail on RLS hotel scoping. */
 export async function upsertForecastDay(hotelId: string, weekStart: string, day: {
   date: string; occupancy_pct: number; adr?: number | null;
   arrivals: number; rooms_occupied: number; departures: number;
@@ -2903,8 +2904,14 @@ export async function upsertForecastDay(hotelId: string, weekStart: string, day:
     departures: Math.round(day.departures), total_rooms: Math.round(day.total_rooms),
     prev_night_occ: Math.round(day.prev_night_occ),
   };
-  const { error } = await supabase.from('weekly_forecasts').upsert(row, { onConflict: 'hotel_id,date' });
-  return error ? { error: error.message } : {};
+  const res = await fetch('/api/ops-data', {
+    method: 'POST',
+    headers: await authedApiHeaders(),
+    body: JSON.stringify({ action: 'upsert_forecast', hotelId, forecast: row }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json.ok) return { error: json.error || `Forecast save failed (${res.status})` };
+  return {};
 }
 
 /** Real guest/ops tickets — excludes system op-record types (kpi/course/shuttle slots). */

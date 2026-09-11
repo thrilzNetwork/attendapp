@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { TrendingUp, Users, Clock, RefreshCw, Plus, Pencil, Trash2, X as XIcon } from 'lucide-react';
+import { TrendingUp, Users, Clock, RefreshCw, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, X as XIcon } from 'lucide-react';
 import {
   getStaffSchedulesRange, getForecastsRange, upsertForecastDay,
   createStaffSchedule, updateStaffSchedule, deleteStaffSchedule,
@@ -58,7 +58,7 @@ export default function ScheduleForecastView({
   staffList: { name: string; role?: string; department?: string }[];
 }) {
   const today = localDateStr();
-  const weekStart = mondayOf(today);
+  const [weekStart, setWeekStart] = useState(mondayOf(today));
   const days = Array.from({ length: 7 }, (_, i) => addDaysStr(weekStart, i));
   const [scheds, setScheds] = useState<Sched[]>([]);
   const [fcs, setFcs] = useState<Record<string, Fc>>({});
@@ -68,6 +68,7 @@ export default function ScheduleForecastView({
   const [editAdr, setEditAdr] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // ── Shift add/edit (admin) ────────────────────────────────────────────────
   const blankShift = () => ({ id: '', staff_name: '', sh: 7, sm: 0, ap: 'am' as 'am' | 'pm', hasEnd: false, endSh: 3, endSm: 0, endAp: 'pm' as 'am' | 'pm', role: '' });
@@ -179,18 +180,22 @@ export default function ScheduleForecastView({
   const saveDay = async () => {
     const occ = Number(editOcc);
     if (isNaN(occ) || occ < 0 || occ > 100) return;
-    setSaving(true);
+    setSaving(true); setSaveError(null);
     const rooms_occupied = Math.round((occ / 100) * (selFc?.total_rooms || 54));
     const arr = selFc?.arrivals ?? 0;
     const prev = selFc?.prev_night_occ ?? rooms_occupied;
-    await upsertForecastDay(hotelId, weekStart, {
-      date: selDay, occupancy_pct: occ, adr: editAdr.trim() === '' ? null : Number(editAdr),
-      arrivals: arr, rooms_occupied, departures: Math.max(0, prev + arr - rooms_occupied),
-      total_rooms: selFc?.total_rooms || 54, prev_night_occ: prev,
-    });
+    try {
+      await upsertForecastDay(hotelId, weekStart, {
+        date: selDay, occupancy_pct: occ, adr: editAdr.trim() === '' ? null : Number(editAdr),
+        arrivals: arr, rooms_occupied, departures: Math.max(0, prev + arr - rooms_occupied),
+        total_rooms: selFc?.total_rooms || 54, prev_night_occ: prev,
+      });
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 1600);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save forecast — try again');
+    }
     setSaving(false);
-    setSavedFlash(true);
-    setTimeout(() => setSavedFlash(false), 1600);
     load();
   };
 
@@ -206,12 +211,24 @@ export default function ScheduleForecastView({
 
   const sec = 'bg-white border border-gray-200 rounded-2xl p-4';
 
+  const navWeek = (delta: number) => {
+    setWeekStart(addDaysStr(weekStart, delta));
+    if (days.includes(selDay)) setSelDay(addDaysStr(selDay, delta));
+  };
+
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900">Schedules &amp; Forecast</h1>
-          <p className="text-[13px] text-gray-500">{hotelName} · week of {weekStart} · {totalWeekHours}h scheduled</p>
+          <p className="text-[13px] text-gray-500">
+            {hotelName} · week of {weekStart} · {totalWeekHours}h scheduled
+            <span className="inline-flex items-center gap-0.5 ml-2 align-middle">
+              <button onClick={() => navWeek(-7)} title="Previous week" className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><ChevronLeft size={15} /></button>
+              <button onClick={() => setWeekStart(mondayOf(today))} title="This week" className="px-1.5 py-0.5 rounded-lg text-[10px] font-bold text-gray-500 hover:bg-gray-100">NOW</button>
+              <button onClick={() => navWeek(7)} title="Next week" className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><ChevronRight size={15} /></button>
+            </span>
+          </p>
         </div>
         <button onClick={load} className="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 hover:text-gray-800 bg-gray-100 rounded-xl px-3 py-2">
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
@@ -339,6 +356,7 @@ export default function ScheduleForecastView({
             <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><TrendingUp size={14} style={{ color: TEAL }} /> Forecast · {selDay}</div>
             {savedFlash && <span className="text-[11px] font-bold text-teal-700">✓ Saved</span>}
           </div>
+          {saveError && <div className="mb-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-[12px] font-bold text-red-700">⚠ {saveError}</div>}
           {selFc ? (
             <div className="grid grid-cols-3 gap-2 mb-3">
               <div className="bg-gray-50 rounded-xl p-2.5 text-center"><div className="text-[17px] font-extrabold text-gray-900">{selFc.occupancy_pct}%</div><div className="text-[10px] font-bold text-gray-500">OCCUPANCY</div></div>
