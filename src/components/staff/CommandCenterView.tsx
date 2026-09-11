@@ -267,7 +267,16 @@ export default function CommandCenterView({
       {/* ── Business health row ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div className={sec}>
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1"><BedDouble size={13} /> Occupancy</div>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wide"><BedDouble size={13} /> Occupancy</div>
+            <div className="flex items-center gap-1.5">
+              {adjFlash && <span className="text-[10px] font-extrabold text-teal-700">Saved ✓</span>}
+              <button onClick={() => setShowNumbers(v => !v)} title="Adjust Compset numbers"
+                className="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-colors">
+                {showNumbers ? <X size={12} /> : <SlidersHorizontal size={12} />}
+              </button>
+            </div>
+          </div>
           {occPct != null ? (
             <>
               <div className="text-[26px] font-extrabold text-gray-900 leading-none">{occPct}<span className="text-[14px] text-gray-400">%</span></div>
@@ -338,55 +347,36 @@ export default function CommandCenterView({
         </div>
       </div>
 
-      {/* ── Today's numbers (Compset-sourced) — hidden behind adjust icon ── */}
-      <div className={sec + ' mb-4 p-3'}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-[12px] text-gray-400 font-medium min-w-0">
-            <TrendingUp size={12} style={{ color: TEAL }} />
-            <span className="truncate">
-              Occupancy <b className="text-gray-700">{occPct != null ? `${occPct}%` : '—'}</b>
-              {' · '}ADR <b className="text-gray-700">{adr != null ? money(adr) : '—'}</b>
-              {' · '}Rooms sold <b className="text-gray-700">{own.roomsSold != null ? own.roomsSold : '—'}</b>
-              {comp.avg != null && <> · Comp avg <b className="text-gray-700">{money(comp.avg)}</b></>}
-            </span>
-          </div>
-          <button onClick={() => setShowNumbers(v => !v)}
-            title="Adjust Compset numbers"
-            className="flex items-center justify-center w-8 h-8 shrink-0 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-colors">
-            {showNumbers ? <X size={13} /> : <SlidersHorizontal size={13} />}
-          </button>
+      {showNumbers && (
+        <div className={sec + ' mb-4 p-3'}>
+          {!compHotels.length ? (
+            <p className="text-[12px] text-gray-500 font-medium">No property row in Compset yet — add your hotel as the <span className="font-bold">first hotel</span> in Compset (Compset → Add) to enable dashboard adjustments.</p>
+          ) : (
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="text-[12px] font-medium text-gray-600">
+                Occupancy %
+                <input value={adjOcc} onChange={e => setAdjOcc(e.target.value)} inputMode="decimal" placeholder="e.g. 85"
+                  className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              </label>
+              <label className="text-[12px] font-medium text-gray-600">
+                ADR ($)
+                <input value={adjAdr} onChange={e => setAdjAdr(e.target.value)} inputMode="decimal" placeholder="e.g. 129"
+                  className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-900 focus:ring-teal-500" />
+              </label>
+              <label className="text-[12px] font-medium text-gray-600">
+                Rooms sold
+                <input value={adjArr} onChange={e => setAdjArr(e.target.value)} inputMode="numeric" placeholder="e.g. 46"
+                  className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-900 focus:ring-teal-500" />
+              </label>
+              <button onClick={saveAdjust} disabled={savingAdj}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50"
+                style={{ background: TEAL }}>
+                <Save size={14} /> {savingAdj ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          )}
         </div>
-        {showNumbers && (
-          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
-            {!compHotels.length ? (
-              <p className="text-[12px] text-gray-500 font-medium">No property row in Compset yet — add your hotel as the <span className="font-bold">first hotel</span> in Compset (Compset → Add) to enable dashboard adjustments.</p>
-            ) : (
-              <div className="flex flex-wrap items-end gap-3">
-                <label className="text-[12px] font-medium text-gray-600">
-                  Occupancy %
-                  <input value={adjOcc} onChange={e => setAdjOcc(e.target.value)} inputMode="decimal" placeholder="e.g. 85"
-                    className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                </label>
-                <label className="text-[12px] font-medium text-gray-600">
-                  ADR ($)
-                  <input value={adjAdr} onChange={e => setAdjAdr(e.target.value)} inputMode="decimal" placeholder="e.g. 129"
-                    className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-900 focus:ring-teal-500" />
-                </label>
-                <label className="text-[12px] font-medium text-gray-600">
-                  Rooms sold
-                  <input value={adjArr} onChange={e => setAdjArr(e.target.value)} inputMode="numeric" placeholder="e.g. 46"
-                    className="block w-24 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-900 focus:ring-teal-500" />
-                </label>
-                <button onClick={saveAdjust} disabled={savingAdj}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50"
-                  style={{ background: TEAL }}>
-                  <Save size={14} /> {savingAdj ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* ── On duty today ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
