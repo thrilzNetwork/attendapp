@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Users, Wrench, ClipboardList, CalendarDays, BedDouble, DollarSign, Star,
   Plus, Trash2, RefreshCw, AlertTriangle, ChevronRight, Save, TrendingUp, BarChart3,
-  X, SlidersHorizontal,
+  X, SlidersHorizontal, Footprints, Flame, Check,
 } from 'lucide-react';
 import {
   getStaffSchedulesRange, getRoomStatuses, getWorkOrders, getLinenCounts,
@@ -14,7 +14,7 @@ import {
   type CompsetEntry,
   type StaffSchedule,
 } from '@/lib/supabase';
-import { listKpiDefinitions, listKpiSubmissions, type OpRecord } from '@/lib/opsStore';
+import { listKpiDefinitions, listKpiSubmissions, listOps, createOps, type OpRecord } from '@/lib/opsStore';
 
 const TEAL = '#158A7C';
 
@@ -46,8 +46,25 @@ function money(n: number): string {
 
 interface KpiTile { name: string; value: number | null; target: number; unit: string }
 
+/** Manager Daily Walk route (meeting 09-12: "see your hotel before the screen"). */
+const WALK_STOPS = [
+  'Parking lot',
+  'Entrances (locks & lights)',
+  'Pool',
+  'Exteriors (apartment side)',
+  'Lobby',
+  'Breakfast area',
+  'Office (last)',
+];
+
+interface WalkLog {
+  walk_date: string;
+  stops_done: string[];
+  created_by: string;
+}
+
 export default function CommandCenterView({
-  hotelId, hotelName, isAdmin, onNavigate,
+  hotelId, hotelName, staffName, isAdmin, onNavigate,
 }: {
   hotelId: string; hotelName: string; staffName: string; isAdmin: boolean;
   onNavigate: (tab: 'schedules' | 'todos' | 'orders' | 'housekeeping' | 'maintenance' | 'compset') => void;
@@ -66,6 +83,12 @@ export default function CommandCenterView({
   // Tenant-property numbers sourced from Compset (FIRST compset_hotels row = our hotel)
   const [own, setOwn] = useState<{ occ: number | null; adr: number | null; roomsSold: number | null; count: number }>({ occ: null, adr: null, roomsSold: null, count: 0 });
   const [compHotels, setCompHotels] = useState<{ id: string; name: string }[]>([]);
+  // ADR 7-day trend (tenant compset entries + weekly_forecasts fallback)
+  const [adrTrend, setAdrTrend] = useState<{ date: string; adr: number | null }[]>([]);
+  // Manager Daily Walk state
+  const [walkToday, setWalkToday] = useState<WalkLog | null>(null);
+  const [walkStreak, setWalkStreak] = useState(0);
+  const [walkOpen, setWalkOpen] = useState(false);
 
   // event form
   const [evTitle, setEvTitle] = useState('');
@@ -85,7 +108,8 @@ export default function CommandCenterView({
     if (!hotelId) return;
     setLoading(true);
     try {
-      const [scheds, roomsData, wos, tk, evs, defs, logs, linen, compEntries, compHotelsData] = await Promise.all([
+      const weekAgo = addDaysStr(today, -6);
+      const [scheds, roomsData, wos, tk, evs, defs, logs, linen, compEntries, compHotelsData, walkLogs] = await Promise.all([
         getStaffSchedulesRange(hotelId, today, today),
         getRoomStatuses(hotelId),
         getWorkOrders(hotelId),
@@ -94,8 +118,9 @@ export default function CommandCenterView({
         listKpiDefinitions(hotelId),
         listKpiSubmissions(hotelId),
         getLinenCounts(hotelId, today).catch(() => []),
-        getCompsetEntries(hotelId, today).catch(() => []),
+        getCompsetEntriesRange(hotelId, weekAgo, today).catch(() => getCompsetEntries(hotelId, today).catch(() => [])),
         getCompsetHotels(hotelId).catch(() => []),
+        listOps(hotelId, 'mgr_daily_walk').catch(() => [] as OpRecord[]),
       ]);
       setOnDuty((scheds || []).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')));
       setRooms((roomsData || []) as { room_number: string; status: string }[]);
@@ -149,20 +174,36 @@ export default function CommandCenterView({
       // Competitor rate snapshot — tenant entries EXCLUDED from the average
       const cRows = (compEntries || []) as CompsetEntry[];
       const compRows = tenantId ? cRows.filter(e => e.compset_hotel_id !== tenantId) : cRows;
-      const cRates = compRows.map(e => e.rate).filter((r): r is number => r != null);
+      const todayCompRows = compRows.filter(e => e.call_date === today);
+      const cRates = todayCompRows.map(e => e.rate).filter((r): r is number => r != null);
       setComp({
         avg: cRates.length ? Math.round(cRates.reduce((a, b) => a + b, 0) / cRates.length) : null,
         count: compRows.length,
         min: cRates.length ? Math.min(...cRates) : null,
         max: cRates.length ? Math.max(...cRates) : null,
       });
-      const ownId = hotels[0]?.id;
-      if (ownId) {
-        const ownRows = cRows.filter(e => e.compset_hotel_id === ownId);
+
+      // Tenant ADR trend, one value per day over the last 7 days
+      if (tenantId) {
+        const ownRows = cRows.filter(e => e.compset_hotel_id === tenantId);
+        const byDay = new Map<string, number | null>();
+        for (const e of ownRows) {
+          const prev = byDay.get(e.call_date);
+          const rate = e.rate ?? null;
+          if (!byDay.has(e.call_date) || (prev == null && rate != null)) byDay.set(e.call_date, rate);
+        }
+        const trend: { date: string; adr: number | null }[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = addDaysStr(today, -i);
+          trend.push({ date: d, adr: byDay.has(d) ? byDay.get(d) ?? null : null });
+        }
+        setAdrTrend(trend);
+
+        // Today's tenant numbers (latest call entry)
         const withOcc = ownRows.filter(e => e.occupancy_pct != null || e.rooms_sold != null);
         const latest = ownRows
           .slice()
-          .sort((a, b) => (b.call_time || '').localeCompare(a.call_time || ''))[0] || null;
+          .sort((a, b) => (b.call_time || '').localeCompare(a.call_time || '')).find(e => e.call_date === today) || null;
         setOwn({
           occ: latest?.occupancy_pct ?? null,
           adr: latest?.rate ?? null,
@@ -178,7 +219,34 @@ export default function CommandCenterView({
       } else {
         setOwn({ occ: null, adr: null, roomsSold: null, count: 0 });
         setTodayFc(null);
+        setAdrTrend([]);
       }
+
+      // Manager Daily Walk: today's log + 21-day habit streak
+      const walks = (walkLogs || []).map(w => w.details as unknown as WalkLog)
+        .filter(w => w && w.walk_date).sort((a, b) => a.walk_date.localeCompare(b.walk_date));
+      const todays = walks.filter(w => w.walk_date === today);
+      setWalkToday(todays[todays.length - 1] || null);
+      let streak = 0;
+      for (let i = 0; i < 21; i++) {
+        const d = addDaysStr(today, -i);
+        const dayLog = walks.filter(w => w.walk_date === d);
+        const done = dayLog.length > 0 && dayLog[dayLog.length - 1].stops_done?.length >= WALK_STOPS.length;
+        if (done) streak++;
+        else if (i > 0) break; // today still pending doesn't break the streak
+        else if (!done) break; // today's walk not finished yet — streak counts only completed prior days
+      }
+      // Streak = consecutive completed days ending yesterday or today
+      streak = 0;
+      for (let i = 1; i <= 21; i++) {
+        const d = addDaysStr(today, -i);
+        const dayLog = walks.filter(w => w.walk_date === d);
+        const done = dayLog.length > 0 && dayLog[dayLog.length - 1].stops_done?.length >= WALK_STOPS.length;
+        if (done) streak++;
+        else break;
+      }
+      const todayDone = todays.length > 0 && todays[todays.length - 1].stops_done?.length >= WALK_STOPS.length;
+      setWalkStreak(todayDone ? streak + 1 : streak);
     } finally {
       setLoading(false);
     }
@@ -232,6 +300,18 @@ export default function CommandCenterView({
     load();
   };
 
+  // Daily Walk: toggle a stop; when all 7 done the log is complete for the day
+  const toggleWalkStop = async (stop: string) => {
+    if (!hotelId) return;
+    const current = walkToday?.stops_done || [];
+    const next = current.includes(stop) ? current.filter(s => s !== stop) : [...current, stop];
+    const log: WalkLog = { walk_date: today, stops_done: next, created_by: staffName || 'Manager' };
+    setWalkToday(log);
+    if (next.length >= WALK_STOPS.length) setWalkOpen(false);
+    await createOps(hotelId, 'mgr_daily_walk', log, 'active', { guest_name: staffName || 'Manager', room: 'WALK' });
+    if (next.length >= WALK_STOPS.length) load();
+  };
+
   // Editable In/End time on On Duty rows — persists via updateStaffSchedule
   const saveShiftTime = async (
     s: StaffSchedule,
@@ -248,8 +328,21 @@ export default function CommandCenterView({
   const adr = own.adr != null ? own.adr : (todayFc ? todayFc.adr : null);
   const revpar = occPct != null && adr != null ? (occPct / 100) * adr : null;
 
+  // ADR trend helpers: delta vs yesterday + sparkline points
+  const adrPrev = adrTrend.length >= 2 ? adrTrend[adrTrend.length - 2].adr : null;
+  const adrDelta = adr != null && adrPrev != null ? adr - adrPrev : null;
+  const trendPoints = (() => {
+    const vals = adrTrend.map(t => t.adr).filter((v): v is number => v != null);
+    if (vals.length < 2) return null;
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const span = max - min || 1;
+    return adrTrend.map((t, i) => t.adr == null ? null : { x: i * 10, y: 24 - ((t.adr - min) / span) * 20 }).filter((p): p is { x: number; y: number } => p != null);
+  })();
+  const trendPath = trendPoints ? trendPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') : null;
+
   const sec = 'bg-white border border-gray-200 rounded-2xl p-4';
   const secH = 'flex items-center justify-between mb-3';
+  const walkDone = walkToday?.stops_done?.length || 0;
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
@@ -263,6 +356,46 @@ export default function CommandCenterView({
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
         </button>
       </div>
+
+      {/* ── Manager Daily Walk (habit strip) ── */}
+      {isAdmin && (
+        <div className={sec + ' mb-4'}>
+          <div className="flex items-center justify-between">
+            <button onClick={() => setWalkOpen(v => !v)} className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900 flex-1 text-left">
+              <Footprints size={14} style={{ color: TEAL }} /> Manager Daily Walk
+              <span className="text-[11px] font-medium text-gray-400">— see your hotel before the screen</span>
+              <ChevronRight size={13} className={`text-gray-400 transition-transform ${walkOpen ? 'rotate-90' : ''}`} />
+            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {walkDone > 0 && walkDone < WALK_STOPS.length && (
+                <span className="text-[10px] font-extrabold rounded-lg px-2 py-1 bg-amber-50 text-amber-700">{walkDone}/{WALK_STOPS.length} stops</span>
+              )}
+              {walkDone >= WALK_STOPS.length && (
+                <span className="text-[10px] font-extrabold rounded-lg px-2 py-1 bg-teal-50 text-teal-800">WALK DONE ✓</span>
+              )}
+              <span className={`flex items-center gap-1 text-[11px] font-extrabold rounded-lg px-2 py-1 ${walkStreak > 0 ? 'bg-orange-50 text-orange-600' : 'bg-gray-50 text-gray-400'}`}>
+                <Flame size={12} /> {walkStreak}-day streak <span className="font-medium text-gray-400">/ 21</span>
+              </span>
+            </div>
+          </div>
+          {walkOpen && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-3">
+              {WALK_STOPS.map(stop => {
+                const done = walkToday?.stops_done?.includes(stop);
+                return (
+                  <button key={stop} onClick={() => toggleWalkStop(stop)}
+                    className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-bold text-left border transition-colors ${done ? 'bg-teal-50 border-teal-200 text-teal-800' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-teal-300'}`}>
+                    <span className={`flex items-center justify-center w-4 h-4 rounded-full border-2 shrink-0 ${done ? 'bg-teal-600 border-teal-600' : 'border-gray-300'}`}>
+                      {done && <Check size={10} className="text-white" />}
+                    </span>
+                    {stop}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Business health row ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -287,15 +420,30 @@ export default function CommandCenterView({
           )}
         </div>
         <div className={sec}>
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1"><DollarSign size={13} /> ADR (Rate)</div>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wide"><DollarSign size={13} /> ADR (Rate)</div>
+            <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-gray-400">7-day</div>
+          </div>
           {adr != null ? (
             <>
               <div className="text-[26px] font-extrabold text-gray-900 leading-none">{money(adr)}</div>
-              {revpar != null && <div className="text-[11px] text-gray-400 mt-1">RevPAR {money(revpar)}</div>}
-              {comp.avg != null && adr != null && (
-                <div className={`text-[11px] font-bold mt-1 ${adr >= comp.avg ? 'text-teal-700' : 'text-orange-600'}`}>
+              <div className="flex items-center gap-2 mt-1">
+                {adrDelta != null && (
+                  <span className={`text-[11px] font-bold ${adrDelta >= 0 ? 'text-teal-700' : 'text-orange-600'}`}>
+                    {adrDelta >= 0 ? '▲' : '▼'} {money(Math.abs(adrDelta))} vs yest.
+                  </span>
+                )}
+                {revpar != null && <span className="text-[11px] text-gray-400">RevPAR {money(revpar)}</span>}
+              </div>
+              {comp.avg != null && (
+                <div className={`text-[11px] font-bold mt-0.5 ${adr >= comp.avg ? 'text-teal-700' : 'text-orange-600'}`}>
                   Comp avg {money(comp.avg)} · {adr >= comp.avg ? '+' : '−'}{money(Math.abs(adr - comp.avg))} vs comp
                 </div>
+              )}
+              {trendPath && (
+                <svg viewBox="0 0 60 26" className="w-full h-6 mt-1.5" preserveAspectRatio="none">
+                  <path d={trendPath} fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               )}
             </>
           ) : (

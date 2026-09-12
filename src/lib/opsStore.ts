@@ -58,6 +58,7 @@ export type OpRecordType =
   | 'sales_checkin'          // daily sales check-in value
   | 'schedule_snapshot'      // weekly schedule snapshot (staged → published Wednesday)
   | 'hk_sod_plan'           // housekeeping start-of-day productivity plan (maids + est end)
+  | 'mgr_daily_walk'       // manager daily property walk log (21-day habit)
   | 'sop_completion';        // staff completed an interactive SOP (Right Answers)
 
 export interface OpRecord {
