@@ -388,14 +388,18 @@ function AttendaLandingPage() {
           <div className="max-w-xl">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border border-white/20 bg-white/10 backdrop-blur-sm animate-scale-in" style={{ animationDelay: '0.1s' }}>
               <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-              <span className="text-[12px] font-bold text-white/90 tracking-wide uppercase">Shuttle operations, live</span>
+              <span className="text-[12px] font-bold text-white/90 tracking-wide uppercase">Hotel operations, organized</span>
             </div>
             <h1 className="text-[40px] md:text-[58px] lg:text-[64px] leading-[1.04] font-black tracking-tight text-white mb-6 animate-scale-in" style={{ animationDelay: '0.2s', textShadow: '0 2px 18px rgba(0,0,0,0.5)' }}>
-              Stop answering<br />
-              <span style={{ color: '#5eead4' }}>&quot;where&apos;s the shuttle?&quot;</span>
+              Hotels don&apos;t have an<br />
+              <span style={{ color: '#5eead4' }}>information problem.</span><br />
+              They have an organization problem.
             </h1>
             <p className="text-[18px] text-white leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s', textShadow: '0 1px 12px rgba(0,0,0,0.6)' }}>
-              Attenda gives airport and cruise-port hotels a live shuttle schedule and guest-service workflow — without a PMS replacement, guest app, or in-room QR. Guests schedule their return through a welcome letter, lobby station, or text link. Your staff gets one live board. Live in 11 days.
+              The phone rings — a guest wants to know where the shuttle is. Another needs towels. An employee needs a procedure. A manager is looking for a completed checklist. Someone&apos;s checking the schedule. Transportation needs coordinating. And the GM is just trying to figure out what actually happened today.
+            </p>
+            <p className="text-[18px] text-white leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.35s', textShadow: '0 1px 12px rgba(0,0,0,0.6)' }}>
+              Your team already creates all of that information. It&apos;s just scattered across apps, paper, radios, and people&apos;s heads. <span className="font-bold" style={{ color: '#5eead4' }}>Attenda puts it somewhere everyone can actually use.</span>
             </p>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-scale-in" style={{ animationDelay: '0.4s' }}>
               <a href="#founding"
