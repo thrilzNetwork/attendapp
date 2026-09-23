@@ -396,10 +396,10 @@ function AttendaLandingPage() {
               They have an organization problem.
             </h1>
             <p className="text-[18px] text-white leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s', textShadow: '0 1px 12px rgba(0,0,0,0.6)' }}>
-              The phone rings — a guest wants to know where the shuttle is. Another needs towels. An employee needs a procedure. A manager is looking for a completed checklist. Someone&apos;s checking the schedule. Transportation needs coordinating. And the GM is just trying to figure out what actually happened today.
+              The shuttle. The schedule. The checklist. Your team creates the answers all day — scattered across apps, paper, radios, and heads.
             </p>
             <p className="text-[18px] text-white leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.35s', textShadow: '0 1px 12px rgba(0,0,0,0.6)' }}>
-              Your team already creates all of that information. It&apos;s just scattered across apps, paper, radios, and people&apos;s heads. <span className="font-bold" style={{ color: '#5eead4' }}>Attenda puts it somewhere everyone can actually use.</span>
+              <span className="font-bold" style={{ color: '#5eead4' }}>Attenda puts them somewhere everyone can actually use.</span>
             </p>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-scale-in" style={{ animationDelay: '0.4s' }}>
               <a href="#founding"
