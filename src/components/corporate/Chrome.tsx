@@ -5,7 +5,7 @@
    /company, /insights, /contact. Product pages may layer their own sub-brand
    accent but keep this chrome so the parent brand stays recognizable. */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ChevronDown, Menu, X } from 'lucide-react';
 
@@ -26,10 +26,10 @@ export function CorporateLogo({ light = false }: { light?: boolean }) {
   return (
     <Link href="/" className="flex items-center gap-2 group">
       <div className="leading-none">
-        <div className={`text-[17px] font-black tracking-tight ${light ? 'text-white' : 'text-gray-900'}`}>
+        <div className={`text-[17px] font-black tracking-tight transition-colors ${light ? 'text-white' : 'text-gray-900'}`}>
           ATTENDA
         </div>
-        <div className="text-[9px] font-bold tracking-[0.32em] mt-0.5" style={{ color: CORP_TEAL_BRIGHT }}>
+        <div className="text-[9px] font-bold tracking-[0.32em] mt-0.5 transition-colors" style={{ color: CORP_TEAL_BRIGHT }}>
           TECHNOLOGIES
         </div>
       </div>
@@ -42,18 +42,23 @@ export function CorporateNav() {
   const [productsOpen, setProductsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  if (typeof window !== 'undefined') {
-    // passive scroll listener (re-mounted per navigation in practice)
-    window.addEventListener('scroll', () => setScrolled(window.scrollY > 12), { passive: true, once: false });
-  }
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const overHero = !scrolled; // every corporate page opens on a dark hero
+  const linkCls = `text-[14px] font-medium transition-colors ${overHero ? 'text-white/70 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`;
 
   return (
-    <nav className={`sticky top-0 z-50 transition-all ${scrolled ? 'bg-white/95 backdrop-blur-xl shadow-sm' : 'bg-white'}`}>
+    <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur-xl shadow-sm' : 'bg-transparent'}`}>
       <div className="max-w-7xl mx-auto px-4 md:px-5 h-16 flex items-center justify-between">
-        <CorporateLogo />
+        <CorporateLogo light={overHero} />
         <div className="hidden lg:flex items-center gap-7">
           <div className="relative" onMouseEnter={() => setProductsOpen(true)} onMouseLeave={() => setProductsOpen(false)}>
-            <button className="flex items-center gap-1 text-[14px] font-medium text-gray-600 hover:text-gray-900">
+            <button className={`flex items-center gap-1 text-[14px] font-medium transition-colors ${overHero ? 'text-white/70 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
               Products <ChevronDown size={14} className={`transition-transform ${productsOpen ? 'rotate-180' : ''}`} />
             </button>
             {productsOpen && (
@@ -70,18 +75,18 @@ export function CorporateNav() {
               </div>
             )}
           </div>
-          <Link href="/ecosystem" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Ecosystem</Link>
-          <Link href="/company" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Company</Link>
-          <Link href="/insights" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Insights</Link>
-          <Link href="/careers" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Careers</Link>
-          <Link href="/contact" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Talk to Attenda</Link>
+          <Link href="/ecosystem" className={`${linkCls} hidden xl:block`}>Ecosystem</Link>
+          <Link href="/company" className={linkCls}>Company</Link>
+          <Link href="/insights" className={`${linkCls} hidden xl:block`}>Insights</Link>
+          <Link href="/careers" className={linkCls}>Careers</Link>
+          <Link href="/contact" className={linkCls}>Talk to Attenda</Link>
           <Link href="/#products"
             className="px-5 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all active:scale-[0.97] shadow-sm"
             style={{ backgroundColor: CORP_TEAL }}>
             Explore our products
           </Link>
         </div>
-        <button className="lg:hidden p-2" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">
+        <button className={`lg:hidden p-2 transition-colors ${overHero ? 'text-white' : 'text-gray-900'}`} onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
@@ -140,7 +145,7 @@ export function CorporateFooter() {
             <ul className="space-y-2.5 text-[14px] text-gray-300">
               <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link></li>
               <li><Link href="/terms" className="hover:text-white transition-colors">Terms</Link></li>
-              <li><Link href="/privacy#security" className="hover:text-white transition-colors">Security</Link></li>
+              <li><Link href="/privacy" className="hover:text-white transition-colors">Security</Link></li>
             </ul>
           </div>
           <div>
