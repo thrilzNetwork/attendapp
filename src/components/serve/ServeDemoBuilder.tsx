@@ -1,20 +1,16 @@
 'use client';
 
-/* Attenda Serve — Demo Builder (wizard only).
-   Creates the draft, then routes to the full 3-part demo tenant:
-   /serve/demo/<id> (landing), /app (ordering), /admin (panel).
-   ALL hooks live above the early return — no hooks after it. */
+/* Attenda Serve — demo/tenant wizard.
+   Creates a REAL tenant via POST /api/serve/tenant (server-backed, same
+   system for demo and official). Routes to their own 3-surface site. */
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowRight, ArrowLeft, Check, Plus, ShoppingBag, Store, Truck,
+  ArrowRight, ArrowLeft, Plus, ShoppingBag, Store, Truck,
   Megaphone, Cake, Package, Sparkles, Upload, X,
 } from 'lucide-react';
-import {
-  saveDraft, latestDemoId, loadLegacyDraft, type DemoDraft,
-} from './serve-demo-store';
 
 const INK = '#15202B';
 const CREAM = '#F3F0E6';
@@ -27,12 +23,14 @@ type WizardProduct = { name: string; price: number };
 
 const TYPES = [
   { icon: Store, label: 'Restaurante', tmpl: [{ name: 'Plato fuerte', price: 25.9 }, { name: 'Entrada', price: 12.5 }, { name: 'Bebida', price: 6.9 }] },
-  { icon: Truck, label: 'Comida desde casa', tmpl: [{ name: 'Almuerzo del día', price: 15.0 }, { name: 'Sopa casera', price: 8.0 }, { name: 'Jugo natural', price: 6.0 }] },
-  { icon: Cake, label: 'Pastelería', tmpl: [{ name: 'Torta de chocolate', price: 45.0 }, { name: 'Cupcakes x6', price: 18.0 }, { name: 'Cheesecake slice', price: 12.0 }] },
+  { icon: Truck, label: 'Comida desde casa', tmpl: [{ name: 'Almuerzo del día', price: 15 }, { name: 'Sopa casera', price: 8 }, { name: 'Jugo natural', price: 6 }] },
+  { icon: Cake, label: 'Pastelería', tmpl: [{ name: 'Torta de chocolate', price: 45 }, { name: 'Cupcakes x6', price: 18 }, { name: 'Cheesecake slice', price: 12 }] },
   { icon: ShoppingBag, label: 'Tienda / productos', tmpl: [{ name: 'Producto estrella', price: 39.9 }, { name: 'Combo pack', price: 24.9 }, { name: 'Detalle', price: 9.9 }] },
-  { icon: Megaphone, label: 'Vendedor independiente', tmpl: [{ name: 'Servicio básico', price: 30.0 }, { name: 'Servicio completo', price: 60.0 }, { name: 'Adicional', price: 15.0 }] },
-  { icon: Package, label: 'Otro', tmpl: [{ name: 'Producto 1', price: 20.0 }, { name: 'Producto 2', price: 15.0 }, { name: 'Producto 3', price: 10.0 }] },
+  { icon: Megaphone, label: 'Vendedor independiente', tmpl: [{ name: 'Servicio básico', price: 30 }, { name: 'Servicio completo', price: 60 }, { name: 'Adicional', price: 15 }] },
+  { icon: Package, label: 'Otro', tmpl: [{ name: 'Producto 1', price: 20 }, { name: 'Producto 2', price: 15 }, { name: 'Producto 3', price: 10 }] },
 ];
+
+const DONE_KEY = 'attd_serve_wizard_last';
 
 export default function ServeDemoBuilder() {
   const router = useRouter();
@@ -45,77 +43,70 @@ export default function ServeDemoBuilder() {
   const [email, setEmail] = useState('');
   const [logo, setLogo] = useState<string | null>(null);
   const [products, setProducts] = useState<WizardProduct[]>([]);
-  const [logoInput] = useState(() => ({ current: null as HTMLInputElement | null }));
+  const [logoRef, setLogoRef] = useState<HTMLInputElement | null>(null);
   const [creating, setCreating] = useState(false);
-  const [prevId, setPrevId] = useState<string | null>(null);
+  const [err, setErr] = useState('');
+  const [lastTenant, setLastTenant] = useState<{ id: string; adminPin: string } | null>(null);
 
-  /* one effect, before any early return */
   useEffect(() => {
-    const legacy = loadLegacyDraft();
-    if (legacy) {
-      const d = legacy.draft;
-      if (!name) setName(d.name || '');
-      if (!type) setType(d.type || '');
-      if (!phone) setPhone(d.phone || '');
-      if (!city) setCity(d.city || '');
-      if (!email) setEmail(d.email || '');
-      if (!logo) setLogo(d.logo || null);
-      setProducts((p) => (p.length ? p : (d.products || []).map((x) => ({ name: x.name, price: x.price }))));
-    }
-    setPrevId(latestDemoId());
+    try {
+      const raw = window.localStorage.getItem(DONE_KEY);
+      if (raw) setLastTenant(JSON.parse(raw));
+    } catch {}
     setReady(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const logoRef = logoInput as { current: HTMLInputElement | null };
-
-  const fireLeadEmail = (d: DemoDraft) => {
-    if (!d.email && !d.phone) return;
-    fetch('/api/email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
-      body: JSON.stringify({
-        type: 'serve_seller_inquiry',
-        data: {
-          businessName: d.name,
-          sellerType: d.type,
-          contactName: `Lead demo — ${d.name}`,
-          contactEmail: d.email || 'no-email@demo',
-          contactPhone: d.phone,
-          city: d.city,
-          message: `DEMO AUTOMÁTICA creada en /serve/demo/${d.id} — expira en 24h. Logo subido: ${d.logo ? 'sí' : 'no'}. Productos: ${d.products.map((p) => p.name).join(', ')}`,
-        },
-      }),
-    }).catch(() => {});
-  };
-
-  const createDemo = () => {
-    if (!name.trim() || creating) return;
-    setCreating(true);
-    const id = Date.now().toString(36);
-    const draft: DemoDraft = {
-      id,
-      name: name.trim(),
-      type: type || 'Negocio local',
-      city: city.trim(),
-      phone: phone.trim(),
-      email: email.trim(),
-      logo,
-      tagline: '',
-      products: products.filter((p) => p.name.trim()).map((p) => ({ name: p.name.trim(), price: p.price || 0, available: true })),
-      createdAt: Date.now(),
-    };
-    saveDraft(draft);
-    fireLeadEmail(draft);
-    router.push(`/serve/demo/${id}`);
-  };
 
   const inputCls = 'w-full rounded-xl px-4 py-3 text-[15px] font-medium outline-none border-2 bg-transparent placeholder:opacity-50';
   const labelCls = 'text-[11px] font-bold uppercase tracking-wider block mb-1.5';
 
-  if (!ready) {
-    return <div className="min-h-screen" style={{ backgroundColor: CREAM }} />;
-  }
+  const createDemo = async () => {
+    if (!name.trim() || creating) return;
+    setCreating(true);
+    setErr('');
+    try {
+      const res = await fetch('/api/serve/tenant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          type: type || 'Negocio local',
+          city: city.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+          logo,
+          products: products.filter((p) => p.name.trim()),
+          status: 'demo',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || 'Error');
+      const t = { id: data.tenant.id as string, adminPin: data.tenant.adminPin as string };
+      try { window.localStorage.setItem(DONE_KEY, JSON.stringify(t)); } catch {}
+      // lead email (non-blocking) — team contacts them at the 24h activation moment
+      fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        body: JSON.stringify({
+          type: 'serve_seller_inquiry',
+          data: {
+            businessName: name.trim(),
+            sellerType: type,
+            contactName: `Lead demo — ${name.trim()}`,
+            contactEmail: email.trim() || 'no-email@demo',
+            contactPhone: phone.trim(),
+            city: city.trim(),
+            message: `DEMO CREADA (server tenant ${t.id}, PIN ${t.adminPin}). Logo: ${logo ? 'sí' : 'no'}. Productos: ${products.filter((p) => p.name.trim()).map((p) => p.name).join(', ')}`,
+          },
+        }),
+      }).catch(() => {});
+      router.push(`/serve/demo/${t.id}`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Error creando la demo');
+      setCreating(false);
+    }
+  };
+
+  if (!ready) return <div className="min-h-screen" style={{ backgroundColor: CREAM }} />;
 
   return (
     <div className="min-h-screen font-sans antialiased" style={{ backgroundColor: CREAM, color: INK, ['--sv-ink' as string]: INK }}>
@@ -124,15 +115,15 @@ export default function ServeDemoBuilder() {
           <ArrowLeft size={15} /> Volver
         </Link>
 
-        {prevId && (
-          <Link href={`/serve/demo/${prevId}`}
+        {lastTenant && (
+          <Link href={`/serve/demo/${lastTenant.id}`}
             className="mt-4 flex items-center justify-between rounded-xl border-2 px-4 py-3 text-[13px] font-extrabold"
             style={{ borderColor: INK, backgroundColor: PAPER }}>
-            Ver tu demo anterior <ArrowRight size={15} />
+            <span>Ver tu última demo <span className="font-mono text-[11px] opacity-60">PIN {lastTenant.adminPin}</span></span>
+            <ArrowRight size={15} />
           </Link>
         )}
 
-        {/* progress */}
         <div className="mt-5 flex items-center gap-2">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="h-1.5 flex-1 rounded-full border-2"
@@ -172,7 +163,7 @@ export default function ServeDemoBuilder() {
               </div>
               <button disabled={!name || !type} onClick={() => setStep(1)}
                 className="mt-7 w-full rounded-xl border-2 py-4 text-[16px] font-black transition-all disabled:opacity-40 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-                style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: `5px 5px 0 ${TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
+                style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: '5px 5px 0 var(--sv-ink, #0E5F5B)', fontFamily: 'Archivo, sans-serif' }}>
                 Siguiente <ArrowRight size={17} className="inline" />
               </button>
             </>
@@ -214,7 +205,7 @@ export default function ServeDemoBuilder() {
                 </button>
                 <button onClick={() => setStep(2)}
                   className="flex-1 rounded-xl border-2 py-4 text-[16px] font-black transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-                  style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: `5px 5px 0 ${TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
+                  style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: '5px 5px 0 var(--sv-ink, #0E5F5B)', fontFamily: 'Archivo, sans-serif' }}>
                   Siguiente <ArrowRight size={17} className="inline" />
                 </button>
               </div>
@@ -243,14 +234,14 @@ export default function ServeDemoBuilder() {
                     </button>
                   </div>
                 ) : (
-                  <button onClick={() => logoRef.current?.click()}
+                  <button onClick={() => logoRef?.click()}
                     className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed transition-all hover:-translate-y-0.5"
                     style={{ borderColor: INK, backgroundColor: CREAM }}>
                     <Upload size={22} style={{ color: TEAL_INK }} />
                     <span className="text-[10px] font-bold uppercase" style={{ color: '#5a6168' }}>Subir logo</span>
                   </button>
                 )}
-                <input ref={(el) => { logoRef.current = el; }} type="file" accept="image/*" className="hidden"
+                <input ref={setLogoRef} type="file" accept="image/*" className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (!f) return;
@@ -265,7 +256,7 @@ export default function ServeDemoBuilder() {
                 </button>
                 <button onClick={() => setStep(3)}
                   className="flex-1 rounded-xl border-2 py-4 text-[16px] font-black transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-                  style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: `5px 5px 0 ${TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
+                  style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: '5px 5px 0 var(--sv-ink, #0E5F5B)', fontFamily: 'Archivo, sans-serif' }}>
                   Siguiente <ArrowRight size={17} className="inline" />
                 </button>
               </div>
@@ -319,10 +310,11 @@ export default function ServeDemoBuilder() {
                 </button>
                 <button disabled={!products.some((p) => p.name.trim())} onClick={createDemo}
                   className="flex-1 rounded-xl border-2 py-4 text-[16px] font-black transition-all disabled:opacity-40 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-                  style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: `5px 5px 0 ${TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
+                  style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: '5px 5px 0 var(--sv-ink, #0E5F5B)', fontFamily: 'Archivo, sans-serif' }}>
                   {creating ? 'Creando…' : <>Crear mi demo gratis <Sparkles size={17} className="inline" /></>}
                 </button>
               </div>
+              {err && <p className="mt-3 text-center text-[13px] font-bold" style={{ color: '#B4231F' }}>{err}</p>}
             </>
           )}
         </div>

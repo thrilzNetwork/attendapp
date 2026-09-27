@@ -1,88 +1,98 @@
 'use client';
 
-/* Demo tenant — LANDING page (/serve/demo/<id>).
-   Their brand, their products, Attenda Serve footer. */
+/* Attenda Serve — tenant LANDING (/serve/demo/<id>).
+   Reads tenant + menu from the SERVER API. Same architecture as FV:
+   data lives server-side, every device sees the same store. */
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ShoppingBag, Check, RefreshCw } from 'lucide-react';
-import {
-  loadDraft, type DemoDraft,
-} from '@/components/serve/serve-demo-store';
-import { DemoSwitcher, TrialBar, demoTokens as T, demoShadow } from '@/components/serve/serve-demo-chrome';
+import { ArrowRight, ShoppingBag, Check } from 'lucide-react';
+import { DemoSwitcher, demoTokens as T, demoShadow } from '@/components/serve/serve-demo-chrome';
+
+type TenantData = {
+  tenant: { id: string; name: string; type: string; city: string; phone: string; logo: string | null; tagline: string; status: string };
+  menu: { slug: string; name: string; price: number; short?: string }[];
+  open: boolean;
+};
 
 export default function DemoLandingPage() {
-  const [draft, setDraft] = useState<DemoDraft | null>(null);
+  const [data, setData] = useState<TenantData | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [missing, setMissing] = useState(false);
 
   useEffect(() => {
     const id = window.location.pathname.split('/')[3] || '';
-    setDraft(loadDraft(id));
-    setLoaded(true);
+    fetch(`/api/serve/${id}`)
+      .then(async (r) => {
+        if (r.status === 404) { setMissing(true); return; }
+        const j = await r.json();
+        if (j?.ok) setData(j);
+        else setMissing(true);
+      })
+      .catch(() => setMissing(true))
+      .finally(() => setLoaded(true));
   }, []);
 
-  if (!loaded) {
-    return <div className="min-h-screen" style={{ backgroundColor: T.CREAM }} />;
-  }
+  if (!loaded) return <div className="min-h-screen" style={{ backgroundColor: T.CREAM }} />;
 
-  if (!draft) {
+  if (missing || !data) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center" style={{ backgroundColor: T.CREAM, color: T.INK }}>
         <h1 className="text-[24px] font-black" style={{ fontFamily: 'Archivo, sans-serif' }}>Demo no encontrada</h1>
         <p className="mt-2 text-[14px] font-medium" style={{ color: '#5a6168' }}>Esta demo expiró o no existe.</p>
         <Link href="/serve/demo" className="mt-6 rounded-xl border-2 px-6 py-3.5 text-[15px] font-black"
-          style={{ backgroundColor: T.TEAL, borderColor: T.INK, color: T.INK, boxShadow: demoShadow }}>
-          Crear una nueva demo
-        </Link>
+          style={{ backgroundColor: T.TEAL, borderColor: T.INK, boxShadow: demoShadow }}>Crear una nueva demo</Link>
       </div>
     );
   }
 
-  const initials = draft.name.slice(0, 2).toUpperCase();
-  const shown = draft.products.filter((p) => p.available !== false).slice(0, 6);
+  const { tenant, menu, open } = data;
+  const initials = tenant.name.slice(0, 2).toUpperCase();
+  const shown = menu.slice(0, 6);
 
   return (
     <div className="min-h-screen font-sans antialiased" style={{ backgroundColor: T.CREAM, color: T.INK, ['--sv-ink' as string]: T.INK }}>
-      <TrialBar createdAt={draft.createdAt} />
-
-      {/* nav */}
       <header className="sticky top-0 z-40 border-b-2" style={{ borderColor: T.INK, backgroundColor: T.CREAM }}>
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
-            {draft.logo
+            {tenant.logo
               ? // eslint-disable-next-line @next/next/no-img-element
-                <img src={draft.logo} alt="" className="h-8 w-8 rounded-lg border-2 object-contain" style={{ borderColor: T.INK, backgroundColor: '#fff' }} />
+                <img src={tenant.logo} alt="" className="h-8 w-8 rounded-lg border-2 object-contain" style={{ borderColor: T.INK, backgroundColor: '#fff' }} />
               : <span className="flex h-8 w-8 items-center justify-center rounded-lg border-2 text-[12px] font-black" style={{ borderColor: T.INK, backgroundColor: T.TEAL }}>{initials}</span>}
-            <span className="text-[16px] font-black" style={{ fontFamily: 'Archivo, sans-serif' }}>{draft.name}</span>
+            <span className="text-[16px] font-black" style={{ fontFamily: 'Archivo, sans-serif' }}>{tenant.name}</span>
           </div>
-          <Link href={`/serve/demo/${draft.id}/app`}
-            className="rounded-xl border-2 px-4 py-2 text-[13px] font-black"
-            style={{ backgroundColor: T.TEAL, borderColor: T.INK, color: T.INK, boxShadow: '2px 2px 0 var(--sv-ink, #15202B)' }}>
-            Pedir ahora
-          </Link>
+          <div className="flex items-center gap-2">
+            <span className="rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wider" style={{ border: `2px solid ${T.INK}`, backgroundColor: open ? T.TEAL : T.CREAM, fontFamily: 'IBM Plex Mono, monospace' }}>
+              {open ? 'Abierto' : 'Cerrado'}
+            </span>
+            <Link href={`/serve/demo/${tenant.id}/app`}
+              className="rounded-xl border-2 px-4 py-2 text-[13px] font-black"
+              style={{ backgroundColor: T.TEAL, borderColor: T.INK, boxShadow: '2px 2px 0 var(--sv-ink, #15202B)' }}>
+              Pedir ahora
+            </Link>
+          </div>
         </div>
       </header>
 
-      {/* hero */}
       <section className="border-b-2" style={{ borderColor: T.INK, backgroundColor: T.PAPER }}>
         <div className="mx-auto max-w-3xl px-4 py-12 text-center md:py-16">
-          {draft.logo && (
+          {tenant.logo && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={draft.logo} alt="" className="mx-auto h-20 w-20 rounded-2xl border-2 object-contain p-2" style={{ borderColor: T.INK, backgroundColor: T.CREAM }} />
+            <img src={tenant.logo} alt="" className="mx-auto h-20 w-20 rounded-2xl border-2 object-contain p-2" style={{ borderColor: T.INK, backgroundColor: T.CREAM }} />
           )}
           <h1 className="mt-5 text-[32px] font-black leading-tight md:text-[48px]" style={{ fontFamily: 'Archivo, sans-serif' }}>
-            {draft.name}
+            {tenant.name}
           </h1>
           <p className="mt-3 text-[15px] font-medium" style={{ color: '#5a6168' }}>
-            {draft.tagline || `${draft.type}${draft.city ? ` · ${draft.city}` : ''} — pedidos online, directo a nuestro WhatsApp.`}
+            {tenant.tagline || `${tenant.type}${tenant.city ? ` · ${tenant.city}` : ''} — pedidos online, directo a nuestro WhatsApp.`}
           </p>
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-            <Link href={`/serve/demo/${draft.id}/app`}
-              className="inline-flex items-center gap-2 rounded-xl px-6 py-3.5 text-[15px] font-black border-2 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            <Link href={`/serve/demo/${tenant.id}/app`}
+              className="inline-flex items-center gap-2 rounded-xl border-2 px-6 py-3.5 text-[15px] font-black active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
               style={{ backgroundColor: T.TEAL, color: T.INK, borderColor: T.INK, boxShadow: `5px 5px 0 ${T.TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
               <ShoppingBag size={17} /> Ver menú y pedir
             </Link>
-            <Link href={`/serve/demo/${draft.id}/admin`}
+            <Link href={`/serve/demo/${tenant.id}/admin`}
               className="rounded-xl border-2 px-6 py-3.5 text-[14px] font-black"
               style={{ backgroundColor: T.PAPER, borderColor: T.INK }}>
               Ver panel del negocio
@@ -91,16 +101,15 @@ export default function DemoLandingPage() {
         </div>
       </section>
 
-      {/* products */}
       <section className="mx-auto max-w-3xl px-4 py-12">
         <h2 className="text-[22px] font-black" style={{ fontFamily: 'Archivo, sans-serif' }}>Lo más pedido</h2>
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {shown.map((p, i) => (
-            <div key={i} className="rounded-2xl border-2 p-5" style={{ backgroundColor: T.PAPER, borderColor: T.INK, boxShadow: demoShadow }}>
+          {shown.map((p) => (
+            <div key={p.slug} className="rounded-2xl border-2 p-5" style={{ backgroundColor: T.PAPER, borderColor: T.INK, boxShadow: demoShadow }}>
               <div className="text-[15px] font-extrabold" style={{ fontFamily: 'Archivo, sans-serif' }}>{p.name}</div>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-[17px] font-black" style={{ color: T.TEAL_INK }}>S/ {p.price.toFixed(2)}</span>
-                <Link href={`/serve/demo/${draft.id}/app`} className="inline-flex items-center gap-1.5 text-[12px] font-black uppercase tracking-wide" style={{ color: T.TEAL_INK }}>
+                <Link href={`/serve/demo/${tenant.id}/app`} className="inline-flex items-center gap-1.5 text-[12px] font-black uppercase tracking-wide" style={{ color: T.TEAL_INK }}>
                   Pedir <ArrowRight size={13} />
                 </Link>
               </div>
@@ -109,7 +118,6 @@ export default function DemoLandingPage() {
         </div>
       </section>
 
-      {/* cómo funciona */}
       <section className="border-y-2" style={{ borderColor: T.INK, backgroundColor: T.NAVY }}>
         <div className="mx-auto max-w-3xl px-4 py-12 text-white">
           <h2 className="text-center text-[22px] font-black md:text-[28px]" style={{ fontFamily: 'Archivo, sans-serif' }}>Cómo funciona</h2>
@@ -129,7 +137,6 @@ export default function DemoLandingPage() {
         </div>
       </section>
 
-      {/* attenda footer */}
       <footer className="border-t-2 pb-28" style={{ borderColor: T.INK, backgroundColor: T.CREAM }}>
         <div className="mx-auto max-w-3xl px-4 py-10 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border-2 px-4 py-1.5 text-[11px] font-black uppercase tracking-wider"
@@ -137,18 +144,14 @@ export default function DemoLandingPage() {
             <Check size={13} strokeWidth={3} style={{ color: T.TEAL_INK }} /> Demo creada con Attenda Serve · 0% comisión
           </div>
           <Link href="/serve/demo"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl px-6 py-3.5 text-[15px] font-black border-2"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl border-2 px-6 py-3.5 text-[15px] font-black"
             style={{ backgroundColor: T.INK, color: '#F3F0E6', borderColor: T.INK, boxShadow: `4px 4px 0 ${T.TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
             Activar mi negocio <ArrowRight size={16} />
           </Link>
-          <p className="mt-4 text-[11px] font-medium" style={{ color: '#5a6168' }}>
-            <RefreshCw size={11} className="mr-1 inline" />
-            Esta es una demo de 24 horas con datos de prueba.
-          </p>
         </div>
       </footer>
 
-      <DemoSwitcher demoId={draft.id} mode="landing" />
+      <DemoSwitcher demoId={tenant.id} mode="landing" />
     </div>
   );
 }
