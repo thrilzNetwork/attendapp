@@ -4,18 +4,31 @@
    Brand hero (logo, tagline, CTAs into the app), delivery bar, menu
    preview, cómo funciona, footer with Attenda Serve demo bar. */
 
-import { usePathname } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useTenant } from '@/components/serve/use-tenant';
 import { ServeHeader, CategoryChips } from '@/components/serve/fv-site-chrome';
 import { ProductCard } from '@/components/serve/fv-product-card';
 import { FV, fmtHours, formatPEN } from '@/lib/serve/fv-tokens';
 
-export default function TenantLanding() {
+function TenantLandingInner() {
   const pathname = usePathname();
+  const params = useSearchParams();
+  const router = useRouter();
   const id = (pathname.match(/\/serve\/demo\/([^/]+)/) || [])[1] || '';
   const { data, loading } = useTenant(id);
   const [cat, setCat] = useState<string>('todos');
+
+  // PIN handoff: wizard lands here with ?pin= — banner once, then clean URL
+  const [pin, setPin] = useState<string | null>(null);
+  useEffect(() => {
+    const p = params.get('pin');
+    if (p) {
+      setPin(p);
+      router.replace(`/serve/demo/${id}`, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const menu = data?.menu.filter((p) => p.active) ?? [];
   const preview = useMemo(() => (cat === 'todos' ? menu.slice(0, 4) : menu.filter((p) => p.category === cat).slice(0, 4)), [menu, cat]);
@@ -37,6 +50,17 @@ export default function TenantLanding() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: FV.black, fontFamily: 'Fredoka, sans-serif' }}>
+      {pin && (
+        <div className="mx-auto max-w-xl px-4 pt-4">
+          <div className="flex items-center justify-between rounded-2xl border px-4 py-3" style={{ borderColor: FV.orange, backgroundColor: 'rgba(243,106,18,0.12)' }}>
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.16em]" style={{ color: FV.orange }}>PIN de tu panel</div>
+              <div className="text-sm" style={{ color: FV.cream }}>Guárdalo — con esto entras a tu panel de pedidos.</div>
+            </div>
+            <div className="rounded-xl px-4 py-2 text-xl font-black tracking-[0.3em]" style={{ backgroundColor: FV.orange, color: FV.black }}>{pin}</div>
+          </div>
+        </div>
+      )}
       <ServeHeader tenantName={t.name} logo={t.logo} tagline={t.tagline} />
 
       {/* hero */}
@@ -151,3 +175,10 @@ const CAT_NAMES: Record<string, string> = {
   extras: 'Extras',
   bebidas: 'Bebidas',
 };
+export default function TenantLanding() {
+  return (
+    <Suspense fallback={null}>
+      <TenantLandingInner />
+    </Suspense>
+  );
+}
