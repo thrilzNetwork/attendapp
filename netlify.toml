@@ -4,3 +4,18 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Tenant storefront: Cookies Organic lives at attendaapp.com/cookiesorganic
+# (backend site cookies-organic-bolivia.netlify.app runs the Next app with basePath /cookiesorganic;
+#  attenda serves the same path on the main domain via this proxy — every tenant = a path, one domain).
+[[redirects]]
+  from = "/cookiesorganic/*"
+  to = "https://cookies-organic-bolivia.netlify.app/cookiesorganic/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/cookiesorganic"
+  to = "https://cookies-organic-bolivia.netlify.app/cookiesorganic"
+  status = 200
+  force = true
