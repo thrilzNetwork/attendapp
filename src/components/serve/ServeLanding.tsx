@@ -5,6 +5,7 @@ import {
   ArrowRight, Check, ChevronDown, Megaphone, ShoppingBag, Store, Truck, Users, Wallet, RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
+import { track, sessionRef, type ServeEvent } from '@/lib/serve/analytics';
 
 /* ──────────────────────────────────────────────────────────── */
 /*  Attenda Serve — brand tokens (neobrutalist product identity) */
@@ -67,6 +68,8 @@ export default function ServeLanding() {
   const demoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    sessionRef();
+    track('serve_page_view');
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
@@ -139,7 +142,7 @@ export default function ServeLanding() {
             </div>
 
             <div className="mt-9 flex flex-wrap items-center gap-4">
-              <Link href="/serve/demo"
+              <Link href="/serve/demo" onClick={() => track('hero_demo_click')}
                 className="inline-flex items-center gap-2 rounded-xl px-7 py-4 text-[16px] font-black border-2 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                 style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: `6px 6px 0 ${TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
                 Crear mi demo gratis <ArrowRight size={20} strokeWidth={2.5} />
@@ -174,7 +177,7 @@ export default function ServeLanding() {
 
           <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-5 max-w-3xl mx-auto">
             {SELLER_TYPES.map((t, i) => (
-              <button key={t.label} onClick={() => scrollTo(formRef)}
+              <button key={t.label} onClick={() => { track('business_type_selected', { type: t.label }); scrollTo(formRef); }}
                 className="group flex flex-col items-center gap-3 rounded-2xl p-5 md:p-6 border-2 text-center transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_var(--sv-ink)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_var(--sv-ink)]"
                 style={{
                   backgroundColor: PAPER, borderColor: INK, boxShadow: SHADOW,
@@ -336,7 +339,7 @@ export default function ServeLanding() {
                 puede estar funcionando hoy.
               </p>
               <div className="mt-7 flex flex-wrap gap-4">
-                <a href="/serve/demo/mujpgm1e"
+                <a href="/serve/demo/mujpgm1e" onClick={() => track('live_demo_click')}
                   className="inline-flex items-center gap-2 rounded-xl px-6 py-3.5 text-[15px] font-black border-2 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                   style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: `5px 5px 0 ${TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
                   Ver demo en vivo <ArrowRight size={17} strokeWidth={2.5} />
@@ -393,7 +396,7 @@ export default function ServeLanding() {
               Una mensualidad. <span style={{ color: TEAL }}>0% comisión.</span>
             </h2>
             <p className="mt-4 text-[15px] md:text-[16px] font-medium max-w-xl mx-auto" style={{ color: 'rgba(243,240,230,0.75)' }}>
-              Vendas S/100 o vendas S/10,000, tu mensualidad sigue siendo la misma.
+              Vendas $100 o vendas $10,000, tu mensualidad sigue siendo la misma.
             </p>
           </div>
 
@@ -420,7 +423,7 @@ export default function ServeLanding() {
                   </li>
                 ))}
               </ul>
-              <Link href="/serve/demo"
+              <Link href="/serve/demo" onClick={() => track('pricing_starter_click')}
                 className="mt-7 block rounded-xl border-2 py-3.5 text-center text-[15px] font-black transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                 style={{ backgroundColor: PAPER, color: INK, borderColor: INK, boxShadow: SHADOW_SM, fontFamily: 'Archivo, sans-serif' }}>
                 Empezar por $29
@@ -455,7 +458,7 @@ export default function ServeLanding() {
                   </li>
                 ))}
               </ul>
-              <Link href="/serve/demo"
+              <Link href="/serve/demo" onClick={() => track('pricing_growth_click')}
                 className="mt-7 block rounded-xl border-2 py-3.5 text-center text-[15px] font-black transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                 style={{ backgroundColor: INK, color: '#F3F0E6', borderColor: INK, boxShadow: `4px 4px 0 ${TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
                 Activar Growth
@@ -463,6 +466,16 @@ export default function ServeLanding() {
             </div>
           </div>
 
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 max-w-2xl mx-auto">
+            <div className="rounded-xl border-2 px-5 py-4 text-center" style={{ borderColor: 'rgba(243,240,230,0.25)' }}>
+              <div className="text-[13px] font-black uppercase tracking-widest" style={{ color: TEAL }}>$12 activación única</div>
+              <div className="mt-1 text-[12.5px] font-medium" style={{ color: 'rgba(243,240,230,0.7)' }}>Se paga una sola vez cuando activas tu negocio.</div>
+            </div>
+            <div className="rounded-xl border-2 px-5 py-4 text-center" style={{ borderColor: 'rgba(243,240,230,0.25)' }}>
+              <div className="text-[13px] font-black uppercase tracking-widest" style={{ color: TEAL }}>0% comisión por venta</div>
+              <div className="mt-1 text-[12.5px] font-medium" style={{ color: 'rgba(243,240,230,0.7)' }}>De cada venta, todo queda contigo. Métodos de pago disponibles según tu país.</div>
+            </div>
+          </div>
           <p className="mt-8 text-center text-[12.5px] font-medium" style={{ color: 'rgba(243,240,230,0.55)' }}>
             Sin contratos raros · Sin comisión por venta · Cancela cuando quieras
           </p>
@@ -539,7 +552,7 @@ export default function ServeLanding() {
             ))}
           </div>
           <div className="mt-10 text-center">
-            <Link href="/serve/demo"
+            <Link href="/serve/demo" onClick={() => track('how_it_works_click')}
               className="inline-flex items-center gap-2 rounded-xl px-7 py-4 text-[16px] font-black border-2 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
               style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: `6px 6px 0 ${TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
               Crear mi demo gratis <ArrowRight size={19} strokeWidth={2.5} />
@@ -552,6 +565,54 @@ export default function ServeLanding() {
       </section>
 
 {/* ── SECTION 8 — CTA FINAL + FORM ────────────────────── */}
+            {/* ── PARTNERS — LLEVA ATTENDA SERVE A TU CIUDAD ── */}
+      <section id="partners" className="py-16 md:py-24" style={{ backgroundColor: PAPER }}>
+        <div className="max-w-5xl mx-auto px-4 md:px-5">
+          <div className="text-center max-w-2xl mx-auto">
+            <MonoTag>Partners</MonoTag>
+            <h2 className="mt-5 text-[26px] md:text-[40px] font-black tracking-tight leading-tight"
+              style={{ fontFamily: 'Archivo, sans-serif' }}>
+              LLEVA ATTENDA SERVE A TU CIUDAD.
+            </h2>
+            <p className="mt-4 text-[15px] md:text-[16px] font-medium" style={{ color: '#3A4750' }}>
+              Ayuda a los negocios locales a construir su propio canal de ventas digital y gana cuando se activan.
+            </p>
+          </div>
+
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-2.5 md:gap-3">
+            {[['Partner', TEAL_INK], ['Negocio', TEAL_INK], ['Attenda Serve', TEAL_INK], ['Activado', TEAL_INK], ['$24 pago único', INK]].map(([l, bg], i) => (
+              <div key={l} className="flex items-center gap-2.5 md:gap-3">
+                <div className="rounded-xl border-2 px-4 py-2.5 text-[13px] font-black"
+                  style={{ backgroundColor: bg as string, color: '#F3F0E6', borderColor: INK, fontFamily: 'Archivo, sans-serif' }}>
+                  {l}
+                </div>
+                {i < 4 && <span aria-hidden className="text-[16px] font-black" style={{ color: '#9aa1a8' }}>→</span>}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 rounded-2xl border-2 p-5 max-w-2xl mx-auto text-center" style={{ borderColor: INK, backgroundColor: CREAM, boxShadow: SHADOW_SM }}>
+            <p className="text-[14.5px] font-medium" style={{ color: '#3A4750' }}>
+              El negocio paga <strong>$12</strong> para activarse. Attenda iguala esos <strong>$12</strong>.
+              Tú ganas <strong>$24</strong> por cada negocio activado — más 10% recurrente mientras siga activo.
+            </p>
+          </div>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/careers" onClick={() => track('partner_cta_click', { loc: 'partner-section' })}
+              className="rounded-xl border-2 px-6 py-3.5 text-[15px] font-black transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              style={{ backgroundColor: TEAL, color: '#F3F0E6', borderColor: INK, boxShadow: SHADOW, fontFamily: 'Archivo, sans-serif' }}>
+              Convertirme en Partner
+            </Link>
+            <Link href="/careers" onClick={() => track('partner_application_started', { loc: 'partner-section' })}
+              className="rounded-xl border-2 px-6 py-3.5 text-[15px] font-black transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              style={{ backgroundColor: PAPER, color: INK, borderColor: INK, boxShadow: SHADOW_SM, fontFamily: 'Archivo, sans-serif' }}>
+              Conocer el programa →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section id="crear" ref={formRef} className="py-16 md:py-24" style={{ backgroundColor: NAVY }}>
         <div className="max-w-3xl mx-auto px-4 md:px-5 text-center">
           <h2 className="text-[24px] md:text-[38px] font-black tracking-tight leading-tight text-white"
@@ -563,7 +624,7 @@ export default function ServeLanding() {
           </p>
 
           <div className="mt-8">
-            <Link href="/serve/demo"
+            <Link href="/serve/demo" onClick={() => track('hero_demo_click', { loc: 'final' })}
               className="inline-flex items-center gap-2 rounded-xl px-8 py-4 text-[17px] font-black border-2 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
               style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: `6px 6px 0 ${TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
               Crear mi demo gratis <ArrowRight size={20} strokeWidth={2.5} />
@@ -595,6 +656,15 @@ export default function ServeLanding() {
           </div>
         </div>
       </footer>
+
+      {/* ── STICKY MOBILE CTA ── */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t-2 px-4 py-3" style={{ borderColor: INK, backgroundColor: 'rgba(243,240,230,0.97)', backdropFilter: 'blur(6px)' }}>
+        <Link href="/serve/demo" onClick={() => track('hero_demo_click', { loc: 'sticky-mobile' })}
+          className="flex items-center justify-center gap-2 rounded-xl border-2 py-3 text-[15px] font-black active:translate-y-[1px]"
+          style={{ backgroundColor: TEAL, color: INK, borderColor: INK, fontFamily: 'Archivo, sans-serif' }}>
+          Crear mi demo gratis <ArrowRight size={18} strokeWidth={2.5} />
+        </Link>
+      </div>
     </div>
   );
 }

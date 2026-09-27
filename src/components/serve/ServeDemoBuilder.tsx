@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { track } from '@/lib/serve/analytics';
 import {
   ArrowRight, ArrowLeft, Plus, ShoppingBag, Store, Truck,
   Megaphone, Cake, Package, Sparkles, Upload, X,
@@ -41,6 +42,7 @@ export default function ServeDemoBuilder() {
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [country, setCountry] = useState('PE');
   const [logo, setLogo] = useState<string | null>(null);
   const [products, setProducts] = useState<WizardProduct[]>([]);
   const [logoRef, setLogoRef] = useState<HTMLInputElement | null>(null);
@@ -61,6 +63,7 @@ export default function ServeDemoBuilder() {
 
   const createDemo = async () => {
     if (!name.trim() || creating) return;
+    track('demo_started');
     setCreating(true);
     setErr('');
     try {
@@ -76,10 +79,14 @@ export default function ServeDemoBuilder() {
           logo,
           products: products.filter((p) => p.name.trim()),
           status: 'demo',
+          country,
+          referralCode: typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') || undefined : undefined,
+          plan: 'starter',
         }),
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || 'Error');
+      track('demo_completed', { tenantId: data.tenant.id });
       const t = { id: data.tenant.id as string, adminPin: data.tenant.adminPin as string };
       try { window.localStorage.setItem(DONE_KEY, JSON.stringify(t)); } catch {}
       // lead email (non-blocking) — team contacts them at the 24h activation moment
@@ -191,6 +198,17 @@ export default function ServeDemoBuilder() {
                     <label className={labelCls} style={{ color: '#5a6168' }}>Ciudad</label>
                     <input value={city} onChange={(e) => setCity(e.target.value)}
                       placeholder="Lima" className={inputCls} style={{ borderColor: INK, backgroundColor: CREAM }} />
+                  </div>
+                  <div>
+                    <label className={labelCls} style={{ color: '#5a6168' }}>País</label>
+                    <select value={country} onChange={(e) => setCountry(e.target.value)}
+                      className={inputCls} style={{ borderColor: INK, backgroundColor: CREAM }}>
+                      <option value="PE">Perú</option>
+                      <option value="BO">Bolivia</option>
+                      <option value="CO">Colombia</option>
+                      <option value="EC">Ecuador</option>
+                      <option value="MX">México</option>
+                    </select>
                   </div>
                   <div>
                     <label className={labelCls} style={{ color: '#5a6168' }}>Email (opcional)</label>

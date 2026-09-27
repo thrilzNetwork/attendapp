@@ -2,7 +2,8 @@
    Affiliate → Market Partner → Country → Customer tracking.
    LATAM-native: every entity carries a country (ISO-2). No hardcoded market.
    Money = USD cents everywhere. Commissions:
-     - personal sale: $50 activation + 10% recurring
+     - personal sale: $24 activation payout (customer pays $12, Attenda matches $12)
+  - recurring: 10% of subscription / MP override 5% on network accounts
      - market override: 5% recurring on affiliate-generated accounts
      - market partner personal sales also earn the override chain on
        affiliates they recruit (recruitedBy). */
@@ -30,6 +31,7 @@ export type CommissionEntry = {
   partnerId: string;
   tenantId: string;
   country: Country;
+  activationFeePaidAt?: number; // set when the $12 fee is captured — gate for approval
   type: 'activation' | 'recurring' | 'market_override' | 'bonus';
   plan: 'starter' | 'growth';
   amountCents: number; // USD
@@ -45,7 +47,9 @@ export const PLAN_FEES: Record<'starter' | 'growth', number> = {
 };
 
 export const COMMISSION = {
-  activationCents: 5000, // $50 per qualified activation
+  activationCents: 2400, // $24 per activated business (customer $12 + Attenda match $12)
+  activationFeeCents: 1200, // $12 one-time fee the CUSTOMER pays to activate
+  customerMatchCents: 1200, // Attenda's match — net Attenda cash out is $12, not $24
   recurringPct: 0.1, // 10% of the customer's actual subscription
   marketOverridePct: 0.05, // 5% recurring on network-generated accounts
 };

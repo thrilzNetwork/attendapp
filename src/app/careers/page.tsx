@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { track } from '@/lib/serve/analytics';
 import { Briefcase, Users, Globe, Check, ArrowRight, ArrowDown } from 'lucide-react';
 
 const INK = '#15202B';
@@ -53,7 +54,7 @@ const SALES_STEPS = [
   ['2', 'Crea su demo en ~2 minutos', 'Con el wizard de Attenda Serve, en frente del dueño.'],
   ['3', 'El negocio prueba su propia tienda', 'Ve su menú, sus fotos, su marca — se vende solo.'],
   ['4', 'Se activa en Starter $29 o Growth $49', 'El dueño elige su plan y sale a producción.'],
-  ['5', 'Ganas $50 + ingreso recurrente', '$2.90/mes por Starter, $4.90/mes por Growth — mientras siga activo.'],
+  ['5', 'Ganas $24 + ingreso recurrente', 'El negocio paga $12 de activación, Attenda iguala otros $12 → $24 para ti. Además $2.90/mes por Starter, $4.90/mes por Growth.'],
 ];
 
 const MP_CAN = [
@@ -87,6 +88,7 @@ export default function CareersPage() {
         body: JSON.stringify({ type, data }),
       });
       if (!res.ok) throw new Error();
+      track('partner_application_completed', { key });
       setStatus((p) => ({ ...p, [key]: 'sent' }));
     } catch {
       setStatus((p) => ({ ...p, [key]: 'error' }));
@@ -124,7 +126,7 @@ export default function CareersPage() {
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             {([['jobs', 'Ver oportunidades'], ['affiliate', 'Quiero ser afiliado'], ['partner', 'Quiero ser Market Partner']] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setTab(k)}
+              <button key={k} onClick={() => { if (k !== 'jobs') track('partner_application_started', { prog: k }); setTab(k); }}
                 className="rounded-xl px-5 py-3 font-black text-[14px] border-2 transition-transform hover:scale-105"
                 style={{ backgroundColor: k === 'jobs' ? TEAL : 'transparent', color: k === 'jobs' ? INK : 'white', borderColor: k === 'jobs' ? INK : 'rgba(255,255,255,0.4)', fontFamily: 'Archivo, sans-serif' }}>
                 {l}
@@ -141,7 +143,7 @@ export default function CareersPage() {
       <div className="max-w-5xl mx-auto px-4 md:px-5">
         <div className="flex gap-3 -mt-7 relative z-10 justify-center flex-wrap">
           {([['jobs', 'Trabaja con Attenda', Briefcase], ['affiliate', 'Afiliados', Users], ['partner', 'Market Partners', Globe]] as const).map(([k, l, Icon]) => (
-            <button key={k} onClick={() => setTab(k)}
+            <button key={k} onClick={() => { if (k !== 'jobs') track('partner_application_started', { prog: k }); setTab(k); }}
               className="flex items-center gap-2 rounded-2xl px-5 py-3 text-[14px] font-black border-2 transition-transform hover:scale-105"
               style={{ backgroundColor: tab === k ? TEAL : PAPER, color: INK, borderColor: INK, boxShadow: tab === k ? SHADOW : '2px 2px 0 var(--sv-ink, #15202B)', fontFamily: 'Archivo, sans-serif' }}>
               <Icon size={17} strokeWidth={2.5} />{l}
@@ -214,7 +216,7 @@ export default function CareersPage() {
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border-2 p-4" style={{ borderColor: INK }}>
                 <div className="text-[12px] font-black uppercase tracking-widest" style={{ color: '#3A4750' }}>Por activación calificada</div>
-                <div className="text-[28px] font-black" style={{ fontFamily: 'Archivo, sans-serif' }}>$50 USD</div>
+                <div className="text-[28px] font-black" style={{ fontFamily: 'Archivo, sans-serif' }}>$24 USD</div>
               </div>
               <div className="rounded-xl border-2 p-4" style={{ borderColor: INK, backgroundColor: '#DFF3F2' }}>
                 <div className="text-[12px] font-black uppercase tracking-widest" style={{ color: TEAL_INK }}>PLUS · 10% recurrente cada mes</div>
@@ -309,7 +311,7 @@ export default function CareersPage() {
               <div className="mt-4 space-y-3 text-[13px]">
                 <div className="rounded-xl p-3.5" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }}>
                   <div className="font-black text-white">Ventas propias</div>
-                  <div style={{ color: 'rgba(243,240,230,0.75)' }}>$50 por activación + 10% recurrente — igual que un afiliado.</div>
+                  <div style={{ color: 'rgba(243,240,230,0.75)' }}>$24 por activación (el negocio paga $12, Attenda iguala $12) + 10% recurrente.</div>
                 </div>
                 <div className="rounded-xl p-3.5" style={{ backgroundColor: 'rgba(43,184,178,0.2)' }}>
                   <div className="font-black text-white">Red de afiliados</div>
