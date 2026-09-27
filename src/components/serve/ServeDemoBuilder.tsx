@@ -143,7 +143,7 @@ export default function ServeDemoBuilder() {
               <div className="mt-6">
                 <label className={labelCls} style={{ color: '#5a6168' }}>Nombre</label>
                 <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
-                  placeholder="Fukin Vegan" className={inputCls} style={{ borderColor: INK, backgroundColor: CREAM }} />
+                  placeholder="Nombre de tu negocio" className={inputCls} style={{ borderColor: INK, backgroundColor: CREAM }} />
               </div>
               <div className="mt-5">
                 <label className={labelCls} style={{ color: '#5a6168' }}>¿Qué vendes?</label>

@@ -93,7 +93,7 @@ export default function ServeLanding() {
           </a>
           <div className="flex items-center gap-5">
             <a href="#como-funciona" className="hidden md:block text-[13px] font-bold uppercase tracking-wide" style={{ fontFamily: 'IBM Plex Mono, monospace', color: INK }}>Cómo funciona</a>
-            <a href="#fukin-vegan" className="hidden md:block text-[13px] font-bold uppercase tracking-wide" style={{ fontFamily: 'IBM Plex Mono, monospace', color: INK }}>Fukin Vegan</a>
+            <a href="#demo-vivo" className="hidden md:block text-[13px] font-bold uppercase tracking-wide" style={{ fontFamily: 'IBM Plex Mono, monospace', color: INK }}>Demo en vivo</a>
             <a href="/staff" className="hidden md:block text-[13px] font-bold uppercase tracking-wide" style={{ fontFamily: 'IBM Plex Mono, monospace', color: INK }}>Entrar</a>
             <button onClick={() => scrollTo(formRef)}
               className="px-4 py-2 rounded-xl text-[13px] font-black border-2 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
@@ -320,23 +320,23 @@ export default function ServeLanding() {
         </div>
       </section>
 
-{/* ── SECTION 6 — FUKIN VEGAN ─────────────────────────── */}
-      <section id="fukin-vegan" ref={demoRef} className="py-16 md:py-24" style={{ backgroundColor: CREAM }}>
+{/* ── SECTION 6 — DEMO EN VIVO ─────────────────────────── */}
+      <section id="demo-vivo" ref={demoRef} className="py-16 md:py-24" style={{ backgroundColor: CREAM }}>
         <div className="max-w-6xl mx-auto px-4 md:px-5">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             <div>
               <MonoTag>Ya está funcionando</MonoTag>
               <h2 className="mt-5 text-[26px] md:text-[40px] font-black tracking-tight leading-tight"
                 style={{ fontFamily: 'Archivo, sans-serif' }}>
-                Mira cómo Fukin Vegan vende con su propio canal.
+                Mira cómo un restaurante vende con su propio canal.
               </h2>
               <p className="mt-5 text-[15px] md:text-[16px] font-medium leading-relaxed" style={{ color: '#5a6168' }}>
-                Fukin Vegan, una cocina de smash burgers 100% vegana en Lima, recibe sus pedidos por su propia
-                página — del menú al carrito, al pago, a la cocina. Sin comisiones de intermediarios.
-                Es la primera tienda real sobre la plataforma.
+                Un restaurante en Lima recibe sus pedidos por su propia página — del menú al carrito,
+                al pago, a la cocina. Sin comisiones de intermediarios. Ese mismo canal, con tu marca,
+                puede estar funcionando hoy.
               </p>
               <div className="mt-7 flex flex-wrap gap-4">
-                <a href="https://keen-crepe-35e8c8.netlify.app" target="_blank" rel="noopener noreferrer"
+                <a href="/serve/demo/mujpgm1e"
                   className="inline-flex items-center gap-2 rounded-xl px-6 py-3.5 text-[15px] font-black border-2 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                   style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: `5px 5px 0 ${TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
                   Ver demo en vivo <ArrowRight size={17} strokeWidth={2.5} />
@@ -353,7 +353,7 @@ export default function ServeLanding() {
                     <div className="w-20 h-1.5 rounded-full" style={{ backgroundColor: '#2a2a2a' }} />
                   </div>
                   <div className="px-4 pt-2 pb-3 flex items-center justify-between border-b" style={{ borderColor: '#1e1e1e' }}>
-                    <div className="text-[13px] font-extrabold text-white" style={{ fontFamily: 'Archivo, sans-serif' }}>FUKIN&apos; VEGAN</div>
+                    <div className="text-[13px] font-extrabold text-white" style={{ fontFamily: 'Archivo, sans-serif' }}>LA CASITA</div>
                     <div className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: '#F36A12' }}>
                       SURCO · 25-35 MIN
                     </div>
@@ -493,9 +493,9 @@ export default function ServeLanding() {
                 style={{ borderColor: INK, backgroundColor: '#111827', boxShadow: `8px 8px 0 ${TEAL_INK}` }}>
                 <div className="flex items-center justify-between px-5 pt-5">
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] font-bold" style={{ fontFamily: 'IBM Plex Mono, monospace', color: TEAL }}>
-                    FUKIN VEGAN · MIEMBRO
+                    TU NEGOCIO · MIEMBRO
                   </span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg text-[12px] font-black" style={{ backgroundColor: TEAL, color: INK }}>FV</span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg text-[12px] font-black" style={{ backgroundColor: TEAL, color: INK }}>TN</span>
                 </div>
                 <div className="px-5 pb-6 pt-7">
                   <div className="text-[13px] font-bold text-white/70">Puntos</div>
@@ -586,9 +586,9 @@ export default function ServeLanding() {
             <span className="text-[14px] font-black tracking-tight" style={{ fontFamily: 'Archivo, sans-serif' }}>Serve</span>
           </a>
           <div className="flex items-center gap-6 text-[13px] font-bold uppercase tracking-wide" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
-            <a href="/" className="hover:opacity-70">Attenda Hospitality</a>
-            <a href="#fukin-vegan" className="hover:opacity-70">Demo</a>
-            <a href="/staff" className="hover:opacity-70">Entrar</a>
+            <a href="/careers" className="hover:opacity-70">Únete al equipo</a>
+            <a href="/careers" className="hover:opacity-70">Trabaja con nosotros</a>
+            <a href="/serve" className="hover:opacity-70">Serve</a>
           </div>
           <div className="text-[12px] font-medium" style={{ color: '#5a6168' }}>
             Attenda Serve — un producto de Attenda Technologies
@@ -676,7 +676,7 @@ function ServeForm() {
           <label className="text-[11px] font-bold uppercase tracking-wider block mb-1.5" style={{ fontFamily: 'IBM Plex Mono, monospace', color: '#5a6168' }}>
             Nombre del negocio *
           </label>
-          <input value={form.businessName} onChange={set('businessName')} placeholder="Fukin Vegan"
+          <input value={form.businessName} onChange={set('businessName')} placeholder="Nombre de tu negocio"
             className={inputCls} style={{ backgroundColor: CREAM, borderColor: INK }} />
         </div>
         <div>

@@ -1,9 +1,8 @@
-/* Attenda Serve — multi-tenant data model. FV-architecture port: the demo
-   tenant runs the exact fukinvegan.com order system (cent pricing, FV
-   status machine, Yape claim flow, zones, hours gate). Demo vs official
+/* Attenda Serve — multi-tenant data model (order status
+   machine, Yape claim flow, zones, hours gate). Demo vs official
    is only the `status` flag — same engine, same data shapes. */
 
-/* All money is integer CENTS (FV convention). S/ 19.90 = 1990 */
+/* All money is integer CENTS. S/ 19.90 = 1990 */
 
 export type ServeProduct = {
   slug: string;

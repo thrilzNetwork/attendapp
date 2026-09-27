@@ -2,6 +2,7 @@
    Same engine for demo + official tenants (only status differs).
    Money = cents everywhere. */
 
+import { demoProductImage } from '@/lib/serve/photos';
 import { getStore } from '@netlify/blobs';
 import {
   ServeProduct, ServeOrder, ServeSettings, ServeTenant, ServeOrderStatus,
@@ -102,6 +103,7 @@ export async function createTenant(input: CreateTenantInput): Promise<ServeTenan
     short: `Del menú de ${input.name}`,
     category: i < base.length - 2 ? 'principales' : i === base.length - 2 ? 'extras' : 'bebidas',
     price: Math.round(p.price * 100),
+    image: demoProductImage(p.name),
     active: true,
     sortOrder: i,
   }));

@@ -1,6 +1,5 @@
-/* Attenda Serve — FV design tokens (demo tenant surfaces).
-   The demo runs the EXACT fukinvegan.com design system:
-   dark #0a0a0a, panel #131313, line #232323, orange #f36a12,
+/* Attenda Serve — tenant demo design tokens.
+   Dark #0a0a0a, panel #131313, line #232323, orange #f36a12,
    cream text #f5f2e9, green #85a80d. Fredoka display everywhere. */
 
 export const FV = {

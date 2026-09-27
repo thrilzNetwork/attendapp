@@ -262,6 +262,31 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // ── 6b. Serve careers / affiliate application ────────────────
+    if (type === 'serve_careers_application') {
+      const { name, email, phone, city, message, role } = data;
+      if (!email) return NextResponse.json({ ok: true });
+      await getResend().emails.send({
+        from: FROM, to: SUPER_BCC, replyTo: email || REPLY_TO,
+        subject: `Serve Careers: ${role} — ${name}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
+            <div style="background:#1B1F3B;border-radius:12px;padding:24px;margin-bottom:24px">
+              <h1 style="color:white;margin:0;font-size:20px;font-weight:800">New Serve Application — ${role}</h1>
+            </div>
+            <table style="width:100%;font-size:14px;line-height:1.7">
+              <tr><td style="color:#888;width:120px;padding:4px 0">Name</td><td><strong>${name || '—'}</strong></td></tr>
+              <tr><td style="color:#888;padding:4px 0">Email</td><td>${email}</td></tr>
+              <tr><td style="color:#888;padding:4px 0">Phone</td><td>${phone || '—'}</td></tr>
+              <tr><td style="color:#888;padding:4px 0">City</td><td>${city || '—'}</td></tr>
+              <tr><td style="color:#888;padding:4px 0">Message</td><td>${message || '—'}</td></tr>
+            </table>
+            <p style="font-size:12px;color:#aaa;text-align:center;margin-top:24px">Attenda Serve careers / affiliate pipeline</p>
+          </div>
+        `,
+      });
+    }
+
     if (type === 'password_reset') {
       const { staffEmail, staffName, hotelName, resetUrl } = data;
       if (!staffEmail) return NextResponse.json({ ok: true });
