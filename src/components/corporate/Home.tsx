@@ -16,6 +16,7 @@ import {
   MessageSquare, Navigation, Radio, ShoppingBag, Store, Truck, Users,
 } from 'lucide-react';
 import { CorporateNav, CorporateFooter, CORP_TEAL, CORP_TEAL_BRIGHT, CORP_INK, CORP_MIST, CORP_BORDER } from '@/components/corporate/Chrome';
+import { LangProvider, useLang } from '@/lib/corp-lang';
 
 /* ── Scroll reveal ── */
 function Reveal({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
@@ -204,17 +205,18 @@ function EcosystemHeroVisual() {
 
 /* ═══════════════ DIAGRAM ═══════════════ */
 function EcosystemDiagram() {
+  const { t } = useLang();
   const nodes = [
-    { label: 'HOSPITALITY', icon: BedDouble, href: '/hospitality', tint: 'linear-gradient(160deg,#0F2E33,#0A1A1F)', sub: 'Hotel operations' },
-    { label: 'TRANSPORTATION', icon: Truck, href: '/transportation', tint: 'linear-gradient(160deg,#101B2E,#0A111E)', sub: 'Live vehicle operations' },
-    { label: 'SERVE', icon: Store, href: '/serve', tint: 'linear-gradient(160deg,#172A26,#0E1A17)', sub: 'Commerce & orders' },
+    { label: 'HOSPITALITY', icon: BedDouble, href: '/hospitality', tint: 'linear-gradient(160deg,#0F2E33,#0A1A1F)', subKey: 'home.eco.node.h.sub' },
+    { label: 'TRANSPORTATION', icon: Truck, href: '/transportation', tint: 'linear-gradient(160deg,#101B2E,#0A111E)', subKey: 'home.eco.node.t.sub' },
+    { label: 'SERVE', icon: Store, href: '/serve', tint: 'linear-gradient(160deg,#172A26,#0E1A17)', subKey: 'home.eco.node.s.sub' },
   ] as const;
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex justify-center mb-8">
         <div className="rounded-2xl border-2 px-8 py-4 text-center" style={{ borderColor: CORP_TEAL, backgroundColor: 'rgba(21,138,124,0.08)' }}>
           <div className="text-[16px] font-black tracking-tight" style={{ color: CORP_TEAL }}>ATTENDA TECHNOLOGIES</div>
-          <div className="text-[10px] font-bold tracking-[0.24em] mt-1 text-gray-500">THE COMPANY ABOVE THE PRODUCTS</div>
+          <div className="text-[10px] font-bold tracking-[0.24em] mt-1 text-gray-500">{t('home.eco.above')}</div>
         </div>
       </div>
       <div className="hidden md:flex justify-center mb-8">
@@ -222,16 +224,17 @@ function EcosystemDiagram() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-4">
         <EcoNode {...nodes[0]} />
-        <EcoLink label="Guest demand ⇄ Commerce" />
+        <EcoLink label={t('home.eco.link1')} />
         <EcoNode {...nodes[2]} />
-        <EcoLink label="Fulfillment ⇄ Movement" />
+        <EcoLink label={t('home.eco.link2')} />
         <EcoNode {...nodes[1]} />
       </div>
     </div>
   );
 }
 
-function EcoNode({ label, sub, icon: Icon, href, tint }: { label: string; sub: string; icon: typeof BedDouble; href: string; tint: string }) {
+function EcoNode({ label, subKey, icon: Icon, href, tint }: { label: string; subKey: string; icon: typeof BedDouble; href: string; tint: string }) {
+  const { t } = useLang();
   return (
     <Link href={href} className="block rounded-2xl border p-5 text-center transition-transform hover:-translate-y-0.5"
       style={{ borderColor: `${CORP_TEAL}44`, background: tint }}>
@@ -239,7 +242,7 @@ function EcoNode({ label, sub, icon: Icon, href, tint }: { label: string; sub: s
         <Icon size={19} style={{ color: CORP_TEAL_BRIGHT }} />
       </div>
       <div className="text-[13px] font-black tracking-[0.14em] text-white">{label}</div>
-      <div className="text-[10.5px] text-gray-400 mt-1">{sub}</div>
+      <div className="text-[10.5px] text-gray-400 mt-1">{t(subKey)}</div>
     </Link>
   );
 }
@@ -254,18 +257,27 @@ function EcoLink({ label }: { label: string }) {
 }
 
 const CONNECTIONS = [
-  { pair: 'HOSPITALITY + TRANSPORTATION', copy: 'A hotel coordinates shuttle demand while a transportation provider manages vehicles, drivers, pickups and ETAs. Same movement. Different operational views.', chain: 'Guest → Hotel → Transportation → Driver' },
-  { pair: 'HOSPITALITY + SERVE', copy: 'Hospitality guests access curated food and commerce options while businesses manage orders in their own operating environment.', chain: 'Guest → Hospitality experience → Merchant → Serve' },
-  { pair: 'SERVE + TRANSPORTATION', copy: 'Commerce eventually creates fulfillment. Where transportation is needed, transportation workflows connect sellers, customers and drivers.', chain: 'Order → Fulfillment → Driver → Customer' },
-];
+  { pairKey: 'home.eco.conn1.title', copyKey: 'home.eco.conn1.copy', chainKey: 'home.eco.conn1.chain' },
+  { pairKey: 'home.eco.conn2.title', copyKey: 'home.eco.conn2.copy', chainKey: 'home.eco.conn2.chain' },
+  { pairKey: 'home.eco.conn3.title', copyKey: 'home.eco.conn3.copy', chainKey: 'home.eco.conn3.chain' },
+] as const;
 
 const REAL_WORK = [
-  { title: 'A HOTEL', steps: ['Front desk.', 'Housekeeping.', 'Maintenance.', 'Guest request.', 'Manager.'], line: 'Attenda Hospitality connects the operation.' },
-  { title: 'A BUSINESS', steps: ['Customer.', 'Order.', 'Payment.', 'WhatsApp.', 'Staff.'], line: 'Attenda Serve organizes the sale.' },
-  { title: 'A TRANSPORTATION OPERATION', steps: ['Passenger.', 'Dispatcher.', 'Vehicle.', 'Driver.', 'Destination.'], line: 'Attenda Transportation organizes the movement.' },
-];
+  { titleKey: 'home.rw.hotel', steps: ['Front desk.', 'Housekeeping.', 'Maintenance.', 'Guest request.', 'Manager.'], lineKey: 'home.rw.hotel.line' },
+  { titleKey: 'home.rw.biz', steps: ['Customer.', 'Order.', 'Payment.', 'WhatsApp.', 'Staff.'], lineKey: 'home.rw.biz.line' },
+  { titleKey: 'home.rw.trans', steps: ['Passenger.', 'Dispatcher.', 'Vehicle.', 'Driver.', 'Destination.'], lineKey: 'home.rw.trans.line' },
+] as const;
 
 export default function CorporateHomePage() {
+  return (
+    <LangProvider>
+      <CorpHomeInner />
+    </LangProvider>
+  );
+}
+
+function CorpHomeInner() {
+  const { t } = useLang();
   return (
     <div className="min-h-screen bg-white">
       <CorporateNav />
@@ -279,14 +291,14 @@ export default function CorporateHomePage() {
           <div>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-7 border border-white/15 bg-white/5">
               <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: CORP_TEAL_BRIGHT }} />
-              <span className="text-[11px] font-bold text-white/80 tracking-[0.2em] uppercase">Attenda Technologies · Miami</span>
+              <span className="text-[11px] font-bold text-white/80 tracking-[0.2em] uppercase">{t('home.hero.badge')}</span>
             </div>
             <h1 className="text-[40px] md:text-[58px] lg:text-[66px] leading-[1.01] font-black tracking-[-0.02em] text-white">
-              Technology for the people<br />
-              <span style={{ color: CORP_TEAL_BRIGHT }}>who keep business moving.</span>
+              {t('home.hero.l1')}<br />
+              <span style={{ color: CORP_TEAL_BRIGHT }}>{t('home.hero.l2')}</span>
             </h1>
             <p className="text-[17px] md:text-[19px] text-gray-300 leading-relaxed mt-6 max-w-xl">
-              We build practical operating technology for hospitality, commerce, and transportation — designed around how work actually happens.
+              {t('home.hero.sub')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 mt-9">
               <a href="#products"
@@ -295,12 +307,12 @@ export default function CorporateHomePage() {
                 Explore our products <ArrowRight size={17} />
               </a>
               <Link href="/company" className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold text-[15px] border border-white/20 text-white/90 hover:text-white hover:border-white/40 transition-all">
-                Discover Attenda <ArrowRight size={16} />
+                {t('nav.discover')} <ArrowRight size={16} />
               </Link>
             </div>
             <div className="mt-9 flex items-center gap-2.5">
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CORP_TEAL_BRIGHT }} />
-              <p className="text-[13px] text-white/60 font-medium">Built in Miami · Operating across the U.S. and Latin America</p>
+              <p className="text-[13px] text-white/60 font-medium">{t('home.hero.built')}</p>
             </div>
           </div>
           <EcosystemHeroVisual />
@@ -311,15 +323,15 @@ export default function CorporateHomePage() {
       <section className="py-20 md:py-32 px-5 bg-white">
         <div className="max-w-3xl mx-auto text-center mb-16">
           <Reveal>
-            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>What we build</div>
+            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>{t('home.wwb.eyebrow')}</div>
             <h2 className="text-[34px] md:text-[50px] font-black tracking-[-0.02em] leading-[1.06] text-gray-900">
-              Different industries.<br />The same operational problem.
+              {t('home.wwb.h1')}<br />{t('home.wwb.h2')}
             </h2>
             <p className="text-[17px] md:text-[18px] text-gray-600 leading-relaxed mt-6">
-              Businesses rarely suffer from a lack of information. The problem is that the information, people and work are spread across messages, paper, disconnected systems and individual knowledge.
+              {t('home.wwb.p1')}
             </p>
             <p className="text-[17px] md:text-[18px] text-gray-800 font-semibold mt-4">
-              Attenda builds technology that organizes that work into systems people can actually use.
+              {t('home.wwb.p2')}
             </p>
           </Reveal>
         </div>
@@ -327,21 +339,21 @@ export default function CorporateHomePage() {
         <div id="products" className="max-w-6xl mx-auto grid md:grid-cols-3 gap-5 scroll-mt-24">
           <Reveal delay={0}><ProductCard
             href="/hospitality" label="HOSPITALITY OPERATIONS" icon={BedDouble}
-            headline="Run the operation around the reservation."
-            copy="One operational layer for the work happening outside the PMS — staff workflows, guest requests, housekeeping, maintenance, inspections, procedures, knowledge and visibility."
-            cta="Explore Attenda Hospitality"
+            headline={t('home.card.h.head')}
+            copy={t('home.card.h.copy')}
+            cta={t('home.card.h.cta')}
             visual={<HospitalityInterface active={false} />} /></Reveal>
           <Reveal delay={90}><ProductCard
             href="/serve" label="COMMERCE" icon={Store}
             headline={<>TU NEGOCIO.<br />TU CANAL.<br />TUS CLIENTES.</>}
-            copy="Attenda Serve gives restaurants, independent sellers and everyday businesses their own digital sales channel — storefront, online ordering, local payment workflows, WhatsApp, staff operations and customer retention."
-            cta="Explore Attenda Serve" subline="No otro marketplace. Tu propio canal."
+            copy={t('home.card.s.copy')}
+            cta={t('home.card.s.cta')} subline="No otro marketplace. Tu propio canal."
             visual={<ServeInterface active={false} />} /></Reveal>
           <Reveal delay={180}><ProductCard
             href="/transportation" label="TRANSPORTATION" icon={Truck}
-            headline="Know who's moving, where and when."
-            copy="Attenda Transportation connects customers, properties, dispatchers and drivers through live scheduling, pickup coordination, vehicle visibility and operational communication."
-            cta="Explore Transportation"
+            headline={t('home.card.t.head')}
+            copy={t('home.card.t.copy')}
+            cta={t('home.card.t.cta')}
             visual={<TransportInterface active={false} />} /></Reveal>
         </div>
       </section>
@@ -350,19 +362,19 @@ export default function CorporateHomePage() {
       <section className="py-20 md:py-32 px-5" style={{ backgroundColor: CORP_MIST }}>
         <div className="max-w-3xl mx-auto">
           <Reveal>
-            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>Why Attenda</div>
+            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>{t('home.idea.eyebrow')}</div>
             <h2 className="text-[32px] md:text-[48px] font-black tracking-[-0.02em] leading-[1.08] text-gray-900">
-              Technology should fit the operation.<br />
-              <span className="text-gray-500">The operation shouldn&apos;t have to fit the technology.</span>
+              {t('home.idea.h1')}<br />
+              <span className="text-gray-500">{t('home.idea.h2')}</span>
             </h2>
             <p className="text-[17px] text-gray-600 leading-relaxed mt-7">
-              Attenda started from real operating environments where work rarely happens inside one perfect system. Someone sends a WhatsApp. Someone calls the front desk. A driver gets dispatched. A customer places an order. A manager assigns a task. An employee completes a checklist.
+              {t('home.idea.p1')}
             </p>
             <p className="text-[19px] md:text-[22px] text-gray-900 font-black mt-6">
-              The problem isn&apos;t the people. The problem is that the work becomes fragmented.
+              {t('home.idea.p2')}
             </p>
             <p className="text-[17px] text-gray-600 mt-4">
-              Attenda turns those everyday actions into organized workflows.
+              {t('home.idea.p3')}
             </p>
           </Reveal>
         </div>
@@ -372,29 +384,29 @@ export default function CorporateHomePage() {
       <section className="py-20 md:py-32 px-5 bg-white">
         <div className="max-w-3xl mx-auto text-center mb-14">
           <Reveal>
-            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>One ecosystem</div>
+            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>{t('home.eco.eyebrow')}</div>
             <h2 className="text-[34px] md:text-[50px] font-black tracking-[-0.02em] leading-[1.06] text-gray-900">
-              Built separately.<br />Designed to work together.
+              {t('home.eco.h1')}<br />{t('home.eco.h2')}
             </h2>
             <p className="text-[17px] text-gray-600 leading-relaxed mt-6">
-              Each Attenda product can operate independently. Where workflows overlap, the ecosystem is designed to connect them.
+              {t('home.eco.p1')}
             </p>
           </Reveal>
         </div>
         <Reveal><EcosystemDiagram /></Reveal>
         <div className="max-w-4xl mx-auto mt-16 grid md:grid-cols-3 gap-4">
           {CONNECTIONS.map((c, i) => (
-            <Reveal key={c.pair} delay={i * 80}>
+            <Reveal key={c.pairKey} delay={i * 80}>
               <div className="rounded-2xl border p-6 h-full" style={{ borderColor: CORP_BORDER, backgroundColor: CORP_MIST }}>
-                <div className="text-[10.5px] font-black tracking-[0.16em] mb-3" style={{ color: CORP_TEAL }}>{c.pair}</div>
-                <p className="text-[14px] text-gray-600 leading-relaxed">{c.copy}</p>
-                <div className="text-[12px] font-bold text-gray-800 mt-4 font-mono">{c.chain}</div>
+                <div className="text-[10.5px] font-black tracking-[0.16em] mb-3" style={{ color: CORP_TEAL }}>{t(c.pairKey)}</div>
+                <p className="text-[14px] text-gray-600 leading-relaxed">{t(c.copyKey)}</p>
+                <div className="text-[12px] font-bold text-gray-800 mt-4 font-mono">{t(c.chainKey)}</div>
               </div>
             </Reveal>
           ))}
         </div>
         <p className="text-center text-[13px] text-gray-500 mt-8 max-w-2xl mx-auto">
-          Designed to connect. Can connect where workflows overlap. Part of the Attenda ecosystem — showing what exists today honestly, and where the platform is going.
+          {t('home.eco.note')}
         </p>
       </section>
 
@@ -404,16 +416,16 @@ export default function CorporateHomePage() {
         <div className="relative max-w-4xl mx-auto text-center">
           <Reveal>
             <h2 className="text-[32px] md:text-[52px] font-black tracking-[-0.02em] leading-[1.06] text-white">
-              We don&apos;t build technology<br />to replace the people doing the work.
+              {t('home.prin.h1')}<br />{t('home.prin.h2')}
             </h2>
             <h3 className="text-[26px] md:text-[40px] font-black tracking-[-0.02em] leading-[1.1] mt-10" style={{ color: CORP_TEAL_BRIGHT }}>
-              We build technology<br />to make their work work better.
+              {t('home.prin.h3')}<br />{t('home.prin.h4')}
             </h3>
             <p className="text-[16px] md:text-[17px] text-gray-400 leading-relaxed mt-10 max-w-2xl mx-auto">
-              Attenda organizes information, workflows and communication so the people responsible for the operation have better visibility and better tools.
+              {t('home.prin.p')}
             </p>
             <p className="text-[18px] md:text-[21px] font-black text-white mt-10">
-              AI can assist. Software can organize. People still decide.
+              {t('home.prin.p2')}
             </p>
           </Reveal>
         </div>
@@ -423,14 +435,14 @@ export default function CorporateHomePage() {
       <section className="py-20 md:py-32 px-5 bg-white">
         <div className="max-w-5xl mx-auto">
           <Reveal>
-            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>Built around real work</div>
-            <h2 className="text-[34px] md:text-[48px] font-black tracking-[-0.02em] text-gray-900 mb-14 leading-[1.06]">Three operations. One philosophy.</h2>
+            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>{t('home.rw.eyebrow')}</div>
+            <h2 className="text-[34px] md:text-[48px] font-black tracking-[-0.02em] text-gray-900 mb-14 leading-[1.06]">{t('home.rw.h')}</h2>
           </Reveal>
           <div className="space-y-6">
             {REAL_WORK.map((r, i) => (
-              <Reveal key={r.title} delay={i * 80}>
+              <Reveal key={r.titleKey} delay={i * 80}>
                 <div className="rounded-2xl border p-7 md:p-9" style={{ borderColor: CORP_BORDER, backgroundColor: CORP_MIST }}>
-                  <div className="text-[12px] font-black tracking-[0.2em] mb-5" style={{ color: CORP_TEAL }}>{r.title}</div>
+                  <div className="text-[12px] font-black tracking-[0.2em] mb-5" style={{ color: CORP_TEAL }}>{t(r.titleKey)}</div>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     {r.steps.map((s, j) => (
                       <span key={s} className="flex items-center gap-2.5">
@@ -439,14 +451,14 @@ export default function CorporateHomePage() {
                       </span>
                     ))}
                   </div>
-                  <div className="text-[15px] font-black text-gray-900 mt-5">{r.line}</div>
+                  <div className="text-[15px] font-black text-gray-900 mt-5">{t(r.lineKey)}</div>
                 </div>
               </Reveal>
             ))}
           </div>
           <Reveal>
             <p className="text-center text-[26px] md:text-[36px] font-black tracking-[-0.02em] text-gray-900 mt-16">
-              Different work. <span style={{ color: CORP_TEAL }}>Same philosophy.</span>
+              {t('home.rw.final')} <span style={{ color: CORP_TEAL }}>{t('home.rw.final2')}</span>
             </p>
           </Reveal>
         </div>
@@ -456,18 +468,18 @@ export default function CorporateHomePage() {
       <section className="py-20 md:py-32 px-5" style={{ backgroundColor: CORP_MIST }}>
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
           <Reveal>
-            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>Attenda Technologies</div>
+            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>{t('home.company.eyebrow')}</div>
             <h2 className="text-[34px] md:text-[48px] font-black tracking-[-0.02em] leading-[1.08] text-gray-900">
-              Built by operators.<br />Built for operators.
+              {t('home.company.h1')}<br />{t('home.company.h2')}
             </h2>
             <p className="text-[17px] text-gray-600 leading-relaxed mt-6">
-              Attenda began inside hospitality, where we saw firsthand how much of an operation still depends on disconnected tools, paper, messages and knowledge living inside people&apos;s heads. That experience led to a bigger idea: <strong className="text-gray-900">technology should be built around how people actually operate.</strong>
+              {t('home.company.p1a')}<strong className="text-gray-900">{t('home.company.p1b')}</strong>
             </p>
             <p className="text-[16px] text-gray-600 leading-relaxed mt-4">
-              Today, Attenda Technologies applies that philosophy across hospitality, commerce and transportation. We build systems for people doing real work — not software designed in isolation from it.
+              {t('home.company.p2')}
             </p>
             <Link href="/company" className="inline-flex items-center gap-2 mt-7 text-[15px] font-bold" style={{ color: CORP_TEAL }}>
-              Our story <ArrowRight size={16} />
+              {t('home.company.story')} <ArrowRight size={16} />
             </Link>
           </Reveal>
           <Reveal delay={120}>
@@ -475,10 +487,10 @@ export default function CorporateHomePage() {
               <Image src="https://images.unsplash.com/photo-1534482421-64566f976cfa?w=1400&q=80" alt="Miami — Attenda Technologies' home" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
               <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(8,15,20,0.08) 30%, rgba(8,15,20,0.88) 100%)' }} />
               <div className="absolute bottom-0 left-0 right-0 p-8">
-                <div className="text-[11px] font-black tracking-[0.3em] text-white/80">MIAMI, FLORIDA</div>
-                <div className="text-[28px] font-black text-white mt-1">Our home.</div>
+                <div className="text-[11px] font-black tracking-[0.3em] text-white/80">{t('home.company.miami.badge')}</div>
+                <div className="text-[28px] font-black text-white mt-1">{t('home.company.miami.h')}</div>
                 <p className="text-[13.5px] text-gray-200 leading-relaxed mt-2 max-w-md">
-                  A city connecting the United States, Latin America, hospitality, commerce, transportation and entrepreneurship. The natural home for what we&apos;re building.
+                  {t('home.company.miami.p')}
                 </p>
               </div>
             </div>
@@ -491,29 +503,29 @@ export default function CorporateHomePage() {
         <div className="max-w-3xl mx-auto text-center">
           <Reveal>
             <h2 className="text-[34px] md:text-[50px] font-black tracking-[-0.02em] leading-[1.06] text-gray-900">
-              Built in Miami.<br /><span style={{ color: CORP_TEAL }}>Designed beyond borders.</span>
+              {t('home.latam.h1')}<br /><span style={{ color: CORP_TEAL }}>{t('home.latam.h2')}</span>
             </h2>
             <p className="text-[17px] text-gray-600 leading-relaxed mt-6">
-              Attenda Technologies builds products for markets where operational technology needs to be practical, accessible and adaptable to how people already work.
+              {t('home.latam.p')}
             </p>
           </Reveal>
           <div className="grid md:grid-cols-3 gap-4 mt-10 text-left">
             {[
-              ['Hospitality', 'Begins with U.S. operators.', BedDouble, '/hospitality'],
-              ['Serve', 'Built with Latin American businesses in mind.', Store, '/serve'],
-              ['Transportation', 'Connects physical operations wherever people and vehicles need better coordination.', Truck, '/transportation'],
-            ].map(([t, c, Icon, href], i) => (
-              <Reveal key={t as string} delay={i * 80}>
+              ['home.latam.t1', 'home.latam.t1c', BedDouble, '/hospitality'],
+              ['home.latam.t2', 'home.latam.t2c', Store, '/serve'],
+              ['home.latam.t3', 'home.latam.t3c', Truck, '/transportation'],
+                        ].map(([tk, ck, Icon, href], i) => (
+              <Reveal key={tk as string} delay={i * 80}>
                 <Link href={href as string} className="block rounded-2xl border p-6 hover:-translate-y-0.5 transition-transform" style={{ borderColor: CORP_BORDER }}>
-                  <div className="text-[12px] font-black tracking-[0.18em] uppercase" style={{ color: CORP_TEAL }}>{t as string}</div>
-                  <p className="text-[14.5px] text-gray-600 mt-2.5 leading-relaxed">{c as string}</p>
+                  <div className="text-[12px] font-black tracking-[0.18em] uppercase" style={{ color: CORP_TEAL }}>{t(tk as string)}</div>
+                  <p className="text-[14.5px] text-gray-600 mt-2.5 leading-relaxed">{t(ck as string)}</p>
                 </Link>
               </Reveal>
             ))}
           </div>
           <Reveal>
             <p className="text-[22px] md:text-[30px] font-black tracking-[-0.02em] text-gray-900 mt-14">
-              The technology changes by market.<br /><span style={{ color: CORP_TEAL }}>The principle does not.</span>
+              {t('home.latam.final')}<br /><span style={{ color: CORP_TEAL }}>{t('home.latam.final2')}</span>
             </p>
           </Reveal>
         </div>
@@ -524,31 +536,31 @@ export default function CorporateHomePage() {
         <div className="max-w-5xl mx-auto">
           <div className="max-w-3xl mb-14">
             <Reveal>
-              <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>How we build</div>
+              <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>{t('home.how.eyebrow')}</div>
               <h2 className="text-[34px] md:text-[50px] font-black tracking-[-0.02em] leading-[1.06] text-gray-900">
-                Powerful underneath.<br />Simple where it matters.
+                {t('home.how.h1')}<br />{t('home.how.h2')}
               </h2>
               <p className="text-[17px] text-gray-600 leading-relaxed mt-6">
-                The best operational technology disappears into the work. People should not need to become software experts to use Attenda.
+                {t('home.how.p')}
               </p>
             </Reveal>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              ['Mobile-first', 'Built around the devices people already carry.', Radio],
-              ['Role-based', 'People see the tools relevant to their work.', Users],
-              ['Real-time', 'Operational information changes as the work happens.', Clock],
-              ['Human-centered AI', 'AI assists people instead of pretending to replace judgment.', MessageSquare],
-              ['Connected', 'Products can exchange information where workflows overlap.', ShoppingBag],
-              ['Market-aware', 'Payments, communication and workflows adapt to the environments where Attenda operates.', Navigation],
-            ].map(([t, c, Icon], i) => (
-              <Reveal key={t as string} delay={(i % 3) * 70}>
+              ['home.how.1t', 'home.how.1c', Radio],
+              ['home.how.2t', 'home.how.2c', Users],
+              ['home.how.3t', 'home.how.3c', Clock],
+              ['home.how.4t', 'home.how.4c', MessageSquare],
+              ['home.how.5t', 'home.how.5c', ShoppingBag],
+              ['home.how.6t', 'home.how.6c', Navigation],
+            ].map(([tk, ck, Icon], i) => (
+              <Reveal key={tk as string} delay={(i % 3) * 70}>
                 <div className="rounded-2xl bg-white border p-6 h-full" style={{ borderColor: CORP_BORDER }}>
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: `${CORP_TEAL}14` }}>
                     <Icon size={17} style={{ color: CORP_TEAL }} />
                   </div>
-                  <div className="text-[15px] font-black text-gray-900">{t as string}</div>
-                  <p className="text-[14px] text-gray-600 mt-1.5 leading-relaxed">{c as string}</p>
+                  <div className="text-[15px] font-black text-gray-900">{t(tk as string)}</div>
+                  <p className="text-[14px] text-gray-600 mt-1.5 leading-relaxed">{t(ck as string)}</p>
                 </div>
               </Reveal>
             ))}
@@ -560,9 +572,9 @@ export default function CorporateHomePage() {
       <section className="py-20 md:py-32 px-5 bg-white">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-5">
           {[
-            { t: 'HOSPITALITY', l: 'Run the operation.', h: '/hospitality', tint: 'linear-gradient(160deg, #0F2E33 0%, #0A1A1F 100%)', icon: BedDouble },
-            { t: 'SERVE', l: 'Own your channel.', h: '/serve', tint: 'linear-gradient(160deg, #172A26 0%, #0E1A17 100%)', icon: Store },
-            { t: 'TRANSPORTATION', l: 'Coordinate the movement.', h: '/transportation', tint: 'linear-gradient(160deg, #101B2E 0%, #0A111E 100%)', icon: Truck },
+            { t: 'HOSPITALITY', lKey: 'home.tiles.h.t', h: '/hospitality', tint: 'linear-gradient(160deg, #0F2E33 0%, #0A1A1F 100%)', icon: BedDouble },
+            { t: 'SERVE', lKey: 'home.tiles.s.l', h: '/serve', tint: 'linear-gradient(160deg, #172A26 0%, #0E1A17 100%)', icon: Store },
+            { t: 'TRANSPORTATION', lKey: 'home.tiles.t.l', h: '/transportation', tint: 'linear-gradient(160deg, #101B2E 0%, #0A111E 100%)', icon: Truck },
           ].map((p, i) => {
             const Icon = p.icon;
             return (
@@ -573,9 +585,9 @@ export default function CorporateHomePage() {
                     <Icon size={21} style={{ color: CORP_TEAL_BRIGHT }} />
                   </div>
                   <div className="text-[13px] font-black tracking-[0.22em] text-white">{p.t}</div>
-                  <div className="text-[21px] font-black text-gray-100 mt-2">{p.l}</div>
+                  <div className="text-[21px] font-black text-gray-100 mt-2">{t(p.lKey)}</div>
                   <div className="mt-auto inline-flex items-center gap-2 pt-8 text-[14px] font-bold transition-transform group-hover:translate-x-1" style={{ color: CORP_TEAL_BRIGHT }}>
-                    Explore {p.t.charAt(0) + p.t.slice(1).toLowerCase()} <ArrowRight size={15} />
+                    {t('home.tiles.explore')} {p.t.charAt(0) + p.t.slice(1).toLowerCase()} <ArrowRight size={15} />
                   </div>
                 </Link>
               </Reveal>
@@ -590,27 +602,27 @@ export default function CorporateHomePage() {
         <div className="relative max-w-4xl mx-auto text-center">
           <Reveal>
             <h2 className="text-[36px] md:text-[56px] font-black tracking-[-0.02em] leading-[1.04] text-white">
-              What are you trying to operate?
+              {t('home.cta.h')}
             </h2>
             <div className="grid sm:grid-cols-3 gap-4 mt-12 text-left">
               {[
-                ['A hospitality property', 'Attenda Hospitality', '/hospitality'],
-                ['A business that sells', 'Attenda Serve', '/serve'],
-                ['A transportation operation', 'Attenda Transportation', '/transportation'],
-              ].map(([q, a, h], i) => (
+                ['home.cta.q1', 'Attenda Hospitality', '/hospitality'],
+                ['home.cta.q2', 'Attenda Serve', '/serve'],
+                ['home.cta.q3', 'Attenda Transportation', '/transportation'],
+              ].map(([qk, a, h], i) => (
                 <Reveal key={h} delay={i * 80}>
                   <Link href={h} className="block rounded-2xl border border-white/15 bg-white/5 p-6 hover:bg-white/10 transition-colors h-full">
-                    <div className="text-[13px] text-gray-400 font-semibold">{q}</div>
+                    <div className="text-[13px] text-gray-400 font-semibold">{t(qk)}</div>
                     <div className="text-[17px] font-black text-white mt-1.5">{a}</div>
                     <div className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-bold" style={{ color: CORP_TEAL_BRIGHT }}>
-                      Explore <ArrowRight size={14} />
+                      {t('home.tiles.explore')} <ArrowRight size={14} />
                     </div>
                   </Link>
                 </Reveal>
               ))}
             </div>
             <Link href="/contact" className="inline-flex items-center gap-2 mt-12 px-8 py-4 rounded-xl font-semibold text-[15px] border border-white/25 text-white hover:border-white/50 transition-all">
-              Talk to Attenda Technologies <ArrowRight size={16} />
+              {t('home.cta.talk')} <ArrowRight size={16} />
             </Link>
           </Reveal>
         </div>
