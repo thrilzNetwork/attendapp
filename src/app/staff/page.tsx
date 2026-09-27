@@ -2,7 +2,7 @@
 // deploy-2026-06-05-001 - force chunk hash change
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, Fragment, Component, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, Fragment, Component, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 class ErrorBoundary extends Component<{children: React.ReactNode, fallback?: React.ReactNode}, {hasError: boolean, error: Error | null}> {
@@ -257,8 +257,14 @@ function DashboardInner() {
   const [dismissedAlert, setDismissedAlert] = useState(false);
   const [lastRequestCount, setLastRequestCount] = useState(0);
 
+  // Internal ops-store types that share the `requests` table but aren't guest requests.
+  // Mirrors the exclusion list in ReportsView. Used by pendingCount + realtime handler.
+  const INTERNAL_REQ_TYPES = 'kpi_submission,kpi_definition,checklist_template,checklist_completion,forecast,generated_shift,shift_submission,schedule_change_request,learning_content,hr_document,course,course_module,quiz_question,module_completion,quiz_attempt,shuttle_config,shuttle_slot,shuttle_booking,call_around_log,incident_log,kb_suggestion';
+  const INTERNAL_REQ_TYPE_SET = useMemo(() => new Set(INTERNAL_REQ_TYPES.split(',')), []);
+
   // pendingCount must be computed before early returns for the alert bar effect
-  const pendingCount = requests.filter(r => r.status === 'pending' && r.type !== 'Shuttle Booking').length;
+  // Exclude internal ops-store types (kb_suggestion, KPI, etc.) — not guest requests
+  const pendingCount = requests.filter(r => r.status === 'pending' && r.type !== 'Shuttle Booking' && !INTERNAL_REQ_TYPE_SET.has(r.type as string)).length;
 
   // Reset alert bar when new pending tickets appear
   useEffect(() => {
@@ -490,7 +496,9 @@ function DashboardInner() {
 
     const isManager = role === 'owner' || role === 'admin' || role === 'superadmin' || role === 'manager';
     const [req, msg, staffRows] = await Promise.all([
-      supabase.from('requests').select('*').eq('hotel_id', hotelId).neq('room', 'STAFF').order('created_at', { ascending: false }),
+      supabase.from('requests').select('*').eq('hotel_id', hotelId).neq('room', 'STAFF')
+        .not('type', 'in', `(${INTERNAL_REQ_TYPES})`)
+        .order('created_at', { ascending: false }),
       supabase.from('messages').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }),
       isManager ? getStaffAccountsForHotel(hotelId!) : Promise.resolve(null),
     ]);
@@ -523,6 +531,8 @@ function DashboardInner() {
       // Email alert on new request
       if (payload?.eventType === 'INSERT' && payload?.new) {
         const r = payload.new;
+        // Ignore internal ops-store types (kb_suggestion, KPI, etc.) — not guest requests
+        if (r.type && INTERNAL_REQ_TYPE_SET.has(r.type)) return;
         // Append to requests state directly instead of reloading
         setRequests(prev => [r, ...prev]);
         if (configRef.current?.notificationEmail && r.guest_name && r.room && r.type) {
@@ -2961,7 +2971,8 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
                 let skipped = 0;
                 for (const room of rooms) {
                   const label = room.room_number;
-                  const exists = codes.some(c => c.label === label);
+                  const norm = (s: string) => s.replace(/^Room\s+/i, '');
+                  const exists = codes.some(c => norm(c.label) === norm(label));
                   if (!exists) {
                     await createQrCode(hotelId, label, 'room', getUrl(label));
                     count++;

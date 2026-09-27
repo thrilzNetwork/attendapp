@@ -215,6 +215,53 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 6. Branded password reset ────────────────────────────────
+    if (type === 'serve_seller_inquiry') {
+      const { businessName, sellerType, contactName, contactEmail, contactPhone, city, message } = data;
+      if (!contactEmail) return NextResponse.json({ ok: true });
+      await getResend().emails.send({
+        from: FROM, to: SUPER_BCC, replyTo: contactEmail || REPLY_TO,
+        subject: `New Serve Seller Inquiry: ${businessName}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
+            <div style="background:#158A7C;border-radius:12px;padding:24px;margin-bottom:24px">
+              <h1 style="color:white;margin:0;font-size:20px;font-weight:800">New Attenda Serve Inquiry</h1>
+            </div>
+            <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:16px">
+              <p style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;margin:0 0 8px">Business</p>
+              <p style="font-size:15px;font-weight:800;color:#111;margin:0 0 4px">${businessName}</p>
+              <p style="font-size:13px;color:#555;margin:0">${city ? city + ' · ' : ''}${sellerType || 'Seller type not specified'}</p>
+            </div>
+            <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:16px">
+              <p style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;margin:0 0 8px">Contact</p>
+              <p style="font-size:14px;color:#333;margin:0 0 4px"><strong>${contactName}</strong></p>
+              <p style="font-size:13px;color:#555;margin:0 0 4px">${contactEmail}</p>
+              ${contactPhone ? `<p style="font-size:13px;color:#555;margin:0">${contactPhone}</p>` : ''}
+            </div>
+            ${message ? `<div style="background:#f9fafb;border-radius:10px;padding:20px;border-left:4px solid #158A7C"><p style="font-size:14px;color:#333;margin:0;line-height:1.6">${message}</p></div>` : ''}
+          </div>
+        `,
+      });
+      await getResend().emails.send({
+        from: FROM, to: contactEmail, replyTo: REPLY_TO,
+        subject: `Recibimos tu solicitud — ${businessName} × Attenda Serve`,
+        html: `
+          <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
+            <div style="background:#158A7C;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center">
+              <h1 style="color:white;margin:0;font-size:22px;font-weight:800">Attenda Serve</h1>
+              <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:14px">El sistema operativo para el vendedor de todos los días</p>
+            </div>
+            <p style="font-size:15px;color:#111;margin-bottom:12px">Hola ${contactName},</p>
+            <p style="font-size:14px;color:#444;line-height:1.6;margin-bottom:24px">
+              Recibimos los datos de <strong>${businessName}</strong>. Te contactamos en menos de un día hábil
+              para activar tu tienda con Attenda Serve — tu propia página para vender, pedidos organizados,
+              pagos como tu mercado y tu WhatsApp conectado.
+            </p>
+            <p style="font-size:13px;color:#888;line-height:1.6">Attenda Serve — un producto de Attenda Technologies</p>
+          </div>
+        `,
+      });
+    }
+
     if (type === 'password_reset') {
       const { staffEmail, staffName, hotelName, resetUrl } = data;
       if (!staffEmail) return NextResponse.json({ ok: true });

@@ -20,6 +20,46 @@ export async function POST(req: NextRequest) {
 
     const { action, data } = await req.json();
 
+    // ── Admin data-fix actions (restricted allowlist) ──
+    if (action === 'list_table') {
+      const allowed: Record<string, string> = {
+        hotel_rooms: 'room_number',
+        room_status: 'room_number',
+      };
+      const table = String(data?.table || '');
+      if (!allowed[table]) {
+        return NextResponse.json({ ok: false, error: 'Table not allowed' }, { status: 400 });
+      }
+      let q = supabaseAdmin.from(table).select('*').order(allowed[table]);
+      if (data?.hotelId) q = q.eq('hotel_id', data.hotelId);
+      const { data: rows, error } = await q;
+      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, rows });
+    }
+
+    if (action === 'purge_rooms_not_in') {
+      const table = String(data?.table || '');
+      if (table !== 'room_status' && table !== 'hotel_rooms') {
+        return NextResponse.json({ ok: false, error: 'Table not allowed' }, { status: 400 });
+      }
+      const keep: string[] = Array.isArray(data?.keep) ? data.keep.map(String) : [];
+      const hotelId = String(data?.hotelId || '');
+      if (!hotelId) {
+        return NextResponse.json({ ok: false, error: 'hotelId required' }, { status: 400 });
+      }
+      // Delete rows for this hotel whose room_number is NOT in the canonical list.
+      const { data: rows } = await supabaseAdmin
+        .from(table).select('id,room_number').eq('hotel_id', hotelId);
+      const stale = (rows || []).filter((r: { room_number: string }) => !keep.includes(String(r.room_number)));
+      if (stale.length > 0) {
+        const { error } = await supabaseAdmin
+          .from(table).delete().in('id', stale.map((r: { id: string }) => r.id));
+        if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true, purged: stale.length, kept: (rows || []).length - stale.length });
+    }
+
+
     if (action === 'create_hotel') {
       const insert: Record<string, unknown> = {};
       const guestCols: Record<string, unknown> = {

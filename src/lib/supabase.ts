@@ -2994,3 +2994,147 @@ export async function createInspectionChecklist(hotelId: string, name: string, d
   if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
+
+/* ── Todos Planner: recurrence + assigned tasks ─────────────── */
+
+export interface TodoRecurrence {
+  id: string;
+  hotel_id: string;
+  template_id: string;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  weekday?: number | null;   // 0=Sun .. 6=Sat, for weekly
+  month_day?: number | null; // 1-31, for monthly
+  created_at: string;
+}
+
+export interface TodoTask {
+  id: string;
+  hotel_id: string;
+  title: string;
+  department: string;
+  assigned_to?: string | null;
+  assigned_to_name: string;
+  due_date?: string | null;
+  status: 'open' | 'in_progress' | 'done' | 'cancelled';
+  priority: 'low' | 'normal' | 'high';
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listTodoRecurrences(hotelId: string): Promise<TodoRecurrence[]> {
+  const { data } = await supabase.from('todo_recurrences').select('*')
+    .eq('hotel_id', hotelId);
+  return (data || []) as TodoRecurrence[];
+}
+
+export async function setTodoRecurrence(r: {
+  hotel_id: string; template_id: string;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  weekday?: number | null; month_day?: number | null;
+}): Promise<TodoRecurrence | null> {
+  // upsert by (hotel_id, template_id)
+  const { data: existing } = await supabase.from('todo_recurrences').select('id')
+    .eq('hotel_id', r.hotel_id).eq('template_id', r.template_id).maybeSingle();
+  if (existing) {
+    if (r.frequency === 'daily') {
+      const { error } = await supabase.from('todo_recurrences').delete().eq('id', (existing as { id: string }).id);
+      if (error) throw new Error(error.message);
+      return null; // daily = default behavior, remove recurrence row
+    }
+    const { data, error } = await supabase.from('todo_recurrences').update({
+      frequency: r.frequency, weekday: r.weekday ?? null, month_day: r.month_day ?? null,
+    }).eq('id', (existing as { id: string }).id).select().single();
+    if (error) throw new Error(error.message);
+    return data as TodoRecurrence;
+  }
+  if (r.frequency === 'daily') return null;
+  const { data, error } = await supabase.from('todo_recurrences').insert({
+    hotel_id: r.hotel_id, template_id: r.template_id, frequency: r.frequency,
+    weekday: r.weekday ?? null, month_day: r.month_day ?? null,
+  }).select().single();
+  if (error) throw new Error(error.message);
+  return data as TodoRecurrence;
+}
+
+export async function deleteTodoRecurrence(id: string) {
+  const { error } = await supabase.from('todo_recurrences').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// Does a template with this recurrence apply to the given date?
+export function recurrenceApplies(
+  rec: { frequency: string; weekday?: number | null; month_day?: number | null },
+  dateStr: string
+): boolean {
+  if (rec.frequency === 'daily') return true;
+  const d = new Date(dateStr + 'T12:00:00');
+  if (rec.frequency === 'weekly') return d.getDay() === (rec.weekday ?? 0);
+  if (rec.frequency === 'monthly') return d.getDate() === (rec.month_day ?? 1);
+  return false;
+}
+
+// Fetch recurring templates due on a given date, joined with template info
+export async function getTodosForDate(hotelId: string, date: string): Promise<{
+  daily: { template_id: string; name: string; department: string; assigned_position: string }[];
+  weekly: { template_id: string; name: string; department: string; assigned_position: string; weekday: number }[];
+  monthly: { template_id: string; name: string; department: string; assigned_position: string; month_day: number }[];
+}> {
+  const [tpls, recs] = await Promise.all([
+    getPositionTodoTemplates(hotelId),
+    listTodoRecurrences(hotelId),
+  ]);
+  const tplById = new Map(tpls.map(t => [t.id, t]));
+  const out = { daily: [], weekly: [], monthly: [] } as {
+    daily: { template_id: string; name: string; department: string; assigned_position: string }[];
+    weekly: { template_id: string; name: string; department: string; assigned_position: string; weekday: number }[];
+    monthly: { template_id: string; name: string; department: string; assigned_position: string; month_day: number }[];
+  };
+  for (const rec of recs) {
+    const t = tplById.get(rec.template_id);
+    if (!t) continue;
+    const base = { template_id: rec.template_id, name: t.name, department: t.department, assigned_position: t.assigned_position };
+    if (rec.frequency === 'daily') out.daily.push(base);
+    else if (rec.frequency === 'weekly' && recurrenceApplies(rec, date)) out.weekly.push({ ...base, weekday: rec.weekday ?? 0 });
+    else if (rec.frequency === 'monthly' && recurrenceApplies(rec, date)) out.monthly.push({ ...base, month_day: rec.month_day ?? 1 });
+  }
+  return out;
+}
+
+// Assigned tasks CRUD
+export async function listTodoTasks(hotelId: string, opts?: { department?: string; assigneeStaffId?: string; dueOnOrBefore?: string }): Promise<TodoTask[]> {
+  let q = supabase.from('todo_tasks').select('*').eq('hotel_id', hotelId)
+    .in('status', ['open', 'in_progress']).order('due_date', { ascending: true, nullsFirst: false });
+  if (opts?.department) q = q.eq('department', opts.department);
+  if (opts?.assigneeStaffId) q = q.eq('assigned_to', opts.assigneeStaffId);
+  if (opts?.dueOnOrBefore) q = q.lte('due_date', opts.dueOnOrBefore);
+  const { data } = await q;
+  return (data || []) as TodoTask[];
+}
+
+export async function createTodoTask(t: {
+  hotel_id: string; title: string; department: string;
+  assigned_to?: string | null; assigned_to_name?: string;
+  due_date?: string | null; priority?: 'low' | 'normal' | 'high'; created_by?: string;
+}): Promise<TodoTask> {
+  const { data, error } = await supabase.from('todo_tasks').insert({
+    hotel_id: t.hotel_id, title: t.title, department: t.department,
+    assigned_to: t.assigned_to || null, assigned_to_name: t.assigned_to_name || '',
+    due_date: t.due_date || null, priority: t.priority || 'normal',
+    status: 'open', created_by: t.created_by || '',
+  }).select().single();
+  if (error) throw new Error(error.message || JSON.stringify(error));
+  return data as TodoTask;
+}
+
+export async function updateTodoTaskStatus(id: string, status: 'open' | 'in_progress' | 'done' | 'cancelled') {
+  const { error } = await supabase.from('todo_tasks').update({
+    status, updated_at: new Date().toISOString(),
+  }).eq('id', id);
+  if (error) throw new Error(error.message || JSON.stringify(error));
+}
+
+export async function deleteTodoTask(id: string) {
+  const { error } = await supabase.from('todo_tasks').delete().eq('id', id);
+  if (error) throw error;
+}

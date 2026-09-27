@@ -356,6 +356,7 @@ function AttendaLandingPage() {
             <a href="#modules" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Product</a>
             <a href="#revenue" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Case Study</a>
             <a href="/blog" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Field Notes</a>
+            <a href="/serve" className="text-[14px] font-bold" style={{ color: TEAL }}>Serve</a>
             <a href="#founder" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">About</a>
             <a href="/staff" className="text-[14px] text-gray-600 hover:text-gray-900 font-medium">Log in</a>
             <button onClick={() => scrollTo(enrollRef)}
@@ -396,10 +397,7 @@ function AttendaLandingPage() {
               They have an organization problem.
             </h1>
             <p className="text-[18px] text-white leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.3s', textShadow: '0 1px 12px rgba(0,0,0,0.6)' }}>
-              The shuttle. The schedule. The checklist. Your team creates the answers all day — scattered across apps, paper, radios, and heads.
-            </p>
-            <p className="text-[18px] text-white leading-relaxed mb-8 animate-scale-in" style={{ animationDelay: '0.35s', textShadow: '0 1px 12px rgba(0,0,0,0.6)' }}>
-              <span className="font-bold" style={{ color: '#5eead4' }}>Attenda puts them somewhere everyone can actually use.</span>
+              The answers already exist — they&apos;re buried in texts, paper, and people&apos;s heads. <span className="font-bold" style={{ color: '#5eead4' }}>Attenda puts them where every shift can find them.</span>
             </p>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-scale-in" style={{ animationDelay: '0.4s' }}>
               <a href="#founding"
@@ -450,14 +448,14 @@ function AttendaLandingPage() {
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">This is your day</h2>
             <h3 className="text-[30px] md:text-[44px] font-black tracking-tight text-gray-900 mb-6 leading-[1.08]">
-              Hotels don&apos;t have an information problem.<br />
-              <span style={{ color: TEAL }}>They have an organization problem.</span>
+              7:04 AM. The phone rings.<br />
+              <span style={{ color: TEAL }}>Where&apos;s the shuttle?</span>
             </h3>
             <p className="text-[16px] md:text-[18px] text-gray-600 leading-relaxed mb-4">
-              The phone rings — a guest wants to know where the shuttle is. Another needs towels. An employee needs a procedure. A manager is looking for a completed checklist. Someone&apos;s checking the schedule. Transportation needs coordinating. And the GM is just trying to figure out what actually happened today.
+              Before you finish that answer: towels for 412. A procedure for the new hire. A checklist the manager can&apos;t find. A schedule someone changed on a sticky note. A GM trying to figure out what actually happened today.
             </p>
             <p className="text-[16px] md:text-[18px] text-gray-600 leading-relaxed mb-8">
-              Your team already creates all of that information. It&apos;s just scattered across apps, paper, radios, and people&apos;s heads.
+              Your team creates every one of those answers, every shift. They just live in apps, paper, radios, and heads — and disappear the moment the shift ends.
             </p>
             <p className="text-[17px] md:text-[19px] font-bold text-gray-900">
               Attenda puts it somewhere everyone can actually use.

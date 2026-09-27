@@ -11,6 +11,9 @@ import {
   type PositionTodoTemplate, type PositionTodoItem,
   type PositionTodoInstance, type PositionTodoResponse,
   type StaffPosition,
+  type TodoRecurrence, type TodoTask,
+  listTodoRecurrences, setTodoRecurrence,
+  listTodoTasks, createTodoTask, updateTodoTaskStatus, deleteTodoTask,
 } from '@/lib/supabase';
 import { CheckSquare, Plus, X as XIcon, ChevronDown, Trash2, GripVertical, Edit3, Clock, Hash, Type, Link, Save, ClipboardList, Move, UserX, DollarSign, BookOpen, Download, CalendarClock, GraduationCap, Target } from 'lucide-react';
 import {
@@ -201,6 +204,21 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
   const [responsesByInstance, setResponsesByInstance] = useState<Record<string, PositionTodoResponse[]>>({});
   const [loading, setLoading] = useState(true);
   const [openDept, setOpenDept] = useState<string | null>(null);
+  // ── Todos Planner state ──
+  const [plannerDept, setPlannerDept] = useState<string | null>(null); // null = department landing grid
+  const [plannerTab, setPlannerTab] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [recurrences, setRecurrences] = useState<TodoRecurrence[]>([]);
+  const [tasks, setTasks] = useState<TodoTask[]>([]);
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskAssignee, setNewTaskAssignee] = useState('');
+  const [newTaskDue, setNewTaskDue] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'normal' | 'high'>('normal');
+  const [recurrenceEditId, setRecurrenceEditId] = useState<string | null>(null);
+  const [recurrenceDraft, setRecurrenceDraft] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [recurrenceWeekday, setRecurrenceWeekday] = useState(1);
+  const [recurrenceMonthDay, setRecurrenceMonthDay] = useState(1);
+  const [tasksLoading, setTasksLoading] = useState(false);
   const [openInstall, setOpenInstall] = useState<string | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -363,6 +381,71 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
 
   useEffect(() => { loadAll(); }, [hotelId, staffId, selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Todos Planner: load recurrences + assigned tasks ──
+  const loadPlannerData = async () => {
+    try {
+      const [recs, tks] = await Promise.all([
+        listTodoRecurrences(hotelId),
+        listTodoTasks(hotelId, { dueOnOrBefore: localDateStr() }),
+      ]);
+      setRecurrences(recs);
+      setTasks(tks);
+    } catch { /* planner extras fail soft */ }
+  };
+  useEffect(() => {
+    if (!hotelId) return;
+    loadPlannerData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotelId, selectedDate]);
+
+  const saveTask = async () => {
+    if (!newTaskTitle.trim()) return;
+    setTasksLoading(true);
+    try {
+      const assigneePos = positions.find(p => p.id === newTaskAssignee);
+      await createTodoTask({
+        hotel_id: hotelId,
+        title: newTaskTitle.trim(),
+        department: assigneePos?.department || 'front_desk',
+        assigned_to: newTaskAssignee || null,
+        assigned_to_name: assigneePos?.name || '',
+        due_date: newTaskDue || null,
+        priority: newTaskPriority,
+        created_by: staffName || 'admin',
+      });
+      setNewTaskTitle(''); setNewTaskAssignee(''); setNewTaskDue(''); setNewTaskPriority('normal');
+      setShowNewTask(false);
+      setTasks(await listTodoTasks(hotelId, { dueOnOrBefore: localDateStr() }));
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to create task'); }
+    setTasksLoading(false);
+  };
+
+  const completeTask = async (id: string) => {
+    await updateTodoTaskStatus(id, 'done');
+    setTasks(await listTodoTasks(hotelId, { dueOnOrBefore: localDateStr() }));
+  };
+
+  const removeTask = async (id: string) => {
+    await deleteTodoTask(id);
+    setTasks(prev => prev.filter(t => t.id !== id));
+  };
+
+  const saveRecurrence = async (templateId: string) => {
+    try {
+      await setTodoRecurrence({
+        hotel_id: hotelId, template_id: templateId,
+        frequency: recurrenceDraft,
+        weekday: recurrenceDraft === 'weekly' ? recurrenceWeekday : null,
+        month_day: recurrenceDraft === 'monthly' ? recurrenceMonthDay : null,
+      });
+      setRecurrences(await listTodoRecurrences(hotelId));
+      setRecurrenceEditId(null);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to save recurrence'); }
+  };
+
+  const recurrenceFor = (templateId: string): TodoRecurrence | undefined =>
+    recurrences.find(r => r.template_id === templateId);
+
   const templatesByDept: Record<string, PositionTodoTemplate[]> = {};
   templates.forEach(t => {
     if (!isAdmin && department) {
@@ -371,6 +454,17 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
     const k = t.department || 'front_desk';
     (templatesByDept[k] = templatesByDept[k] || []).push(t);
   });
+
+  // ── Todos Planner derived data ──
+  // Departments visible in the planner grid: only ones that have any template or task
+  const plannerDepts = DEPARTMENTS.filter(d =>
+    templates.some(t => t.department === d.key) ||
+    tasks.some(t => t.department === d.key)
+  );
+  // Cross-department tasks assigned to me
+  const myTasks = isAdmin
+    ? tasks
+    : tasks.filter(t => t.assigned_to === staffId || t.assigned_to_name === staffName);
 
   const installCommunityTemplate = async (ct: CommunityTemplate) => {
     setSubmitting(true); setError(null);
@@ -750,47 +844,86 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] rounded-xl px-4 py-3 mb-4">{error}<button onClick={() => setError(null)} className="ml-2 font-bold">✕</button></div>}
 
-      {/* Cash shift status banner — visible to everyone */}
-      {(() => {
-        const cashTpls = templates.filter(t => (itemsByTemplate[t.id] || []).some(i => i.item_type === 'bank_count'));
-        if (cashTpls.length === 0) return null;
-        const shifts = ['AM', 'PM', 'Night'];
-        const missing = shifts.filter(shift => {
-          const cashInsts = instances.filter(i => cashTpls.some(t => t.id === i.template_id) && i.shift === shift);
-          return cashInsts.length === 0 || cashInsts.some(i => i.status !== 'completed');
-        });
-        if (missing.length === 0) return null;
-        return (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
-            <span className="text-amber-500 text-[16px] mt-0.5">⚠️</span>
-            <div>
-              <p className="text-[12px] font-bold text-amber-800">Cash Count Incomplete</p>
-              <p className="text-[11px] text-amber-700 mt-0.5">
-                {missing.map(s => `${s} shift`).join(', ')} — cash drawer not yet counted
-              </p>
+      {/* ── TODOS PLANNER: department landing grid ── */}
+      {loading ? null : plannerDept === null ? (
+        <div className="space-y-4">
+          {/* Assigned to me — cross-department quick strip */}
+          {myTasks.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+              <p className="text-[12px] font-bold text-gray-500 uppercase tracking-widest mb-2">Assigned to me</p>
+              <div className="space-y-2">
+                {myTasks.map(t => {
+                  const dept = DEPARTMENTS.find(d => d.key === t.department);
+                  return (
+                    <div key={t.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                      <button onClick={() => completeTask(t.id)} className="w-4 h-4 rounded-full border-2 border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 shrink-0 transition-colors" title="Mark done" />
+                      <p className="text-[13px] font-medium text-gray-800 flex-1 min-w-0 truncate">{t.title}</p>
+                      {t.due_date && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${t.due_date < localDateStr() ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>{t.due_date === localDateStr() ? 'today' : t.due_date}</span>}
+                      <span className="text-[11px] shrink-0">{dept?.icon}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          )}
+
+          <p className="text-[12px] font-bold text-gray-500 uppercase tracking-widest">Departments</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {plannerDepts.map(d => {
+              const deptTpls = templates.filter(t => t.department === d.key);
+              const deptRecs = recurrences.filter(r => deptTpls.some(t => t.id === r.template_id));
+              const weekly = deptRecs.filter(r => r.frequency === 'weekly').length;
+              const monthly = deptRecs.filter(r => r.frequency === 'monthly').length;
+              const deptTasks = isAdmin
+                ? tasks.filter(t => t.department === d.key)
+                : tasks.filter(t => t.department === d.key && (t.assigned_to === staffId || t.assigned_to_name === staffName));
+              const total = deptTpls.length + weekly + monthly + deptTasks.length;
+              return (
+                <button
+                  key={d.key}
+                  onClick={() => { setPlannerDept(d.key); setPlannerTab('daily'); }}
+                  className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 text-left hover:border-gray-300 hover:shadow transition-all"
+                >
+                  <span className="text-[26px]">{d.icon}</span>
+                  <p className="text-[14px] font-bold text-gray-900 mt-1.5">{d.label}</p>
+                  <p className="text-[11px] text-gray-400">{total} item{total !== 1 ? 's' : ''}</p>
+                </button>
+              );
+            })}
           </div>
-        );
-      })()}
-
-      {/* Builder tab bar */}
-      {canManage && viewMode === 'builder' && (
-        <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl">
-          <button
-            onClick={() => setBuilderTab('my-templates')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-bold transition-colors ${builderTab === 'my-templates' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            <ClipboardList size={13} /> My Templates
-          </button>
-          <button
-            onClick={() => setBuilderTab('library')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-bold transition-colors ${builderTab === 'library' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            <BookOpen size={13} /> Template Library
-          </button>
+          {plannerDepts.length === 0 && (
+            <div className="text-center py-12 text-gray-400 text-[13px]">
+              No checklists yet. {isAdmin ? 'Switch to ⚙️ Builder to create one.' : 'Ask your manager to set up To-Dos.'}
+            </div>
+          )}
         </div>
-      )}
-
+      ) : (
+      /* ── DEPARTMENT DETAIL: Daily / Weekly / Monthly tabs ── */
+      <div>
+        <button onClick={() => setPlannerDept(null)} className="text-[12px] font-bold text-gray-500 hover:text-gray-700 mb-3">← All Departments</button>
+        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 mb-4 w-fit">
+          {(['daily', 'weekly', 'monthly'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setPlannerTab(tab)}
+              className={`px-4 py-1.5 rounded-lg text-[12px] font-bold capitalize transition-colors ${plannerTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >{tab}</button>
+          ))}
+        </div>
+        ) : (
+      <div className="space-y-4">
+        <button onClick={() => setPlannerDept(null)} className="text-[12px] font-bold text-gray-500 hover:text-gray-900 mb-2">← All Departments</button>
+        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 mb-4 w-fit">
+          {(['daily', 'weekly', 'monthly'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setPlannerTab(tab)}
+              className={`px-4 py-1.5 rounded-lg text-[12px] font-bold capitalize transition-all ${plannerTab === tab ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}
+            >{tab}</button>
+          ))}
+        </div>
+        {plannerTab === 'daily' && (
+          <>
       {loading ? (
         <div className="text-center py-12 text-gray-400 text-[14px]">Loading...</div>
       ) : (
@@ -1772,7 +1905,121 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
               )}
             </>
           )}
-        </>
+      {plannerDept !== null && plannerTab !== 'daily' && (
+        <div className="space-y-3">
+          {(() => {
+            const deptTpls = templates.filter(t => t.department === plannerDept);
+            const freq = plannerTab as 'weekly' | 'monthly';
+            const dueRecs = recurrences.filter(r => deptTpls.some(t => t.id === r.template_id) && r.frequency === freq);
+            const date = selectedDate;
+            const d = new Date(date + 'T12:00:00');
+            const applies = freq === 'weekly' ? d.getDay() : d.getDate();
+            const due = dueRecs.filter(r => (freq === 'weekly' ? r.weekday : r.month_day) === applies);
+            const allDeptTplIds = deptTpls.map(t => t.id);
+            const allRecs = recurrences.filter(r => allDeptTplIds.includes(r.template_id));
+            const upcoming = dueRecs.filter(r => !due.includes(r));
+            const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            return (
+              <>
+                {due.length === 0 && upcoming.length === 0 && (
+                  <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+                    <CalendarClock size={40} className="mx-auto text-gray-300 mb-3" />
+                    <p className="text-[14px] font-semibold text-gray-700">No {freq} to-dos scheduled</p>
+                    <p className="text-[12px] text-gray-500 mt-1">{isAdmin ? 'Set a recurrence on a checklist in the Builder.' : 'Nothing extra assigned for this cadence.'}</p>
+                  </div>
+                )}
+                {due.map(rec => {
+                  const tpl = deptTpls.find(t => t.id === rec.template_id);
+                  if (!tpl) return null;
+                  return (
+                    <div key={rec.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-bold text-gray-900 truncate">{tpl.name}</p>
+                        <p className="text-[11px] text-gray-500">
+                          {freq === 'weekly' ? `Every ${WEEKDAYS[rec.weekday ?? 0]}` : `Monthly on day ${rec.month_day ?? 1}`} · due {date}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 shrink-0">DUE {date === localDateStr() ? 'TODAY' : ''}</span>
+                    </div>
+                  );
+                })}
+                {upcoming.length > 0 && (
+                  <div className="pt-2">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Other {freq} to-dos (not on {date})</p>
+                    {upcoming.map(rec => {
+                      const tpl = deptTpls.find(t => t.id === rec.template_id);
+                      if (!tpl) return null;
+                      return (
+                        <div key={rec.id} className="bg-white rounded-xl border border-gray-100 px-4 py-2.5 mb-2 flex items-center justify-between">
+                          <p className="text-[13px] text-gray-700 truncate">{tpl.name}</p>
+                          <span className="text-[10px] text-gray-400 shrink-0">{freq === 'weekly' ? WEEKDAYS[rec.weekday ?? 0] : `day ${rec.month_day ?? 1}`}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {/* Assigned tasks for this department on this cadence view */}
+                {(() => {
+                  const deptTasks = isAdmin
+                    ? tasks.filter(t => t.department === plannerDept)
+                    : tasks.filter(t => t.department === plannerDept && (t.assigned_to === staffId || t.assigned_to_name === staffName));
+                  const shown = deptTasks; // tasks carry their own due_date
+                  if (shown.length === 0) return null;
+                  return (
+                    <div className="pt-2">
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Assigned Tasks</p>
+                      {shown.map(t => (
+                        <div key={t.id} className="bg-white rounded-xl border border-gray-100 px-4 py-2.5 mb-2 flex items-center gap-2">
+                          <button onClick={() => completeTask(t.id)} className="w-4 h-4 rounded-full border-2 border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 shrink-0 transition-colors" title="Mark done" />
+                          <p className="text-[13px] font-medium text-gray-800 flex-1 min-w-0 truncate">{t.title}</p>
+                          {t.assigned_to_name && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 shrink-0">{t.assigned_to_name}</span>}
+                          {t.due_date && <span className="text-[10px] text-gray-400 shrink-0">{t.due_date}</span>}
+                          {isAdmin && <button onClick={() => removeTask(t.id)} className="p-1 rounded-lg text-red-300 hover:text-red-500 shrink-0"><Trash2 size={13} /></button>}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+                {isAdmin && plannerDept && (
+                  <div className="pt-2">
+                    {showNewTask ? (
+                      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-2">
+                        <input autoFocus value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)} placeholder="Task title" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-medium focus:outline-none focus:ring-1 focus:ring-teal-400" />
+                        <div className="flex gap-2 flex-wrap">
+                          <select value={newTaskAssignee} onChange={e => setNewTaskAssignee(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-xl text-[12px] focus:outline-none focus:ring-1 focus:ring-teal-400">
+                            <option value="">Unassigned</option>
+                            {positions.filter(p => p.department === plannerDept).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                          <input type="date" value={newTaskDue} min={localDateStr()} onChange={e => setNewTaskDue(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-xl text-[12px] focus:outline-none focus:ring-1 focus:ring-teal-400" />
+                          <select value={newTaskPriority} onChange={e => setNewTaskPriority(e.target.value as 'low' | 'normal' | 'high')} className="px-3 py-2 border border-gray-200 rounded-xl text-[12px] focus:outline-none focus:ring-1 focus:ring-teal-400">
+                            <option value="low">Low</option>
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                          </select>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={saveTask} disabled={tasksLoading || !newTaskTitle.trim()} className="px-4 py-2 rounded-xl text-white text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>{tasksLoading ? '…' : 'Add Task'}</button>
+                          <button onClick={() => setShowNewTask(false)} className="px-3 py-2 rounded-xl text-[12px] font-bold text-gray-500 hover:bg-gray-50">Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => setShowNewTask(true)} className="flex items-center gap-1.5 text-[12px] font-bold px-3 py-2 rounded-xl border border-gray-200 text-gray-600 hover:border-gray-300">
+                        <Plus size={13} /> Assign a Task
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+        )}
+      </>
+        )}
+      </>
+        )}
+      </div>
+      </div>
       )}
     </div>
   );
