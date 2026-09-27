@@ -83,17 +83,42 @@ const WORKFLOW = [
   'Trip is completed and recorded.',
 ];
 
-const CAPABILITIES = [
-  ['Live scheduling', 'Pickups and trips on one live board — today, tonight, this week.'],
-  ['Pickup management', 'Time, location, party size and status for every pickup, organized.'],
-  ['Driver workflows', 'Assignments reach the right driver with everything they need.'],
-  ['Live GPS', 'Know where the vehicle is without calling anyone.'],
-  ['ETAs', 'Arrival times update as the trip happens, not after.'],
-  ['Demand forecasting', 'Dispatcher sees upcoming demand before it becomes a scramble.'],
-  ['Guest/passenger communication', 'Status and arrival information reach the people waiting.'],
-  ['Hotel connectivity', 'Properties coordinate shuttle demand with transportation providers.'],
-  ['Multi-property / vendor operation', 'One provider serving several properties, cleanly separated.'],
-  ['Performance history', 'Trips recorded and searchable after completion.'],
+const LAYERS = [
+  {
+    name: 'FLEET',
+    title: 'The vehicles and the people who drive them.',
+    items: [
+      ['Fleet & vehicle management', 'Every vehicle on record — model, type, capacity, availability — in one place.'],
+      ['Driver workflows', 'Assignments reach the right driver with everything they need.'],
+      ['Safety & vehicle standards', 'Vehicle condition, driver conduct and trip monitoring — operational, not optional.'],
+    ],
+  },
+  {
+    name: 'DISPATCH',
+    title: 'The movement, scheduled and assigned.',
+    items: [
+      ['Live scheduling', 'Pickups and trips on one live board — today, tonight, this week.'],
+      ['Pickup management', 'Time, location, party size and status for every pickup, organized.'],
+      ['Demand forecasting', 'The dispatcher sees upcoming demand before it becomes a scramble.'],
+    ],
+  },
+  {
+    name: 'VISIBILITY',
+    title: 'Everyone sees the same trip.',
+    items: [
+      ['Live vehicle visibility', 'GPS location and ETAs update as the trip happens — no phone calls.'],
+      ['Passenger communication', 'Status and arrival information reach the people waiting.'],
+    ],
+  },
+  {
+    name: 'CONNECTIVITY',
+    title: 'Connected to the operations around it.',
+    items: [
+      ['Hotel connectivity', 'Properties coordinate shuttle demand directly with transportation providers.'],
+      ['Multi-property / vendor operation', 'One provider serving several properties, cleanly separated.'],
+      ['Performance history', 'Every trip recorded and searchable after completion.'],
+    ],
+  },
 ] as const;
 
 const AUDIENCES = [
@@ -155,15 +180,28 @@ export default function TransportationPage() {
         </div>
       </section>
 
-      {/* ── CORE PRODUCT ── */}
+      {/* ── PRODUCT LAYERS ── */}
       <section className="py-20 md:py-28 px-5" style={{ backgroundColor: CORP_MIST }}>
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-[32px] md:text-[44px] font-black tracking-tight text-gray-900 leading-[1.08] mb-14">What the operation gets.</h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {CAPABILITIES.map(([t, c]) => (
-              <div key={t} className="rounded-2xl bg-white border p-6" style={{ borderColor: CORP_BORDER }}>
-                <div className="text-[15px] font-black text-gray-900">{t}</div>
-                <p className="text-[14px] text-gray-600 mt-1.5 leading-relaxed">{c}</p>
+          <h2 className="text-[32px] md:text-[44px] font-black tracking-tight text-gray-900 leading-[1.08] mb-3">Four layers. One operation.</h2>
+          <p className="text-[17px] text-gray-600 max-w-2xl mb-12 leading-relaxed">
+            The vehicle model first — then the movement, the visibility, and the connections around it. Each layer stands alone; together they run the operation.
+          </p>
+          <div className="space-y-6">
+            {LAYERS.map((layer, li) => (
+              <div key={layer.name} className="rounded-3xl bg-white border overflow-hidden" style={{ borderColor: CORP_BORDER }}>
+                <div className="flex items-baseline gap-4 px-7 pt-6 pb-4 border-b" style={{ borderColor: CORP_BORDER }}>
+                  <div className="text-[11px] font-black tracking-[0.24em]" style={{ color: CORP_TEAL }}>LAYER {li + 1} · {layer.name}</div>
+                  <div className="text-[15px] font-bold text-gray-800 hidden sm:block">{layer.title}</div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4 p-7">
+                  {layer.items.map(([t, c]) => (
+                    <div key={t} className="rounded-2xl p-5" style={{ backgroundColor: CORP_MIST }}>
+                      <div className="text-[14.5px] font-black text-gray-900">{t}</div>
+                      <p className="text-[13.5px] text-gray-600 mt-1.5 leading-relaxed">{c}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
