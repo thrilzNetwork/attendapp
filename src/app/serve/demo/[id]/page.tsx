@@ -19,9 +19,18 @@ export default function DemoLandingPage() {
   const [data, setData] = useState<TenantData | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [missing, setMissing] = useState(false);
+  const [showPin, setShowPin] = useState('');
 
   useEffect(() => {
     const id = window.location.pathname.split('/')[3] || '';
+    try {
+      const usp = new URLSearchParams(window.location.search);
+      const qpin = usp.get('pin');
+      if (qpin) {
+        setShowPin(qpin);
+        window.history.replaceState({}, '', `/serve/demo/${id}`);
+      }
+    } catch {}
     fetch(`/api/serve/${id}`)
       .then(async (r) => {
         if (r.status === 404) { setMissing(true); return; }
@@ -52,6 +61,15 @@ export default function DemoLandingPage() {
 
   return (
     <div className="min-h-screen font-sans antialiased" style={{ backgroundColor: T.CREAM, color: T.INK, ['--sv-ink' as string]: T.INK }}>
+      {showPin && (
+        <div className="border-b-2 px-4 py-3 text-center" style={{ borderColor: T.INK, backgroundColor: '#FFD54A' }}>
+          <p className="text-[13px] font-black" style={{ fontFamily: 'Archivo, sans-serif' }}>
+            Tu canal está listo · PIN de tu panel: <span className="font-mono text-[15px] underline">{showPin}</span>
+          </p>
+          <p className="mt-0.5 text-[11px] font-bold" style={{ color: '#5a6168' }}>Guárdalo — con esto entras a tu panel y gestionas pedidos.</p>
+        </div>
+      )}
+
       <header className="sticky top-0 z-40 border-b-2" style={{ borderColor: T.INK, backgroundColor: T.CREAM }}>
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">

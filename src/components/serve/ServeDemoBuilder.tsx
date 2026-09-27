@@ -99,7 +99,7 @@ export default function ServeDemoBuilder() {
           },
         }),
       }).catch(() => {});
-      router.push(`/serve/demo/${t.id}`);
+      router.push(`/serve/demo/${t.id}?pin=${t.adminPin}`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Error creando la demo');
       setCreating(false);
