@@ -1,155 +1,165 @@
-/* GET  /api/serve/[id] — public read: tenant, menu, open state.
-   POST /api/serve/[id]/order — create order (FV machine: RECIBIDO, TP-XXXX).
-   PATCH /api/serve/[id]/order — admin: advance status / payment / cancel.
-   PATCH /api/serve/[id]/menu — admin: edit products.
-   PATCH /api/serve/[id]/settings — admin: hours, pauses, after-hours. */
+/* Attenda Serve API — GET public bundle, POST order, PATCH admin.
+   FV contracts: server-authoritative pricing, FV machine, PIN admin. */
 
-import { NextRequest } from 'next/server';
-import {
-  getTenant, getMenu, listOrders, saveOrders, nextOrderNumber,
-  getSettings, saveSettings, saveMenu,
-} from '@/lib/serve/store';
-import { isServeOpen, canCancel, nextServeStatus, type ServeOrder } from '@/lib/serve/types';
-import { json, requireTenantAdmin } from '@/lib/serve/api-auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { getTenant, readMenu, writeMenu, readSettings, writeSettings, listOrders, writeOrders, isOpenNow, canAdvance } from '@/lib/serve/store';
+import { createOrderForTenant } from '@/lib/serve/orders';
+import { ServeSettings, SERVE_STATUSES } from '@/lib/serve/types';
 
-/* ── GET: public bundle for tenant pages ─────────────────────── */
-export async function GET(_req: NextRequest, ctx: { params: { id: string } }) {
+type ServeOrderAddress = { street: string; apartment?: string; reference?: string };
+
+export const dynamic = 'force-dynamic';
+
+function j(data: unknown, status = 200) {
+  return NextResponse.json(data, { status });
+}
+
+function unauthorized() {
+  return j({ ok: false, error: 'PIN inválido' }, 401);
+}
+
+async function authed(req: NextRequest, id: string): Promise<{ ok: boolean; pin?: string }> {
+  const tenant = await getTenant(id);
+  if (!tenant) return { ok: false };
+  const pin = req.headers.get('x-tenant-pin') || '';
+  return { ok: pin === tenant.adminPin, pin };
+}
+
+/* ── GET: public bundle ─────────────────────── */
+export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
   const { id } = ctx.params;
   const tenant = await getTenant(id);
-  if (!tenant) return json({ ok: false, error: 'Tenant no encontrado' }, 404);
-  const [menu, settings] = await Promise.all([getMenu(id), getSettings(id)]);
-  return json({
+  if (!tenant) return j({ ok: false, error: 'Tenant no encontrado' }, 404);
+  const [menu, settings, orders] = await Promise.all([readMenu(id), readSettings(id), listOrders(id)]);
+  return j({
     ok: true,
     tenant: {
       id: tenant.id, name: tenant.name, type: tenant.type, city: tenant.city,
-      phone: tenant.phone, logo: tenant.logo, tagline: tenant.tagline, status: tenant.status,
+      phone: tenant.phone, email: tenant.email, logo: tenant.logo,
+      tagline: tenant.tagline, status: tenant.status,
     },
-    menu: menu.filter((p) => p.available),
-    open: isServeOpen(settings),
+    menu,
+    settings: {
+      hoursEnabled: settings.hoursEnabled,
+      hoursOpen: settings.hoursOpen,
+      hoursClose: settings.hoursClose,
+      allowAfterHours: settings.allowAfterHours,
+      ordersPaused: settings.ordersPaused,
+      etaMin: settings.etaMin,
+      etaMax: settings.etaMax,
+      orderMin: settings.orderMin,
+      zones: settings.zones,
+      promoCode: settings.promoCode,
+      promoDiscount: settings.promoDiscount,
+      yapeNumber: settings.yapeNumber,
+      yapeHolder: settings.yapeHolder,
+    },
+    open: isOpenNow(settings),
+    serverTime: Date.now(),
   });
 }
 
-/* ── POST: create an order (customer) ────────────────────────── */
+/* ── POST: create order (FV engine) ─────────── */
 export async function POST(req: NextRequest, ctx: { params: { id: string } }) {
   const { id } = ctx.params;
   const tenant = await getTenant(id);
-  if (!tenant) return json({ ok: false, error: 'Tenant no encontrado' }, 404);
-
-  const settings = await getSettings(id);
-  if (!isServeOpen(settings)) {
-    return json({ ok: false, error: 'Cerrado ahora' }, 503);
-  }
-
-  let body: { items?: { slug?: string; name?: string; qty?: number; price?: number }[]; payment?: string; customerName?: string; customerPhone?: string; note?: string };
+  if (!tenant) return j({ ok: false, error: 'Tenant no encontrado' }, 404);
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return json({ ok: false, error: 'Body inválido' }, 400);
+    return j({ ok: false, error: 'JSON inválido' }, 400);
   }
-
-  const items = (Array.isArray(body.items) ? body.items : [])
-    .filter((i) => i && (typeof i.slug === 'string' || typeof i.name === 'string'))
-    .slice(0, 30)
-    .map((i) => ({
-      slug: String(i.slug || ''),
-      name: String(i.name || '').slice(0, 80),
-      qty: Math.max(1, Math.min(50, Number(i.qty) || 1)),
-      price: Math.max(0, Number(i.price) || 0),
-    }));
-  if (!items.length) return json({ ok: false, error: 'Carrito vacío' }, 400);
-
-  // price server-side from the menu — never trust client totals
-  const menu = await getMenu(id);
-  for (const it of items) {
-    const p = menu.find((x) => x.slug === it.slug && x.available);
-    if (!p) return json({ ok: false, error: `Producto no disponible: ${it.slug}` }, 400);
-    it.price = p.price;
-    if (!it.name) it.name = p.name;
-  }
-  const total = items.reduce((a, i) => a + i.price * i.qty, 0);
-
-  const order: ServeOrder = {
-    id: 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-    number: await nextOrderNumber(id),
-    items,
-    total,
-    status: 'RECIBIDO',
-    payment: body.payment === 'EFECTIVO' ? 'EFECTIVO' : 'YAPE',
-    paymentStatus: body.payment === 'EFECTIVO' ? 'PAGADO' : 'PENDIENTE',
-    customerName: String(body.customerName || '').slice(0, 60),
-    customerPhone: String(body.customerPhone || '').replace(/[^0-9]/g, '').slice(0, 16),
-    note: typeof body.note === 'string' ? body.note.slice(0, 200) : undefined,
-    ts: Date.now(),
-  };
-
-  const all = await listOrders(id);
-  all.unshift(order);
-  await saveOrders(id, all.slice(0, 300));
-
-  // WhatsApp deep link with the FV-formatted message
-  const waNumber = tenant.phone || '';
-  const lines = order.items.map((i) => `• ${i.qty}x ${i.name} — S/ ${(i.price * i.qty).toFixed(2)}`).join('\n');
-  const waText = `*${tenant.name.toUpperCase()}* — NUEVO PEDIDO ${order.number}\n━━━━━━━━━━━━━\n${lines}\n━━━━━━━━━━━━━\n*TOTAL: S/ ${total.toFixed(2)}*${order.note ? `\nNota: ${order.note}` : ''}\nPago: ${order.payment}`;
-  const waLink = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(waText)}` : null;
-
-  return json({ ok: true, order: { number: order.number, total: order.total, status: order.status }, waLink }, 201);
+  const result = await createOrderForTenant(tenant, {
+    items: (body.items as { slug: string; qty: number }[]) || [],
+    zoneId: (body.zoneId as string) ?? null,
+    payment: body.payment === 'CASH' ? 'CASH' : 'YAPE_PLIN',
+    customer: (body.customer as { firstName: string; phone: string }) || { firstName: 'Cliente', phone: '' },
+    address: (body.address as ServeOrderAddress) || null,
+    notes: typeof body.notes === 'string' ? body.notes : undefined,
+    scheduledFor: typeof body.scheduledFor === 'string' ? body.scheduledFor : undefined,
+    promoCode: typeof body.promoCode === 'string' ? body.promoCode : undefined,
+  });
+  if (!result.ok) return j({ ok: false, error: result.error }, result.code);
+  return j({ ok: true, order: result.order, waLink: result.waLink }, 201);
 }
 
-/* ── PATCH: admin actions (PIN-gated) ────────────────────────── */
+/* ── PATCH: admin actions (PIN-gated) ───────── */
 export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
   const { id } = ctx.params;
-  const auth = await requireTenantAdmin(req, id);
-  if (!auth.ok) return auth.res;
+  const auth = await authed(req, id);
+  if (!auth.ok) return unauthorized();
 
-  let body: { number?: string; action?: string; status?: string; paymentStatus?: string; products?: { slug: string; name?: string; price?: number; available?: boolean }[]; settings?: Record<string, unknown> };
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return json({ ok: false, error: 'Body inválido' }, 400);
+    return j({ ok: false, error: 'JSON inválido' }, 400);
   }
 
-  /* menu edits */
-  if (Array.isArray(body.products)) {
-    const menu = await getMenu(id);
-    for (const patch of body.products.slice(0, 50)) {
-      const p = menu.find((x) => x.slug === patch.slug);
-      if (!p) continue;
-      if (typeof patch.name === 'string' && patch.name.trim()) p.name = patch.name.trim().slice(0, 60);
-      if (typeof patch.price === 'number' && patch.price >= 0) p.price = Math.round(patch.price * 100) / 100;
-      if (patch.available !== undefined) p.available = !!patch.available;
-    }
-    await saveMenu(id, menu);
-    return json({ ok: true, menu });
-  }
-
-  /* settings edits */
-  if (body.settings) {
-    const next = await saveSettings(id, body.settings as Record<string, never>);
-    return json({ ok: true, settings: next, open: isServeOpen(next) });
-  }
-
-  /* order actions */
-  if (body.number && body.action) {
-    const all = await listOrders(id);
-    const order = all.find((o) => o.number === body.number);
-    if (!order) return json({ ok: false, error: 'Pedido no encontrado' }, 404);
-
-    if (body.action === 'advance') {
-      if (order.status === 'ENTREGADO' || order.status === 'CANCELADO') {
-        return json({ ok: false, error: `Transición inválida: ${order.status}` }, 400);
+  // order actions
+  if (typeof body.number === 'string') {
+    const orders = await listOrders(id);
+    const order = orders.find((o) => o.number === body.number);
+    if (!order) return j({ ok: false, error: 'Pedido no encontrado' }, 404);
+    const action = String(body.action || '');
+    if (action === 'advance') {
+      const next = canAdvance(order.status as (typeof SERVE_STATUSES)[number]);
+      if (!next) return j({ ok: false, error: 'Estado terminal' }, 400);
+      order.status = next;
+      if (next === 'RECEIVED' && order.payment === 'YAPE_PLIN' && order.paymentStatus === 'PENDING_PAYMENT') {
+        order.paymentStatus = 'CLAIMED';
       }
-      order.status = nextServeStatus(order.status);
-    } else if (body.action === 'cancel') {
-      if (!canCancel(order.status)) return json({ ok: false, error: `No se puede cancelar: ${order.status}` }, 400);
-      order.status = 'CANCELADO';
-    } else if (body.action === 'payment') {
-      order.paymentStatus = body.paymentStatus === 'PAGADO' ? 'PAGADO' : 'PENDIENTE';
+    } else if (action === 'cancel') {
+      const i = (SERVE_STATUSES as readonly string[]).indexOf(order.status);
+      if (i < 0 || order.status === 'DELIVERED') return j({ ok: false, error: 'No se puede cancelar' }, 400);
+      order.status = 'CANCELLED';
+    } else if (action === 'payment') {
+      const ps = String(body.paymentStatus || '');
+      if (ps === 'CLAIMED' || ps === 'PAID' || ps === 'PENDING_PAYMENT') order.paymentStatus = ps;
+      else return j({ ok: false, error: 'paymentStatus inválido' }, 400);
     } else {
-      return json({ ok: false, error: 'Acción inválida' }, 400);
+      return j({ ok: false, error: 'Acción desconocida' }, 400);
     }
-    await saveOrders(id, all);
-    return json({ ok: true, order: { number: order.number, status: order.status, paymentStatus: order.paymentStatus } });
+    await writeOrders(id, orders);
+    return j({ ok: true, order });
   }
 
-  return json({ ok: false, error: 'Acción no especificada' }, 400);
+  // menu edits
+  if (Array.isArray(body.products)) {
+    const menu = await readMenu(id);
+    for (const patch of body.products as { slug: string; name?: string; price?: number; active?: boolean; sortOrder?: number }[]) {
+      const p = menu.find((m) => m.slug === patch.slug);
+      if (!p) continue;
+      if (typeof patch.name === 'string' && patch.name.trim()) p.name = patch.name.trim();
+      if (typeof patch.price === 'number' && patch.price >= 0) p.price = Math.round(patch.price);
+      if (typeof patch.active === 'boolean') p.active = patch.active;
+      if (typeof patch.sortOrder === 'number') p.sortOrder = patch.sortOrder;
+    }
+    await writeMenu(id, menu);
+    return j({ ok: true, menu });
+  }
+
+  // settings
+  if (body.settings && typeof body.settings === 'object') {
+    const current = await readSettings(id);
+    const s = body.settings as Partial<ServeSettings>;
+    if (typeof s.hoursEnabled === 'boolean') current.hoursEnabled = s.hoursEnabled;
+    if (typeof s.hoursOpen === 'string' && /^([01]?\d|2[0-3]):[0-5]\d$/.test(s.hoursOpen)) current.hoursOpen = s.hoursOpen;
+    if (typeof s.hoursClose === 'string' && /^([01]?\d|2[0-3]):[0-5]\d$/.test(s.hoursClose)) current.hoursClose = s.hoursClose;
+    if (typeof s.allowAfterHours === 'boolean') current.allowAfterHours = s.allowAfterHours;
+    if (typeof s.ordersPaused === 'boolean') current.ordersPaused = s.ordersPaused;
+    if (typeof s.etaMin === 'number') current.etaMin = Math.max(0, Math.min(180, s.etaMin));
+    if (typeof s.etaMax === 'number') current.etaMax = Math.max(0, Math.min(180, s.etaMax));
+    if (typeof s.orderMin === 'number' && s.orderMin >= 0) current.orderMin = Math.round(s.orderMin);
+    if (Array.isArray(s.zones)) current.zones = s.zones.slice(0, 6);
+    if (typeof s.yapeNumber === 'string') current.yapeNumber = s.yapeNumber.replace(/[^0-9]/g, '').slice(0, 15);
+    if (typeof s.yapeHolder === 'string') current.yapeHolder = s.yapeHolder.slice(0, 40);
+    if (typeof s.promoCode === 'string') current.promoCode = s.promoCode.trim().toUpperCase().slice(0, 24);
+    if (typeof s.promoDiscount === 'number' && s.promoDiscount >= 0) current.promoDiscount = Math.round(s.promoDiscount);
+    await writeSettings(id, current);
+    return j({ ok: true, settings: current, open: isOpenNow(current) });
+  }
+
+  return j({ ok: false, error: 'Nada que actualizar' }, 400);
 }

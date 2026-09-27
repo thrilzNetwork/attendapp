@@ -1,175 +1,153 @@
 'use client';
 
-/* Attenda Serve — tenant LANDING (/serve/demo/<id>).
-   Reads tenant + menu from the SERVER API. Same architecture as FV:
-   data lives server-side, every device sees the same store. */
+/* Attenda Serve — tenant LANDING (/serve/demo/<id>) — FV-skinned.
+   Brand hero (logo, tagline, CTAs into the app), delivery bar, menu
+   preview, cómo funciona, footer with Attenda Serve demo bar. */
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { ArrowRight, ShoppingBag, Check } from 'lucide-react';
-import { DemoSwitcher, demoTokens as T, demoShadow } from '@/components/serve/serve-demo-chrome';
+import { usePathname } from 'next/navigation';
+import { useMemo, useState } from 'react';
+import { useTenant } from '@/components/serve/use-tenant';
+import { ServeHeader, CategoryChips } from '@/components/serve/fv-site-chrome';
+import { ProductCard } from '@/components/serve/fv-product-card';
+import { FV, fmtHours, formatPEN } from '@/lib/serve/fv-tokens';
 
-type TenantData = {
-  tenant: { id: string; name: string; type: string; city: string; phone: string; logo: string | null; tagline: string; status: string };
-  menu: { slug: string; name: string; price: number; short?: string }[];
-  open: boolean;
-};
+export default function TenantLanding() {
+  const pathname = usePathname();
+  const id = (pathname.match(/\/serve\/demo\/([^/]+)/) || [])[1] || '';
+  const { data, loading } = useTenant(id);
+  const [cat, setCat] = useState<string>('todos');
 
-export default function DemoLandingPage() {
-  const [data, setData] = useState<TenantData | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [missing, setMissing] = useState(false);
-  const [showPin, setShowPin] = useState('');
+  const menu = data?.menu.filter((p) => p.active) ?? [];
+  const preview = useMemo(() => (cat === 'todos' ? menu.slice(0, 4) : menu.filter((p) => p.category === cat).slice(0, 4)), [menu, cat]);
+  const cats = useMemo(() => {
+    const ids = Array.from(new Set(menu.map((p) => p.category)));
+    return [{ id: 'todos', name: 'Todo' }, ...ids.map((c) => ({ id: c, name: CAT_NAMES[c] || c }))];
+  }, [menu]);
 
-  useEffect(() => {
-    const id = window.location.pathname.split('/')[3] || '';
-    try {
-      const usp = new URLSearchParams(window.location.search);
-      const qpin = usp.get('pin');
-      if (qpin) {
-        setShowPin(qpin);
-        window.history.replaceState({}, '', `/serve/demo/${id}`);
-      }
-    } catch {}
-    fetch(`/api/serve/${id}`)
-      .then(async (r) => {
-        if (r.status === 404) { setMissing(true); return; }
-        const j = await r.json();
-        if (j?.ok) setData(j);
-        else setMissing(true);
-      })
-      .catch(() => setMissing(true))
-      .finally(() => setLoaded(true));
-  }, []);
-
-  if (!loaded) return <div className="min-h-screen" style={{ backgroundColor: T.CREAM }} />;
-
-  if (missing || !data) {
+  if (loading || !data) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center" style={{ backgroundColor: T.CREAM, color: T.INK }}>
-        <h1 className="text-[24px] font-black" style={{ fontFamily: 'Archivo, sans-serif' }}>Demo no encontrada</h1>
-        <p className="mt-2 text-[14px] font-medium" style={{ color: '#5a6168' }}>Esta demo expiró o no existe.</p>
-        <Link href="/serve/demo" className="mt-6 rounded-xl border-2 px-6 py-3.5 text-[15px] font-black"
-          style={{ backgroundColor: T.TEAL, borderColor: T.INK, boxShadow: demoShadow }}>Crear una nueva demo</Link>
+      <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: FV.black }}>
+        <div className="text-sm" style={{ fontFamily: 'Fredoka, sans-serif', color: FV.cream50 }}>Cargando…</div>
       </div>
     );
   }
 
-  const { tenant, menu, open } = data;
-  const initials = tenant.name.slice(0, 2).toUpperCase();
-  const shown = menu.slice(0, 6);
+  const t = data.tenant;
+  const s = data.settings;
 
   return (
-    <div className="min-h-screen font-sans antialiased" style={{ backgroundColor: T.CREAM, color: T.INK, ['--sv-ink' as string]: T.INK }}>
-      {showPin && (
-        <div className="border-b-2 px-4 py-3 text-center" style={{ borderColor: T.INK, backgroundColor: '#FFD54A' }}>
-          <p className="text-[13px] font-black" style={{ fontFamily: 'Archivo, sans-serif' }}>
-            Tu canal está listo · PIN de tu panel: <span className="font-mono text-[15px] underline">{showPin}</span>
-          </p>
-          <p className="mt-0.5 text-[11px] font-bold" style={{ color: '#5a6168' }}>Guárdalo — con esto entras a tu panel y gestionas pedidos.</p>
-        </div>
-      )}
+    <div className="min-h-screen" style={{ backgroundColor: FV.black, fontFamily: 'Fredoka, sans-serif' }}>
+      <ServeHeader tenantName={t.name} logo={t.logo} tagline={t.tagline} />
 
-      <header className="sticky top-0 z-40 border-b-2" style={{ borderColor: T.INK, backgroundColor: T.CREAM }}>
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            {tenant.logo
-              ? // eslint-disable-next-line @next/next/no-img-element
-                <img src={tenant.logo} alt="" className="h-8 w-8 rounded-lg border-2 object-contain" style={{ borderColor: T.INK, backgroundColor: '#fff' }} />
-              : <span className="flex h-8 w-8 items-center justify-center rounded-lg border-2 text-[12px] font-black" style={{ borderColor: T.INK, backgroundColor: T.TEAL }}>{initials}</span>}
-            <span className="text-[16px] font-black" style={{ fontFamily: 'Archivo, sans-serif' }}>{tenant.name}</span>
+      {/* hero */}
+      <div className="mx-auto max-w-xl px-4 pt-8">
+        <div className="overflow-hidden rounded-3xl border border-[#232323]" style={{ backgroundColor: FV.panel }}>
+          <div className="relative px-6 py-10 text-center" style={{ backgroundColor: 'linear-gradient(180deg, rgba(243,106,18,0.14), rgba(19,19,19,0))' }}>
+            {t.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={t.logo} alt={t.name} className="mx-auto h-20 w-auto max-w-[220px] object-contain" />
+            ) : (
+              <div className="text-4xl font-bold tracking-tight" style={{ color: FV.cream }}>
+                {t.name.split(' ')[0]} <span style={{ color: FV.orange }}>{t.name.split(' ').slice(1).join(' ')}</span>
+              </div>
+            )}
+            <div className="mx-auto mt-3 max-w-sm text-sm leading-relaxed" style={{ color: FV.cream60 }}>
+              {t.type}{t.city ? ` en ${t.city}` : ''} — pedidos online con delivery a domicilio y retiro en tienda.
+            </div>
+            <div className="mt-5 flex flex-col items-center gap-2">
+              <a href={`/serve/demo/${id}/app`} className="w-full max-w-xs rounded-2xl px-5 py-3.5 text-sm font-black" style={{ backgroundColor: FV.orange, color: FV.black }}>
+                VER MENÚ Y PEDIR
+              </a>
+              <a href={`/serve/demo/${id}/admin`} className="text-xs font-bold" style={{ color: FV.cream50 }}>
+                Soy el dueño — entrar al panel
+              </a>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wider" style={{ border: `2px solid ${T.INK}`, backgroundColor: open ? T.TEAL : T.CREAM, fontFamily: 'IBM Plex Mono, monospace' }}>
-              {open ? 'Abierto' : 'Cerrado'}
+
+          {/* delivery bar */}
+          <div className="flex items-center justify-between border-t border-[#232323] px-5 py-3 text-xs" style={{ color: FV.cream60 }}>
+            <span className="font-bold" style={{ color: data.open ? FV.green : FV.orange }}>
+              {data.open ? 'Abierto ahora' : 'Cerrado'}
             </span>
-            <Link href={`/serve/demo/${tenant.id}/app`}
-              className="rounded-xl border-2 px-4 py-2 text-[13px] font-black"
-              style={{ backgroundColor: T.TEAL, borderColor: T.INK, boxShadow: '2px 2px 0 var(--sv-ink, #15202B)' }}>
-              Pedir ahora
-            </Link>
+            <span>
+              {data.open ? `Entrega ${s.etaMin}-${s.etaMax} min · ${formatPEN(s.zones[0]?.fee ?? 0)}` : `${fmtHours(s.hoursOpen)}–${fmtHours(s.hoursClose)}`}
+            </span>
           </div>
         </div>
-      </header>
+      </div>
 
-      <section className="border-b-2" style={{ borderColor: T.INK, backgroundColor: T.PAPER }}>
-        <div className="mx-auto max-w-3xl px-4 py-12 text-center md:py-16">
-          {tenant.logo && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={tenant.logo} alt="" className="mx-auto h-20 w-20 rounded-2xl border-2 object-contain p-2" style={{ borderColor: T.INK, backgroundColor: T.CREAM }} />
-          )}
-          <h1 className="mt-5 text-[32px] font-black leading-tight md:text-[48px]" style={{ fontFamily: 'Archivo, sans-serif' }}>
-            {tenant.name}
-          </h1>
-          <p className="mt-3 text-[15px] font-medium" style={{ color: '#5a6168' }}>
-            {tenant.tagline || `${tenant.type}${tenant.city ? ` · ${tenant.city}` : ''} — pedidos online, directo a nuestro WhatsApp.`}
-          </p>
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-            <Link href={`/serve/demo/${tenant.id}/app`}
-              className="inline-flex items-center gap-2 rounded-xl border-2 px-6 py-3.5 text-[15px] font-black active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-              style={{ backgroundColor: T.TEAL, color: T.INK, borderColor: T.INK, boxShadow: `5px 5px 0 ${T.TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
-              <ShoppingBag size={17} /> Ver menú y pedir
-            </Link>
-            <Link href={`/serve/demo/${tenant.id}/admin`}
-              className="rounded-xl border-2 px-6 py-3.5 text-[14px] font-black"
-              style={{ backgroundColor: T.PAPER, borderColor: T.INK }}>
-              Ver panel del negocio
-            </Link>
-          </div>
+      {/* menu preview */}
+      <div className="mx-auto max-w-xl px-4 pt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold" style={{ color: FV.cream }}>Nuestro menú</h2>
+          <a href={`/serve/demo/${id}/app`} className="text-xs font-bold" style={{ color: FV.orange }}>Ver todo →</a>
         </div>
-      </section>
+        <div className="mt-3">
+          <CategoryChips categories={cats} active={cat} onSelect={setCat} />
+        </div>
+        <div className="mt-4">
+          <ProductCardGrid id={id} products={preview} />
+        </div>
+      </div>
 
-      <section className="mx-auto max-w-3xl px-4 py-12">
-        <h2 className="text-[22px] font-black" style={{ fontFamily: 'Archivo, sans-serif' }}>Lo más pedido</h2>
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {shown.map((p) => (
-            <div key={p.slug} className="rounded-2xl border-2 p-5" style={{ backgroundColor: T.PAPER, borderColor: T.INK, boxShadow: demoShadow }}>
-              <div className="text-[15px] font-extrabold" style={{ fontFamily: 'Archivo, sans-serif' }}>{p.name}</div>
-              <div className="mt-2 flex items-center justify-between">
-                <span className="text-[17px] font-black" style={{ color: T.TEAL_INK }}>S/ {p.price.toFixed(2)}</span>
-                <Link href={`/serve/demo/${tenant.id}/app`} className="inline-flex items-center gap-1.5 text-[12px] font-black uppercase tracking-wide" style={{ color: T.TEAL_INK }}>
-                  Pedir <ArrowRight size={13} />
-                </Link>
+      {/* cómo funciona */}
+      <div className="mx-auto max-w-xl px-4 pt-10">
+        <h2 className="text-xl font-semibold" style={{ color: FV.cream }}>Cómo funciona</h2>
+        <div className="mt-3 space-y-2">
+          {[
+            ['1', 'Elige tus productos', 'Toca cualquier producto, ajusta la cantidad y agrégalo a tu pedido.'],
+            ['2', 'Elige entrega o retiro', 'Delivery a domicilio con tarifa por zona, o retiro en tienda.'],
+            ['3', 'Paga con Yape o efectivo', 'Yapea el total y confirma — tu pedido llega directo a nuestro WhatsApp.'],
+            ['4', 'Sigue tu pedido', 'Recibido → aceptado → en cocina → en camino → entregado.'],
+          ].map(([n, title, body]) => (
+            <div key={n} className="flex gap-3 rounded-2xl border border-[#232323] bg-[#131313] p-4">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-black" style={{ backgroundColor: FV.orange, color: FV.black }}>{n}</div>
+              <div>
+                <div className="text-sm font-bold" style={{ color: FV.cream }}>{title}</div>
+                <div className="text-xs leading-relaxed" style={{ color: FV.cream60 }}>{body}</div>
               </div>
             </div>
           ))}
         </div>
-      </section>
+      </div>
 
-      <section className="border-y-2" style={{ borderColor: T.INK, backgroundColor: T.NAVY }}>
-        <div className="mx-auto max-w-3xl px-4 py-12 text-white">
-          <h2 className="text-center text-[22px] font-black md:text-[28px]" style={{ fontFamily: 'Archivo, sans-serif' }}>Cómo funciona</h2>
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[
-              { n: '1', t: 'Eliges del menú', d: 'Arma tu pedido en segundos, sin llamadas.' },
-              { n: '2', t: 'Confirmas por WhatsApp', d: 'Tu pedido llega listo al equipo.' },
-              { n: '3', t: 'Lo recibes', d: 'Retiro en tienda o delivery.' },
-            ].map((s) => (
-              <div key={s.n} className="rounded-2xl border-2 p-5" style={{ backgroundColor: T.CREAM, borderColor: T.INK, color: T.INK, boxShadow: demoShadow }}>
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg border-2 text-[14px] font-black" style={{ backgroundColor: T.TEAL, borderColor: T.INK }}>{s.n}</span>
-                <h3 className="mt-3 text-[14px] font-extrabold" style={{ fontFamily: 'Archivo, sans-serif' }}>{s.t}</h3>
-                <p className="mt-1 text-[12.5px] font-medium" style={{ color: '#5a6168' }}>{s.d}</p>
-              </div>
-            ))}
-          </div>
+      {/* footer + Attenda demo bar */}
+      <div className="mx-auto max-w-xl px-4 pb-24 pt-10 text-center">
+        <div className="text-xs" style={{ color: FV.cream50 }}>
+          © {new Date().getFullYear()} {t.name} · Pedidos online
         </div>
-      </section>
-
-      <footer className="border-t-2 pb-28" style={{ borderColor: T.INK, backgroundColor: T.CREAM }}>
-        <div className="mx-auto max-w-3xl px-4 py-10 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border-2 px-4 py-1.5 text-[11px] font-black uppercase tracking-wider"
-            style={{ borderColor: T.INK, fontFamily: 'IBM Plex Mono, monospace', backgroundColor: T.PAPER }}>
-            <Check size={13} strokeWidth={3} style={{ color: T.TEAL_INK }} /> Demo creada con Attenda Serve · 0% comisión
+        <div className="mt-6 rounded-2xl border px-4 py-3" style={{ borderColor: FV.orange40, backgroundColor: FV.orange10 }}>
+          <div className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: FV.orange }}>Demo Attenda Serve · 24 horas</div>
+          <div className="mt-1 text-xs" style={{ color: FV.cream60 }}>
+            Esta tienda funciona igual que la versión oficial: panel de pedidos, menú editable, pagos Yape y WhatsApp.
           </div>
-          <Link href="/serve/demo"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl border-2 px-6 py-3.5 text-[15px] font-black"
-            style={{ backgroundColor: T.INK, color: '#F3F0E6', borderColor: T.INK, boxShadow: `4px 4px 0 ${T.TEAL_INK}`, fontFamily: 'Archivo, sans-serif' }}>
-            Activar mi negocio <ArrowRight size={16} />
-          </Link>
+          <a href="/serve" className="mt-2 inline-block text-xs font-bold" style={{ color: FV.orange }}>Crear mi demo gratis →</a>
         </div>
-      </footer>
-
-      <DemoSwitcher demoId={tenant.id} mode="landing" />
+      </div>
     </div>
   );
 }
+
+function ProductCardGrid({ id, products }: { id: string; products: { slug: string; name: string; short: string; category: string; price: number; image?: string; active: boolean; sortOrder: number }[] }) {
+  if (!products.length) {
+    return (
+      <div className="rounded-3xl border border-[#232323] bg-[#131313] p-8 text-center text-sm" style={{ color: FV.cream50 }}>
+        Sin productos en esta categoría.
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {products.map((p) => (
+        <ProductCard key={p.slug} product={p as never} tenantId={id} categoryLabel={CAT_NAMES[p.category] || 'Menú'} />
+      ))}
+    </div>
+  );
+}
+
+const CAT_NAMES: Record<string, string> = {
+  principales: 'Principales',
+  combos: 'Combos',
+  extras: 'Extras',
+  bebidas: 'Bebidas',
+};

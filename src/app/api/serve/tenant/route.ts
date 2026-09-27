@@ -25,7 +25,6 @@ export async function POST(req: NextRequest) {
       phone: typeof body?.phone === 'string' ? body.phone : '',
       email: typeof body?.email === 'string' ? body.email : '',
       logo: typeof body?.logo === 'string' ? body.logo : null,
-      tagline: typeof body?.tagline === 'string' ? body.tagline : '',
       products,
       status: body?.status === 'official' ? 'official' : 'demo',
     });

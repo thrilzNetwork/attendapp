@@ -1,194 +1,215 @@
-/* Attenda Serve — blob-backed multi-tenant store (FV store.ts port).
-   Netlify Blobs with strong consistency; per-tenant keys:
-   serve/tenants.json            — tenant registry
-   serve/<id>/menu.json          — product overrides (seed from wizard)
-   serve/<id>/orders.json        — order list
-   serve/<id>/settings.json      — hours, pauses, currency
-   In-memory fallback for local dev (same shape as FV store). */
+/* Attenda Serve — blob-backed multi-tenant store.
+   Same engine for demo + official tenants (only status differs).
+   Money = cents everywhere. */
 
+import { getStore } from '@netlify/blobs';
 import {
-  DEFAULT_SERVE_SETTINGS, type ServeOrder, type ServeProduct,
-  type ServeSettings, type ServeTenant,
+  ServeProduct, ServeOrder, ServeSettings, ServeTenant, ServeOrderStatus,
+  SERVE_STATUSES, SERVE_CATEGORIES, slugify, defaultSettings,
 } from './types';
 
-const MEM: { tenants: ServeTenant[]; data: Map<string, Record<string, unknown>> } = {
-  tenants: [],
+const TENANTS_KEY = 'serve/tenants.json';
+const MEM: { tenants: ServeTenant[] | null; data: Map<string, { menu?: ServeProduct[]; orders?: ServeOrder[]; settings?: ServeSettings }> } = {
+  tenants: null,
   data: new Map(),
 };
 
-function blobsAvailable(): boolean {
-  return !!process.env.NETLIFY_BLOBS_CONTEXT;
-}
-
-async function storeGet<T>(key: string, fallback: T): Promise<T> {
-  if (blobsAvailable()) {
+let hasBlobs: boolean | null = null;
+async function blobStore() {
+  if (hasBlobs === null) {
     try {
-      const { getStore } = await import('@netlify/blobs');
-      const store = getStore({ name: 'attenda-serve', consistency: 'strong' });
-      const raw = await store.get(key, { type: 'text' });
-      if (!raw) return fallback;
-      return JSON.parse(raw) as T;
+      getStore({ name: 'attenda_serve', consistency: 'strong' });
+      hasBlobs = true;
     } catch {
-      /* fall through */
+      hasBlobs = false;
     }
   }
-  if (key === 'serve/tenants.json') return (MEM.tenants as unknown) as T;
-  const t = MEM.data.get(key) || {};
-  const slot = key.endsWith('orders.json') ? 'orders' : key.endsWith('menu.json') ? 'menu' : 'settings';
-  const val = (t as Record<string, unknown>)[slot];
-  return (val !== undefined ? val : fallback) as T;
+  return hasBlobs;
 }
 
-async function storeSet(key: string, val: unknown): Promise<void> {
-  if (blobsAvailable()) {
-    try {
-      const { getStore } = await import('@netlify/blobs');
-      const store = getStore({ name: 'attenda-serve', consistency: 'strong' });
-      await store.setJSON(key, val);
-      return;
-    } catch {
-      /* persistence degraded */
-    }
-  }
-  if (key === 'serve/tenants.json') MEM.tenants = val as ServeTenant[];
-  else {
-    const slot = key.endsWith('orders.json') ? 'orders' : key.endsWith('menu.json') ? 'menu' : 'settings';
-    const t = MEM.data.get(key) || {};
-    t[slot as 'orders' | 'menu' | 'settings'] = val;
-    MEM.data.set(key, t);
-  }
+function deepDefaultSettings(s: Partial<ServeSettings> | undefined): ServeSettings {
+  const d = defaultSettings();
+  if (!s) return d;
+  return {
+    ...d,
+    ...s,
+    zones: Array.isArray(s.zones) && s.zones.length ? s.zones : d.zones,
+  };
 }
 
-/* ───────────────────────── tenants ───────────────────────── */
+/* ── tenants ─────────────────────────────────── */
 
 export async function listTenants(): Promise<ServeTenant[]> {
-  return storeGet<ServeTenant[]>('serve/tenants.json', []);
+  if (hasBlobs === false) return MEM.tenants ?? [];
+  try {
+    const store = getStore({ name: 'attenda_serve', consistency: 'strong' });
+    const raw = await store.get(TENANTS_KEY, { type: 'json' });
+    return raw ?? MEM.tenants ?? [];
+  } catch {
+    return MEM.tenants ?? [];
+  }
+}
+
+export async function saveTenants(ts: ServeTenant[]): Promise<void> {
+  MEM.tenants = ts;
+  if (hasBlobs === false) return;
+  try {
+    const store = getStore({ name: 'attenda_serve', consistency: 'strong' });
+    await store.setJSON(TENANTS_KEY, ts);
+  } catch {}
 }
 
 export async function getTenant(id: string): Promise<ServeTenant | null> {
-  const all = await listTenants();
-  return all.find((t) => t.id === id) || null;
+  const ts = await listTenants();
+  return ts.find((t) => t.id === id) ?? null;
 }
 
-export type NewTenantInput = {
+export type CreateTenantInput = {
   name: string;
   type: string;
-  city?: string;
-  phone?: string;
-  email?: string;
-  logo?: string | null;
-  tagline?: string;
-  products?: { name: string; price: number }[];
-  status?: 'demo' | 'official';
+  city: string;
+  phone: string;
+  email: string;
+  logo: string | null;
+  products: { name: string; price: number }[]; // price in soles from wizard
+  status: 'demo' | 'official';
 };
 
-export async function createTenant(input: NewTenantInput): Promise<ServeTenant> {
-  const all = await listTenants();
-  // cap registry growth: keep 50 most recent, purge oldest demo-only tenants
-  if (all.length >= 50) {
-    const official = all.filter((t) => t.status === 'official');
-    const demos = all.filter((t) => t.status !== 'official').sort((a, b) => b.createdAt - a.createdAt);
-    all.length = 0;
-    all.push(...official, ...demos.slice(0, 49 - official.length));
-  }
-  const id = 'tp' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  const adminPin = String(Math.floor(1000 + Math.random() * 9000));
+export async function createTenant(input: CreateTenantInput): Promise<ServeTenant> {
+  const id = Date.now().toString(36);
+  const pin = String(Math.floor(1000 + Math.random() * 9000));
   const tenant: ServeTenant = {
-    id,
-    name: input.name.trim().slice(0, 60),
-    type: input.type || 'Negocio local',
-    city: input.city?.slice(0, 60) || '',
-    phone: (input.phone || '').replace(/[^0-9]/g, ''),
-    email: input.email?.slice(0, 120) || '',
-    logo: input.logo && input.logo.startsWith('data:image') ? input.logo : null,
-    tagline: input.tagline?.slice(0, 140) || '',
-    adminPin,
-    status: input.status || 'demo',
+    id, name: input.name, type: input.type, city: input.city,
+    phone: input.phone.replace(/[^0-9]/g, ''),
+    email: input.email, logo: input.logo, status: input.status,
+    tagline: `${input.type}${input.city ? ' · ' + input.city : ''} — pedidos online directo a nuestro WhatsApp`,
+    adminPin: pin,
     createdAt: Date.now(),
   };
-  all.push(tenant);
-  await storeSet('serve/tenants.json', all);
+  const ts = await listTenants();
+  ts.push(tenant);
+  await saveTenants(ts);
 
-  // seed menu from the wizard's products
-  const products: ServeProduct[] = (input.products || []).filter((p) => p && p.name?.trim()).slice(0, 24).map((p, i) => ({
-    slug: p.name.toLowerCase().trim().replace(/[^a-z0-9áéíóúñü]+/g, '-').replace(/^-+|-+$/g, '') || `producto-${i + 1}`,
-    name: p.name.trim().slice(0, 60),
-    category: 'menú',
-    price: Math.max(0, Math.round((p.price || 0) * 100) / 100),
-    available: true,
+  // seed menu server-side from wizard products (wizard sends soles → cents)
+  const base = input.products.length ? input.products : [{ name: 'Producto 1', price: 15 }];
+  const spread = (n: number) => {
+    const cats = ['principales', 'principales', 'extras', 'bebidas'];
+    return SERVE_CATEGORIES[Math.min(n, 3)]?.id || 'principales';
+  };
+  const menu: ServeProduct[] = base.slice(0, 12).map((p, i) => ({
+    slug: slugify(p.name) + (i > 0 && base.slice(0, i).some((x) => slugify(x.name) === slugify(p.name)) ? '-' + i : ''),
+    name: p.name,
+    short: `Del menú de ${input.name}`,
+    category: i < base.length - 2 ? 'principales' : i === base.length - 2 ? 'extras' : 'bebidas',
+    price: Math.round(p.price * 100),
+    active: true,
     sortOrder: i,
   }));
-  await storeSet(`serve/${id}/menu.json`, products);
-  await storeSet(`serve/${id}/settings.json`, { ...DEFAULT_SERVE_SETTINGS });
-  await storeSet(`serve/${id}/orders.json`, []);
+  await writeMenu(id, menu);
+  await writeSettings(id, deepDefaultSettings(undefined));
   return tenant;
 }
 
-export async function updateTenant(id: string, patch: Partial<ServeTenant>): Promise<ServeTenant | null> {
-  const all = await listTenants();
-  const i = all.findIndex((t) => t.id === id);
-  if (i < 0) return null;
-  const clean: Partial<ServeTenant> = {};
-  if (patch.name !== undefined) clean.name = String(patch.name).slice(0, 60);
-  if (patch.type !== undefined) clean.type = String(patch.type).slice(0, 40);
-  if (patch.city !== undefined) clean.city = String(patch.city).slice(0, 60);
-  if (patch.phone !== undefined) clean.phone = String(patch.phone).replace(/[^0-9]/g, '').slice(0, 16);
-  if (patch.email !== undefined) clean.email = String(patch.email).slice(0, 120);
-  if (patch.logo !== undefined) clean.logo = patch.logo && String(patch.logo).startsWith('data:image') ? patch.logo : null;
-  if (patch.tagline !== undefined) clean.tagline = String(patch.tagline).slice(0, 140);
-  if (patch.adminPin !== undefined) clean.adminPin = String(patch.adminPin).replace(/[^0-9]/g, '').slice(0, 8) || all[i].adminPin;
-  if (patch.status !== undefined && (patch.status === 'demo' || patch.status === 'official')) clean.status = patch.status;
-  const merged = { ...all[i], ...clean };
-  all[i] = merged;
-  await storeSet('serve/tenants.json', all);
-  return merged;
+/* ── menu ────────────────────────────────────── */
+
+export async function readMenu(id: string): Promise<ServeProduct[]> {
+  if (hasBlobs === false) return MEM.data.get(id)?.menu ?? [];
+  try {
+    const store = getStore({ name: 'attenda_serve', consistency: 'strong' });
+    const raw = await store.get(`serve/${id}/menu.json`, { type: 'json' });
+    return raw ?? MEM.data.get(id)?.menu ?? [];
+  } catch {
+    return MEM.data.get(id)?.menu ?? [];
+  }
 }
 
-/* ───────────────────────── menu ───────────────────────── */
-
-export async function getMenu(id: string): Promise<ServeProduct[]> {
-  return storeGet<ServeProduct[]>(`serve/${id}/menu.json`, []);
+export async function writeMenu(id: string, menu: ServeProduct[]): Promise<void> {
+  MEM.data.set(id, { ...(MEM.data.get(id) || {}), menu });
+  if (hasBlobs === false) return;
+  try {
+    const store = getStore({ name: 'attenda_serve', consistency: 'strong' });
+    await store.setJSON(`serve/${id}/menu.json`, menu);
+  } catch {}
 }
 
-export async function saveMenu(id: string, products: ServeProduct[]): Promise<void> {
-  await storeSet(`serve/${id}/menu.json`, products);
+/* ── settings ────────────────────────────────── */
+
+export async function readSettings(id: string): Promise<ServeSettings> {
+  if (hasBlobs === false) {
+    return deepDefaultSettings(MEM.data.get(id)?.settings);
+  }
+  try {
+    const store = getStore({ name: 'attenda_serve', consistency: 'strong' });
+    const raw = await store.get(`serve/${id}/settings.json`, { type: 'json' });
+    return deepDefaultSettings(raw ?? MEM.data.get(id)?.settings);
+  } catch {
+    return deepDefaultSettings(MEM.data.get(id)?.settings);
+  }
 }
 
-/* ───────────────────────── orders ───────────────────────── */
+export async function writeSettings(id: string, s: ServeSettings): Promise<void> {
+  MEM.data.set(id, { ...(MEM.data.get(id) || {}), settings: s });
+  if (hasBlobs === false) {
+    MEM.data.set(id, { ...(MEM.data.get(id) || {}), settings: s });
+    return;
+  }
+  try {
+    const store = getStore({ name: 'attenda_serve', consistency: 'strong' });
+    await store.setJSON(`serve/${id}/settings.json`, s);
+  } catch {}
+}
+
+/* ── orders ──────────────────────────────────── */
 
 export async function listOrders(id: string): Promise<ServeOrder[]> {
-  return storeGet<ServeOrder[]>(`serve/${id}/orders.json`, []);
+  if (hasBlobs === false) return MEM.data.get(id)?.orders ?? [];
+  try {
+    const store = getStore({ name: 'attenda_serve', consistency: 'strong' });
+    const raw = await store.get(`serve/${id}/orders.json`, { type: 'json' });
+    return raw ?? MEM.data.get(id)?.orders ?? [];
+  } catch {
+    return MEM.data.get(id)?.orders ?? [];
+  }
 }
 
-export async function saveOrders(id: string, orders: ServeOrder[]): Promise<void> {
-  await storeSet(`serve/${id}/orders.json`, orders);
+export async function writeOrders(id: string, orders: ServeOrder[]): Promise<void> {
+  MEM.data.set(id, { ...(MEM.data.get(id) || {}), orders });
+  if (hasBlobs === false) return;
+  try {
+    const store = getStore({ name: 'attenda_serve', consistency: 'strong' });
+    await store.setJSON(`serve/${id}/orders.json`, orders);
+  } catch {}
 }
 
-export async function nextOrderNumber(id: string): Promise<string> {
-  const all = await listOrders(id);
-  const maxN = all.reduce((a, o) => {
-    const m = /^TP-(\d+)$/.exec(o.number);
-    return m ? Math.max(a, Number(m[1])) : a;
-  }, 0);
-  return `TP-${String(maxN + 1).padStart(4, '0')}`;
+export function nextOrderNumber(orders: ServeOrder[]): string {
+  const n = orders.length + 1;
+  return 'TP-' + String(n).padStart(4, '0');
 }
 
-/* ───────────────────────── settings ───────────────────────── */
-
-export async function getSettings(id: string): Promise<ServeSettings> {
-  const stored = await storeGet<Partial<ServeSettings>>(`serve/${id}/settings.json`, {});
-  return { ...DEFAULT_SERVE_SETTINGS, ...stored };
+/* FV status machine: PENDING_PAYMENT → RECEIVED → ACCEPTED → PREPARING
+   → READY → DISPATCHED → DELIVERED. Cancelled only from non-terminal. */
+export function canAdvance(s: ServeOrderStatus): ServeOrderStatus | null {
+  const i = (SERVE_STATUSES as readonly string[]).indexOf(s);
+  if (i < 0 || i >= SERVE_STATUSES.length - 1) return null;
+  return SERVE_STATUSES[i + 1];
 }
 
-export async function saveSettings(id: string, patch: Partial<ServeSettings>): Promise<ServeSettings> {
-  const cur = await getSettings(id);
-  const next: ServeSettings = { ...cur };
-  if (patch.hoursOpen !== undefined && /^([01]?\d|2[0-3]):[0-5]\d$/.test(patch.hoursOpen)) next.hoursOpen = patch.hoursOpen;
-  if (patch.hoursClose !== undefined && /^([01]?\d|2[0-3]):[0-5]\d$/.test(patch.hoursClose)) next.hoursClose = patch.hoursClose;
-  if (patch.hoursEnabled !== undefined) next.hoursEnabled = !!patch.hoursEnabled;
-  if (patch.ordersPaused !== undefined) next.ordersPaused = !!patch.ordersPaused;
-  if (patch.allowAfterHours !== undefined) next.allowAfterHours = !!patch.allowAfterHours;
-  if (patch.currency !== undefined && /^[A-Za-z$]{1,3}\/?$/.test(patch.currency)) next.currency = patch.currency.slice(0, 3);
-  await storeSet(`serve/${id}/settings.json`, next);
-  return next;
+export function isOpenNow(s: ServeSettings): boolean {
+  if (!s.hoursEnabled) return true;
+  if (s.ordersPaused) return false;
+  const lima = new Date(Date.now() + (5 * 60 + 60 * 60) * 1000 * -1); // UTC-5
+  const hm = lima.toISOString().slice(11, 16);
+  if (s.hoursOpen <= s.hoursClose) {
+    return hm >= s.hoursOpen && hm < s.hoursClose;
+  }
+  return hm >= s.hoursOpen || hm < s.hoursClose; // overnight
+}
+
+export function openStateFor(settings: ServeSettings): { open: boolean; hoursEnabled: boolean; hoursOpen: string; hoursClose: string } {
+  return {
+    open: isOpenNow(settings),
+    hoursEnabled: settings.hoursEnabled,
+    hoursOpen: settings.hoursOpen,
+    hoursClose: settings.hoursClose,
+  };
 }
