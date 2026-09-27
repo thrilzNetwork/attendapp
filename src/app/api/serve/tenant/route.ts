@@ -27,6 +27,9 @@ export async function POST(req: NextRequest) {
       logo: typeof body?.logo === 'string' ? body.logo : null,
       products,
       status: body?.status === 'official' ? 'official' : 'demo',
+      country: typeof body?.country === 'string' ? body.country.trim().toUpperCase().slice(0, 2) : '',
+      referralCode: typeof body?.referralCode === 'string' ? body.referralCode : undefined,
+      plan: body?.plan === 'growth' ? 'growth' : body?.plan === 'starter' ? 'starter' : undefined,
     });
 
     return json({ ok: true, tenant: { id: tenant.id, adminPin: tenant.adminPin, name: tenant.name, status: tenant.status } });

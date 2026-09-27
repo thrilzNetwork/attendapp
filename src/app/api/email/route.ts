@@ -287,6 +287,37 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // ── 6c. Growth network applications (affiliate + market partner) ──
+    if (type === 'serve_affiliate_application' || type === 'serve_market_partner_application') {
+      const d = data || {};
+      const label = type === 'serve_affiliate_application' ? 'Afiliado' : 'Market Partner';
+      if (!d.email) return NextResponse.json({ ok: true });
+      await getResend().emails.send({
+        from: FROM, to: SUPER_BCC, replyTo: d.email || REPLY_TO,
+        subject: `Serve Growth: ${label} — ${d.name || 'sin nombre'} (${d.country || '—'})`,
+        html: `
+          <div style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:32px 24px">
+            <div style="background:#1B1F3B;border-radius:12px;padding:24px;margin-bottom:24px">
+              <h1 style="color:white;margin:0;font-size:20px;font-weight:800">Nueva aplicación — ${label}</h1>
+            </div>
+            <table style="width:100%;font-size:14px;line-height:1.7">
+              <tr><td style="color:#888;width:160px;padding:4px 0">Nombre</td><td><strong>${d.name || '—'}</strong></td></tr>
+              <tr><td style="color:#888;padding:4px 0">Email</td><td>${d.email || '—'}</td></tr>
+              <tr><td style="color:#888;padding:4px 0">WhatsApp</td><td>${d.phone || '—'}</td></tr>
+              <tr><td style="color:#888;padding:4px 0">País / Ciudad</td><td>${d.country || '—'}${d.city ? ' · ' + d.city : ''}</td></tr>
+              <tr><td style="color:#888;padding:4px 0">Ocupación actual</td><td>${d.occupation || '—'}</td></tr>
+              <tr><td style="color:#888;padding:4px 0">Red de contactos</td><td>${d.network || '—'}</td></tr>
+              <tr><td style="color:#888;padding:4px 0">Relación con restaurantes</td><td>${d.restaurants || '—'}</td></tr>
+              <tr><td style="color:#888;padding:4px 0">Experiencia en ventas</td><td>${d.salesExperience || '—'}</td></tr>
+              <tr><td style="color:#888;padding:4px 0">Media / Podcast / Redes</td><td>${d.media || '—'}</td></tr>
+              <tr><td style="color:#888;padding:4px 0">Disponibilidad semanal</td><td>${d.availability || '—'}</td></tr>
+              <tr><td style="color:#888;padding:4px 0">Por qué Attenda</td><td>${(d.why || '—').replace(/</g, '&lt;')}</td></tr>
+            </table>
+          </div>
+        `,
+      });
+    }
+
     if (type === 'password_reset') {
       const { staffEmail, staffName, hotelName, resetUrl } = data;
       if (!staffEmail) return NextResponse.json({ ok: true });

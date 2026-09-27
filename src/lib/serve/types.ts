@@ -78,6 +78,7 @@ export type ServeTenant = {
   name: string;
   type: string;
   city: string;
+  country: string; // ISO-2 (PE, BO, CO, EC, MX...) — LATAM-native, no default
   phone: string; // digits, no '+'
   email: string;
   logo: string | null;
@@ -85,6 +86,14 @@ export type ServeTenant = {
   status: 'demo' | 'official';
   adminPin: string;
   createdAt: number;
+  /* growth attribution — Affiliate → Market Partner → Country → Customer */
+  referral: {
+    source: 'direct' | 'affiliate' | 'market_partner';
+    affiliateId?: string;
+    marketPartnerId?: string;
+    plan?: 'starter' | 'growth'; // $29 / $49 at activation
+    activatedAt?: number; // became a paying customer
+  } | null;
 };
 
 export function slugify(s: string): string {

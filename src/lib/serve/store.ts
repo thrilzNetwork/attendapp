@@ -3,6 +3,7 @@
    Money = cents everywhere. */
 
 import { demoProductImage } from '@/lib/serve/photos';
+import { applyAttribution } from '@/lib/serve/growth';
 import { getStore } from '@netlify/blobs';
 import {
   ServeProduct, ServeOrder, ServeSettings, ServeTenant, ServeOrderStatus,
@@ -69,23 +70,32 @@ export type CreateTenantInput = {
   name: string;
   type: string;
   city: string;
+  country: string;
   phone: string;
   email: string;
   logo: string | null;
   products: { name: string; price: number }[]; // price in soles from wizard
   status: 'demo' | 'official';
+  referralCode?: string; // affiliate/MP referral code (AFF-XX-XXXX / MRK-XX-XXXX)
+  plan?: 'starter' | 'growth';
 };
 
 export async function createTenant(input: CreateTenantInput): Promise<ServeTenant> {
   const id = Date.now().toString(36);
   const pin = String(Math.floor(1000 + Math.random() * 9000));
+  const referral = await applyAttribution({ id, country: input.country || '' }, {
+    referralCode: input.referralCode,
+    plan: input.plan,
+  });
   const tenant: ServeTenant = {
     id, name: input.name, type: input.type, city: input.city,
+    country: input.country || '',
     phone: input.phone.replace(/[^0-9]/g, ''),
     email: input.email, logo: input.logo, status: input.status,
     tagline: `${input.type}${input.city ? ' · ' + input.city : ''} — pedidos online directo a nuestro WhatsApp`,
     adminPin: pin,
     createdAt: Date.now(),
+    referral,
   };
   const ts = await listTenants();
   ts.push(tenant);
