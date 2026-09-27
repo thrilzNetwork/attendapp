@@ -7,7 +7,7 @@
 
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 
-export type CartLine = { slug: string; qty: number; price: number }; // price cents snapshot
+export type CartLine = { slug: string; name: string; qty: number; price: number }; // price cents snapshot
 
 type CartCtx = {
   lines: CartLine[];

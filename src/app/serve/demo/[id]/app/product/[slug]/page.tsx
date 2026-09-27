@@ -79,7 +79,7 @@ export default function ProductPage() {
         <div className="mx-auto max-w-xl">
           <button
             onClick={() => {
-              add({ slug: product.slug, qty, price: product.price });
+              add({ slug: product.slug, name: product.name, qty, price: product.price });
               router.push(`/serve/demo/${id}/app`);
             }}
             className="flex w-full items-center justify-between rounded-2xl px-5 py-4 text-sm font-black shadow-lg"
