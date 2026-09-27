@@ -103,14 +103,14 @@ export default function CareersPage() {
     <div className="min-h-screen" style={{ backgroundColor: CREAM }}>
       <nav className="sticky top-0 z-50 border-b-2" style={{ borderColor: INK, backgroundColor: CREAM }}>
         <div className="max-w-7xl mx-auto px-4 md:px-5 h-14 md:h-16 flex items-center justify-between">
-          <a href="/serve" className="flex items-center gap-2.5">
+          <a href="/" className="flex items-center gap-2.5">
             <img src="/brand/logo-primary.svg" alt="Attenda" className="h-6 sm:h-7 w-auto" />
             <span className="hidden sm:block w-px h-5" style={{ backgroundColor: INK }} aria-hidden />
-            <span className="hidden sm:block text-[16px] font-black tracking-tight" style={{ fontFamily: 'Archivo, sans-serif' }}>Serve</span>
+            <span className="hidden sm:block text-[16px] font-black tracking-tight" style={{ fontFamily: 'Archivo, sans-serif' }}>Technologies</span>
           </a>
-          <a href="/serve" className="px-4 py-2 rounded-xl text-[13px] font-black border-2"
+          <a href="/" className="px-4 py-2 rounded-xl text-[13px] font-black border-2"
             style={{ backgroundColor: TEAL, color: INK, borderColor: INK, boxShadow: '2px 2px 0 var(--sv-ink, #15202B)', fontFamily: 'Archivo, sans-serif' }}>
-            Volver a Serve
+            Attenda Technologies
           </a>
         </div>
       </nav>
@@ -119,10 +119,18 @@ export default function CareersPage() {
       <section className="border-b-2" style={{ borderColor: INK, backgroundColor: NAVY }}>
         <div className="max-w-5xl mx-auto px-4 md:px-5 py-16 md:py-20 text-center">
           <h1 className="text-[28px] md:text-[42px] font-black tracking-tight text-white max-w-3xl mx-auto" style={{ fontFamily: 'Archivo, sans-serif' }}>
-            Construyamos el próximo canal de ventas de los negocios de Latinoamérica.
+            Únete a Attenda Technologies.
           </h1>
           <p className="mt-4 text-[15px] md:text-[17px] font-medium max-w-2xl mx-auto" style={{ color: 'rgba(243,240,230,0.78)' }}>
-            Attenda Serve se expande por LATAM. Únete al equipo interno, gana ingresos recurrentes como afiliado, o ayúdanos a desarrollar Attenda Serve en tu mercado.
+            Construimos tecnología operativa para hospitality, comercio y transporte. Únete al equipo interno, gana ingresos recurrentes como afiliado, o ayúdanos a desarrollar Attenda Serve en tu mercado.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-2 max-w-3xl mx-auto">
+            {['Engineering','Product','Design','Sales','Partners','Client Success','Operations'].map(a => (
+              <span key={a} className="px-3.5 py-1.5 rounded-full text-[11.5px] font-black border-2" style={{ borderColor: INK, backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(243,240,230,0.9)', fontFamily: 'Archivo, sans-serif' }}>{a}</span>
+            ))}
+          </div>
+          <p className="mt-3 text-[12px] font-bold" style={{ color: 'rgba(243,240,230,0.6)' }}>
+            Áreas abiertas en Hospitality · Serve · Transportation
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             {([['jobs', 'Ver oportunidades'], ['affiliate', 'Quiero ser afiliado'], ['partner', 'Quiero ser Market Partner']] as const).map(([k, l]) => (
