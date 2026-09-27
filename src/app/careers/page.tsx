@@ -15,20 +15,20 @@ const JOBS = [
   {
     title: 'Sales Representative',
     type: 'Comisión + bonos',
-    salary: 'Ingresos ilimitados por comisión — S/ 200 por cada negocio activado + 10% recurrente de su mensualidad',
+    salary: 'Ingresos ilimitados por comisión — $50 por cada negocio activado + 10% recurrente de su mensualidad',
     location: 'Remoto (Lima / provincias)',
     schedule: 'Flexible, tiempo parcial o completo',
     points: [
       'Consigues negocios locales (restaurantes, pastelerías, tiendas) que quieren vender online',
       'Les creas su demo gratis en 2 minutos — el producto se vende solo',
-      'S/ 200 por activación + 10% de la mensualidad de cada cliente, todos los meses, mientras sigan activos',
-      'Sin techo: 10 negocios = S/ 2,000 inicial + S/ 290/mes recurrente; 50 negocios = S/ 10,000 inicial + S/ 1,450/mes',
+      '$50 por activación + 10% de la mensualidad de cada cliente, todos los meses, mientras sigan activos',
+      'Sin techo: 10 negocios = $500 inicial + $29/mes recurrente; 50 negocios = $2,500 inicial + $145/mes',
     ],
   },
   {
     title: 'Onboarding Specialist',
     type: 'Tiempo completo',
-    salary: 'S/ 1,200 – S/ 1,800/mes según experiencia + bono por retención',
+    salary: '$800 – $1,200/mes (USD) según experiencia + bono por retención',
     location: 'Lima (híbrido)',
     schedule: 'Lun–Vie, 9:00–18:00',
     points: [
@@ -41,7 +41,7 @@ const JOBS = [
   {
     title: 'Customer Support (part-time)',
     type: 'Tiempo parcial',
-    salary: 'S/ 900/mes (20h semanales) + bono por satisfacción',
+    salary: '$600/mes (USD, 20h semanales) + bono por satisfacción',
     location: 'Remoto',
     schedule: 'Turnos rotativos, incluye 1 fin de semana al mes',
     points: [
@@ -53,10 +53,10 @@ const JOBS = [
 ];
 
 const AFFILIATE_TIERS = [
-  { name: 'Activación', pay: 'S/ 200 por negocio que activa su canal', detail: 'Pagado al momento de que el negocio sale a producción con su página.' },
+  { name: 'Activación', pay: '$50 por negocio que activa su canal', detail: 'Pagado al momento de que el negocio sale a producción con su página.' },
   { name: 'Recurrente', pay: '10% de la mensualidad, cada mes', detail: 'Si tu negocio paga $29/mes, recibes $2.90 cada mes mientras siga activo. Acumula: 20 negocios = $58/mes pasivos, para siempre.' },
-  { name: 'Bonus por volumen', pay: '5 negocios/mes → +S/ 500', detail: 'Cada mes que cierras 5+ activaciones recibes un bono adicional de S/ 500.' },
-  { name: 'Rango Regional', pay: '50 negocios activos → S/ 1,500/mes + 15%', detail: 'Tu recurrente sube a 15% y recibes un fijo mensual por administrar la cuenta en tu zona.' },
+  { name: 'Bonus por volumen', pay: '5 negocios/mes → +$100', detail: 'Cada mes que cierras 5+ activaciones recibes un bono adicional de $100 USD.' },
+  { name: 'Rango Regional', pay: '50 negocios activos → $400/mes fijo + 15%', detail: 'Tu recurrente sube a 15% y recibes un fijo mensual por administrar la cuenta en tu zona.' },
 ];
 
 export default function CareersPage() {
@@ -110,7 +110,7 @@ export default function CareersPage() {
           </h1>
           <p className="mt-4 text-[15px] md:text-[17px] font-medium max-w-2xl mx-auto" style={{ color: 'rgba(243,240,230,0.75)' }}>
             Estamos armando el equipo que lleva pedidos online a cada negocio local.
-            Postula a un puesto o gana vendiendo Serve como afiliado.
+            Postula a un puesto o gana vendiendo Serve como afiliado. Todas las compensaciones en dólares (USD).
           </p>
         </div>
       </section>
@@ -199,11 +199,11 @@ export default function CareersPage() {
                 <div className="mt-6 rounded-xl border-2 p-4" style={{ backgroundColor: NAVY, borderColor: INK }}>
                   <p className="text-[13px] font-bold text-white/90">Ejemplo real: 30 negocios activados en tu primer año =</p>
                   <p className="mt-1 text-[22px] font-black text-white" style={{ fontFamily: 'Archivo, sans-serif' }}>
-                    S/ 6,000 en activaciones + S/ 870/mes recurrente
+                    $1,500 en activaciones + $87/mes recurrente
                   </p>
                 </div>
                 <p className="mt-4 text-[12px] font-medium" style={{ color: '#5a6168' }}>
-                  Pagos por Yape/transferencia el día 5 de cada mes. Sin metas mínimas para empezar.
+                  Pagos en dólares (USD) por transferencia, el día 5 de cada mes. Sin metas mínimas para empezar.
                 </p>
               </div>
 
