@@ -21,12 +21,14 @@ function genPassword(): string {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { name, whatsapp, colors, instagram, tagline } = body as {
+    const { name, whatsapp, colors, instagram, tagline, expiresAt, pinnedPassword } = body as {
       name: string
       whatsapp: string
       colors?: { primary?: string; bg?: string; accent?: string }
       instagram?: string
       tagline?: string
+      expiresAt?: string   // operator-controlled demo TTL (e.g. 60s for gate verification)
+      pinnedPassword?: string // operator can pin the admin password for verification runs
     }
 
     if (!name || !whatsapp) {
@@ -60,6 +62,8 @@ export async function POST(req: NextRequest) {
       orderMin: 2000,
       instagram,
       status: 'demo',
+      adminPassword: pinnedPassword || genPassword(),
+      ...(expiresAt ? { expiresAt } : {}),
       createdAt: new Date().toISOString(),
     }
 

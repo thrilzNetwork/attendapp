@@ -60,6 +60,9 @@ export async function POST(req: NextRequest) {
     if (!name || !whatsapp) {
       return NextResponse.json({ error: 'name y whatsapp son requeridos' }, { status: 400 })
     }
+    if (name.trim().length < 2) {
+      return NextResponse.json({ error: 'name demasiado corto' }, { status: 400 })
+    }
     if (items && (!Array.isArray(items) || items.length > 12)) {
       return NextResponse.json({ error: 'Máximo 12 items' }, { status: 400 })
     }

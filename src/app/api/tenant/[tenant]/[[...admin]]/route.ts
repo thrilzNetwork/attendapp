@@ -6,7 +6,7 @@ import {
   materializeScheduled, activeOrdersToday, recordSales,
   getSettings, saveSettings,
 } from '@/lib/tenant/store'
-import { getTenant, tenantAdminPassword } from '@/lib/tenant/registry'
+import { getTenant, isTenantExpired, tenantAdminPassword } from '@/lib/tenant/registry'
 import type { Order, OrderItem } from '@/lib/tenant/types'
 import { ZONES, ORDER_MIN, CATEGORIES, DEFAULT_SETTINGS } from '@/lib/tenant/fukin-engine/menu'
 import { UPSELLS } from '@/lib/tenant/fukin-engine/upsells'
@@ -46,6 +46,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const token = await adminToken(tenant)
   const cfg = await getTenant(tenant)
   if (!cfg) return deny('Tenant no encontrado', 404)
+  if (isTenantExpired(cfg)) return deny('Demo expirada — contacta a Attenda para activar tu tienda.', 403)
 
   /* ---------- PUBLIC STORE API (no auth) ---------- */
   if (seg[0] === 'store') {
@@ -155,6 +156,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const token = await adminToken(tenant)
   const cfg = await getTenant(tenant)
   if (!cfg) return deny('Tenant no encontrado', 404)
+  if (isTenantExpired(cfg)) return deny('Demo expirada — contacta a Attenda para activar tu tienda.', 403)
 
   /* ---------- PUBLIC ---------- */
   // Customer order create: /api/orders → tenantApi → /api/tenant/<t>/orders
@@ -352,6 +354,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const token = await adminToken(tenant)
   const cfg = await getTenant(tenant)
   if (!cfg) return deny('Tenant no encontrado', 404)
+  if (isTenantExpired(cfg)) return deny('Demo expirada', 403)
   const err = requireAdmin(req, token)
   if (err) return err
 
@@ -428,6 +431,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const token = await adminToken(tenant)
   const cfg = await getTenant(tenant)
   if (!cfg) return deny('Tenant no encontrado', 404)
+  if (isTenantExpired(cfg)) return deny('Demo expirada', 403)
   const err = requireAdmin(req, token)
   if (err) return err
 

@@ -5,7 +5,8 @@
 // ════════════════════════════════════════════════════════════════
 
 import { notFound } from 'next/navigation'
-import { getTenant } from '@/lib/tenant/registry'
+import { getTenant, isTenantExpired } from '@/lib/tenant/registry'
+import { DemoExpired } from '@/components/tenant/demo-expired'
 import { getMenu } from '@/lib/tenant/store'
 import { themeVars } from '@/lib/tenant/theme'
 import { brandOf } from '@/lib/tenant/registry'
@@ -33,6 +34,9 @@ export default async function TenantLayout({
   const { tenant } = params
   const cfg = await getTenant(tenant)
   if (!cfg) notFound()
+
+  // 24h demo TTL — expired demos render the lock screen in place of the store
+  if (isTenantExpired(cfg)) return <DemoExpired name={cfg.name} />
 
   const menu: Product[] = await getMenu(cfg.slug)
   const brand = brandOf(cfg)
