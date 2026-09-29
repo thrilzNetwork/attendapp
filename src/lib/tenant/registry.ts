@@ -123,6 +123,8 @@ export type TenantConfig = {
   orderPrefix: string         // e.g. 'CO-'
   orderMin: number
   instagram?: string
+  adminPassword?: string       // provision-generated demo password (persisted so the admin token actually works)
+  expiresAt?: string           // ISO — demo TTL (24h for web-provisioned demos); cleared on activation
   status: 'demo' | 'active'
   createdAt: string
 }
@@ -177,8 +179,15 @@ export function isReservedSlug(slug: string): boolean {
 // Per-tenant admin password: env TENANT_ADMIN_PASSWORD_<SLUG> (upper, - → _)
 // falls back to TENANT_DEMO_PASSWORD for demo tenants.
 export function tenantAdminPassword(cfg: TenantConfig): string {
+  // env per-tenant override wins (paying tenants rotate via Netlify env); inline provision password next; env demo fallback last.
   const envKey = 'TENANT_ADMIN_PASSWORD_' + cfg.slug.toUpperCase().replace(/-/g, '_')
-  return process.env[envKey] || process.env.TENANT_DEMO_PASSWORD || ''
+  return process.env[envKey] || cfg.adminPassword || process.env.TENANT_DEMO_PASSWORD || ''
+}
+
+/** Demo TTL: web-provisioned demos expire 24h after creation. */
+export function isTenantExpired(cfg: TenantConfig, now = new Date()): boolean {
+  if (cfg.status !== 'demo' || !cfg.expiresAt) return false
+  return now.getTime() >= new Date(cfg.expiresAt).getTime()
 }
 
 /** Resolved brand strings. Fukin tenants keep FV words; everyone else gets COOKIE_BRAND layered with cfg.brand. */
