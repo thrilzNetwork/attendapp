@@ -8,6 +8,8 @@ import { notFound } from 'next/navigation'
 import { getTenant } from '@/lib/tenant/registry'
 import { getMenu } from '@/lib/tenant/store'
 import { themeVars } from '@/lib/tenant/theme'
+import { brandOf } from '@/lib/tenant/registry'
+import { BrandProvider } from '@/components/tenant/brand-context'
 import { CartProvider } from '@/components/tenant/cart-context'
 import type { Product } from '@/lib/tenant/types'
 
@@ -33,12 +35,15 @@ export default async function TenantLayout({
   if (!cfg) notFound()
 
   const menu: Product[] = await getMenu(cfg.slug)
+  const brand = brandOf(cfg)
 
   return (
     <div style={themeVars(cfg.theme)} data-tenant={cfg.slug}>
+      <BrandProvider brand={{ wordA: brand.wordA, wordB: brand.wordB, tagline: (cfg.tagline || ''), botName: brand.botName, slug: cfg.slug }}>
       <CartProvider menu={menu} cartKey={`t_cart_${cfg.slug}`}>
         {children}
       </CartProvider>
+      </BrandProvider>
     </div>
   )
 }

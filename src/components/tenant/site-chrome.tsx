@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCart } from './cart-context'
 import FvLogo from './fv-logo'
+import { useBrand } from './brand-context'
 
 function tenantBase(pathname: string): string {
   const seg = pathname.split('/')[1]
@@ -13,12 +14,13 @@ function tenantBase(pathname: string): string {
 export function SiteHeader() {
   const pathname = usePathname()
   const base = tenantBase(pathname)
+  const brand = useBrand()
   return (
     <header className="sticky top-0 z-40 border-b border-fv-line bg-fv-black/90 backdrop-blur">
       <div className="mx-auto max-w-xl px-4 py-3">
         {/* Mobile-first: single-row header, logo takes the stage (search removed) */}
         <div className="flex items-center justify-between">
-          <FvLogo size="md" href={base ? `${base}/menu` : '/'} />
+          <FvLogo size="md" href={base ? `${base}/menu` : '/'} words={{ wordA: brand.wordA, wordB: brand.wordB }} />
         </div>
       </div>
     </header>

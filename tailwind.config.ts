@@ -46,7 +46,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        display: ["var(--font-fredoka)", "'Plus Jakarta Sans'", "Inter", "system-ui", "sans-serif"],
       },
       fontSize: {
         '2xs': ['0.625rem', { lineHeight: '0.875rem' }],

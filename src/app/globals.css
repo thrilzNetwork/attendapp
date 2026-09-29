@@ -281,6 +281,26 @@
   animation: shimmer 4s linear infinite;
 }
 
+/* FV marquee — infinite scroll strip (fukin template) */
+@keyframes fv-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.fv-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: fv-marquee 24s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fv-marquee-track {
+    animation: none;
+  }
+}
+
 :root {
   --fv-black: 10 10 10;
   --fv-panel: 19 19 19;
