@@ -280,3 +280,13 @@
   -webkit-text-fill-color: transparent;
   animation: shimmer 4s linear infinite;
 }
+
+:root {
+  --fv-black: 10 10 10;
+  --fv-panel: 19 19 19;
+  --fv-line: 35 35 35;
+  --fv-orange: 243 106 18;
+  --fv-cream: 245 242 233;
+  --fv-green: 133 168 13;
+  --fv-red: 217 45 32;
+}

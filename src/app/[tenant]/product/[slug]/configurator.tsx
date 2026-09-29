@@ -3,6 +3,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Product } from '@/lib/tenant/types'
 import { formatPEN, lineUnitPrice } from '@/lib/tenant/fukin-engine/pricing'
 import { useCart } from '@/components/tenant/cart-context'
@@ -10,6 +11,8 @@ import { useHoursGate } from '@/components/tenant/hours-banner'
 import { formatHoursRange } from '@/lib/tenant/fukin-engine/hours'
 
 export default function ProductConfigurator({ product }: { product: Product }) {
+  const pathname = usePathname()
+  const base = '/' + (pathname.split('/')[1] || '')
   const { add } = useCart()
   const hours = useHoursGate()
   const closed = !!hours && hours.hoursEnabled && !hours.isOpenNow
@@ -56,13 +59,13 @@ export default function ProductConfigurator({ product }: { product: Product }) {
             <p className="mt-1 text-xs text-fv-cream/50">Suma otra cosa si quieres — el carrito espera.</p>
             <div className="mt-4 space-y-2">
               <Link
-                href="/app/cart"
+                href={`${base}/cart`}
                 className="block rounded-xl bg-fv-orange py-3 font-display text-sm font-bold text-fv-black"
               >
                 VER CARRITO
               </Link>
               <Link
-                href="/app/menu"
+                href={`${base}/menu`}
                 className="block w-full rounded-xl border border-fv-line py-3 text-center font-display text-sm font-bold text-fv-cream"
               >
                 SEGUIR PIDIENDO

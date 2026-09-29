@@ -2,12 +2,15 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useCart } from '@/components/tenant/cart-context'
 import { findProduct, formatPEN, selectedModifierInfo } from '@/lib/tenant/fukin-engine/pricing'
 
 
 export default function CartPage() {
   const cart = useCart()
+  const pathname = usePathname()
+  const base = '/' + (pathname.split('/')[1] || '')
 
   if (cart.lines.length === 0) {
     return (
@@ -15,7 +18,7 @@ export default function CartPage() {
         <div className="mx-auto max-w-xl text-center">
           <h1 className="font-display text-2xl font-black text-fv-cream">CARRITO VACIO</h1>
           <p className="mt-2 text-sm text-fv-cream/60">No hay nada aqui. Aun.</p>
-          <Link href="/app/menu" className="mt-6 inline-block rounded-xl bg-fv-orange px-6 py-4 font-display text-sm font-bold text-fv-black">
+          <Link href={`${base}/menu`} className="mt-6 inline-block rounded-xl bg-fv-orange px-6 py-4 font-display text-sm font-bold text-fv-black">
             VER MENU
           </Link>
         </div>
@@ -81,7 +84,7 @@ export default function CartPage() {
         </div>
 
         <Link
-          href="/app/checkout"
+          href={`${base}/checkout`}
           className={`mt-6 block rounded-xl py-4 text-center font-display text-base font-bold ${
             cart.subtotal >= 30 ? 'bg-fv-orange text-fv-black' : 'pointer-events-none bg-fv-panel text-fv-cream/30'
           }`}

@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       currency: 'Bs',
       timezone: 'America/La_Paz',
       orderPrefix: slug.slice(0, 2).toUpperCase() + '-',
-      orderMin: 30,
+      orderMin: 2000,
       instagram,
       status: 'demo',
       createdAt: new Date().toISOString(),

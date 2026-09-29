@@ -9,6 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // FV tenant tokens — used by /app + /[tenant] pages. Tenant pages override
+        // these via CSS vars (themeVars) so each tenant self-themes.
+        "fv-black": "rgb(var(--fv-black) / <alpha-value>)",
+        "fv-panel": "rgb(var(--fv-panel) / <alpha-value>)",
+        "fv-line": "rgb(var(--fv-line) / <alpha-value>)",
+        "fv-orange": "rgb(var(--fv-orange) / <alpha-value>)",
+        "fv-cream": "rgb(var(--fv-cream) / <alpha-value>)",
+        "fv-green": "rgb(var(--fv-green) / <alpha-value>)",
+        "fv-red": "rgb(var(--fv-red) / <alpha-value>)",
         brand: {
           50: '#edfcf9',
           100: '#c9f9ed',

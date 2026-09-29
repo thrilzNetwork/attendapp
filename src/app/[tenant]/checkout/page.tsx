@@ -165,7 +165,7 @@ export default function CheckoutPage() {
       <main className="px-4 pb-24 pt-10">
         <div className="mx-auto max-w-xl text-center">
           <h1 className="font-display text-2xl font-black text-fv-cream">NADA QUE PAGAR</h1>
-          <Link href="/app/menu" className="mt-6 inline-block rounded-xl bg-fv-orange px-6 py-4 font-display text-sm font-bold text-fv-black">
+          <Link href={`/${tenant}/menu`} className="mt-6 inline-block rounded-xl bg-fv-orange px-6 py-4 font-display text-sm font-bold text-fv-black">
             VER MENU
           </Link>
         </div>

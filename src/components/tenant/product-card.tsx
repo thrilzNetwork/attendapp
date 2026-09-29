@@ -1,17 +1,25 @@
+'use client'
+
 import Link from 'next/link'
 import { Product } from '@/lib/tenant/types'
 import { formatPEN } from '@/lib/tenant/fukin-engine/pricing'
+import { usePathname } from 'next/navigation'
+
+const FALLBACK_IMG = '/images/t/cookies-at-midnight/generic.jpg'
 
 export default function ProductCard({ product }: { product: Product }) {
+  const pathname = usePathname()
+  const tenant = pathname.split('/')[1] || ''
   const unavailable = product.soldOut || !product.active
+  const img = product.image || FALLBACK_IMG
   return (
     <Link
-      href={`/app/product/${product.slug}`}
+      href={`/${tenant}/product/${product.slug}`}
       className={`group flex flex-col overflow-hidden rounded-2xl border border-fv-line bg-fv-panel transition-transform active:scale-[0.98] ${unavailable ? 'opacity-60' : ''}`}
     >
       <div className="relative aspect-square w-full overflow-hidden bg-[#101010]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={product.image} alt={product.name} className={`h-full w-full object-cover ${unavailable ? 'grayscale' : ''}`} />
+        <img src={img} alt={product.name} className={`h-full w-full object-cover ${unavailable ? 'grayscale' : ''}`} />
         {product.proteinBadge && (
           <span className="absolute left-2 top-2 rounded-full bg-fv-black/80 px-2 py-1 text-[9px] font-black uppercase text-fv-green backdrop-blur-sm">
             {product.proteinBadge}
