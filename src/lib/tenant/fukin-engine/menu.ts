@@ -8,7 +8,7 @@ export const CATEGORIES = [
   { id: 'bebidas', name: 'Bebidas' },
 ]
 
-export const ORDER_MIN = 3000 // Bs30.00 minimum order — keeps small orders deliverable
+export const ORDER_MIN = 2000 // Bs20.00 minimum order — keeps small orders deliverable
 
 export const WHATSAPP_NUMBER = '59170000000'
 export const INSTAGRAM_HANDLE = 'cookiesorganic.scz'

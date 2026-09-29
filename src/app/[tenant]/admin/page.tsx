@@ -7,13 +7,14 @@ import { formatPEN } from '@/lib/tenant/fukin-engine/pricing'
 
 /* ============================== shared ============================== */
 
-type Tab = 'kitchen' | 'orders' | 'menu' | 'inventory' | 'promos' | 'reports' | 'settings'
+type Tab = 'pos' | 'kitchen' | 'orders' | 'menu' | 'inventory' | 'promos' | 'reports' | 'settings'
 
 // module-scope: set by AdminPage on mount, read by api() + login helpers
 let __tenant = ''
 const T = (path: string): string => `/api/tenant/${__tenant}/${path.replace(/^\/api\//, '')}`
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'pos', label: 'NUEVO PEDIDO' },
   { id: 'kitchen', label: 'COCINA' },
   { id: 'orders', label: 'PEDIDOS' },
   { id: 'menu', label: 'MENU' },
@@ -321,6 +322,8 @@ function OrdersList({ orders, onPatch, onDelete }: { orders: Order[]; onPatch: (
 
 /* ============================== menu manager ============================== */
 
+type ModGroup = { id: string; name: string; type: 'single' | 'multi'; required: boolean; modifiers: { id: string; name: string; price: number }[] }
+
 type AdminProduct = {
   slug: string
   name: string
@@ -332,8 +335,191 @@ type AdminProduct = {
   active: boolean
   soldOut: boolean
   proteinBadge?: string
+  groups?: ModGroup[]
   stock?: { dailyCount: number; countDate: string; auto86Threshold: number } | null
 }
+
+/* ============================== POS terminal ============================== */
+
+type PosCartLine = { slug: string; name: string; qty: number; unit: number; mods: Record<string, string[]>; modTotal: number; notes: string }
+
+function PosTerminal({ products, onCreated }: { products: AdminProduct[]; onCreated: () => void }) {
+  const [cart, setCart] = useState<PosCartLine[]>([])
+  const [cat, setCat] = useState<string>('ALL')
+  const [openItem, setOpenItem] = useState<string | null>(null)
+  const [mods, setMods] = useState<Record<string, string[]>>({})
+  const [custName, setCustName] = useState('')
+  const [custPhone, setCustPhone] = useState('')
+  const [orderNotes, setOrderNotes] = useState('')
+  const [payment, setPayment] = useState<'CASH' | 'TRANSFERENCIA_QR'>('CASH')
+  const [submitting, setSubmitting] = useState(false)
+  const [pickup, setPickup] = useState(true)
+  const [done, setDone] = useState<{ number: string } | null>(null)
+  const [error, setError] = useState('')
+
+  const categories = useMemo(() => Array.from(new Set(products.filter((x) => x.active && !x.soldOut).map((x) => x.category))), [products])
+  const visible = useMemo(() => products.filter((x) => x.active && !x.soldOut && (cat === 'ALL' || x.category === cat)), [products, cat])
+  const subtotal = cart.reduce((s, l) => s + (l.unit + l.modTotal) * l.qty, 0)
+
+  function selProduct(p: AdminProduct) {
+    const hasReq = (p.groups || []).some((g: { required?: boolean }) => g.required)
+    if (!hasReq) { addLine(p, {}); return }
+    setOpenItem(p.slug)
+    setMods({})
+  }
+  function addLine(p: AdminProduct, chosen: Record<string, string[]>) {
+    const modTotal = (p.groups || []).reduce((s, g) => s + (chosen[g.id] || []).reduce((x, id) => x + (g.modifiers.find((m) => m.id === id)?.price || 0), 0), 0)
+    setCart((c) => [...c, { slug: p.slug, name: p.name, qty: 1, unit: p.price, mods: chosen, modTotal, notes: '' }])
+    setOpenItem(null); setMods({})
+  }
+  function qty(i: number, d: number) {
+    setCart((c) => c.map((l, j) => (j === i ? { ...l, qty: Math.max(1, l.qty + d) } : l)))
+  }
+  function drop(i: number) { setCart((c) => c.filter((_, j) => j !== i)) }
+
+  async function submit() {
+    if (!custName.trim() || !custPhone.trim() || !cart.length || submitting) return
+    setSubmitting(true); setError('')
+    const res = await api(T('/api/admin/orders'), {
+      method: 'POST',
+      body: JSON.stringify({
+        customer: { firstName: custName.trim(), phone: custPhone.trim() },
+        address: { street: pickup ? 'MOSTRADOR' : 'DELIVERY MANUAL' },
+        zoneId: pickup ? 'mostrador' : 'equipetrol',
+        paymentMethod: payment,
+        notes: orderNotes.trim() || undefined,
+        items: cart.map((l) => ({ slug: l.slug, qty: l.qty, mods: l.mods, notes: l.notes || undefined })),
+      }),
+    })
+    setSubmitting(false)
+    if (res.ok && (res.data as { number?: string })?.number) {
+      setDone({ number: (res.data as { number: string }).number })
+      setCart([]); setCustName(''); setCustPhone(''); setOrderNotes('')
+      onCreated()
+    } else {
+      setError(((res.data as { error?: string })?.error) || `Error ${res.status}`)
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-fv-line bg-fv-panel p-8 text-center">
+        <div className="text-3xl font-display font-black text-fv-orange">PEDIDO {done.number}</div>
+        <div className="text-sm text-fv-cream/70">Enviado a cocina. Cóbrale en mostrador si es EFECTIVO.</div>
+        <button onClick={() => setDone(null)} className="rounded-lg bg-fv-orange px-6 py-3 font-display font-bold text-fv-black">NUEVO PEDIDO</button>
+      </div>
+    )
+  }
+
+  const open = openItem ? products.find((x) => x.slug === openItem) : null
+
+  return (
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_340px]">
+      {/* left: catalog */}
+      <div className="rounded-xl border border-fv-line bg-fv-panel p-3">
+        <div className="mb-2 flex flex-wrap gap-1">
+          <button onClick={() => setCat('ALL')} className={`rounded-lg px-2.5 py-1.5 text-[11px] font-bold ${cat === 'ALL' ? 'bg-fv-orange text-fv-black' : 'border border-fv-line text-fv-cream/60'}`}>TODOS</button>
+          {categories.map((c) => (
+            <button key={c} onClick={() => setCat(c)} className={`rounded-lg px-2.5 py-1.5 text-[11px] font-bold uppercase ${cat === c ? 'bg-fv-orange text-fv-black' : 'border border-fv-line text-fv-cream/60'}`}>{c}</button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {visible.map((p) => (
+            <button key={p.slug} onClick={() => selProduct(p)} className="rounded-lg border border-fv-line bg-fv-black p-2 text-left hover:border-fv-orange">
+              <div className="text-[12px] font-bold leading-tight text-fv-cream">{p.name}</div>
+              <div className="mt-1 text-[11px] text-fv-orange">{formatPEN(p.price)}</div>
+            </button>
+          ))}
+        </div>
+        {!visible.length && <div className="py-6 text-center text-xs text-fv-cream/50">Sin productos en esta categoría.</div>}
+      </div>
+
+      {/* right: ticket */}
+      <div className="flex flex-col gap-2 rounded-xl border border-fv-line bg-fv-panel p-3">
+        <div className="font-display text-xs font-bold tracking-wide text-fv-cream/70">TICKET</div>
+        {!cart.length && <div className="py-4 text-center text-xs text-fv-cream/50">Toca un producto para agregarlo.</div>}
+        {cart.map((l, i) => (
+          <div key={i} className="rounded-lg border border-fv-line bg-fv-black p-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[12px] font-bold text-fv-cream">{l.name}</div>
+              <div className="text-[12px] font-bold text-fv-orange">{formatPEN((l.unit + l.modTotal) * l.qty)}</div>
+            </div>
+            {!!Object.values(l.mods).flat().length && <div className="mt-0.5 text-[10px] text-fv-cream/50">{Object.values(l.mods).flat().join(', ')}</div>}
+            <div className="mt-1 flex items-center gap-2">
+              <button onClick={() => qty(i, -1)} className="h-6 w-6 rounded border border-fv-line text-xs text-fv-cream">−</button>
+              <span className="text-xs font-bold">{l.qty}</span>
+              <button onClick={() => qty(i, 1)} className="h-6 w-6 rounded border border-fv-line text-xs text-fv-cream">+</button>
+              <button onClick={() => drop(i)} className="ml-auto text-[10px] text-red-400">QUITAR</button>
+            </div>
+          </div>
+        ))}
+        <div className="mt-1 flex justify-between border-t border-fv-line pt-2 text-sm font-bold">
+          <span>TOTAL</span><span className="text-fv-orange">{formatPEN(subtotal)}</span>
+        </div>
+        <input value={custName} onChange={(e) => setCustName(e.target.value)} placeholder="Nombre" className="rounded-lg border border-fv-line bg-fv-black px-2.5 py-2 text-xs text-fv-cream outline-none focus:border-fv-orange" />
+        <input value={custPhone} onChange={(e) => setCustPhone(e.target.value)} placeholder="Teléfono" inputMode="tel" className="rounded-lg border border-fv-line bg-fv-black px-2.5 py-2 text-xs text-fv-cream outline-none focus:border-fv-orange" />
+        <input value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} placeholder="Notas (opcional)" className="rounded-lg border border-fv-line bg-fv-black px-2.5 py-2 text-xs text-fv-cream outline-none focus:border-fv-orange" />
+        <label className="flex items-center gap-2 text-[11px] text-fv-cream/70">
+          <input type="checkbox" checked={pickup} onChange={(e) => setPickup(e.target.checked)} className="accent-[color:var(--acc)]" />
+          Mostrador (sin delivery)
+        </label>
+        <div className="flex gap-2">
+          {(['CASH', 'TRANSFERENCIA_QR'] as const).map((m) => (
+            <button key={m} onClick={() => setPayment(m)} className={`flex-1 rounded-lg px-2 py-2 text-[11px] font-bold ${payment === m ? 'bg-fv-orange text-fv-black' : 'border border-fv-line text-fv-cream/60'}`}>
+              {m === 'CASH' ? 'EFECTIVO' : 'QR / TRANSFERENCIA'}
+            </button>
+          ))}
+        </div>
+        <button onClick={submit} disabled={!cart.length || !custName.trim() || !custPhone.trim() || submitting} className="rounded-lg bg-fv-orange px-4 py-3 font-display text-sm font-black text-fv-black disabled:opacity-40">
+          {submitting ? 'ENVIANDO…' : 'CREAR PEDIDO'}
+        </button>
+        {error && <div className="text-[11px] text-red-400">{error}</div>}
+      </div>
+
+      {/* modifier modal */}
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 sm:items-center" onClick={() => { setOpenItem(null) }}>
+          <div className="w-full max-w-sm rounded-xl border border-fv-line bg-fv-panel p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-2 font-display text-sm font-black text-fv-cream">{open.name}</div>
+            <div className="max-h-64 space-y-3 overflow-y-auto">
+              {(open.groups || []).map((g) => (
+                <div key={g.id}>
+                  <div className="mb-1 text-[11px] font-bold text-fv-cream/70">{g.name}{g.required ? ' *' : ''}</div>
+                  <div className="space-y-1">
+                    {g.modifiers.map((m) => {
+                      const on = (mods[g.id] || []).includes(m.id)
+                      return (
+                        <button key={m.id}
+                          onClick={() => setMods((cur) => {
+                            const curList = cur[g.id] || []
+                            const nextList = g.type === 'single' ? [m.id] : on ? curList.filter((x) => x !== m.id) : [...curList, m.id]
+                            return { ...cur, [g.id]: nextList }
+                          })}
+                          className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-[11px] ${on ? 'border-fv-orange text-fv-orange' : 'border-fv-line text-fv-cream/70'}`}>
+                          <span>{m.name}</span>
+                          {!!m.price && <span>+{formatPEN(m.price)}</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button onClick={() => setOpenItem(null)} className="flex-1 rounded-lg border border-fv-line px-3 py-2.5 text-xs font-bold text-fv-cream/70">CANCELAR</button>
+              <button
+                onClick={() => addLine(open, mods)}
+                disabled={(open.groups || []).some((g) => g.required && !(mods[g.id] || []).length)}
+                className="flex-1 rounded-lg bg-fv-orange px-3 py-2.5 text-xs font-black text-fv-black disabled:opacity-40">AGREGAR</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ============================== end POS ============================== */
 
 function MenuManager({ products, onChanged }: { products: AdminProduct[]; onChanged: () => void }) {
   const [editing, setEditing] = useState<string | null>(null)
@@ -949,6 +1135,7 @@ export default function AdminPage() {
           ))}
         </div>
 
+        {tab === 'pos' && <PosTerminal products={products} onCreated={() => { loadCore() }} />}
         {tab === 'kitchen' && <KitchenBoard orders={orders} onPatch={patchOrder} />}
         {tab === 'orders' && <OrdersList orders={orders} onPatch={patchOrder} onDelete={deleteOrder} />}
         {tab === 'menu' && <MenuManager products={products} onChanged={() => { loadProducts(); loadCore() }} />}
