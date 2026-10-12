@@ -156,6 +156,46 @@ const DICT: Record<string, { en: string; es: string }> = {
   'home.cta.q2': { en: 'A business that sells', es: 'Un negocio que vende' },
   'home.cta.q3': { en: 'A transportation operation', es: 'Una operación de transporte' },
   'home.cta.talk': { en: 'Talk to Attenda Technologies', es: 'Habla con Attenda Technologies' },
+  // value cards
+  'home.val.1t': { en: 'Less fragmentation', es: 'Menos fragmentación' },
+  'home.val.1d': { en: 'Information, communication, and work in one flow.', es: 'Información, comunicación y trabajo en un solo flujo.' },
+  'home.val.2t': { en: 'More visibility', es: 'Más visibilidad' },
+  'home.val.2d': { en: 'Understand what happens while the operation happens.', es: 'Entiende lo que ocurre mientras la operación sucede.' },
+  'home.val.3t': { en: 'Designed for people', es: 'Diseñado para personas' },
+  'home.val.3d': { en: 'Simple tools for the people who do the work.', es: 'Herramientas simples para quienes hacen el trabajo.' },
+  // value intro
+  'home.val.b': { en: 'Attenda organizes information, people, and work into systems people can actually use.', es: 'Attenda organiza información, personas y trabajo en sistemas que las personas sí pueden usar.' },
+  // products section
+  'home.ops.h1': { en: 'Three operations.', es: 'Tres operaciones.' },
+  'home.ops.h2': { en: 'One philosophy.', es: 'Una filosofía.' },
+  'home.p1.h': { en: 'Run the operation around the reservation.', es: 'Opera la operación alrededor de la reservación.' },
+  'home.p1.b': { en: 'Staff flows, guest requests, housekeeping, maintenance, inspections, and operational visibility.', es: 'Flujos del personal, solicitudes de huéspedes, housekeeping, mantenimiento, inspecciones y visibilidad operativa.' },
+  'home.p1.cta': { en: 'Explore Hospitality', es: 'Explora Hospitality' },
+  'home.p2.h': { en: 'Your business. Your channel. Your customers.', es: 'Tu negocio. Tu canal. Tus clientes.' },
+  'home.p2.b': { en: 'Digital store, online orders, local payments, WhatsApp, and repeat customers. Not another marketplace. Your own channel.', es: 'Tienda digital, pedidos en línea, pagos locales, WhatsApp y clientes recurrentes. No otro marketplace. Tu propio canal.' },
+  'home.p2.cta': { en: 'Explore Serve', es: 'Explora Serve' },
+  'home.p3.h': { en: 'Know who is moving, where, and when.', es: 'Sabe quién se mueve, dónde y cuándo.' },
+  'home.p3.b': { en: 'Live scheduling, dispatch, pickup coordination, vehicles, and operational communication.', es: 'Agenda en vivo, despacho, coordinación de recogidas, vehículos y comunicación operativa.' },
+  'home.p3.cta': { en: 'Explore Transportation', es: 'Explora Transportation' },
+  // ecosystem section
+  // philosophy
+  'home.phi.1a': { en: "We don't build technology to replace people.", es: 'No construimos tecnología para reemplazar a las personas.' },
+  'home.phi.1b': { en: 'We build technology so their work works better.', es: 'Construimos tecnología para que su trabajo funcione mejor.' },
+  'home.phi.b': { en: 'AI can assist. Software can organize. People keep deciding.', es: 'La IA puede asistir. El software puede organizar. Las personas siguen decidiendo.' },
+  // Miami section
+  'home.mia.eyebrow': { en: 'MIAMI, FLORIDA', es: 'MIAMI, FLORIDA' },
+  'home.mia.h1': { en: 'Built in Miami.', es: 'Construida en Miami.' },
+  'home.mia.h2': { en: 'Designed beyond borders.', es: 'Diseñada más allá de las fronteras.' },
+  'home.mia.b': { en: 'Practical, accessible, adaptable operating technology for businesses in the U.S. and Latin America.', es: 'Tecnología operativa práctica, accesible y adaptable para negocios en Estados Unidos y Latinoamérica.' },
+  // new hero (pastel rebuild)
+  'home.nh.l1': { en: 'Technology for the people', es: 'Tecnología para las personas' },
+  'home.nh.l2': { en: 'who keep the business', es: 'que mantienen el negocio' },
+  'home.nh.l3': { en: 'in motion.', es: 'en movimiento.' },
+  'home.nh.sub': { en: 'We build practical operational technology for hospitality, commerce, and transportation — designed around how work actually happens.', es: 'Construimos tecnología operativa práctica para hotelería, comercio y transporte — diseñada según cómo ocurre el trabajo de verdad.' },
+  'home.nh.cta1': { en: 'Explore our products', es: 'Explora nuestros productos' },
+  'home.val.eyebrow': { en: 'Why Attenda', es: 'Por qué Attenda' },
+  'home.ops.eyebrow': { en: 'The products', es: 'Los productos' },
+  'home.mia.badge': { en: 'Technology made in Miami.', es: 'Tecnología hecha en Miami.' },
   // lang toggle
   'lang.toggle': { en: 'ES', es: 'EN' },
 };
