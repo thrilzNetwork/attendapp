@@ -32,7 +32,13 @@ export default function Home() {
     const hotel = params.get('hotel');
     const room = params.get('room');
     if (hotel) localStorage.setItem('attenda_hotel_slug', hotel);
-    if (room) localStorage.setItem('attenda_qr_room', room);
+    if (room) {
+      localStorage.setItem('attenda_qr_room', room);
+    } else if (hotel) {
+      // Welcome Letter QR (hotel param, no room): clear any stale locked room so
+      // the guest enters/corrects their own room number at validation.
+      localStorage.removeItem('attenda_qr_room');
+    }
 
     getHotelConfig().then(cfg => {
       if (cfg?.brandColor) setBrandColor(cfg.brandColor);

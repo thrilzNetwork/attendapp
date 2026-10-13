@@ -2916,6 +2916,7 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
   const [codes, setCodes] = useState<QrCodeRow[]>([]);
   const [form, setForm] = useState({ label: '', location_type: 'room' });
   const [copied, setCopied] = useState<string | null>(null);
+  const [wlBusy, setWlBusy] = useState(false);
 
   const loadCodes = useCallback(async () => {
     const data = await getQrCodes(hotelId);
@@ -2938,6 +2939,17 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this QR code?')) return;
     await deleteQrCode(id);
+    loadCodes();
+  };
+
+  // Welcome Letter QR: hotel param only — guest enters/corrects their own room number (no locked pre-fill).
+  const welcomeUrl = `${baseUrl}/?hotel=${hotelSlug}`;
+  const welcomer = codes.find(c => c.location_type === 'welcome_letter');
+
+  const handleAddWelcome = async () => {
+    setWlBusy(true);
+    await createQrCode(hotelId, 'Welcome Letter', 'welcome_letter', welcomeUrl);
+    setWlBusy(false);
     loadCodes();
   };
 
@@ -3010,6 +3022,43 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
             </button>
           </div>
         </div>
+        </div>
+      </div>
+
+      {/* Welcome Letter QR — one per property; hotel param only so guests enter their own room */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6 shadow-sm">
+        <div className="flex gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Mail size={16} style={{ color: TEAL }} />
+              <h3 className="font-bold text-[14px] text-gray-900">Welcome Letter QR</h3>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">one per property</span>
+            </div>
+            <p className="text-[12px] text-gray-500 leading-relaxed mb-3">
+              Room QR codes open the app with the room number <span className="font-bold">pre-filled and locked</span>.
+              The Welcome Letter QR is different: it opens your hotel with the room number <span className="font-bold">blank and editable</span>,
+              so guests type or correct their own room number at check-in. Print this one in the welcome letter — it works from any room.
+            </p>
+            {welcomer ? null : (
+              <button onClick={handleAddWelcome} disabled={wlBusy}
+                className="px-5 py-3 rounded-xl text-white font-semibold text-[13px] disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+                Generate Welcome Letter QR
+              </button>
+            )}
+          </div>
+          {welcomer && (() => {
+            const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(welcomeUrl)}`;
+            return (
+              <div className="text-center shrink-0">
+                <Image src={qrImgUrl} alt="Welcome Letter QR" width={120} height={120} className="rounded-xl border border-gray-100 mx-auto" unoptimized />
+                <button onClick={() => handleCopy(welcomeUrl, welcomer.id)}
+                  className="mt-2 flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg mx-auto"
+                  style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
+                  {copied === welcomer.id ? <><Check size={11} /> Copied!</> : <><Copy size={11} /> Copy URL</>}
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
