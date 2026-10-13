@@ -19,42 +19,68 @@ import { AirportSchedule } from '@/components/AirportSchedule';
 
 const BURGUNDY = '#6B1D3C';
 
-/* ── Modal wrapper — centered, same style as check-in modal ── */
+/* ── Modal wrapper — centered, same style as check-in modal.
+      wide = Request Now spec variant: 32px radius, 480/540/600 widths,
+      52% overlay, 48px close, 25px/750 title. ── */
 export function GuestSheet({
-  open, onClose, title, children, fullHeight = false,
+  open, onClose, title, children, fullHeight = false, wide = false,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
   fullHeight?: boolean;
+  wide?: boolean;
 }) {
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop — clicking it closes the modal, nothing else moves */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-
-      {/* Modal card — same shape/shadow as check-in modal, just taller */}
       <div
-        className="relative bg-white rounded-[20px] w-full shadow-2xl flex flex-col"
-        style={{
-          maxWidth: 380,
-          maxHeight: fullHeight ? '88dvh' : '85dvh',
-          height: fullHeight ? '88dvh' : undefined,
-        }}
+        className={wide ? 'absolute inset-0 bg-black/[0.52]' : 'absolute inset-0 bg-black/50'}
+        onClick={onClose}
+      />
+
+      {/* Modal card — wide variant per Request Now spec (design_reference: screenshot) */}
+      <div
+        className={
+          wide
+            ? 'relative bg-white rounded-[32px] w-full max-w-[480px] md:max-w-[540px] lg:max-w-[600px] shadow-[0_16px_48px_rgba(0,0,0,0.12)] flex flex-col'
+            : 'relative bg-white rounded-[20px] w-full shadow-2xl flex flex-col'
+        }
+        style={
+          wide
+            ? { maxHeight: '90dvh' }
+            : {
+                maxWidth: 380,
+                maxHeight: fullHeight ? '88dvh' : '85dvh',
+                height: fullHeight ? '88dvh' : undefined,
+              }
+        }
       >
         {/* Header */}
-        <div className="shrink-0 flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
-          <h2 className="text-[18px] font-bold text-black">{title}</h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center active:scale-90"
-          >
-            <X size={16} className="text-gray-500" />
-          </button>
-        </div>
+        {wide ? (
+          <div className="shrink-0 flex items-center justify-between px-7 pt-7 pb-6 border-b border-gray-100">
+            <h2 className="text-[25px] text-[#202735]" style={{ fontWeight: 750 }}>{title}</h2>
+            <button
+              onClick={onClose}
+              className="w-12 h-12 rounded-full bg-[#F3F4F6] flex items-center justify-center active:scale-90 shrink-0"
+            >
+              <X size={20} className="text-[#6B7280]" />
+            </button>
+          </div>
+        ) : (
+          <div className="shrink-0 flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+            <h2 className="text-[18px] font-bold text-black">{title}</h2>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center active:scale-90"
+            >
+              <X size={16} className="text-gray-500" />
+            </button>
+          </div>
+        )}
 
         {/* Scrollable content */}
         <div className={fullHeight ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'flex-1 overflow-y-auto'}>
@@ -69,62 +95,397 @@ export function GuestSheet({
 
 const REQUEST_CATEGORIES = [
   {
-    icon: <Bell size={22} />,
+    id: 'towels',
+    icon: <Bell size={30} />,
     label: 'Towels',
     type: 'Amenity Request',
     details: 'Towel Service',
-    color: '#158A7C',
+    color: '#429383',
+    bg: '#E9F4F2',
   },
   {
-    icon: <WashingMachine size={22} />,
+    id: 'housekeeping',
+    icon: <WashingMachine size={30} />,
     label: 'Housekeeping',
     type: 'Housekeeping',
     details: 'Cleaning Service',
     color: '#7C3AED',
+    bg: '#F3EEFF',
   },
   {
-    icon: <Utensils size={22} />,
+    id: 'room_service',
+    icon: <Utensils size={30} />,
     label: 'Room Service',
     type: 'Amenity Request',
     details: 'Room Service / Food',
-    color: '#D97706',
+    color: '#D28128',
+    bg: '#FCF3E9',
   },
   {
-    icon: <ShoppingBag size={22} />,
+    id: 'amenities',
+    icon: <ShoppingBag size={30} />,
     label: 'Amenities',
     type: 'Amenity Request',
     details: 'Toiletries / Amenities',
-    color: '#DB2777',
+    color: '#D33280',
+    bg: '#FCEEF5',
   },
   {
-    icon: <Clock size={22} />,
+    id: 'late_checkout',
+    icon: <Clock size={30} />,
     label: 'Late Check-out',
     type: 'Front Desk Request',
     details: 'Late Checkout',
-    color: '#2563EB',
+    color: '#3868EB',
+    bg: '#ECF1FF',
   },
   {
-    icon: <Bell size={22} />,
+    id: 'wake_up',
+    icon: <Bell size={30} />,
     label: 'Wake-Up Call',
     type: 'Front Desk Request',
     details: 'Wake-Up Call',
-    color: '#059669',
+    color: '#38976B',
+    bg: '#E8F5F0',
   },
   {
-    icon: <Flame size={22} />,
+    id: 'maintenance',
+    icon: <Flame size={30} />,
     label: 'Maintenance',
     type: 'Maintenance',
     details: 'Maintenance Issue',
-    color: '#DC2626',
+    color: '#DA3D38',
+    bg: '#FBEDED',
   },
   {
-    icon: <Phone size={22} />,
-    label: 'Contact Me',
+    id: 'front_desk',
+    icon: <Phone size={30} />,
+    label: 'Call Front Desk',
     type: 'Front Desk Request',
     details: 'Please contact guest',
     color: '#6B7280',
+    bg: '#F1F2F4',
   },
 ];
+
+/* ── Service detail screens (v2): tap card → panel → submit ───── */
+
+const TEXT_PRIMARY = '#202735';
+const TEXT_SECONDARY = '#9BA4B4';
+const BORDER = '#EDF0F3';
+
+function ScreenBackButton({ onBack }: { onBack: () => void }) {
+  return (
+    <button onClick={onBack} className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[#202735] active:scale-95">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+      Back
+    </button>
+  );
+}
+
+function ScreenFrame({ title, subtitle, onBack, children }: {
+  title: string;
+  subtitle?: string;
+  onBack: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex-1 flex flex-col overflow-y-auto">
+      <div className="px-6 pt-4">
+        <ScreenBackButton onBack={onBack} />
+        <h3 className="text-[20px] text-[#202735] mt-3" style={{ fontWeight: 750 }}>{title}</h3>
+        {subtitle && <p className="text-[14px] text-[#9BA4B4] mt-1">{subtitle}</p>}
+      </div>
+      <div className="px-6 py-4 flex-1">{children}</div>
+    </div>
+  );
+}
+
+function SubmitButton({ label, onClick, disabled }: {
+  label: string; onClick: () => void; disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full rounded-[16px] text-white font-bold text-[15px] py-3.5 shadow-sm active:scale-[0.98] transition-transform disabled:opacity-50"
+      style={{ backgroundColor: BURGUNDY }}
+    >
+      {disabled ? 'Sending…' : label}
+    </button>
+  );
+}
+
+const inputCls = 'w-full bg-gray-50 rounded-xl px-4 py-3 text-[15px] text-[#202735] outline-none border border-[#EDF0F3] placeholder:text-[#9BA4B4]';
+const labelCls = 'text-[12px] font-semibold text-[#6B7280] mb-1.5 block';
+
+type ScreenProps = {
+  hotel: HotelConfig | null;
+  room: string;
+  sending: boolean;
+  onSubmit: (type: string, details: string, label: string) => void;
+  onBack: () => void;
+};
+
+function ScreenTowels({ sending, onSubmit, onBack }: ScreenProps) {
+  const [qty, setQty] = useState(1);
+  const [notes, setNotes] = useState('');
+  return (
+    <ScreenFrame title="Request Towels" subtitle="Need fresh towels? We've got you covered." onBack={onBack}>
+      <div className="space-y-4">
+        <div>
+          <span className={labelCls}>How many towel sets?</span>
+          <div className="flex items-center justify-between bg-gray-50 rounded-xl border border-[#EDF0F3] px-3 py-2.5">
+            <button onClick={() => setQty(q => Math.max(1, q - 1))} className="w-10 h-10 rounded-full bg-white border border-[#EDF0F3] text-[20px] font-bold text-[#202735] active:scale-95">−</button>
+            <span className="text-[17px] font-bold text-[#202735]">{qty} {qty === 1 ? 'set' : 'sets'}</span>
+            <button onClick={() => setQty(q => Math.min(2, q + 1))} className="w-10 h-10 rounded-full bg-white border border-[#EDF0F3] text-[20px] font-bold text-[#202735] active:scale-95">+</button>
+          </div>
+          {qty >= 2 && <p className="text-[11px] text-[#9BA4B4] mt-1 text-center">Maximum 2 towel sets per request.</p>}
+        </div>
+        <div>
+          <span className={labelCls}>Notes</span>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Any special instructions?" className={inputCls} />
+        </div>
+        <SubmitButton
+          label="Request Towels"
+          disabled={sending}
+          onClick={() => onSubmit('Amenity Request', `Towel Service · ${qty} set${qty > 1 ? 's' : ''}${notes ? ` · Notes: ${notes}` : ''}`, 'Towels')}
+        />
+      </div>
+    </ScreenFrame>
+  );
+}
+
+function ScreenHousekeeping({ onSubmit, sending, onBack }: ScreenProps) {
+  const [svc, setSvc] = useState<string>('');
+  const [notes, setNotes] = useState('');
+  return (
+    <ScreenFrame title="Housekeeping Service" subtitle="Our team will review your request based on availability." onBack={onBack}>
+      <div className="space-y-4">
+        <div className="rounded-2xl bg-[#F3EEFF]/60 border border-[#EDF0F3] px-4 py-3">
+          <p className="text-[12px] font-bold text-[#7C3AED] mb-1">Our Housekeeping Policy</p>
+          <p className="text-[13px] text-[#202735] leading-relaxed">Service is available on request. Submitting a request does not guarantee service — our team confirms based on availability.</p>
+        </div>
+        <div>
+          <span className={labelCls}>What do you need?</span>
+          <div className="grid grid-cols-2 gap-2">
+            {['Full Room Cleaning', 'Trash Removal', 'Fresh Linens', 'Other'].map(t => (
+              <button key={t} onClick={() => setSvc(t)}
+                className={`rounded-xl border px-3 py-2.5 text-[13px] font-semibold text-left active:scale-[0.98] ${svc === t ? 'border-[#7C3AED] bg-[#F3EEFF] text-[#7C3AED]' : 'border-[#EDF0F3] bg-white text-[#202735]'}`}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <span className={labelCls}>Additional Notes</span>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Anything we should know?" className={inputCls} />
+        </div>
+        <SubmitButton
+          label="Request Housekeeping"
+          disabled={sending || !svc}
+          onClick={() => onSubmit('Housekeeping', `${svc}${notes ? ` · Notes: ${notes}` : ''}`, 'Housekeeping')}
+        />
+        <p className="text-[11px] text-[#9BA4B4] text-center">Submitting a request does not guarantee service.</p>
+      </div>
+    </ScreenFrame>
+  );
+}
+
+function ScreenRoomService({ hotel, onBack }: ScreenProps) {
+  const phone = hotel?.frontDeskPhone || '';
+  return (
+    <ScreenFrame title="Today's Room Service Menu" subtitle="Food service is provided by our selected restaurant partner." onBack={onBack}>
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-[#EDF0F3] p-6 text-center">
+          <Utensils size={28} className="mx-auto text-[#D28128] mb-2" />
+          <p className="text-[15px] font-bold text-[#202735]">Today's menu is not available yet.</p>
+          <p className="text-[13px] text-[#9BA4B4] mt-1">Your order can be placed by phone in the meantime.</p>
+        </div>
+        <a href={`tel:${phone}`} className="block text-center">
+          <button className="w-full rounded-[16px] text-white font-bold text-[15px] py-3.5 shadow-sm active:scale-[0.98] transition-transform" style={{ backgroundColor: BURGUNDY }}>
+            Order Now — Call
+          </button>
+        </a>
+        <p className="text-[11px] text-[#9BA4B4] text-center">Tap to call the Front Desk{phone ? ` at ${phone}` : ''} and place your order.</p>
+      </div>
+    </ScreenFrame>
+  );
+}
+
+function ScreenAmenities({ onSubmit, sending, onBack }: ScreenProps) {
+  const [sel, setSel] = useState<Record<string, boolean>>({});
+  const [notes, setNotes] = useState('');
+  const ITEMS = ['Comb', 'Toothpaste', 'Toothbrush', 'Feminine Products', 'Shower Cap', 'Makeup Remover'];
+  const chosen = ITEMS.filter(i => sel[i]);
+  return (
+    <ScreenFrame title="Request Amenities" subtitle="Forgot something? We're happy to help." onBack={onBack}>
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-[#EDF0F3] divide-y divide-[#EDF0F3]">
+          {ITEMS.map(item => (
+            <button key={item} onClick={() => setSel(s => ({ ...s, [item]: !s[item] }))}
+              className="w-full flex items-center justify-between px-4 py-3 active:bg-gray-50">
+              <span className="text-[15px] font-semibold text-[#202735]">{item}</span>
+              <span className={`w-6 h-6 rounded-md border flex items-center justify-center ${sel[item] ? 'border-[#D33280] bg-[#D33280]' : 'border-[#EDF0F3]'}`}>
+                {sel[item] && <CheckCircle size={14} className="text-white" />}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div>
+          <span className={labelCls}>Notes</span>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Anything else you need?" className={inputCls} />
+        </div>
+        <SubmitButton
+          label="Request Amenities"
+          disabled={sending || chosen.length === 0}
+          onClick={() => onSubmit('Amenity Request', `Toiletries / Amenities · ${chosen.join(', ')}${notes ? ` · Notes: ${notes}` : ''}`, 'Amenities')}
+        />
+        <p className="text-[11px] text-[#9BA4B4] text-center">Items are subject to availability.</p>
+      </div>
+    </ScreenFrame>
+  );
+}
+
+const LATE_CHECKOUT_OPTIONS = [
+  { time: '12:00 PM', fee: 0, price: 'Complimentary' },
+  { time: '1:00 PM', fee: 15, price: '$15' },
+  { time: '2:00 PM', fee: 30, price: '$30' },
+];
+
+function ScreenLateCheckout({ onSubmit, sending, onBack }: ScreenProps) {
+  const [pick, setPick] = useState<number | null>(null);
+  const sel = pick !== null ? LATE_CHECKOUT_OPTIONS[pick] : null;
+  return (
+    <ScreenFrame title="Request Late Check-out" subtitle="Need a little more time?" onBack={onBack}>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          {LATE_CHECKOUT_OPTIONS.map((o, i) => (
+            <button key={o.time} onClick={() => setPick(i)}
+              className={`w-full flex items-center justify-between rounded-xl border px-4 py-3.5 active:scale-[0.99] ${pick === i ? 'border-[#3868EB] bg-[#ECF1FF]' : 'border-[#EDF0F3] bg-white'}`}>
+              <span className="text-[15px] font-bold text-[#202735]">{o.time}</span>
+              <span className={`text-[14px] font-bold ${pick === i ? 'text-[#3868EB]' : 'text-[#9BA4B4]'}`}>{o.price}</span>
+            </button>
+          ))}
+        </div>
+        {sel && (
+          <div className="rounded-xl bg-gray-50 px-4 py-3 text-[13px] text-[#202735]">
+            <span className="font-bold">Summary:</span> {sel.time} · {sel.price === 'Complimentary' ? 'No fee' : `${sel.price} fee on approval`}
+          </div>
+        )}
+        <SubmitButton
+          label="Request Late Check-out"
+          disabled={sending || pick === null}
+          onClick={() => sel && onSubmit('Front Desk Request', `Late Checkout · ${sel.time}${sel.fee > 0 ? ` (fee ${sel.price})` : ' (complimentary)'}`, `Late Check-out ${sel.time}`)}
+        />
+        <p className="text-[11px] text-[#9BA4B4] text-center">Late check-out is subject to availability and hotel approval. Fees may apply.</p>
+      </div>
+    </ScreenFrame>
+  );
+}
+
+function ScreenWakeUp({ onSubmit, sending, onBack }: ScreenProps) {
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [time, setTime] = useState('');
+  const today = date;
+  return (
+    <ScreenFrame title="Schedule a Wake-Up Call" subtitle="We'll help you start your day on time." onBack={onBack}>
+      <div className="space-y-4">
+        <div>
+          <span className={labelCls}>Date</span>
+          <input type="date" min={today} value={date} onChange={e => setDate(e.target.value)} className={inputCls} />
+        </div>
+        <div>
+          <span className={labelCls}>Time</span>
+          <input type="time" step={300} value={time} onChange={e => setTime(e.target.value)} className={inputCls} />
+          <p className="text-[11px] text-[#9BA4B4] mt-1">Calls in 5-minute intervals, hotel local time.</p>
+        </div>
+        {date && time && (
+          <div className="rounded-xl bg-gray-50 px-4 py-3 text-[13px] text-[#202735]">
+            <span className="font-bold">Wake-up call:</span> {date} · {time}
+          </div>
+        )}
+        <SubmitButton
+          label="Request Wake-Up Call"
+          disabled={sending || !date || !time}
+          onClick={() => onSubmit('Front Desk Request', `Wake-Up Call · ${date} at ${time}`, 'Wake-Up Call')}
+        />
+        <p className="text-[11px] text-[#9BA4B4] text-center">Sent to the Front Desk for confirmation.</p>
+      </div>
+    </ScreenFrame>
+  );
+}
+
+function ScreenMaintenance({ onSubmit, sending, onBack }: ScreenProps) {
+  const [cat, setCat] = useState('');
+  const [desc, setDesc] = useState('');
+  const [perm, setPerm] = useState(false);
+  const CATS = ['Shower', 'Air Conditioning', 'Television', 'Other'];
+  return (
+    <ScreenFrame title="Report a Maintenance Issue" subtitle="Something not working? Let us know." onBack={onBack}>
+      <div className="space-y-4">
+        <div>
+          <span className={labelCls}>What's the issue?</span>
+          <div className="grid grid-cols-2 gap-2">
+            {CATS.map(c => (
+              <button key={c} onClick={() => setCat(c)}
+                className={`rounded-xl border px-3 py-2.5 text-[13px] font-semibold text-left active:scale-[0.98] ${cat === c ? 'border-[#DA3D38] bg-[#FBEDED] text-[#DA3D38]' : 'border-[#EDF0F3] bg-white text-[#202735]'}`}>
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <span className={labelCls}>Description</span>
+          <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} placeholder="Please describe the issue." className={inputCls} />
+        </div>
+        <label className="flex items-start gap-2.5 rounded-xl border border-[#EDF0F3] px-4 py-3 active:scale-[0.99]">
+          <input type="checkbox" checked={perm} onChange={e => setPerm(e.target.checked)} className="mt-0.5 w-4 h-4 accent-[#DA3D38]" />
+          <span className="text-[13px] font-semibold text-[#202735]">Staff may enter my room if I'm away.</span>
+        </label>
+        <SubmitButton
+          label="Submit Maintenance Request"
+          disabled={sending || !cat || !desc.trim() || !perm}
+          onClick={() => onSubmit('Maintenance', `Maintenance Issue · ${cat}: ${desc.trim()}${perm ? ' · Permission to enter granted' : ''}`, cat)}
+        />
+        <p className="text-[11px] text-[#9BA4B4] text-center">For urgent safety issues, please call the Front Desk immediately.</p>
+      </div>
+    </ScreenFrame>
+  );
+}
+
+function ScreenFrontDesk({ hotel, onBack }: ScreenProps) {
+  const phone = hotel?.frontDeskPhone || '';
+  return (
+    <ScreenFrame title="Contact Front Desk" subtitle="We're just a phone call away." onBack={onBack}>
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-[#EDF0F3] p-6 text-center">
+          {hotel?.name && <p className="text-[16px] font-bold text-[#202735] mb-1">{hotel.name}</p>}
+          {phone ? <p className="text-[15px] text-[#9BA4B4]">{phone}</p> : <p className="text-[13px] text-[#9BA4B4]">Number available at the hotel.</p>}
+        </div>
+        <a href={phone ? `tel:${phone}` : undefined} className="block">
+          <button className="w-full rounded-[16px] text-white font-bold text-[15px] py-3.5 shadow-sm active:scale-[0.98] transition-transform" style={{ backgroundColor: BURGUNDY }}>
+            📞 Call Front Desk
+          </button>
+        </a>
+      </div>
+    </ScreenFrame>
+  );
+}
+
+const REQUEST_SCREENS: Record<string, React.FC<ScreenProps>> = {
+  towels: ScreenTowels,
+  housekeeping: ScreenHousekeeping,
+  room_service: ScreenRoomService,
+  amenities: ScreenAmenities,
+  late_checkout: ScreenLateCheckout,
+  wake_up: ScreenWakeUp,
+  maintenance: ScreenMaintenance,
+  front_desk: ScreenFrontDesk,
+};
 
 export function MessageSheetContent() {
   const [guestName, setGuestName] = useState('Guest');
@@ -132,6 +493,8 @@ export function MessageSheetContent() {
   const [sent, setSent] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [hotelColor, setHotelColor] = useState(BURGUNDY);
+  const [screen, setScreen] = useState<string | null>(null);
+  const [cfg, setCfg] = useState<HotelConfig | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('guestSession');
@@ -143,6 +506,7 @@ export function MessageSheetContent() {
       } catch { localStorage.removeItem('guestSession'); }
     }
     getHotelConfig().then(h => {
+      setCfg(h);
       if (h?.brandColor) setHotelColor(h.brandColor);
     });
   }, []);
@@ -151,7 +515,7 @@ export function MessageSheetContent() {
     if (sending) return;
     setSending(true);
     try {
-      const hotel = await getHotelConfig();
+      const hotel = cfg || await getHotelConfig();
       await supabase.from('requests').insert({
         hotel_id: hotel?.id,
         guest_name: guestName,
@@ -178,37 +542,61 @@ export function MessageSheetContent() {
         <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: `${hotelColor}15` }}>
           <CheckCircle size={32} style={{ color: hotelColor }} />
         </div>
-        <h3 className="text-[18px] font-extrabold text-gray-900 mb-1">Request Sent!</h3>
-        <p className="text-[14px] text-gray-500 mb-6">Our team has been notified and will assist you shortly.</p>
+        <h3 className="text-[18px] font-extrabold text-[#202735] mb-1">Request Sent!</h3>
+        <p className="text-[14px] text-[#9BA4B4] mb-6">Your request has been sent to our team.</p>
         <div className="bg-gray-50 rounded-2xl px-4 py-3 text-[13px] text-gray-600 mb-6">
           <span className="font-semibold">{sent}</span> · Room {guestRoom}
         </div>
-        <button onClick={() => setSent(null)} className="text-[13px] font-bold" style={{ color: hotelColor }}>
+        <button onClick={() => { setSent(null); setScreen(null); }} className="text-[13px] font-bold" style={{ color: hotelColor }}>
           + Make another request
         </button>
       </div>
     );
   }
 
+  // Service detail screen — tap card → panel → submit (v2 navigation)
+  if (screen) {
+    const Screen = REQUEST_SCREENS[screen];
+    if (Screen) {
+      return (
+        <div className="flex-1 flex flex-col">
+          <div className="shrink-0 px-6 pt-4">
+            <ScreenBackButton onBack={() => setScreen(null)} />
+          </div>
+          <Screen
+            hotel={cfg}
+            room={guestRoom}
+            sending={sending}
+            onBack={() => setScreen(null)}
+            onSubmit={(type, details, label) => sendRequest(type, details, label).then(() => setScreen(null))}
+          />
+        </div>
+      );
+    }
+  }
+
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4">
-      <p className="text-[12px] text-gray-400 mb-4 text-center">Tap a request — our team will be right with you.</p>
-      <div className="grid grid-cols-2 gap-3">
+    <div className="flex-1 flex flex-col">
+      {/* Pending Validation chip — soft gate: staff still receives + verifies the request */}
+      <div className="mx-6 mt-4 rounded-xl bg-[#F1F2F4] px-4 py-2.5 text-[12px] font-semibold text-[#6B7280] text-center">
+        Pending Validation · Our team is confirming your stay
+      </div>
+      <p className="text-[16px] text-[#9BA4B4] text-center px-6 pt-3 pb-4">How can we make your stay better?</p>
+      <div className="grid grid-cols-2 gap-3.5 md:gap-4 px-6 py-5">
         {REQUEST_CATEGORIES.map((cat) => (
           <button
             key={cat.label}
-            onClick={() => sendRequest(cat.type, cat.details, cat.label)}
-            disabled={sending}
-            className="flex flex-col items-center justify-center gap-2.5 rounded-2xl border border-gray-100 bg-white py-5 px-3 shadow-sm active:scale-95 transition-transform disabled:opacity-50"
+            onClick={() => setScreen(cat.id)}
+            className="h-[164px] flex flex-col items-center justify-center gap-3 rounded-[24px] border border-[#EDF0F3] bg-white px-3 shadow-[0_2px_4px_rgba(0,0,0,0.06)] active:scale-95 transition-transform"
           >
-            <div className="w-11 h-11 rounded-full flex items-center justify-center" style={{ backgroundColor: `${cat.color}15`, color: cat.color }}>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: cat.bg, color: cat.color }}>
               {cat.icon}
             </div>
-            <span className="text-[13px] font-bold text-gray-800">{cat.label}</span>
+            <span className="text-[18px] font-bold text-[#202735] text-center leading-tight">{cat.label}</span>
           </button>
         ))}
       </div>
-      <p className="text-[11px] text-gray-400 text-center mt-5">Room {guestRoom} · {guestName}</p>
+      <p className="text-[15px] text-[#9BA4B4] text-center py-5">Room {guestRoom} · {guestName}</p>
     </div>
   );
 }

@@ -1265,15 +1265,28 @@ export async function updateRoomTypeBatch(ids: Set<string>, room_type: string) {
 
 // ─── Guest Validation ───────────────────────────────────────
 export async function upsertGuestValidation(hotelId: string, name: string, room: string, validatedAt: string) {
+  // Best-effort enriched shape: last_active_at powers the staff "Last active" column.
+  // Falls back to the legacy shape if the guests table has no such column.
   const { error } = await supabase.from('guests').upsert({
     hotel_id: hotelId,
     name,
     room,
     checkout: validatedAt.split('T')[0],
     checked_in_at: validatedAt,
+    last_active_at: validatedAt,
     status: 'active',
   }, { onConflict: 'hotel_id,name,room', ignoreDuplicates: false });
-  if (error) throw new Error(error.message || JSON.stringify(error));
+  if (error) {
+    const { error: fallbackError } = await supabase.from('guests').upsert({
+      hotel_id: hotelId,
+      name,
+      room,
+      checkout: validatedAt.split('T')[0],
+      checked_in_at: validatedAt,
+      status: 'active',
+    }, { onConflict: 'hotel_id,name,room', ignoreDuplicates: false });
+    if (fallbackError) throw new Error(fallbackError.message || JSON.stringify(fallbackError));
+  }
 }
 
 export async function getGuestValidations(hotelId: string): Promise<{ name: string; room: string; validatedAt: string }[]> {

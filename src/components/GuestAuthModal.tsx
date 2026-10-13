@@ -12,30 +12,16 @@ interface Props {
   isValidationCheck?: boolean;
 }
 
-const MONTHS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December'
-];
-
-function getDaysInMonth(month: number, year: number) {
-  return new Date(year, month, 0).getDate();
-}
-
+/* Guest auth = TWO FIELDS ONLY (first name + room). The checkout date picker is
+   gone: sessions now live on a rolling 24h-of-activity window, and the property
+   hands out ONE main QR (/?hotel=<slug>) instead of per-room codes. Staff
+   validates the name+room pair from the dashboard afterwards. */
 export default function GuestAuthModal({ open, onClose, onSuccess, isValidationCheck }: Props) {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-  const currentDay = now.getDate();
-  const years = [currentYear, currentYear + 1, currentYear + 2];
-
   const { login } = useGuest();
 
   const [name, setName] = useState('');
   const [room, setRoom] = useState('');
-  const [month, setMonth] = useState(currentMonth.toString());
-  const [day, setDay] = useState(currentDay.toString());
-  const [year, setYear] = useState(currentYear.toString());
-  const [errors, setErrors] = useState({ name: false, room: false, date: false });
+  const [errors, setErrors] = useState({ name: false, room: false });
   const [isQrLocked, setIsQrLocked] = useState(false);
   const [rooms, setRooms] = useState<HotelRoom[]>([]);
   const [roomSearch, setRoomSearch] = useState('');
@@ -51,12 +37,6 @@ export default function GuestAuthModal({ open, onClose, onSuccess, isValidationC
           const s = JSON.parse(stored);
           setName(s.name || '');
           setRoom(s.room || '');
-          if (s.checkout) {
-            const d = new Date(s.checkout);
-            setYear(d.getFullYear().toString());
-            setMonth((d.getMonth() + 1).toString());
-            setDay(d.getDate().toString());
-          }
         } catch {}
       }
     }
@@ -115,25 +95,20 @@ export default function GuestAuthModal({ open, onClose, onSuccess, isValidationC
 
   if (!open) return null;
 
-  const daysInMonth = month ? getDaysInMonth(parseInt(month), parseInt(year) || currentYear) : 31;
-  const days = Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString());
-
   const handleSubmit = () => {
     const e = {
       name: !name.trim(),
       room: !room.trim(),
-      date: !month || !day || !year
     };
-    if (e.name || e.room || e.date) {
+    if (e.name || e.room) {
       setErrors(e);
       return;
     }
-    const checkout = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     const guestName = name.trim();
     const guestRoom = room.trim();
 
-    // Use the context login function which sets validationStatus to 'pending'
-    login(guestName, guestRoom, checkout);
+    // Context login — session carries lastActive, no checkout date
+    login(guestName, guestRoom);
 
     // Insert a check-in request so it appears in Live Orders on staff dashboard
     const hotelSlug = localStorage.getItem('attenda_hotel_slug');
@@ -144,7 +119,7 @@ export default function GuestAuthModal({ open, onClose, onSuccess, isValidationC
           guestName,
           room: guestRoom,
           type: 'check-in',
-          details: 'Guest checked in',
+          details: 'Guest checked in via main QR',
           hotelId: hotel.id,
         }).catch((err) => console.error('Failed to insert check-in request:', err));
       }).catch(() => {});
@@ -165,7 +140,6 @@ export default function GuestAuthModal({ open, onClose, onSuccess, isValidationC
               hotelSlug,
               guestName,
               room: guestRoom,
-              checkout,
             },
           }),
         }).catch(() => {});
@@ -194,18 +168,19 @@ export default function GuestAuthModal({ open, onClose, onSuccess, isValidationC
           {/* Header */}
           <div className="mb-5">
             <p className="text-[20px] font-bold text-black">Welcome</p>
-            <p className="text-[13px] text-gray-400 mt-0.5">Please verify your stay details</p>
+            <p className="text-[13px] text-gray-400 mt-0.5">Your first name and room number</p>
           </div>
 
           {/* Fields */}
           <div className="space-y-3">
             <div>
-              <label className="text-[12px] font-semibold text-gray-600 mb-1.5 block">Full Name</label>
+              <label className="text-[12px] font-semibold text-gray-600 mb-1.5 block">First Name</label>
               <div className={`flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-3 border ${errors.name ? 'border-red-400' : 'border-gray-200'}`}>
                 <User size={16} className="text-gray-400 shrink-0" />
                 <input
                   type="text"
-                  placeholder="John Smith"
+                  autoComplete="given-name"
+                  placeholder="Jane"
                   value={name}
                   onChange={(e) => { setName(e.target.value); setErrors({ ...errors, name: false }); }}
                   className="bg-transparent text-[16px] text-gray-800 outline-none w-full placeholder:text-gray-400"
@@ -276,57 +251,6 @@ export default function GuestAuthModal({ open, onClose, onSuccess, isValidationC
                   />
                 </div>
               )}
-            </div>
-
-            <div>
-              <label className="text-[12px] font-semibold text-gray-600 mb-1.5 block">Checkout Date</label>
-              <div className={`flex gap-2 ${errors.date ? 'border border-red-400 rounded-xl p-0.5' : ''}`}>
-                <select
-                  value={month}
-                  onChange={(e) => { setMonth(e.target.value); setErrors({ ...errors, date: false }); }}
-                  className="flex-1 bg-gray-50 rounded-xl px-3 py-3 text-[16px] text-gray-800 outline-none border border-gray-200 appearance-none"
-                  style={{ backgroundImage: 'none' }}
-                >
-                  <option value="" disabled>Month</option>
-                  {MONTHS.map((m, i) => {
-                    const monthNum = i + 1;
-                    const unavailable = parseInt(year) === currentYear && monthNum < currentMonth;
-                    return (
-                      <option key={m} value={monthNum.toString()} disabled={unavailable}>
-                        {m}{unavailable ? ' (past)' : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-
-                <select
-                  value={day}
-                  onChange={(e) => { setDay(e.target.value); setErrors({ ...errors, date: false }); }}
-                  className="w-[70px] bg-gray-50 rounded-xl px-2 py-3 text-[16px] text-gray-800 outline-none border border-gray-200 text-center appearance-none"
-                >
-                  <option value="" disabled>Day</option>
-                  {days.map((d) => {
-                    const dNum = parseInt(d);
-                    const unavailable = parseInt(year) === currentYear && parseInt(month) === currentMonth && dNum < currentDay;
-                    return (
-                      <option key={d} value={d} disabled={unavailable}>
-                        {d}{unavailable ? '×' : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-
-                <select
-                  value={year}
-                  onChange={(e) => { setYear(e.target.value); setErrors({ ...errors, date: false }); }}
-                  className="w-[80px] bg-gray-50 rounded-xl px-2 py-3 text-[16px] text-gray-800 outline-none border border-gray-200 text-center appearance-none"
-                >
-                  <option value="" disabled>Year</option>
-                  {years.map((y) => (
-                    <option key={y} value={y.toString()}>{y}</option>
-                  ))}
-                </select>
-              </div>
             </div>
           </div>
 

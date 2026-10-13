@@ -3590,6 +3590,7 @@ interface GuestSessionData {
   validationStatus?: 'pending' | 'confirmed';
   validatedAt?: string;
   lastSeen?: string;
+  lastActive?: string;
 }
 
 function GuestsView({ hotelId }: { hotelId: string }) {
@@ -3612,6 +3613,7 @@ function GuestsView({ hotelId }: { hotelId: string }) {
           validationStatus: 'confirmed',
           validatedAt: g.validatedAt,
           lastSeen: g.validatedAt,
+          lastActive: g.validatedAt,
         });
       });
     } catch (err) {
@@ -3636,6 +3638,7 @@ function GuestsView({ hotelId }: { hotelId: string }) {
             room: session.room,
             checkout: session.checkout || '',
             checkedIn: session.checkedIn || '',
+            lastActive: session.lastActive || new Date().toISOString(),
             validationStatus: session.validationStatus || 'pending',
             validatedAt: session.validatedAt,
             lastSeen: new Date().toISOString(),
@@ -3815,9 +3818,9 @@ function GuestsView({ hotelId }: { hotelId: string }) {
                   </div>
                   <p className="text-[16px] font-bold text-gray-900">{guest.name}</p>
                   <p className="text-[13px] text-gray-500">Room {guest.room}</p>
-                  {guest.checkout && (
+                  {guest.lastActive && (
                     <p className="text-[12px] text-gray-400 mt-1">
-                      Checkout: {new Date(guest.checkout).toLocaleDateString()}
+                      Last active: {new Date(guest.lastActive).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                     </p>
                   )}
                   {guest.validatedAt && (

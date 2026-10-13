@@ -10,13 +10,46 @@ import {
 
 export type ValidationStatus = 'pending' | 'confirmed';
 
-interface GuestSession {
+/* Guest session — ROLLING 24H OF ACTIVITY, no checkout date.
+   The property prints ONE main QR (/?hotel=<slug>). Guest scans, enters
+   first name + room, staff validates. Any guest activity (request, message,
+   booking) refreshes lastActive; 24h of silence expires the session. */
+export const ACTIVE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export interface GuestSession {
   name: string;
   room: string;
-  checkout: string;
+  lastActive: string; // ISO timestamp — refreshed on every guest activity
   checkedIn: string;
   validationStatus?: ValidationStatus;
   validatedAt?: string;
+  checkout?: string; // legacy sessions only — kept for their grace window
+}
+
+/** Single source of truth for "is this session alive": <24h since lastActive,
+    with a legacy fallback to the old checkout date so pre-rebuild sessions
+    (and any printed per-room QR era sessions) don't all die at once. */
+export function isSessionActive(s: { lastActive?: string; checkout?: string } | null | undefined): boolean {
+  if (!s) return false;
+  if (s.lastActive) {
+    const last = new Date(s.lastActive).getTime();
+    if (!Number.isNaN(last)) return Date.now() - last < ACTIVE_WINDOW_MS;
+  }
+  if (s.checkout) return new Date(s.checkout) > new Date();
+  return false;
+}
+
+/** Touch the STORED session (activity happened). Direct localStorage write —
+    expiry is re-checked from storage at every gate, so no React re-render churn. */
+export function touchStoredSession() {
+  try {
+    const stored = localStorage.getItem('guestSession');
+    if (!stored) return;
+    const s = JSON.parse(stored);
+    if (!isSessionActive(s)) return;
+    s.lastActive = new Date().toISOString();
+    localStorage.setItem('guestSession', JSON.stringify(s));
+  } catch { /* ignore */ }
 }
 
 export type RequestStatus = 'pending' | 'in-progress' | 'completed';
@@ -56,7 +89,8 @@ interface GuestContextType {
   guest: GuestSession | null;
   isAuthenticated: boolean;
   isValidated: boolean;
-  login: (name: string, room: string, checkout: string) => void;
+  login: (name: string, room: string) => void;
+  touch: () => void;
   logout: () => void;
   addRequest: (type: string, details: string) => Promise<void>;
   updateRequestStatus: (id: string, status: RequestStatus) => Promise<void>;
@@ -66,7 +100,6 @@ interface GuestContextType {
   updateConfig: (c: Partial<HotelConfig>) => Promise<void>;
   loadConfig: () => Promise<void>;
   confirmValidation: () => void;
-  resetValidationOnCheckout: () => void;
 }
 
 const GuestContext = createContext<GuestContextType | null>(null);
@@ -81,25 +114,13 @@ export function GuestProvider({ children }: { children: ReactNode }) {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        const checkout = new Date(parsed.checkout);
-        const now = new Date();
-        if (checkout >= now) {
-          // Check if we need to reset validation (new day after checkout)
-          const checkoutDate = new Date(parsed.checkout);
-          checkoutDate.setHours(0, 0, 0, 0);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-
-          // If checkout date has passed (past midnight), reset validation
-          if (checkoutDate < today) {
-            localStorage.removeItem('guestSession');
-          } else {
-            // Ensure validationStatus exists (backward compatibility)
-            if (!parsed.validationStatus) {
-              parsed.validationStatus = 'pending';
-            }
-            setGuest(parsed);
+        // Rolling 24h window (legacy sessions: old checkout date still honored)
+        if (isSessionActive(parsed)) {
+          // Ensure validationStatus exists (backward compatibility)
+          if (!parsed.validationStatus) {
+            parsed.validationStatus = 'pending';
           }
+          setGuest(parsed);
         } else {
           localStorage.removeItem('guestSession');
         }
@@ -113,8 +134,7 @@ export function GuestProvider({ children }: { children: ReactNode }) {
         if (e.newValue) {
           try {
             const parsed = JSON.parse(e.newValue);
-            const checkout = new Date(parsed.checkout);
-            if (new Date() <= checkout) {
+            if (isSessionActive(parsed)) {
               setGuest(parsed);
             }
           } catch { /* ignore */ }
@@ -137,11 +157,20 @@ export function GuestProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = (name: string, room: string, checkout: string) => {
+  const touch = () => {
+    setGuest(prev => {
+      if (!prev || !isSessionActive(prev)) return prev;
+      const next = { ...prev, lastActive: new Date().toISOString() };
+      localStorage.setItem('guestSession', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const login = (name: string, room: string) => {
     const session: GuestSession = {
       name,
       room,
-      checkout,
+      lastActive: new Date().toISOString(),
       checkedIn: new Date().toISOString(),
       validationStatus: 'pending',
       validatedAt: undefined
@@ -154,20 +183,12 @@ export function GuestProvider({ children }: { children: ReactNode }) {
     if (!guest) return;
     const updated = {
       ...guest,
+      lastActive: new Date().toISOString(),
       validationStatus: 'confirmed' as const,
       validatedAt: new Date().toISOString()
     };
     setGuest(updated);
     localStorage.setItem('guestSession', JSON.stringify(updated));
-  };
-
-  const resetValidationOnCheckout = () => {
-    if (!guest) return;
-    const checkout = new Date(guest.checkout);
-    const now = new Date();
-    if (checkout < now) {
-      logout();
-    }
   };
 
   const logout = () => {
@@ -185,6 +206,7 @@ export function GuestProvider({ children }: { children: ReactNode }) {
       room: guest.room,
       details,
     });
+    touch(); // activity refreshes the rolling 24h window
     const req: RequestItem = {
       id: Math.random().toString(36).slice(2),
       guestName: guest.name,
@@ -218,15 +240,15 @@ export function GuestProvider({ children }: { children: ReactNode }) {
     await updateHotelConfigSupabase(partial);
   };
 
-  const isAuthenticated = !!guest;
+  const isAuthenticated = !!guest && isSessionActive(guest);
   const isValidated = guest?.validationStatus === 'confirmed';
 
   return (
     <GuestContext.Provider value={{
-      guest, isAuthenticated, isValidated, login, logout,
+      guest, isAuthenticated, isValidated, login, touch, logout,
       addRequest, updateRequestStatus, clearCompletedRequests, requests,
       config, updateConfig, loadConfig,
-      confirmValidation, resetValidationOnCheckout,
+      confirmValidation,
     }}>
       {children}
     </GuestContext.Provider>

@@ -9,7 +9,7 @@ import {
   MessageSheetContent, TransportSheetContent, FacilitiesSheetContent,
   SafetySheetContent, WelcomeSheetContent, ReviewSheetContent,
 } from '@/components/GuestSheets';
-import { useGuest } from '@/lib/guest-context';
+import { useGuest, isSessionActive, touchStoredSession } from '@/lib/guest-context';
 import { getHotelConfig } from '@/lib/supabase';
 import CorporateHomePage from '@/components/corporate/Home';
 
@@ -39,18 +39,18 @@ export default function Home() {
     });
 
     const stored = localStorage.getItem('attenda_hotel_slug');
-    const qrRoom = localStorage.getItem('attenda_qr_room');
     let hasActiveSession = false;
     try {
       const gs = localStorage.getItem('guestSession');
       if (gs) {
         const s = JSON.parse(gs);
-        hasActiveSession = !!stored && new Date(s.checkout) > new Date();
+        hasActiveSession = !!stored && isSessionActive(s);
       }
     } catch (err) {
       console.error('Error checking guest session:', err);
     }
-    setIsHotelView(!!(hotel || (stored && qrRoom) || hasActiveSession));
+    // Bare main-QR entry (no &room=) now leads to the guest app directly
+    setIsHotelView(!!(hotel || stored || hasActiveSession));
   }, []);
 
   if (isHotelView === null) return <div className="h-dvh bg-white" />;
@@ -92,11 +92,11 @@ function HotelGuestApp({
   showValidationSuccess: boolean;
   setShowValidationSuccess: (v: boolean) => void;
 }) {
-  const { guest, isValidated, resetValidationOnCheckout } = useGuest();
+  const { guest, isValidated } = useGuest();
   const [prevValidated, setPrevValidated] = useState(isValidated);
 
   useEffect(() => {
-    resetValidationOnCheckout();
+    // Rolling-24h system: expiry is checked at every gate, no mount-time reset
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -109,13 +109,14 @@ function HotelGuestApp({
   }, [isValidated, prevValidated, guest]);
 
   const handleClick = (sheet: SheetName, requiresAuth = false) => {
-    // Check for a valid (non-expired) session
+    // Check for a valid (non-expired) session — rolling 24h of activity
     const stored = localStorage.getItem('guestSession');
     if (stored) {
       try {
         const session = JSON.parse(stored);
-        if (new Date(session.checkout) > new Date()) {
+        if (isSessionActive(session)) {
           // Valid session — open directly, no re-prompting
+          touchStoredSession();
           setOpenSheet(sheet);
           return;
         }
@@ -243,7 +244,7 @@ function HotelGuestApp({
         onClose={() => setShowValidationSuccess(false)}
         brandColor={brandColor}
       />
-      <GuestSheet open={openSheet === 'message'} onClose={closeSheet} title="Request Now">
+      <GuestSheet open={openSheet === 'message'} onClose={closeSheet} title="Request Now" wide>
         <MessageSheetContent />
       </GuestSheet>
       <GuestSheet open={openSheet === 'transport'} onClose={closeSheet} title="Transport">

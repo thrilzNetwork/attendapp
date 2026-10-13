@@ -193,16 +193,29 @@ function HeroVisual() {
         <path className="connector-anim" d="M180,400 C280,450 420,470 540,455" stroke={AQUA} strokeWidth="1.6" strokeDasharray="5 8" opacity="0.55" />
       </svg>
 
-      {/* card composition */}
-      <div className="relative z-[2] grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5 items-start">
-        <div className="col-span-1 hero-float md:mt-10"><HospFloatCard /></div>
-        <div className="col-span-2 md:col-span-1 hero-float-2 order-first md:order-none"><EcoCenterCard /></div>
-        <div className="col-span-1 hero-float-3 md:mt-14"><MetricCard big="3" small="Productos operativos conectados" /></div>
-      </div>
-      <div className="relative z-[2] grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5 items-center mt-4 md:-mt-2">
-        <div className="hero-float-2"><MetricCard big="24/7" small="Visibilidad operativa" /></div>
-        <div className="hidden md:block" />
+      {/* ── MOBILE-first card stack (one clean column on phones) ── */}
+      <div className="md:hidden relative z-[2] space-y-4">
+        <div className="hero-float-2"><EcoCenterCard /></div>
+        <div className="hero-float"><HospFloatCard /></div>
+        <div className="grid grid-cols-2 gap-4 items-stretch">
+          <div className="hero-float-3"><MetricCard big="3" small="Productos operativos conectados" /></div>
+          <div className="hero-float-2"><MetricCard big="24/7" small="Visibilidad operativa" /></div>
+        </div>
         <div className="hero-float-3"><TeamCard /></div>
+      </div>
+
+      {/* ── DESKTOP editorial composition (unchanged spec) ── */}
+      <div className="hidden md:block relative z-[2]">
+        <div className="grid grid-cols-3 gap-5 items-start">
+          <div className="col-span-1 hero-float mt-10"><HospFloatCard /></div>
+          <div className="col-span-1 hero-float-2"><EcoCenterCard /></div>
+          <div className="col-span-1 hero-float-3 mt-14"><MetricCard big="3" small="Productos operativos conectados" /></div>
+        </div>
+        <div className="grid grid-cols-3 gap-5 items-center -mt-2">
+          <div className="hero-float-2"><MetricCard big="24/7" small="Visibilidad operativa" /></div>
+          <div />
+          <div className="hero-float-3"><TeamCard /></div>
+        </div>
       </div>
     </div>
   );
@@ -405,20 +418,21 @@ function CorpHomeInner() {
             <div className="inline-flex items-center px-4 py-2 rounded-full mb-8 bg-white/80" style={{ border: `1px solid ${BORDER}` }}>
               <span className="text-[11px] font-extrabold tracking-[0.24em] uppercase" style={{ color: '#3E7186' }}>ATTENDA TECHNOLOGIES · MIAMI</span>
             </div>
-            <h1 className="text-[44px] md:text-[68px] lg:text-[76px] font-extrabold leading-[0.99] tracking-[-0.04em]" style={{ color: INK }}>
-              {t('home.nh.l1')}<br />{t('home.nh.l2')}<br />{t('home.nh.l3')}
+            <h1 className="text-[42px] sm:text-[48px] md:text-[68px] lg:text-[76px] font-extrabold leading-[1.02] md:leading-[0.99] tracking-[-0.04em]" style={{ color: INK }}>
+              <span className="md:hidden">{t('home.nh.l1')} {t('home.nh.l2')} {t('home.nh.l3')}</span>
+              <span className="hidden md:inline">{t('home.nh.l1')}<br />{t('home.nh.l2')}<br />{t('home.nh.l3')}</span>
             </h1>
-            <p className="text-[17px] md:text-[18px] leading-relaxed mt-8 max-w-2xl mx-auto" style={{ color: SUB }}>
+            <p className="text-[16px] md:text-[18px] leading-relaxed mt-6 md:mt-8 max-w-2xl mx-auto" style={{ color: SUB }}>
               {t('home.nh.sub')}
             </p>
-            <div className="flex flex-col sm:flex-row gap-5 justify-center items-center mt-10">
-              <GreenPill href="#products">{t('home.nh.cta1')}</GreenPill>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-5 justify-center items-stretch sm:items-center mt-8 md:mt-10">
+              <GreenPill href="#products" className="w-full sm:w-auto">{t('home.nh.cta1')}</GreenPill>
               <Link href="/company" className="text-[15px] font-semibold transition-opacity hover:opacity-70" style={{ color: '#3E7186' }}>
                 {t('nav.discover')}
               </Link>
             </div>
           </Reveal>
-          <div className="mt-14 md:mt-20">
+          <div className="mt-10 md:mt-20">
             <Reveal delay={140}>
               <HeroVisual />
             </Reveal>
