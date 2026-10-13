@@ -58,6 +58,8 @@ export type OpRecordType =
   | 'sales_checkin'          // daily sales check-in value
   | 'schedule_snapshot'      // weekly schedule snapshot (staged → published Wednesday)
   | 'hk_sod_plan'           // housekeeping start-of-day productivity plan (maids + est end)
+  | 'hk_eod_actual'         // housekeeping end-of-day actuals (ending stayovers; DND delta)
+  | 'hk_room_log'           // per-room historical record: deep cleans + condition notes
   | 'mgr_daily_walk'       // manager daily property walk log (21-day habit)
   | 'sop_completion';        // staff completed an interactive SOP (Right Answers)
 

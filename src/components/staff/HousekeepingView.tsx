@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { BedDouble, Timer, Package, Plus, RefreshCw, Clock, CheckCircle2, Pencil, Sunrise, Moon, X, Wrench, EyeOff, Eye } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { BedDouble, Timer, Package, Plus, RefreshCw, Clock, CheckCircle2, Pencil, Sunrise, Moon, X, Wrench, EyeOff, Eye, History } from 'lucide-react';
 import {
   getRoomStatuses, updateRoomStatus, getLinenCounts, createLinenCount,
   getHkLaborLogs, createHkLaborLog,
@@ -59,10 +59,25 @@ interface SodPlan {
   plan_date: string;
   checkouts: number;
   stayovers: number;
+  dnd_start?: number;
   workload_min: number;
   maids_needed: number;
   est_end: string | null;
   created_by: string;
+}
+
+interface EodActual {
+  plan_date: string;
+  stayovers_end: number;
+  dnd_end: number;
+  created_by: string;
+}
+
+interface RoomLogDetails {
+  room_number: string;
+  type: 'deep_clean' | 'condition';
+  note?: string;
+  created_by?: string;
 }
 
 export default function HousekeepingView({
@@ -93,11 +108,20 @@ export default function HousekeepingView({
   // Admin edit of an already-logged exit time
   const [editingEndId, setEditingEndId] = useState<string | null>(null);
   const [editEndVal, setEditEndVal] = useState('');
+  // End-of-day actuals (ending stayovers; DND end is live from the board)
+  const [eodActual, setEodActual] = useState<EodActual | null>(null);
+  const [eodSo, setEodSo] = useState('');
+  const [eodSaving, setEodSaving] = useState(false);
+  // Room history logs (deep cleans + condition notes)
+  const [roomLogs, setRoomLogs] = useState<OpRecord[]>([]);
+  const [popupNote, setPopupNote] = useState('');
+  const [popupBusy, setPopupBusy] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   const load = useCallback(async () => {
     if (!hotelId) return;
     setLoading(true);
-    const [r, ln, lb, scheds, fcs, pmList, plans] = await Promise.all([
+    const [r, ln, lb, scheds, fcs, pmList, plans, eods, rlogs] = await Promise.all([
       getRoomStatuses(hotelId),
       getLinenCounts(hotelId, today).catch(() => []),
       getHkLaborLogs(hotelId, today),
@@ -105,6 +129,8 @@ export default function HousekeepingView({
       getWeeklyForecasts(hotelId, mondayOf(today)).catch(() => [] as WeeklyForecast[]),
       getMaintenancePms(hotelId).catch(() => [] as MaintenancePm[]),
       listOps(hotelId, 'hk_sod_plan').catch(() => [] as OpRecord[]),
+      listOps(hotelId, 'hk_eod_actual').catch(() => [] as OpRecord[]),
+      listOps(hotelId, 'hk_room_log').catch(() => [] as OpRecord[]),
     ]);
     const sorted = (r || []).sort((a, b) => {
       // cleaned today first (most recent), then numerically
@@ -133,6 +159,13 @@ export default function HousekeepingView({
       .filter(d => d && d.plan_date === today)
       .sort((a, b) => (b.created_by || '').localeCompare(a.created_by || ''));
     setSodPlan(todays[0] || null);
+    // EOD actuals saved today (latest entry wins)
+    const todaysEods = ((eods || []) as OpRecord[])
+      .map(p => p.details as unknown as EodActual)
+      .filter(d => d && d.plan_date === today);
+    setEodActual(todaysEods[todaysEods.length - 1] || null);
+    // Room history logs, newest first
+    setRoomLogs(((rlogs || []) as OpRecord[]).sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')));
     setLoading(false);
   }, [hotelId, today]);
 
@@ -173,6 +206,7 @@ export default function HousekeepingView({
     const estEnd = earliest ? addMinutes(earliest, Math.ceil(workload / maids)) : null;
     const plan: SodPlan = {
       plan_date: today, checkouts: co, stayovers: so,
+      dnd_start: rooms.filter(r => isDnd(r)).length,
       workload_min: workload, maids_needed: maids, est_end: estEnd,
       created_by: staffName || 'Supervisor',
     };
@@ -182,13 +216,59 @@ export default function HousekeepingView({
     setSodSaving(false);
   };
 
+  const saveEod = async () => {
+    const so = Number(eodSo);
+    if (isNaN(so)) return;
+    setEodSaving(true);
+    const rec: EodActual = {
+      plan_date: today,
+      stayovers_end: so,
+      dnd_end: rooms.filter(r => isDnd(r)).length,
+      created_by: staffName || 'Supervisor',
+    };
+    const saved = await createOps(hotelId, 'hk_eod_actual', rec, 'active', { guest_name: rec.created_by, room: 'HK' });
+    if (saved) setEodActual(rec);
+    setEodSo('');
+    setEodSaving(false);
+  };
+
   const minutesToday = labor.reduce((s, l) => s + l.minutes, 0);
   const roomsToday = labor.reduce((s, l) => s + l.rooms_cleaned, 0);
-  const minPerRoom = roomsToday > 0 ? Math.round(minutesToday / roomsToday) : null;
   const variance = expectedRooms != null ? roomsToday - expectedRooms : null;
   const pct = expectedRooms != null && expectedRooms > 0 ? Math.min(100, Math.round((roomsToday / expectedRooms) * 100)) : null;
   const cleanedToday = rooms.filter(r => (r.cleaned_at || '').slice(0, 10) === today).length;
   const onPace = variance == null ? null : variance >= 0;
+  // End-of-day: ending counts vs start-of-day + difference
+  const dndNow = rooms.filter(r => isDnd(r)).length;
+  const dndStart = sodPlan?.dnd_start ?? null;
+  const soStart = sodPlan?.stayovers ?? null;
+  const soEnd = eodActual?.stayovers_end ?? null;
+  const dndEnd = eodActual?.dnd_end ?? dndNow;
+  const dndDelta = dndStart != null ? dndEnd - dndStart : null;
+  const soDelta = soEnd != null && soStart != null ? soEnd - soStart : null;
+
+  const roomLogsFor = (rn: string) =>
+    roomLogs.filter(l => ((l.details as unknown as RoomLogDetails) || {}).room_number === rn);
+  // Last entered per room: first (newest-first) deep clean + latest condition note
+  const lastByRoom = useMemo(() => {
+    const m = new Map<string, { deep: string | null; cond: string | null; condNote: string | null; logs: number }>();
+    for (const l of roomLogs) {
+      const d = l.details as unknown as RoomLogDetails;
+      if (!d?.room_number) continue;
+      const e = m.get(d.room_number) || { deep: null, cond: null, condNote: null, logs: 0 };
+      if (d.type === 'deep_clean' && !e.deep) e.deep = l.created_at;
+      if (d.type === 'condition' && !e.cond) { e.cond = l.created_at; e.condNote = d.note || null; }
+      e.logs += 1;
+      m.set(d.room_number, e);
+    }
+    return m;
+  }, [roomLogs]);
+  const lastEntered = (rn: string) => {
+    const e = lastByRoom.get(rn);
+    if (!e || (!e.deep && !e.cond)) return null;
+    const at = e.deep && e.cond ? (e.deep > e.cond ? e.deep : e.cond) : (e.deep || e.cond);
+    return { deep: e.deep, cond: e.cond, condNote: e.condNote, logs: e.logs };
+  };
   const endedOnTime = hkShifts.filter(s => { const exp = expectedEnd(s.start_time); return s.end_time && exp && s.end_time <= exp; }).length;
   // EOD variance vs productivity model: actual minutes vs planned workload
   const modelWorkload = sodPlan ? sodPlan.workload_min : null;
@@ -219,6 +299,14 @@ export default function HousekeepingView({
     setLnItemType(''); setLnCount(''); setLnPar('');
     setSaving(false);
     load();
+  };
+
+  const addRoomLog = async (roomNumber: string, type: 'deep_clean' | 'condition', note?: string) => {
+    const details: RoomLogDetails = { room_number: roomNumber, type, note: note || undefined, created_by: staffName || 'Staff' };
+    setPopupBusy(true);
+    const saved = await createOps(hotelId, 'hk_room_log', details, 'active', { guest_name: details.created_by, room: roomNumber });
+    setPopupBusy(false);
+    if (saved) { setPopupNote(''); await load(); }
   };
 
   const addLabor = async () => {
@@ -289,7 +377,7 @@ export default function HousekeepingView({
             </span>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">
           <div className="bg-teal-50 rounded-xl p-3 text-center">
             <div className="text-[20px] font-extrabold text-teal-800">{expectedRooms != null ? expectedRooms : '—'}</div>
             <div className="text-[10px] font-bold text-teal-700">EXPECTED ROOMS</div>
@@ -302,10 +390,31 @@ export default function HousekeepingView({
             {modelWorkload != null && <div className="text-[9px] text-gray-400 font-medium mt-0.5">logged: {minutesToday} min</div>}
           </div>
           <div className="bg-gray-50 rounded-xl p-3 text-center">
-            <div className="text-[20px] font-extrabold" style={{ color: TEAL }}>{minPerRoom != null ? minPerRoom : '—'}</div>
-            <div className="text-[10px] font-bold text-gray-500">MIN / ROOM</div>
-            <div className="text-[9px] text-gray-400 font-medium mt-0.5">{minPerRoom != null ? (minPerRoom <= 30 ? 'at target' : 'over 30 target') : 'target 30'}</div>
+            <div className="text-[20px] font-extrabold text-gray-900">{dndStart != null ? dndStart : '—'} → {dndEnd != null ? dndEnd : '—'}</div>
+            <div className="text-[10px] font-bold text-gray-500">DND</div>
+            <div className={`text-[9px] font-extrabold mt-0.5 ${dndDelta == null ? 'text-gray-400' : dndDelta === 0 ? 'text-teal-600' : dndDelta > 0 ? 'text-orange-600' : 'text-teal-600'}`}>
+              {dndDelta == null ? 'no start count' : `${dndDelta > 0 ? '+' : ''}${dndDelta} since start of day`}
+            </div>
           </div>
+          <div className="bg-gray-50 rounded-xl p-3 text-center">
+            <div className="text-[20px] font-extrabold text-gray-900">{soStart != null ? soStart : '—'} → {soEnd != null ? soEnd : '—'}</div>
+            <div className="text-[10px] font-bold text-gray-500">STAYOVERS</div>
+            <div className={`text-[9px] font-extrabold mt-0.5 ${soDelta == null ? 'text-gray-400' : soDelta === 0 ? 'text-teal-600' : soDelta > 0 ? 'text-orange-600' : 'text-teal-600'}`}>
+              {soDelta == null ? 'no end count' : `${soDelta > 0 ? '+' : ''}${soDelta} since start of day`}
+            </div>
+          </div>
+        </div>
+        {/* Ending stayovers entry (DND end is captured live from the board at save time) */}
+        <div className="flex flex-wrap items-end gap-2 pb-1">
+          <label className="text-[12px] font-medium text-gray-600">Ending stayovers
+            <input value={eodSo} onChange={e => setEodSo(e.target.value)} inputMode="numeric" placeholder="0"
+              className="block w-20 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
+          </label>
+          <button onClick={saveEod} disabled={eodSaving}
+            className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50" style={{ background: TEAL }}>
+            <span className="flex items-center gap-1"><Moon size={13} /> {eodActual ? 'Update end-of-day' : 'Save end-of-day'}</span>
+          </button>
+          <span className="text-[11px] text-gray-400">DND end is pulled from the board when you save.</span>
         </div>
         {/* EOD variance chips */}
         {sodPlan && (
@@ -429,7 +538,7 @@ export default function HousekeepingView({
       {/* ── Room PM history board (tap any room for actions + DND + PM) ── */}
       <div className={sec + ' mb-4'}>
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><BedDouble size={14} style={{ color: TEAL }} /> Room PM History <span className="text-[11px] font-medium text-gray-400">({rooms.length} rooms — tap a room)</span></div>
+          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><BedDouble size={14} style={{ color: TEAL }} /> Room History <span className="text-[11px] font-medium text-gray-400">({rooms.length} rooms — tap a room for records)</span></div>
         </div>
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-10 gap-2">
           {rooms.map(r => {
@@ -443,6 +552,13 @@ export default function HousekeepingView({
                 <div className="text-[13px] font-extrabold">{r.room_number}</div>
                 <div className="text-[9px] font-bold uppercase tracking-wide">{r.status === 'out_of_order' ? 'OOO' : r.status}</div>
                 {isToday && r.cleaned_by && <div className="text-[8px] font-bold text-gray-500 truncate">{r.cleaned_by.split(' ')[0]}</div>}
+                {(() => { const le = lastEntered(r.room_number); if (!le) return null;
+                  const dc = le.deep && (!le.cond || le.deep >= le.cond);
+                  return (
+                  <div className={`text-[8px] font-extrabold truncate ${dc ? 'text-teal-700' : 'text-gray-500'}`}>
+                    {dc ? 'DC ' : 'CND '}{new Date((dc ? le.deep : le.cond) as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </div>
+                ); })()}
                 {isToday && hh && <div className="text-[8px] text-gray-400">{hh}</div>}
                 {dnd && <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-red-500" title="DND" />}
               </button>
@@ -520,6 +636,47 @@ export default function HousekeepingView({
                 className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[13px] font-bold ${isDnd(popupRoom) ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-red-50 text-red-700 hover:bg-red-100'}`}>
                 {isDnd(popupRoom) ? <Eye size={14} /> : <EyeOff size={14} />} {isDnd(popupRoom) ? 'Clear DND' : 'Set DND'}
               </button>
+            </div>
+            {/* Room history logging + records — "historical records about the room conditions and deep clean so we can see last time this was entered" */}
+            <div className="border-t border-gray-100 pt-3 mb-3">
+              <div className="text-[11px] font-extrabold text-gray-500 mb-1.5 uppercase tracking-wide flex items-center gap-1.5">
+                <History size={12} style={{ color: TEAL }} /> Room record — log entry
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <button onClick={() => addRoomLog(popupRoom.room_number, 'deep_clean')} disabled={popupBusy}
+                  className="px-3 py-2.5 rounded-xl text-[12px] font-bold text-white disabled:opacity-50" style={{ background: TEAL }}>
+                  Log deep clean
+                </button>
+                <button onClick={() => addRoomLog(popupRoom.room_number, 'condition', popupNote.trim() || undefined)} disabled={popupBusy}
+                  className="px-3 py-2.5 rounded-xl text-[12px] font-bold bg-gray-900 text-white disabled:opacity-50">
+                  Log condition
+                </button>
+              </div>
+              <input value={popupNote} onChange={e => setPopupNote(e.target.value)} placeholder="Condition note (optional) — e.g. carpet stained, AC loud"
+                className="w-full bg-gray-50 rounded-xl px-3 py-2 text-[13px] border border-gray-100 mb-2" />
+              {(() => {
+                const logs = roomLogsFor(popupRoom.room_number);
+                return logs.length === 0 ? (
+                  <p className="text-[12px] text-gray-400 font-medium">No history yet — this room has never been entered for deep clean or condition logging.</p>
+                ) : (
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {logs.slice(0, 10).map(l => {
+                      const d = l.details as unknown as RoomLogDetails;
+                      return (
+                        <div key={l.id} className="flex items-start justify-between gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                          <div className="min-w-0">
+                            <span className={`text-[10px] font-extrabold rounded-lg px-1.5 py-0.5 ${d.type === 'deep_clean' ? 'bg-teal-100 text-teal-800' : 'bg-gray-200 text-gray-700'}`}>
+                              {d.type === 'deep_clean' ? 'DEEP CLEAN' : 'CONDITION'}
+                            </span>
+                            {d.note && <span className="text-[12px] text-gray-600 ml-1.5">{d.note}</span>}
+                          </div>
+                          <span className="text-[10px] text-gray-400 whitespace-nowrap">{new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{d.created_by ? ` · ${d.created_by}` : ''}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
             <div className="border-t border-gray-100 pt-3">
               <div className="text-[11px] font-extrabold text-gray-500 mb-1.5 uppercase tracking-wide">Matched PM tasks</div>
