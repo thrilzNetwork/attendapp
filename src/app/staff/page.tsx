@@ -77,7 +77,7 @@ const ShuttleViewComponent = dynamic(() => import('@/components/staff/ShuttleVie
 const HotelSettingsView = dynamic(() => import('@/components/staff/HotelSettingsView'), { ssr: false });
 const LearningHRView = dynamic(() => import('@/components/staff/LearningHRView'), { ssr: false });
 const KpisView = dynamic(() => import('@/components/staff/KpisView'), { ssr: false });
-const SalesView = dynamic(() => import('@/components/staff/SalesView'), { ssr: false });
+
 const LeaderboardView = dynamic(() => import('@/components/staff/LeaderboardView'), { ssr: false });
 const CultureView = dynamic(() => import('@/components/staff/CultureView'), { ssr: false });
 const SuperAdminView = dynamic(() => import('@/components/staff/SuperAdminView'), { ssr: false });
@@ -128,7 +128,7 @@ type NavTab =
   | 'partners' | 'qrcodes' | 'properties'
   | 'vendor_manifest' | 'knowledge' | 'guests' | 'rooms'
   | 'dailybrief' | 'property_info'
-  | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr' | 'sales'
+  | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
   | 'shuttle_schedule' | 'forecast' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture'
   | 'housekeeping' | 'maintenance' | 'inspections'
   | 'revenue' | 'reports' | 'vendors' | 'agent';
@@ -192,7 +192,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'orders',          label: 'Requests',            icon: Bell,            roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'todos',           label: 'To-Dos',              icon: ClipboardList,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'schedules',       label: 'Sched & Forecast',    icon: CalendarDays,    roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
-  { tab: 'sales',           label: 'Sales',               icon: Target,          roles: ['admin', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
+
 
   // ── OPERATIONS — property tools & planning ──
   { tab: 'shuttle',         label: 'Transportation',      icon: Bus,             roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
@@ -1074,9 +1074,7 @@ function DashboardInner() {
         {tabPanel('kpis', true,
           <KpisView hotelId={config?.id || ''} isAdmin={isAdmin} userId="" userName={session?.name || 'Staff'} />
         )}
-        {tabPanel('sales', isAdmin || s.role === 'manager' || s.role === 'supervisor',
-          <SalesView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} />
-        )}
+
         {tabPanel('marketplace', true,
           <MarketplaceView hotelId={config?.id || ''} isAdmin={isAdmin} />
         )}

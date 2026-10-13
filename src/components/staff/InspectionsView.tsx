@@ -1,15 +1,27 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { ClipboardCheck, Plus, X as XIcon, AlertTriangle, Wrench, CheckCircle2, ChevronDown } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ClipboardCheck, Plus, X as XIcon, AlertTriangle, Wrench, CheckCircle2, ChevronDown, ClipboardList, Download } from 'lucide-react';
 import {
-  getChecklists, createChecklistInstance, updateChecklistInstance,
+  getChecklists, createChecklistInstance, updateChecklistInstance, getRecentChecklistInstances,
   getInspectionFindings, createInspectionFinding, resolveInspectionFinding,
   assignInspectionFinding, linkFindingToWorkOrder, createInspectionChecklist, createWorkOrder,
   type Checklist, type ChecklistInstance, type InspectionFinding, type StaffAccount,
 } from '@/lib/supabase';
 
 const TEAL = '#14b8a6';
+
+const SAFETY_CHECKLIST_NAME = 'Room Safety';
+const SAFETY_ITEMS = [
+  { id: 'rs1', label: 'Smoke detector — chirp test + LED status' },
+  { id: 'rs2', label: 'CO detector — chirp test + LED status' },
+  { id: 'rs3', label: 'Fire extinguisher — pressure in green zone, seal intact' },
+  { id: 'rs4', label: 'Emergency exits / corridors — clear of obstructions' },
+  { id: 'rs5', label: 'Guest room door — self-closer + deadbolt secure' },
+];
+const ROOM_RE = /^Room\s+([A-Za-z0-9-]+)$/i;
+
+const escapeHtml = (s: string) => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch] as string));
 
 interface Props {
   hotelId: string;
@@ -26,7 +38,7 @@ interface RunItem {
   severity?: string;
 }
 
-export default function InspectionsView({ hotelId, staffName, isAdmin, staffList = [] }: Props) {
+export default function InspectionsView({ hotelId, hotelName, staffName, isAdmin, staffList = [] }: Props) {
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [findings, setFindings] = useState<InspectionFinding[]>([]);
   const [running, setRunning] = useState<{ checklist: Checklist; instance: ChecklistInstance; items: RunItem[] } | null>(null);
@@ -40,12 +52,26 @@ export default function InspectionsView({ hotelId, staffName, isAdmin, staffList
   const [mineOnly, setMineOnly] = useState(false);
   const [woLocation, setWoLocation] = useState('');
   const [woPriority, setWoPriority] = useState('normal');
+  const [roomNum, setRoomNum] = useState('');
+  const [recentInstances, setRecentInstances] = useState<ChecklistInstance[]>([]);
 
   const load = useCallback(async () => {
     try {
-      const [cls, fds] = await Promise.all([getChecklists(hotelId), getInspectionFindings(hotelId)]);
+      const [cls, fds, insts] = await Promise.all([
+        getChecklists(hotelId), getInspectionFindings(hotelId), getRecentChecklistInstances(hotelId, 300),
+      ]);
       setChecklists(cls || []);
       setFindings(fds || []);
+      setRecentInstances(insts || []);
+      // Seed the standard Room Safety checklist once per property (idempotent —
+      // only when a checklist with that name doesn't exist yet).
+      if (!(cls || []).some(c => c.name === SAFETY_CHECKLIST_NAME)) {
+        try {
+          await createInspectionChecklist(hotelId, SAFETY_CHECKLIST_NAME, 'Housekeeping', SAFETY_ITEMS);
+          const refreshed = await getChecklists(hotelId);
+          setChecklists(refreshed || []);
+        } catch { /* RLS-degraded: non-admin staff fall back to generic checklists */ }
+      }
     } catch { /* silent */ }
   }, [hotelId]);
 
@@ -54,7 +80,13 @@ export default function InspectionsView({ hotelId, staffName, isAdmin, staffList
   const startRun = async (c: Checklist) => {
     setBusy(true);
     try {
-      const inst = await createChecklistInstance({ checklist_id: c.id, hotel_id: hotelId, staff_name: staffName });
+      const rn = roomNum.trim();
+      const isSafety = c.name === SAFETY_CHECKLIST_NAME;
+      if (isSafety && !rn) { setBusy(false); return; }
+      const inst = await createChecklistInstance({
+        checklist_id: c.id, hotel_id: hotelId, staff_name: staffName,
+        notes: isSafety ? `Room ${rn}` : undefined,
+      });
       setRunning({
         checklist: c,
         instance: inst,
@@ -98,6 +130,7 @@ export default function InspectionsView({ hotelId, staffName, isAdmin, staffList
         });
       }
       setRunning(null);
+      setRoomNum('');
       await load();
     } catch { /* silent */ }
     setBusy(false);
@@ -156,6 +189,88 @@ export default function InspectionsView({ hotelId, staffName, isAdmin, staffList
     .filter(f => f.status !== 'resolved')
     .filter(f => (mineOnly ? f.assigned_to === staffName : true));
   const sevColor = (s: string) => s === 'critical' ? '#dc2626' : s === 'major' ? '#ea580c' : '#ca8a04';
+  const fmtDT = (iso?: string) => iso
+    ? new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : '—';
+
+  // Per-room life-safety history from completed Room Safety runs (notes = "Room <n>")
+  const roomHistory = useMemo(() => {
+    const cById = new Map(checklists.map(c => [c.id, c]));
+    const perRoom = new Map<string, { room: string; at: string; by: string; openFails: number; runs: { at: string; by: string; fails: { label: string; severity: string; status: string }[] }[] }>();
+    const fByInstance = new Map<string, InspectionFinding[]>();
+    for (const f of findings) {
+      if (!f.instance_id) continue;
+      (fByInstance.get(f.instance_id) || fByInstance.set(f.instance_id, []).get(f.instance_id)!).push(f);
+    }
+    for (const inst of recentInstances) {
+      if (!inst.completed || !inst.notes) continue;
+      const m = inst.notes.match(ROOM_RE);
+      if (!m) continue;
+      const c = cById.get(inst.checklist_id);
+      if (!c || c.name !== SAFETY_CHECKLIST_NAME) continue;
+      const room = m[1];
+      const fails = (fByInstance.get(inst.id) || []).map(f => ({ label: f.item_label, severity: f.severity, status: f.status }));
+      const entry = perRoom.get(room) || { room, at: inst.created_at, by: inst.staff_name || '—', openFails: 0, runs: [] };
+      if (inst.created_at > entry.at) { entry.at = inst.created_at; entry.by = inst.staff_name || '—'; }
+      entry.openFails += fails.filter(f => f.status === 'open').length;
+      entry.runs.push({ at: inst.created_at, by: inst.staff_name || '—', fails });
+      perRoom.set(room, entry);
+    }
+    return [...perRoom.values()].sort((a, b) => b.at.localeCompare(a.at));
+  }, [recentInstances, findings, checklists]);
+
+  const downloadReport = () => {
+    const now = new Date();
+    const rows = roomHistory.map(r => `
+      <tr>
+        <td class="room">Room ${escapeHtml(r.room)}</td>
+        <td>${escapeHtml(fmtDT(r.at))}</td>
+        <td>${escapeHtml(r.by)}</td>
+        <td>${r.openFails > 0 ? `<span class="open">${r.openFails} open</span>` : '<span class="clear">all clear</span>'}</td>
+      </tr>`).join('');
+    const detail = roomHistory.map(r => `
+      <h3>Room ${escapeHtml(r.room)}</h3>
+      <table>
+        <tr><th>Inspected</th><th>By</th><th>Findings</th></tr>
+        ${r.runs.map(run => `
+        <tr>
+          <td>${escapeHtml(fmtDT(run.at))}</td>
+          <td>${escapeHtml(run.by)}</td>
+          <td>${run.fails.length === 0 ? '<span class="clear">No findings — all items passed</span>' :
+            run.fails.map(f => `<div>${escapeHtml(f.label)} — <b style="color:${sevColor(f.severity)}">${escapeHtml(f.severity)}</b> · ${escapeHtml(f.status)}</div>`).join('')}</td>
+        </tr>`).join('')}
+      </table>`).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Life-Safety Inspection Report — ${escapeHtml(hotelName)}</title>
+<style>
+  body{font-family:-apple-system,Helvetica,Arial,sans-serif;margin:32px;color:#111827}
+  h1{font-size:22px;margin:0 0 2px}
+  h3{margin:18px 0 4px;font-size:15px}
+  .sub{color:#6b7280;font-size:13px;margin-bottom:20px}
+  table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12px}
+  th{text-align:left;color:#6b7280;font-weight:700;border-bottom:1px solid #e5e7eb;padding:6px 8px}
+  td{border-bottom:1px solid #f3f4f6;padding:6px 8px}
+  td.room{font-weight:800}
+  .open{color:#ea580c;font-weight:700}
+  .clear{color:#0d9488;font-weight:700}
+  .stamp{margin-top:28px;color:#9ca3af;font-size:11px;border-top:1px solid #e5e7eb;padding-top:10px}
+  @media print{ .noprint{display:none} }
+</style></head><body>
+<h1>Life-Safety Inspection Report</h1>
+<p class="sub">${escapeHtml(hotelName)} — generated ${escapeHtml(now.toLocaleString())}</p>
+<table><tr><th>Room</th><th>Last inspected</th><th>By</th><th>Status</th></tr>${rows}</table>
+${detail}
+<p class="stamp">Report covers the most recent ${recentInstances.length} recorded inspection runs · Generated by Attenda · Timestamp verify: ${now.toISOString()}</p>
+</body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `safety-report-${hotelName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${now.toISOString().slice(0, 10)}.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
@@ -222,6 +337,22 @@ export default function InspectionsView({ hotelId, staffName, isAdmin, staffList
       ) : (
         /* Checklist picker */
         <div className="space-y-2">
+          {/* Room Safety quick-start: room number is required for a room-scoped run */}
+          {checklists.some(c => c.name === SAFETY_CHECKLIST_NAME) && (
+            <div className="bg-white rounded-2xl border px-4 py-3.5" style={{ borderColor: `${TEAL}55` }}>
+              <p className="text-[14px] font-bold text-gray-900">Room Safety Inspection</p>
+              <p className="text-[11px] text-gray-400 mb-2">Smoke · CO · extinguisher · exits · door security — tagged to one room</p>
+              <div className="flex gap-2">
+                <input value={roomNum} onChange={e => setRoomNum(e.target.value)} inputMode="numeric" placeholder="Room #"
+                  className="w-28 bg-gray-50 rounded-xl px-3 py-2 text-[14px] font-bold border border-gray-100" />
+                <button disabled={busy || !roomNum.trim()}
+                  onClick={() => { const sc = checklists.find(c => c.name === SAFETY_CHECKLIST_NAME); if (sc) startRun(sc); }}
+                  className="flex-1 text-[13px] font-bold text-white rounded-xl px-4 py-2 disabled:opacity-40" style={{ background: TEAL }}>
+                  Start Room Inspection →
+                </button>
+              </div>
+            </div>
+          )}
           {checklists.length === 0 ? (
             <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-6 text-center">
               <ClipboardCheck size={28} className="mx-auto text-gray-300 mb-2" />
@@ -238,6 +369,35 @@ export default function InspectionsView({ hotelId, staffName, isAdmin, staffList
               <span className="text-[11px] font-bold" style={{ color: TEAL }}>Start →</span>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Room Safety history + report download */}
+      {roomHistory.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3">
+            <p className="text-[12px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
+              <ClipboardList size={14} style={{ color: TEAL }} /> Room Safety History ({roomHistory.length} rooms)
+            </p>
+            <button onClick={downloadReport} className="flex items-center gap-1.5 text-[11px] font-bold text-white rounded-lg px-2.5 py-1.5" style={{ background: TEAL }}>
+              <Download size={12} /> Download Report
+            </button>
+          </div>
+          <div className="divide-y divide-gray-50 border-t border-gray-100">
+            {roomHistory.slice(0, 12).map(r => (
+              <div key={r.room} className="flex items-center justify-between px-4 py-2.5">
+                <div>
+                  <p className="text-[13px] font-bold text-gray-900">Room {r.room}</p>
+                  <p className="text-[11px] text-gray-400">{fmtDT(r.at)} · by {r.by} · {r.runs.length} run{r.runs.length > 1 ? 's' : ''}</p>
+                </div>
+                {r.openFails > 0 ? (
+                  <span className="text-[11px] font-bold" style={{ color: '#ea580c' }}>{r.openFails} open finding{r.openFails > 1 ? 's' : ''}</span>
+                ) : (
+                  <span className="text-[11px] font-bold" style={{ color: TEAL }}>All clear</span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

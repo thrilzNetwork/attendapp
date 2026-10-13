@@ -1343,6 +1343,7 @@ export interface ChecklistInstance {
   shift_date: string;
   checked_items: { item_id: string; checked_at: string }[];
   completed: boolean;
+  notes?: string;
   created_at: string;
   completed_at?: string;
 }
@@ -1385,7 +1386,7 @@ export async function getChecklistInstances(hotelId: string, date?: string): Pro
 }
 
 export async function createChecklistInstance(instance: {
-  checklist_id: string; hotel_id: string; staff_id?: string; staff_name?: string; shift_date?: string;
+  checklist_id: string; hotel_id: string; staff_id?: string; staff_name?: string; shift_date?: string; notes?: string;
 }) {
   const { data, error } = await supabase.from('staff_checklist_instances').insert({
     ...instance,
@@ -1402,6 +1403,15 @@ export async function updateChecklistInstance(id: string, updates: { checked_ite
   if (updates.completed) upd.completed_at = new Date().toISOString();
   const { error } = await supabase.from('staff_checklist_instances').update(upd).eq('id', id);
   if (error) throw new Error(error.message || JSON.stringify(error));
+}
+
+export async function getRecentChecklistInstances(hotelId: string, limit = 300): Promise<ChecklistInstance[]> {
+  const { data } = await supabase.from('staff_checklist_instances').select('*')
+    .eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(limit);
+  return ((data || []) as Record<string, unknown>[]).map((c) => ({
+    ...c,
+    checked_items: typeof c.checked_items === 'string' ? JSON.parse(c.checked_items as string) : (c.checked_items || []),
+  })) as ChecklistInstance[];
 }
 
 // ─── Staff Schedules ────────────────────────────────────────
