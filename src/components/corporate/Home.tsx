@@ -96,7 +96,7 @@ function HospFloatCard() {
     { icon: CheckCircle2, label: 'Maintenance', tint: 'rgba(17,24,39,0.07)' },
   ];
   return (
-    <div className="rounded-2xl bg-white p-4" style={{ boxShadow: SHADOW_SM, border: `1px solid ${BORDER}` }}>
+    <div className="rounded-2xl bg-white p-3 md:p-4" style={{ boxShadow: SHADOW_SM, border: `1px solid ${BORDER}` }}>
       <div className="flex items-center gap-2 mb-3">
         <BedDouble size={13} style={{ color: AQUA }} />
         <span className="text-[9px] font-extrabold tracking-[0.18em]" style={{ color: SUB }}>HOSPITALITY</span>
@@ -106,9 +106,9 @@ function HospFloatCard() {
       </div>
       <div className="space-y-1.5">
         {rows.map((r, i) => (
-          <div key={i} className="flex items-center gap-2.5 rounded-xl px-3 py-2" style={{ backgroundColor: '#FAFDFE', border: `1px solid ${BORDER}` }}>
+          <div key={i} className="flex items-center gap-2.5 rounded-xl px-3 py-1.5 md:py-2" style={{ backgroundColor: '#FAFDFE', border: `1px solid ${BORDER}` }}>
             <Chip icon={r.icon} tint={r.tint} />
-            <span className="text-[11.5px] font-semibold" style={{ color: INK }}>{r.label}</span>
+            <span className="text-[10.5px] md:text-[11.5px] font-semibold" style={{ color: INK }}>{r.label}</span>
           </div>
         ))}
       </div>
@@ -123,23 +123,23 @@ function EcoCenterCard() {
       <div className="absolute top-5 left-8 w-1.5 h-1.5 rounded-full bg-white" style={{ boxShadow: '0 0 10px 2px rgba(255,255,255,0.9)' }} />
       <div className="absolute top-12 right-10 w-1 h-1 rounded-full bg-white/90" style={{ boxShadow: '0 0 8px 2px rgba(255,255,255,0.8)' }} />
       <div className="absolute bottom-8 left-12 w-1 h-1 rounded-full bg-white/80" style={{ boxShadow: '0 0 8px 2px rgba(255,255,255,0.7)' }} />
-      <div className="relative flex items-center justify-center" style={{ minHeight: 300 }}>
+      <div className="relative flex items-center justify-center min-h-[230px] md:min-h-[300px]">
         <svg viewBox="0 0 220 200" className="absolute inset-0 w-full h-full" aria-hidden>
           <path d="M62,58 C85,80 95,90 108,98" stroke="#FFFFFF" strokeWidth="2" fill="none" opacity="0.85" />
           <path d="M160,55 C140,80 125,90 112,98" stroke="#FFFFFF" strokeWidth="2" fill="none" opacity="0.85" />
           <path d="M110,165 C110,145 110,135 110,122" stroke="#FFFFFF" strokeWidth="2" fill="none" opacity="0.85" />
         </svg>
         {/* central glowing node */}
-        <div className="relative z-10 w-16 h-16 rounded-full flex items-center justify-center"
+        <div className="relative z-10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center"
           style={{ background: 'radial-gradient(circle at 35% 30%, #FFFFFF, #DFF6FB 60%, #C2ECF4)', boxShadow: '0 0 34px 10px rgba(255,255,255,0.65), 0 10px 26px -10px rgba(57,119,137,0.35)' }}>
-          <div className="w-6 h-6 rounded-full" style={{ background: 'radial-gradient(circle at 40% 35%, #54C84F, #2E9E34)' }} />
+          <div className="w-5 h-5 md:w-6 md:h-6 rounded-full" style={{ background: 'radial-gradient(circle at 40% 35%, #54C84F, #2E9E34)' }} />
         </div>
         {/* three product chips */}
-        <div className="absolute top-8 left-10 z-10 w-11 h-11 rounded-2xl bg-white flex items-center justify-center" style={{ boxShadow: SHADOW_SM }}><BedDouble size={17} style={{ color: INK }} /></div>
-        <div className="absolute top-6 right-10 z-10 w-11 h-11 rounded-2xl bg-white flex items-center justify-center" style={{ boxShadow: SHADOW_SM }}><Store size={17} style={{ color: INK }} /></div>
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 w-11 h-11 rounded-2xl bg-white flex items-center justify-center" style={{ boxShadow: SHADOW_SM }}><Truck size={17} style={{ color: INK }} /></div>
+        <div className="absolute top-8 left-10 z-10 w-10 h-10 md:w-11 md:h-11 rounded-2xl bg-white flex items-center justify-center" style={{ boxShadow: SHADOW_SM }}><BedDouble size={17} style={{ color: INK }} /></div>
+        <div className="absolute top-6 right-10 z-10 w-10 h-10 md:w-11 md:h-11 rounded-2xl bg-white flex items-center justify-center" style={{ boxShadow: SHADOW_SM }}><Store size={17} style={{ color: INK }} /></div>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 w-10 h-10 md:w-11 md:h-11 rounded-2xl bg-white flex items-center justify-center" style={{ boxShadow: SHADOW_SM }}><Truck size={17} style={{ color: INK }} /></div>
       </div>
-      <div className="relative text-center pb-5 -mt-1">
+      <div className="relative text-center pb-4 md:pb-5 -mt-1">
         <span className="text-[9px] font-extrabold tracking-[0.22em]" style={{ color: '#38778B' }}>ONE ECOSYSTEM</span>
       </div>
     </div>
@@ -148,16 +148,16 @@ function EcoCenterCard() {
 
 function MetricCard({ big, small }: { big: string; small: string }) {
   return (
-    <div className="rounded-2xl bg-white p-5 text-left" style={{ boxShadow: SHADOW_SM, border: `1px solid ${BORDER}` }}>
-      <div className="text-[34px] font-extrabold tracking-[-0.02em] leading-none" style={{ color: INK }}>{big}</div>
-      <div className="text-[11px] font-semibold mt-1.5 leading-snug" style={{ color: SUB }}>{small}</div>
+    <div className="rounded-2xl bg-white p-4 md:p-5 text-left" style={{ boxShadow: SHADOW_SM, border: `1px solid ${BORDER}` }}>
+      <div className="text-[26px] md:text-[34px] font-extrabold tracking-[-0.02em] leading-none" style={{ color: INK }}>{big}</div>
+      <div className="text-[10px] md:text-[11px] font-semibold mt-1.5 leading-snug" style={{ color: SUB }}>{small}</div>
     </div>
   );
 }
 
 function TeamCard() {
   return (
-    <div className="rounded-2xl bg-white p-4 flex items-center gap-3" style={{ boxShadow: SHADOW_SM, border: `1px solid ${BORDER}` }}>
+    <div className="rounded-2xl bg-white p-3 md:p-4 flex items-center gap-3" style={{ boxShadow: SHADOW_SM, border: `1px solid ${BORDER}` }}>
       <div className="flex -space-x-2">
         {[
           ['AM', 'rgba(84,200,79,0.25)'],
@@ -194,10 +194,10 @@ function HeroVisual() {
       </svg>
 
       {/* ── MOBILE-first card stack (one clean column on phones) ── */}
-      <div className="md:hidden relative z-[2] space-y-4">
+      <div className="md:hidden relative z-[2] space-y-3">
         <div className="hero-float-2"><EcoCenterCard /></div>
         <div className="hero-float"><HospFloatCard /></div>
-        <div className="grid grid-cols-2 gap-4 items-stretch">
+        <div className="grid grid-cols-2 gap-3 items-stretch">
           <div className="hero-float-3"><MetricCard big="3" small="Productos operativos conectados" /></div>
           <div className="hero-float-2"><MetricCard big="24/7" small="Visibilidad operativa" /></div>
         </div>
@@ -415,24 +415,24 @@ function CorpHomeInner() {
       <section className="relative overflow-hidden pt-32 md:pt-40 pb-16 md:pb-24" style={{ background: HERO }}>
         <div className="relative max-w-6xl mx-auto text-center px-5">
           <Reveal>
-            <div className="inline-flex items-center px-4 py-2 rounded-full mb-8 bg-white/80" style={{ border: `1px solid ${BORDER}` }}>
+            <div className="inline-flex items-center px-4 py-2 rounded-full mb-6 md:mb-8 bg-white/80" style={{ border: `1px solid ${BORDER}` }}>
               <span className="text-[11px] font-extrabold tracking-[0.24em] uppercase" style={{ color: '#3E7186' }}>ATTENDA TECHNOLOGIES · MIAMI</span>
             </div>
-            <h1 className="text-[42px] sm:text-[48px] md:text-[68px] lg:text-[76px] font-extrabold leading-[1.02] md:leading-[0.99] tracking-[-0.04em]" style={{ color: INK }}>
+            <h1 className="text-[34px] sm:text-[48px] md:text-[68px] lg:text-[76px] font-extrabold leading-[1.04] md:leading-[0.99] tracking-[-0.04em]" style={{ color: INK }}>
               <span className="md:hidden">{t('home.nh.l1')} {t('home.nh.l2')} {t('home.nh.l3')}</span>
               <span className="hidden md:inline">{t('home.nh.l1')}<br />{t('home.nh.l2')}<br />{t('home.nh.l3')}</span>
             </h1>
-            <p className="text-[16px] md:text-[18px] leading-relaxed mt-6 md:mt-8 max-w-2xl mx-auto" style={{ color: SUB }}>
+            <p className="text-[15px] md:text-[18px] leading-relaxed mt-5 md:mt-8 max-w-2xl mx-auto" style={{ color: SUB }}>
               {t('home.nh.sub')}
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-5 justify-center items-stretch sm:items-center mt-8 md:mt-10">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-5 justify-center items-stretch sm:items-center mt-7 md:mt-10">
               <GreenPill href="#products" className="w-full sm:w-auto">{t('home.nh.cta1')}</GreenPill>
               <Link href="/company" className="text-[15px] font-semibold transition-opacity hover:opacity-70" style={{ color: '#3E7186' }}>
                 {t('nav.discover')}
               </Link>
             </div>
           </Reveal>
-          <div className="mt-10 md:mt-20">
+          <div className="mt-8 md:mt-20">
             <Reveal delay={140}>
               <HeroVisual />
             </Reveal>
