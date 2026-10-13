@@ -36,7 +36,7 @@ export function CorporateLogo({ light = false }: { light?: boolean }) {
   );
 }
 
-export function CorporateNav({ heroTone = 'dark', accent }: { heroTone?: 'dark' | 'light'; accent?: string } = {}) {
+export function CorporateNav() {
   const { t } = useLang();
   const [scrolled, setScrolled] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
@@ -49,20 +49,16 @@ export function CorporateNav({ heroTone = 'dark', accent }: { heroTone?: 'dark' 
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // light-hetero pages (pastel homepage) keep dark text before scroll;
-  // dark-hero pages switch to white text until scroll kicks in
-  const onLight = heroTone === 'light' && !scrolled; // light hero → dark UI text before scroll
-  const overHero = !scrolled; // every corporate page opens on a dark hero (except heroTone="light")
-  const whiteUi = overHero && !onLight; // white UI text only over dark heroes
-  const linkCls = `text-[14px] font-medium transition-colors ${whiteUi ? 'text-white/70 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`;
+  const overHero = !scrolled; // every corporate page opens on a dark hero
+  const linkCls = `text-[14px] font-medium transition-colors ${overHero ? 'text-white/70 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`;
 
   return (
     <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur-xl shadow-sm' : 'bg-transparent'}`}>
       <div className="max-w-7xl mx-auto px-4 md:px-5 h-16 flex items-center justify-between">
-        <CorporateLogo light={whiteUi} />
+        <CorporateLogo light={overHero} />
         <div className="hidden lg:flex items-center gap-7">
           <div className="relative" onMouseEnter={() => setProductsOpen(true)} onMouseLeave={() => setProductsOpen(false)}>
-            <button className={`flex items-center gap-1 text-[14px] font-medium transition-colors ${whiteUi ? 'text-white/70 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
+            <button className={`flex items-center gap-1 text-[14px] font-medium transition-colors ${overHero ? 'text-white/70 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
               {t('nav.products')} <ChevronDown size={14} className={`transition-transform ${productsOpen ? 'rotate-180' : ''}`} />
             </button>
             {productsOpen && (
@@ -84,14 +80,14 @@ export function CorporateNav({ heroTone = 'dark', accent }: { heroTone?: 'dark' 
           <Link href="/insights" className={`${linkCls} hidden xl:block`}>{t('nav.insights')}</Link>
           <Link href="/careers" className={linkCls}>{t('nav.careers')}</Link>
           <Link href="/contact" className={linkCls}>{t('nav.talk')}</Link>
-          <LangToggle light={whiteUi} />
+          <LangToggle light={overHero} />
           <Link href="/#products"
             className="px-5 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all active:scale-[0.97] shadow-sm"
-            style={{ backgroundColor: accent ?? CORP_TEAL }}>
+            style={{ backgroundColor: CORP_TEAL }}>
             {t('nav.explore')}
           </Link>
         </div>
-        <button className={`lg:hidden p-2 transition-colors ${whiteUi ? 'text-white' : 'text-gray-900'}`} onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">
+        <button className={`lg:hidden p-2 transition-colors ${overHero ? 'text-white' : 'text-gray-900'}`} onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
@@ -107,7 +103,7 @@ export function CorporateNav({ heroTone = 'dark', accent }: { heroTone?: 'dark' 
           <div className="pt-2"><LangToggle /></div>
           <Link href="/#products" onClick={() => setMobileOpen(false)}
             className="block text-center px-5 py-3 rounded-xl text-white text-[14px] font-bold mt-3"
-            style={{ backgroundColor: accent ?? CORP_TEAL }}>
+            style={{ backgroundColor: CORP_TEAL }}>
             {t('nav.explore')}
           </Link>
         </div>
