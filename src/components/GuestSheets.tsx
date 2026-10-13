@@ -96,7 +96,7 @@ export function GuestSheet({
 const REQUEST_CATEGORIES = [
   {
     id: 'towels',
-    icon: <Bell size={30} />,
+    icon: <Bell size={22} />,
     label: 'Towels',
     type: 'Amenity Request',
     details: 'Towel Service',
@@ -105,7 +105,7 @@ const REQUEST_CATEGORIES = [
   },
   {
     id: 'housekeeping',
-    icon: <WashingMachine size={30} />,
+    icon: <WashingMachine size={22} />,
     label: 'Housekeeping',
     type: 'Housekeeping',
     details: 'Cleaning Service',
@@ -114,7 +114,7 @@ const REQUEST_CATEGORIES = [
   },
   {
     id: 'room_service',
-    icon: <Utensils size={30} />,
+    icon: <Utensils size={22} />,
     label: 'Room Service',
     type: 'Amenity Request',
     details: 'Room Service / Food',
@@ -123,7 +123,7 @@ const REQUEST_CATEGORIES = [
   },
   {
     id: 'amenities',
-    icon: <ShoppingBag size={30} />,
+    icon: <ShoppingBag size={22} />,
     label: 'Amenities',
     type: 'Amenity Request',
     details: 'Toiletries / Amenities',
@@ -132,7 +132,7 @@ const REQUEST_CATEGORIES = [
   },
   {
     id: 'late_checkout',
-    icon: <Clock size={30} />,
+    icon: <Clock size={22} />,
     label: 'Late Check-out',
     type: 'Front Desk Request',
     details: 'Late Checkout',
@@ -141,7 +141,7 @@ const REQUEST_CATEGORIES = [
   },
   {
     id: 'wake_up',
-    icon: <Bell size={30} />,
+    icon: <Bell size={22} />,
     label: 'Wake-Up Call',
     type: 'Front Desk Request',
     details: 'Wake-Up Call',
@@ -150,7 +150,7 @@ const REQUEST_CATEGORIES = [
   },
   {
     id: 'maintenance',
-    icon: <Flame size={30} />,
+    icon: <Flame size={22} />,
     label: 'Maintenance',
     type: 'Maintenance',
     details: 'Maintenance Issue',
@@ -159,7 +159,7 @@ const REQUEST_CATEGORIES = [
   },
   {
     id: 'front_desk',
-    icon: <Phone size={30} />,
+    icon: <Phone size={22} />,
     label: 'Call Front Desk',
     type: 'Front Desk Request',
     details: 'Please contact guest',
@@ -578,25 +578,25 @@ export function MessageSheetContent() {
   return (
     <div className="flex-1 flex flex-col">
       {/* Pending Validation chip — soft gate: staff still receives + verifies the request */}
-      <div className="mx-6 mt-4 rounded-xl bg-[#F1F2F4] px-4 py-2.5 text-[12px] font-semibold text-[#6B7280] text-center">
+      <div className="mx-5 mt-3 rounded-xl bg-[#F1F2F4] px-4 py-2 text-[11px] font-semibold text-[#6B7280] text-center">
         Pending Validation · Our team is confirming your stay
       </div>
-      <p className="text-[16px] text-[#9BA4B4] text-center px-6 pt-3 pb-4">How can we make your stay better?</p>
-      <div className="grid grid-cols-2 gap-3.5 md:gap-4 px-6 py-5">
+      <p className="text-[13.5px] text-[#9BA4B4] text-center px-6 pt-2 pb-3">How can we make your stay better?</p>
+      <div className="grid grid-cols-2 gap-3 px-5 py-4">
         {REQUEST_CATEGORIES.map((cat) => (
           <button
             key={cat.label}
             onClick={() => setScreen(cat.id)}
-            className="h-[164px] flex flex-col items-center justify-center gap-3 rounded-[24px] border border-[#EDF0F3] bg-white px-3 shadow-[0_2px_4px_rgba(0,0,0,0.06)] active:scale-95 transition-transform"
+            className="h-[124px] flex flex-col items-center justify-center gap-2 rounded-[20px] border border-[#EDF0F3] bg-white px-2 shadow-[0_2px_4px_rgba(0,0,0,0.06)] active:scale-95 transition-transform"
           >
-            <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: cat.bg, color: cat.color }}>
+            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: cat.bg, color: cat.color }}>
               {cat.icon}
             </div>
-            <span className="text-[18px] font-bold text-[#202735] text-center leading-tight">{cat.label}</span>
+            <span className="text-[13.5px] font-bold text-[#202735] text-center leading-tight">{cat.label}</span>
           </button>
         ))}
       </div>
-      <p className="text-[15px] text-[#9BA4B4] text-center py-5">Room {guestRoom} · {guestName}</p>
+      <p className="text-[12.5px] text-[#9BA4B4] text-center py-4">Room {guestRoom} · {guestName}</p>
     </div>
   );
 }
