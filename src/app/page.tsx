@@ -38,19 +38,9 @@ export default function Home() {
       if (cfg?.brandColor) setBrandColor(cfg.brandColor);
     });
 
-    const stored = localStorage.getItem('attenda_hotel_slug');
-    let hasActiveSession = false;
-    try {
-      const gs = localStorage.getItem('guestSession');
-      if (gs) {
-        const s = JSON.parse(gs);
-        hasActiveSession = !!stored && isSessionActive(s);
-      }
-    } catch (err) {
-      console.error('Error checking guest session:', err);
-    }
-    // Bare main-QR entry (no &room=) now leads to the guest app directly
-    setIsHotelView(!!(hotel || stored || hasActiveSession));
+    // Bare attendaapp.com = Attenda Technologies corporate main, always.
+    // Guest app opens only via a hotel QR link (?hotel=...).
+    setIsHotelView(!!hotel);
   }, []);
 
   if (isHotelView === null) return <div className="h-dvh bg-white" />;
