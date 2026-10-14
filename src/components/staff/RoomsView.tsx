@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus, Trash2, RefreshCw, Check, Pencil, X as XIcon,
-  DoorOpen, Upload, FileSpreadsheet, FileText,
+  DoorOpen, Upload, FileSpreadsheet, FileText, ClipboardList,
 } from 'lucide-react';
 import {
   getAllHotelRooms, bulkInsertRooms, deleteRoom, createRoom,
   updateRoomType, updateRoomTypeBatch,
+  getRoomingList, replaceRoomingList, clearRoomingList,
 } from '@/lib/supabase';
-import type { HotelRoom } from '@/lib/supabase';
+import type { HotelRoom, RoomingListEntry } from '@/lib/supabase';
 
 const TEAL = '#158A7C';
 
@@ -99,6 +100,57 @@ export default function RoomsView({ hotelId, hotelName }: { hotelId: string; hot
   }, [hotelId]);
 
   useEffect(() => { loadRooms(); }, [loadRooms]);
+
+  // ── Official Rooming List ─────────────────────────────────────
+  const [rlEntries, setRlEntries] = useState<RoomingListEntry[]>([]);
+  const [rlPaste, setRlPaste] = useState('');
+  const [rlBusy, setRlBusy] = useState(false);
+  const [rlMsg, setRlMsg] = useState<string | null>(null);
+
+  const loadRoomingList = useCallback(async () => {
+    const data = await getRoomingList(hotelId);
+    setRlEntries(data);
+  }, [hotelId]);
+  useEffect(() => { loadRoomingList(); }, [loadRoomingList]);
+
+  const rlParsed = rlPaste.split(/\r?\n/).filter(l => l.trim()).map(line => {
+    const parts = line.split(/[,\t;]|\s{2,}/).map(s => s.trim()).filter(Boolean);
+    // "205, Jane Smith" / "205 Jane Smith" / "205<TAB>Jane Smith"
+    return parts.length >= 2
+      ? { room_number: parts[0], guest_name: parts.slice(1).join(' ') }
+      : null;
+  }).filter(Boolean) as { room_number: string; guest_name: string }[];
+
+  const saveRoomingList = async () => {
+    if (rlParsed.length === 0) return;
+    if (!confirm(`Replace the rooming list with ${rlParsed.length} entr${rlParsed.length === 1 ? 'y' : 'ies'}? Current list will be overwritten.`)) return;
+    setRlBusy(true);
+    try {
+      await replaceRoomingList(hotelId, rlParsed);
+      setRlPaste('');
+      setRlMsg(`Rooming list saved — ${rlParsed.length} guest${rlParsed.length === 1 ? '' : 's'}.`);
+      await loadRoomingList();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to save';
+      setRlMsg(/relation|does not exist|schema/i.test(msg)
+        ? 'Table not created yet — run the rooming_list SQL in the Supabase dashboard once, then re-save.'
+        : `Error: ${msg}`);
+    }
+    setRlBusy(false);
+  };
+
+  const handleClearRoomingList = async () => {
+    if (!confirm('Remove the entire rooming list? Guests will go back to picking from the room list.')) return;
+    setRlBusy(true);
+    try {
+      await clearRoomingList(hotelId);
+      setRlMsg('Rooming list cleared.');
+      await loadRoomingList();
+    } catch (e) {
+      setRlMsg(`Error: ${e instanceof Error ? e.message : 'Failed'}`);
+    }
+    setRlBusy(false);
+  };
 
   const parseCSV = (text: string) => {
     const lines = text.split(/\r?\n/).filter(l => l.trim());
@@ -278,6 +330,64 @@ export default function RoomsView({ hotelId, hotelName }: { hotelId: string; hot
             <Plus size={14} /> {manualMode ? 'Bulk Upload' : 'Add Manually'}
           </button>
         </div>
+      </div>
+
+      {/* Official Rooming List — guest name per room; guests pick themselves at check-in */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-1">
+          <ClipboardList size={16} style={{ color: TEAL }} />
+          <h3 className="text-[14px] font-bold text-gray-800">Official Rooming List</h3>
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+            {rlEntries.length > 0 ? `${rlEntries.length} guest${rlEntries.length === 1 ? '' : 's'} on file` : 'empty'}
+          </span>
+        </div>
+        <p className="text-[12px] text-gray-500 leading-relaxed mb-3">
+          Paste the group&apos;s rooming list — one guest per line: <span className="font-mono text-[11px] bg-gray-50 px-1 rounded">Room, Guest Name</span>.
+          Guests then pick <span className="font-semibold">their own name</span> at check-in and the room fills in automatically. Saving replaces the whole list (the official list is the truth).
+        </p>
+        <textarea
+          value={rlPaste}
+          onChange={e => setRlPaste(e.target.value)}
+          rows={4}
+          placeholder={'205, Jane Smith\n210, Robert Lee\n312, Maria Garcia'}
+          className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-[13px] font-mono focus:outline-none focus:border-gray-400 mb-2"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={saveRoomingList}
+            disabled={rlBusy || rlParsed.length === 0}
+            className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-40"
+            style={{ backgroundColor: TEAL }}
+          >
+            {rlBusy ? 'Saving…' : rlParsed.length > 0 ? `Save list (${rlParsed.length})` : 'Save list'}
+          </button>
+          {rlEntries.length > 0 && (
+            <button
+              onClick={handleClearRoomingList}
+              disabled={rlBusy}
+              className="px-4 py-2.5 rounded-xl text-[13px] font-bold bg-red-50 text-red-700 disabled:opacity-40"
+            >
+              Clear list
+            </button>
+          )}
+        </div>
+        {rlMsg && (
+          <div className={`mt-2 px-3 py-2 rounded-lg text-[12px] font-medium ${
+            rlMsg.startsWith('Error') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'
+          }`}>
+            {rlMsg}
+          </div>
+        )}
+        {rlEntries.length > 0 && (
+          <div className="mt-3 max-h-36 overflow-y-auto border-t border-gray-100 pt-2">
+            {rlEntries.map(e => (
+              <div key={e.id} className="flex items-center justify-between py-1 text-[13px]">
+                <span className="font-bold text-gray-800">Room {e.room_number}</span>
+                <span className="text-gray-600 truncate ml-3">{e.guest_name}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {message && (

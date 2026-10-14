@@ -1238,6 +1238,54 @@ export async function deleteRoom(id: string) {
   if (error) throw error;
 }
 
+// ─── Official Rooming List (guest name per room) ───────────────
+// One entry per room↔guest. When a hotel has entries, the guest auth dropdown
+// shows these name+room pairs instead of the raw room list. Table may not
+// exist yet on some projects — reads fail soft to [] so the app stays inert.
+
+export interface RoomingListEntry {
+  id: string;
+  hotel_id: string;
+  room_number: string;
+  guest_name: string;
+  check_in: string | null;
+  check_out: string | null;
+  created_at: string;
+}
+
+export async function getRoomingList(hotelId: string): Promise<RoomingListEntry[]> {
+  try {
+    const { data, error } = await supabase
+      .from('rooming_list_entries')
+      .select('*')
+      .eq('hotel_id', hotelId)
+      .order('room_number');
+    if (error) return [];
+    return data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function replaceRoomingList(hotelId: string, entries: { room_number: string; guest_name: string }[]) {
+  // Replace whole list per hotel (official rooming list = current truth)
+  await supabase.from('rooming_list_entries').delete().eq('hotel_id', hotelId);
+  if (entries.length === 0) return true;
+  const { error } = await supabase.from('rooming_list_entries').insert(
+    entries.map(e => ({
+      hotel_id: hotelId,
+      room_number: e.room_number,
+      guest_name: e.guest_name,
+    }))
+  );
+  if (error) throw new Error(error.message);
+  return true;
+}
+
+export async function clearRoomingList(hotelId: string) {
+  await supabase.from('rooming_list_entries').delete().eq('hotel_id', hotelId);
+}
+
 export async function createRoom(hotelId: string, room: { room_number: string; room_type?: string; floor?: number }) {
   const { data, error } = await supabase.from('hotel_rooms').insert({
     hotel_id: hotelId,
