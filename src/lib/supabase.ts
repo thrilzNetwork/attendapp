@@ -80,12 +80,22 @@ export interface PositionBudget {
   stayoverMinutes?: number;  // e.g. 20 min per stayover room
 }
 
+export interface ParkingSection {
+  title: string;
+  body: string;
+}
+export interface ParkingContent {
+  policy?: ParkingSection;      // policy + pricing text (towing notice etc)
+  registerCar?: ParkingSection; // optional override copy for the register button
+  frontDeskPhone?: string;      // optional direct number shown for towing/disputes
+}
 export interface HotelConfig {
   facilitiesContent?: FacilitiesAmenity[];
   safetyContent?: SafetyContent;
   transportContent?: TransportContent;
   foodContent?: FoodContent;
   nearbyIntro?: NearbyIntro;
+  parkingContent?: ParkingContent;
   positionBudgets?: PositionBudget[];
   features?: Record<string, boolean>;
 

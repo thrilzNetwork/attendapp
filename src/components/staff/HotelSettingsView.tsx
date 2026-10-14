@@ -2,7 +2,7 @@
 /* eslint-disable */
 
 import { useState } from 'react';
-import {
+import { CarFront,
   Settings, Wifi, ImageIcon, ExternalLink, CalendarDays, DollarSign,
   Bell, ShieldCheck, Bus, UtensilsCrossed, MapPin, Plus, Trash2,
   Save, Upload, Hotel as HotelIcon, ChevronLeft, ChevronRight, type LucideIcon,
@@ -599,6 +599,23 @@ function TileEditor({ tile, form, setForm, onBack, onSave, saved }: {
               <input value={form.transportContent?.third_party_description || ''} onChange={e => setForm({ ...form, transportContent: { ...(form.transportContent || {}), third_party_description: e.target.value } })}
                 placeholder="e.g. Scheduled airport & cruise port transfers" className={inp} />
             </div>
+          </div>
+
+          {/* Parking policy + pricing — guests see this on the Parking screen */}
+          <div className="border-t border-gray-100 pt-4 mt-4">
+            <div className="flex items-center gap-2 mb-1">
+              <CarFront size={14} className="text-gray-500" />
+              <p className="text-[12px] font-bold text-gray-700 uppercase tracking-wide">Parking Policy & Pricing</p>
+            </div>
+            <p className="text-[11px] text-gray-400 mb-2">Guests see this at the top of the Parking screen. Include rates, where to park, and towing rules.</p>
+            <input value={form.parkingContent?.policy?.title ?? 'Parking Policy'} 
+              onChange={e => setForm({ ...form, parkingContent: { ...(form.parkingContent || {}), policy: { ...(form.parkingContent?.policy || { title: '', body: '' }), title: e.target.value } } })}
+              placeholder="Parking Policy" className={inp + ' mb-2'} />
+            <textarea rows={6}
+              value={form.parkingContent?.policy?.body || ''}
+              onChange={e => setForm({ ...form, parkingContent: { ...(form.parkingContent || {}), policy: { ...(form.parkingContent?.policy || { title: '', body: '' }), body: e.target.value } } })}
+              placeholder={'e.g.\nOvernight parking: $12/night\nRegister your vehicle at the front desk upon arrival.\nVehicles not registered or parked in fire lanes after 11 PM may be towed at owner\'s expense.'}
+              className={inp + ' resize-none'} />
           </div>
         </div>
       )}

@@ -4,9 +4,35 @@ import { Suspense, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, MapPin, Phone, Clock, Star, ShoppingBag, Car, Check } from 'lucide-react';
-import { getHotelConfig, getPartners, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
+import { getHotelConfig, getPartners, ParkingContent, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
 import { goBackToHotel } from '@/lib/guest-context';
 import RegisterCarCard from './register-car';
+
+function RegisterCarTabWrapper({ show, brandColor }: { show: boolean; brandColor: string }) {
+  if (!show) return null;
+  return <RegisterCarCard brandColor={brandColor} />;
+}
+
+/* Parking policy + pricing card — manager edits this in Hotel Settings → Transport */
+function ParkingPolicyCard({ brandColor }: { brandColor: string }) {
+  const [pc, setPc] = useState<ParkingContent | null>(null);
+  useEffect(() => {
+    getHotelConfig().then(cfg => { if (cfg?.parkingContent) setPc(cfg.parkingContent); });
+  }, []);
+  const policy = pc?.policy;
+  if (!policy?.body) return null;
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+      <h3 className="text-[14px] font-bold text-black">{policy.title || 'Parking Policy'}</h3>
+      <p className="text-[12px] text-gray-600 mt-1 whitespace-pre-line leading-relaxed">{policy.body}</p>
+      {pc?.frontDeskPhone && (
+        <a href={`tel:${pc.frontDeskPhone}`} className="mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold text-white" style={{ backgroundColor: brandColor }}>
+          <Phone size={15} /> Call front desk
+        </a>
+      )}
+    </div>
+  );
+}
 
 function RideCard({ brandColor }: { brandColor: string }) {
   const [phone, setPhone] = useState('');
@@ -180,10 +206,11 @@ function NearbyContent() {
                 </>
               )}
 
-              {/* Register Your Car — Parking tab (home tile links here) */}
+              {/* Parking tab: policy + pricing card, then Register Your Car */}
               {tab === 'parking' && (
-                <RegisterCarCard brandColor={brandColor} />
+                <ParkingPolicyCard brandColor={brandColor} />
               )}
+              <RegisterCarTabWrapper show={tab === 'parking'} brandColor={brandColor} />
 
               {/* Transport — when tab=all or tab=attractions */}
               {(tab === 'attractions' || tab === 'all') && (
