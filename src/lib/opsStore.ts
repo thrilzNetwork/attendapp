@@ -61,7 +61,8 @@ export type OpRecordType =
   | 'hk_eod_actual'         // housekeeping end-of-day actuals (ending stayovers; DND delta)
   | 'hk_room_log'           // per-room historical record: deep cleans + condition notes
   | 'mgr_daily_walk'       // manager daily property walk log (21-day habit)
-  | 'sop_completion';        // staff completed an interactive SOP (Right Answers)
+  | 'sop_completion'         // staff completed an interactive SOP (Right Answers)
+  | 'service_recovery';      // service-recovery case (complaint → manager follow-up → resolution)
 
 export interface OpRecord {
   id: string;
@@ -80,6 +81,56 @@ function today(): string {
   // same-day records appear to vanish. Build the date from local parts instead.
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+
+
+// =====================================================================
+// Service Recovery — staff-logged complaints for manager follow-up.
+// details = ServiceRecoveryCase (see ServiceRecoveryView.tsx)
+// =====================================================================
+
+export interface ServiceRecoveryCase {
+  guestName: string;
+  room: string;
+  issue: string;            // what the guest experienced
+  source: 'in_house' | 'brand';       // who received the complaint
+  channel: string;          // phone / front desk / online survey / etc
+  severity: 'low' | 'medium' | 'high';
+  loggedBy: string;
+  openedAt: string;         // ISO
+  followUpBy?: string;      // manager name assigned to follow up
+  followUpAt?: string;      // ISO when manager followed up
+  followUpNote?: string;    // what was done / guest response
+  recoveryOffer?: string;   // points, comp, amenity...
+  outcome?: 'recovered' | 'not_recovered' | 'escalated';
+  closedAt?: string;        // ISO
+}
+
+export function newServiceRecoveryCase(partial: Partial<ServiceRecoveryCase>): ServiceRecoveryCase {
+  return {
+    guestName: '', room: '', issue: '', source: 'in_house', channel: 'Front Desk',
+    severity: 'low', loggedBy: '', openedAt: new Date().toISOString(),
+    ...partial,
+  };
+}
+
+export async function listServiceRecovery(hotelId: string): Promise<OpRecord[]> {
+  return listOps(hotelId, 'service_recovery');
+}
+
+export async function createServiceRecovery(hotelId: string, c: Partial<ServiceRecoveryCase>): Promise<OpRecord | null> {
+  return createOps(
+    hotelId,
+    'service_recovery',
+    newServiceRecoveryCase({ ...c, loggedBy: c.loggedBy || '' }),
+    'pending',
+    { guest_name: c.guestName || 'STAFF', room: c.room || 'STAFF' },
+  );
+}
+
+export async function updateServiceRecovery(id: string, patch: { details?: any; status?: string }): Promise<boolean> {
+  return updateOps(id, patch);
 }
 
 // =====================================================================

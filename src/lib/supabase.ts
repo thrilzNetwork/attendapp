@@ -162,12 +162,26 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
   const hotelSlug = slug
     || (typeof window !== 'undefined' ? localStorage.getItem('attenda_hotel_slug') : null)
     || 'fort-lauderdale-airport-cruise-port';
-  const { data, error } = await supabase
+  const { data: directRow, error } = await supabase
     .from('hotels')
     .select('*')
     .eq('slug', hotelSlug)
     .single();
-  if (error) { /* hotel config not found — common before slug is stored */ return null; }
+  let data: any = directRow;
+
+  // RLS guard: on some prod states the hotels RLS policy blocks ANON reads
+  // entirely (guests are unauthenticated). When the direct read comes back
+  // empty, retry through the public config endpoint before giving up.
+  if (!data) {
+    try {
+      const res = await fetch(`/api/public/hotel-config?slug=${encodeURIComponent(hotelSlug)}`, { cache: 'no-store' });
+      if (res.ok) {
+        const pub = await res.json();
+        if (pub && pub.slug) data = pub;
+      }
+    } catch { /* fall through to null */ }
+  }
+  if (error && !data) { /* hotel config not found — common before slug is stored */ return null; }
   return {
     id: data.id,
     slug: data.slug,

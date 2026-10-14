@@ -515,16 +515,25 @@ export function MessageSheetContent() {
     if (sending) return;
     setSending(true);
     try {
-      const hotel = cfg || await getHotelConfig();
-      await supabase.from('requests').insert({
-        hotel_id: hotel?.id,
+      const hotel = cfg?.id ? cfg : await getHotelConfig();
+      if (!hotel?.id) {
+        // Never fake success: without the hotel the request is invisible to
+        // the property (board filters by hotel_id). Force the retry.
+        setSent(null);
+        alert('Could not reach the front desk system. Please check the connection and try again.');
+        setSending(false);
+        return;
+      }
+      const { error } = await supabase.from('requests').insert({
+        hotel_id: hotel.id,
         guest_name: guestName,
         room: guestRoom,
         type,
         details,
         status: 'pending',
       });
-      if (hotel?.notificationEmail) {
+      if (error) throw new Error(error.message);
+      if (hotel.notificationEmail) {
         fetch('/api/email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },

@@ -33,7 +33,7 @@ import {
   UtensilsCrossed, UserPlus, BookOpen, Pencil, X as XIcon, DoorOpen, Upload,
   FileSpreadsheet, FileText, Lock, Mail, ClipboardList, CalendarDays, SendHorizontal,
   BarChart3, BarChart2, GraduationCap, Briefcase, ClipboardCheck, Clock, Wifi, ImageIcon, TrendingUp, Inbox, Search, Ship, DollarSign, ShieldCheck, MapPin, PhoneCall, Trophy, Heart, Truck, Bot, Webhook, Wrench,
-  Sparkles, Target } from 'lucide-react';
+  Sparkles, Target, LifeBuoy } from 'lucide-react';
 import {
   supabase, subscribeToRequests, subscribeToMessages, updateRequestStatus, deleteRequest,
   getHotelConfig, updateHotelConfig, HotelConfig,
@@ -88,6 +88,7 @@ const ReportsView = dynamic(() => import('@/components/staff/ReportsView'), { ss
 const CommandCenterView = dynamic(() => import('@/components/staff/CommandCenterView'), { ssr: false });
 const HousekeepingView = dynamic(() => import('@/components/staff/HousekeepingView'), { ssr: false });
 const MaintenanceView = dynamic(() => import('@/components/staff/MaintenanceView'), { ssr: false });
+const ServiceRecoveryView = dynamic(() => import('@/components/staff/ServiceRecoveryView'), { ssr: false });
 const InspectionsView = dynamic(() => import('@/components/staff/InspectionsView'), { ssr: false });
 const ScheduleForecastView = dynamic(() => import('@/components/staff/ScheduleForecastView'), { ssr: false });
 const VendorsView = dynamic(() => import('@/components/staff/VendorsView'), { ssr: false });
@@ -130,7 +131,7 @@ type NavTab =
   | 'dailybrief' | 'property_info'
   | 'schedules' | 'compset' | 'checklists_tab' | 'kpis' | 'learning_hr'
   | 'shuttle_schedule' | 'forecast' | 'sops' | 'todos' | 'marketplace' | 'leaderboard' | 'culture'
-  | 'housekeeping' | 'maintenance' | 'inspections'
+  | 'housekeeping' | 'maintenance' | 'inspections' | 'service_recovery'
   | 'revenue' | 'reports' | 'vendors' | 'agent';
 
 interface Request {
@@ -198,6 +199,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'shuttle',         label: 'Transportation',      icon: Bus,             roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'housekeeping',     label: 'Housekeeping',        icon: Sparkles,        roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'maintenance',      label: 'Maintenance',         icon: Wrench,          roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+  { tab: 'service_recovery', label: 'Service Recovery', icon: LifeBuoy,      roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'inspections',      label: 'Inspections',         icon: ClipboardCheck,  roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
     { tab: 'culture',         label: 'Culture',             icon: Heart,           roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'knowledge',       label: 'Right Answers',       icon: BookOpen,        roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
@@ -590,6 +592,26 @@ function DashboardInner() {
   /* ── Poll fallback: new requests appear within ~2.5s even if the realtime
      broadcast is unavailable. One indexed query per tick, skipped while the
      tab is hidden; merge-by-id so no duplicate rows and no duplicate emails. */
+  /* Merge rows into the board state (shared by poll + realtime) */
+  const mergeRequestRows = useCallback((rows: Request[]) => {
+    if (!rows.length) return;
+    setRequests(prev => {
+      let changed = false;
+      const out = [...prev];
+      for (const row of rows) {
+        const idx = out.findIndex(r => r.id === row.id);
+        if (idx === -1) { out.unshift(row); changed = true; }
+        else {
+          const ex = out[idx];
+          if (ex.status !== row.status || ex.details !== row.details || ex.assigned_to !== row.assigned_to) {
+            out[idx] = { ...ex, ...row }; changed = true;
+          }
+        }
+      }
+      return changed ? out : prev;
+    });
+  }, []);
+
   useEffect(() => {
     if (!session || !configId) return;
     const hotelId = configId;
@@ -602,29 +624,30 @@ function DashboardInner() {
           .select('*').eq('hotel_id', hotelId).neq('room', 'STAFF')
           .not('type', 'in', `(${INTERNAL_REQ_TYPES})`)
           .order('created_at', { ascending: false }).limit(15);
-        if (data && data.length) {
-          setRequests(prev => {
-            let changed = false;
-            const out = [...prev];
-            for (const row of data) {
-              const idx = out.findIndex(r => r.id === row.id);
-              if (idx === -1) { out.unshift(row); changed = true; }
-              else {
-                const ex = out[idx];
-                if (ex.status !== row.status || ex.details !== row.details) {
-                  out[idx] = { ...ex, ...row }; changed = true;
-                }
-              }
-            }
-            return changed ? out : prev;
-          });
-        }
+        if (data) mergeRequestRows(data);
       } catch { /* network hiccup — next tick retries */ }
       inFlight = false;
     };
     const iv = setInterval(poll, 2500);
     return () => clearInterval(iv);
-  }, [session, configId]);
+  }, [session, configId, mergeRequestRows]);
+
+  /* Realtime: push INSERT/UPDATE for this hotel's requests instantly.
+     The 2.5s poll above stays as a fallback (also covers hidden-tab catch-up). */
+  useEffect(() => {
+    if (!session || !configId) return;
+    const hotelId = configId;
+    const channel = supabase
+      .channel(`requests-live-${hotelId}`)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'requests', filter: `hotel_id=eq.${hotelId}` },
+        payload => mergeRequestRows([payload.new as Request]))
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'requests', filter: `hotel_id=eq.${hotelId}` },
+        payload => mergeRequestRows([payload.new as Request]))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session, configId, mergeRequestRows]);
 
   /* ── Login screen ─────────────────────────────────── */
   if (!session) {
@@ -1194,6 +1217,9 @@ function DashboardInner() {
         )}
         {tabPanel('inspections', true,
           <InspectionsView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} staffList={staff} />
+        )}
+        {tabPanel('service_recovery', true,
+          <ServiceRecoveryView hotelId={config?.id || ''} hotelName={config?.name || 'Hotel'} staffName={s.name} isAdmin={isAdmin} />
         )}
         {tabPanel('compset', true,
           <CompsetView hotelId={config?.id || ''} isAdmin={isAdmin} staffId="" staffName={s.name} />

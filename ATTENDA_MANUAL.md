@@ -1,8 +1,12 @@
 # ATTENDA HOSPITALITY PLATFORM
-## Complete Product Manual — v1.0
+## Complete Product Manual — v3.0
 
 > **Confidential · Internal Use Only**
 > Platform Documentation · Attenda SaaS · thrilznetwork@gmail.com
+>
+> **Changelog**
+> - **v3.0 (October 2026)** — Full pre-open audit passed. Added: Housekeeping module (SOD planner, crew expected-vs-actual board, deep clean), Maintenance module (PM board, crew board), AI Agent tab, Go-Live Runbook (§21), Known Issues register (§22). Corrected guest app URL and deployment platform. Marketplace tab removed.
+> - v1.0 (June 2026) — Original release.
 
 ---
 
@@ -28,6 +32,8 @@
 18. [Troubleshooting & FAQs](#18-troubleshooting--faqs)
 19. [Database Schema Reference](#19-database-schema-reference)
 20. [Glossary](#20-glossary)
+21. [Go-Live Runbook](#21-go-live-runbook)
+22. [Known Issues & Technical Debt](#22-known-issues--technical-debt)
 
 ---
 
@@ -57,12 +63,20 @@ It serves four distinct audiences simultaneously:
 
 | Audience | URL Pattern | Example |
 |---|---|---|
-| Guest App | `attendaapp.com/app?hotel=<slug>` | `attendaapp.com/app?hotel=sands84` |
+| Guest App (landing) | `attendaapp.com/?hotel=<slug>` | `attendaapp.com/?hotel=sands84` |
+| Guest Welcome | `attendaapp.com/welcome?hotel=<slug>` | Direct welcome screen |
+| Guest Nearby | `attendaapp.com/nearby?hotel=<slug>` | Dining & directory |
+| Guest Transport | `attendaapp.com/transportation` | Shuttle & rides |
+| Guest Message | `attendaapp.com/message` | Chat with front desk |
+| Guest Review | `attendaapp.com/review?hotel=<slug>` | Post-stay review funnel |
+| Guest Order Tracking | `attendaapp.com/track/<order-id>` | Live order status page |
 | Staff Dashboard | `attendaapp.com/staff` | Login with email + password or 4-digit PIN |
 | Partner Dashboard | `attendaapp.com/partner?restaurant=<id>` | Via QR code on vendor iPad |
 | Super Admin | `attendaapp.com/superadmin` | Restricted — Attenda team only |
 | Landing / Marketing | `attendaapp.com` | Public |
 | Partner Apply | `attendaapp.com/partner?type=restaurant` | Public partner application |
+
+> ⚠️ **Corrected in v3.0:** v1 documented the guest app as `/app?hotel=<slug>` — that path does not exist. The guest app entry is the **root URL with `?hotel=<slug>`** (verified live: 200). QR codes generated inside the QR Codes tab use this format automatically.
 
 ---
 
@@ -80,7 +94,7 @@ It serves four distinct audiences simultaneously:
 | **Email** | Resend | Transactional notifications |
 | **Fleet Tracking** | Bouncie API | Live vehicle GPS tracking |
 | **Payments** | Stripe / Clover (roadmap) | Guest payment processing |
-| **Deployment** | Vercel | Auto-deploy on push to main |
+| **Deployment** | Netlify (was Vercel) | `netlify deploy --build --prod` from repo root |
 | **Media** | Supabase Storage | Partner photos, team images |
 
 ## Multi-Tenancy Model
@@ -377,9 +391,10 @@ After logging in, Admins see the full navigation sidebar. Key admin-exclusive se
 - **Messages** — Guest chat threads
 
 ### OPERATIONS Section
+- **Housekeeping** — SOD/EOD planner, crew expected-vs-actual board, deep clean queue *(new in v3.0)*
+- **Maintenance** — PM room board, tickets, maintenance crew board *(new in v3.0)*
 - **To-Dos** — Position-based checklist management
 - **Shuttle** — All shuttle operations
-- **KPIs** — Metric logging and dashboards
 - **Right Answers** — Knowledge base for AI-assisted guest responses
 - **Learning & HR** — Training library
 - **Property Info** — Hotel settings (admin-controlled)
@@ -392,6 +407,9 @@ After logging in, Admins see the full navigation sidebar. Key admin-exclusive se
 - **Partners & Menu** — Vendor directory and menu items
 - **QR Codes** — Guest access QR code management
 - **Room Management** — Hotel room inventory
+- **AI Agent** — Voice-AI front desk agent config & monitoring *(new in v3.0)*
+
+> **Note (v3.0):** the Marketplace tab was removed in October 2026. Full deep-dives for Housekeeping, Maintenance, and AI Agent are in §11A–11C.
 
 ## Property Settings Deep Dive
 
@@ -1860,6 +1878,181 @@ Primary table — one row per property.
 
 ---
 
+# 11A. HOUSEKEEPING MODULE
+
+*New in v3.0 — the full housekeeping operations loop: day planning, crew labor tracking, deep clean scheduling.*
+
+## Overview
+
+Housekeeping runs as a complete daily cycle inside the staff dashboard:
+
+1. **Start of Day (SOD)** — admin enters the day's plan (rooms to clean, crew scheduled)
+2. **Crew Expected vs Actual** — live board tracking each maid's shift against plan
+3. **Today card** — progress counters updating in real time as maids log work
+4. **Deep Clean board** — per-room deep clean tracking (separate from daily cleans)
+5. **End of Day** — everything closes together under one Station-of-the-Day tool
+
+**Layout law:** Today first → Crew board → Station of the Day (SOD and EOD together, never separated) → Deep Clean grid.
+
+## Start of Day — Save the Plan
+
+Before shifts start, the admin opens the **Housekeeping tab → Today** and saves the SOD plan:
+
+- **Checkouts** — number of departure rooms to clean today
+- **Stayovers** — number of occupied rooms to service today
+- **Crew** — which maids are scheduled, with in-times and 8-hour shifts
+
+Saving the plan drives every counter on the tab: the Today card, the per-maid labor tiles, and the expected-vs-actual math. **No plan saved = no labor numbers** — the crew board shows "no shifts scheduled today."
+
+## The Locked Productivity Model (Do Not Change Without Ales)
+
+These constants drive all labor math and are the standard across every property on the platform:
+
+| Constant | Value | Used for |
+|---|---|---|
+| **Checkout time** | 30 min per room | Expected labor for each departure clean |
+| **Stayover time** | 15 min per room | Expected labor for each occupied-room service |
+| **Shift length** | 8 hours (480 min) | Every crew shift's expected out-time |
+
+## Crew Expected vs Actual Board
+
+**Purpose:** the same board Maintenance has, but for housekeeping — labor per maid, live.
+
+Per-maid labor tiles (appear once the SOD plan is saved and shifts exist):
+
+- **Checkouts/maid** — the maid's even share of today's checkout rooms
+- **Stayovers/maid** — the maid's even share of stayover rooms
+- **Min/maid** — their share × the productivity constants above
+
+Per-maid shift rows:
+
+- **In time** — logged at shift start
+- **Expected out** — in-time + 8 hours, computed automatically
+- **Actual out** — logged by the admin (or self-logout if enabled); shows **(over)** in red if later than expected
+- **WORKING** status until logged out
+
+Admins log shift outs directly from the crew cards — no separate screen.
+
+## Deep Clean Board
+
+**Purpose:** track room deep cleans as their own workflow — separate from daily checkout/stayover cleans, but grouped with them, never on a separate tab.
+
+- Rooms are added with a **room number + what's needed**, right from the Housekeeping list
+- Each entry can be marked **Done** from the same list
+- The Deep Clean grid sits at the bottom of the Housekeeping tab, under End of Day
+- Deep cleans do **not** count toward checkout/stayover labor math — they're their own queue
+
+---
+
+# 11B. MAINTENANCE MODULE
+
+*New in v3.0 — preventive maintenance scheduling and maintenance crew labor tracking.*
+
+## PM Room Board
+
+**Purpose:** know exactly which rooms are due for preventive maintenance — before they break.
+
+- One tile per room, colored by PM status: **orange = PM due**, **teal = PM completed today**, plus a **red dot = open ticket(s)** and a **teal corner = serviced today**
+- Header counters (identical layout to housekeeping's cards): **PMs due vs done**, **ON PACE / due today / overdue + high-priority tickets**, **done today**, **open tickets**, **total PM tasks currently due**
+- Tapping any room opens its **PM history & snapshot** — every past PM completion for that room
+
+## Open Tickets
+
+- Add tickets with **location + issue + priority** straight from the board
+- Tickets show as red dots on their room tiles until closed
+- High-priority open tickets flow into the "overdue + high-pri" pace counter
+
+## Maintenance Crew — Expected vs Actual
+
+Same layout as the housekeeping crew board: scheduled techs with in-times, expected out (in + 8h), actual out with **(over)** flag, WORKING until logged out. Admin logs outs from the card.
+
+---
+
+# 11C. AI AGENT TAB (Admin)
+
+*New in v3.0 — the voice-AI front desk agent, configured per property.*
+
+## Purpose
+
+Each property can run an AI phone agent that answers guest calls, handles common requests (wake-up calls, WiFi, amenities, hours), and escalates to the front desk when needed. The agent tab is where admins configure and monitor it.
+
+## Key Concepts
+
+- **Agent per property** — created through the tab; uses the property's name, brand voice, and knowledge base (feed it from the Right Answers tab)
+- **Signed dashboard URLs** — the tab links out to the agent provider's console using short-lived signed URLs (no separate login to manage)
+- **Webhook events** — call transcripts and outcomes flow back into Attenda; check the tab's activity feed after the first live calls
+- **Escalation path** — make sure the agent's transfer number is the property's front desk line before going live
+
+## Go-Live Checklist (per property)
+
+1. Configure agent with property details and knowledge base
+2. Set escalation/transfer number to the front desk
+3. Place a test call to the agent line; confirm the transcript lands in the activity feed
+4. Confirm the front desk knows how to see escalated call notes
+
+---
+
+# 21. GO-LIVE RUNBOOK
+
+*New in v3.0 — the first-day checklist. Run this once per property before opening operations.*
+
+## Why
+
+The platform was audit-verified before go-live, but "built" ≠ "run." This 10-minute dry run proves the full loop works with real numbers, with zero guest impact.
+
+## The 10-Minute Dry Run (per property)
+
+**Setup (2 min)** — Admin logs in at `attendaapp.com/staff`, picks the property.
+
+1. **Save a real SOD plan** — Housekeeping → Today: enter today's actual checkout/stayover counts and the scheduled crew. *Expect: labor tiles appear on the crew board.*
+2. **Log one shift** — the crew board shows each scheduled maid with In/Expected-out. Log one maid in, then out. *Expect: status flips WORKING → out, with (over) only if >8h.*
+3. **Add one deep clean** — type a room number + what's needed, hit Add. *Expect: it appears in the Deep Clean grid under End of Day.* Mark it Done. *Expect: flips to done.*
+4. **Log one PM** — Maintenance → PM board: complete a PM on any room. *Expect: tile flips teal, "done today" increments.*
+5. **Add one ticket** — Maintenance: location + issue + priority. *Expect: red dot appears on that room's tile.*
+6. **Send one request** — from a guest-surface QR or the requests tab: submit and accept a test request. *Expect: it lands in Requests and the dashboard counters move.*
+7. **Close the day** — Housekeeping → End of Day: confirm SOD/EOD sit together and all counters reflect the test entries.
+
+**Pass rule:** every step does what "Expect" says. One failure = stop, note the step, escalate to Attenda support before opening to crew.
+
+## Day-1 Morning Rhythm (after the dry run passes)
+
+- **Admin (before shifts):** save SOD plan; glance at pace counters on both boards
+- **Maids:** log in with PIN/dashboard; their day = Today card + deep clean queue
+- **Front desk:** Requests tab is the inbox; messages flow to Messages tab
+- **Admin (end of day):** log shift outs from crew cards; confirm every room flips; EOD closes with SOD
+- **Weekly:** PM board review — clear overdue, walk the red-dot rooms
+
+## Support Escalation
+
+Email `thrilznetwork@gmail.com` with: property, tab, step that failed, phone screenshot. Attenda fixes deploy same-day to `attendaapp.com` via Netlify.
+
+---
+
+# 22. KNOWN ISSUES & TECHNICAL DEBT
+
+*New in v3.0 — from the full pre-open audit (October 2026). Nothing here blocks operations.*
+
+## Verified Non-Issues (audit disproved these)
+
+A first-pass audit flagged 4 missing API routes (admin/orders, promos/validate, store/hours, orders/claim). **All false alarms** — they are handled by the tenant catch-all route (`/api/tenant/[tenant]/[[...admin]]`) with auth checks on every mutation. Also verified: no mock/stub data in any staff view, all guest URLs live (welcome, nearby, message, review, confirmation, transportation, track, hubs, agent-demo), zero unauthenticated write endpoints.
+
+## Open Items (minor, non-blocking)
+
+| # | Item | Severity | Status |
+|---|---|---|---|
+| 1 | Orphan routes `/api/agent-config` and `/api/upsert-forecast` — no caller; review auth posture, then delete | Low | Scheduled housekeeping |
+| 2 | Compset tab visible to line-level staff (revenue/reports correctly exclude them) — align roles | Medium | Decision pending with ownership |
+| 3 | Shuttle revenue query is a placeholder (shows 0) — implement proper revenue rollup | Low | Roadmap |
+| 4 | 3 empty `catch {}` blocks in staff views — add user-visible error states | Low | Scheduled housekeeping |
+| 5 | Marketplace tab removed (October 2026); component code retained but unrouted | Info | Intentional |
+| 6 | `/transportation/checkin` URL 404s — nothing links to it; confirm no printed QRs reference it | Info | Check existing QR inventory |
+
+## Audit Methodology
+
+Two parallel audit passes over the staff dashboard (24 tabs, 40+ API routes) plus a manual verification sweep: every fetch path traced to its route, every route cross-checked against callers, production endpoints probed live, auth posture reviewed on all mutating routes. Guest-facing surfaces swept for dead links and stubs.
+
+---
+
 # 20. GLOSSARY
 
 | Term | Definition |
@@ -1893,11 +2086,11 @@ Primary table — one row per property.
 
 ---
 
-*End of Attenda Platform Manual — v1.0*
+*End of Attenda Platform Manual — v3.0*
 
 *For support: thrilznetwork@gmail.com*
 *Platform: attendaapp.com*
-*Documentation updated: June 2026*
+*Documentation updated: October 2026 (v3.0 — pre-open audit edition)*
 
 ---
 
