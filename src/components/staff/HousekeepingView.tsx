@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check } from 'lucide-react';
+import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check, Timer } from 'lucide-react';
 import { listOps, createOps, type OpRecord } from '@/lib/opsStore';
-import { getWorkOrders, createWorkOrder, updateWorkOrder } from '@/lib/supabase';
+import { getWorkOrders, createWorkOrder, updateWorkOrder, getRoomStatuses, type RoomStatus } from '@/lib/supabase';
 import PmRoomBoard from './PmRoomBoard';
 
 const TEAL = '#158A7C';
@@ -55,6 +55,7 @@ export default function HousekeepingView({
   const [eodStayovers, setEodStayovers] = useState('');
   const [eodDnd, setEodDnd] = useState('');
   const [eodSaving, setEodSaving] = useState(false);
+  const [rooms, setRooms] = useState<RoomStatus[]>([]);
   // Maintenance tracker (deep cleans + service requests) — lives under End of Day
   const [workOrders, setWorkOrders] = useState<{ id: string; location: string; issue: string; priority: string; status: string; created_by?: string; created_at: string; resolved_at?: string }[]>([]);
   const [dcRoom, setDcRoom] = useState('');
@@ -64,10 +65,11 @@ export default function HousekeepingView({
   const load = useCallback(async () => {
     if (!hotelId) return;
     setLoading(true);
-    const [plans, eods, wos] = await Promise.all([
+    const [plans, eods, wos, roomSts] = await Promise.all([
       listOps(hotelId, 'hk_sod_plan').catch(() => [] as OpRecord[]),
       listOps(hotelId, 'hk_eod_actual').catch(() => [] as OpRecord[]),
       getWorkOrders(hotelId).catch(() => []),
+      getRoomStatuses(hotelId).catch(() => []),
     ]);
     // Latest plan saved today wins
     const todaysPlans = ((plans || []) as OpRecord[])
@@ -79,8 +81,17 @@ export default function HousekeepingView({
       .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
     setEodActual((todaysEods[0]?.details as unknown as EodActual) || null);
     setWorkOrders((wos || []) as typeof workOrders);
+    setRooms((roomSts || []) as RoomStatus[]);
     setLoading(false);
   }, [hotelId, today]);
+
+  // ── Today-card math (rooms to clean vs cleaned, mirrors Maint's PM counts card) ──
+  const hkExpected = sodPlan ? sodPlan.checkouts + sodPlan.stayovers : 0;
+  const hkDoneToday = rooms.filter(r => (r.cleaned_at || '').slice(0, 10) === today).length;
+  const openWoCount = workOrders.filter(w => w.status !== 'resolved').length;
+  const openWoHigh = workOrders.filter(w => w.status !== 'resolved' && w.priority === 'high').length;
+  const hkPct = hkExpected > 0 ? Math.min(100, Math.round((hkDoneToday / hkExpected) * 100)) : 100;
+  const hkOnPace = hkExpected === 0 ? true : hkDoneToday >= hkExpected;
 
   useEffect(() => { load(); }, [load]);
 
@@ -186,7 +197,38 @@ export default function HousekeepingView({
         </button>
       </div>
 
-      {/* ── Start of Day ── */}
+      {/* ── Today: rooms to clean vs cleaned (mirrors Maint's Today card) ── */}
+      <div className={sec + ' mb-4'}>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><Timer size={14} style={{ color: TEAL }} /> Today <span className="text-[11px] font-medium text-gray-400">— rooms to clean vs cleaned</span></div>
+          <span className={`text-[10px] font-extrabold rounded-lg px-2 py-1 ${hkOnPace ? 'bg-teal-50 text-teal-800' : 'bg-orange-50 text-orange-700'}`}>
+            {hkOnPace ? 'ON PACE' : 'BEHIND'}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+          <div className="bg-teal-50 rounded-xl p-3 text-center">
+            <div className="text-[20px] font-extrabold text-teal-800">{hkExpected}</div>
+            <div className="text-[10px] font-bold text-teal-700">ROOMS TO CLEAN</div>
+            <div className="text-[9px] text-teal-600 font-medium mt-0.5">checkouts + stayovers on the plan</div>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-3 text-center"><div className="text-[20px] font-extrabold text-gray-900">{hkDoneToday}</div><div className="text-[10px] font-bold text-gray-500">CLEANED TODAY</div></div>
+          <div className="bg-gray-50 rounded-xl p-3 text-center"><div className="text-[20px] font-extrabold text-gray-900">{openWoCount}</div><div className="text-[10px] font-bold text-gray-500">OPEN TICKETS</div><div className="text-[9px] text-gray-400 font-medium mt-0.5">{openWoHigh} high priority</div></div>
+          <div className="bg-gray-50 rounded-xl p-3 text-center"><div className="text-[20px] font-extrabold" style={{ color: TEAL }}>{rooms.length}</div><div className="text-[10px] font-bold text-gray-500">TOTAL ROOMS</div><div className="text-[9px] text-gray-400 font-medium mt-0.5">{rooms.filter(r => (r.cleaned_at || '').slice(0, 10) === today).length} cleaned today</div></div>
+        </div>
+        {hkExpected > 0 && (
+          <div>
+            <div className="flex items-center justify-between text-[11px] font-bold text-gray-500 mb-1">
+              <span>CLEANED vs PLANNED</span><span>{hkPct}%</span>
+            </div>
+            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-2.5 rounded-full" style={{ width: `${hkPct}%`, background: hkOnPace ? TEAL : '#EA580C' }} />
+            </div>
+            <div className="text-[11px] text-gray-400 mt-1">{hkDoneToday} room(s) cleaned · {openWoCount} open ticket(s) · {openWoHigh} high-priority</div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Station of the Day ── */}
       <div className={sec + ' mb-4'}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><Sunrise size={14} style={{ color: TEAL }} /> Start of Day</div>
