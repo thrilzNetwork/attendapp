@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check, Timer } from 'lucide-react';
+import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check, Timer, Clock, CheckCircle2, Users } from 'lucide-react';
 import { listOps, createOps, type OpRecord } from '@/lib/opsStore';
-import { getWorkOrders, createWorkOrder, updateWorkOrder, getRoomStatuses, type RoomStatus } from '@/lib/supabase';
+import { getWorkOrders, createWorkOrder, updateWorkOrder, getRoomStatuses, getStaffSchedulesRange, updateStaffSchedule, type RoomStatus, type StaffSchedule } from '@/lib/supabase';
 import PmRoomBoard from './DeepCleanBoard';
 
 const TEAL = '#158A7C';
@@ -56,6 +56,7 @@ export default function HousekeepingView({
   const [eodDnd, setEodDnd] = useState('');
   const [eodSaving, setEodSaving] = useState(false);
   const [rooms, setRooms] = useState<RoomStatus[]>([]);
+  const [hkShifts, setHkShifts] = useState<StaffSchedule[]>([]);
   // Maintenance tracker (deep cleans + service requests) — lives under End of Day
   const [workOrders, setWorkOrders] = useState<{ id: string; location: string; issue: string; priority: string; status: string; created_by?: string; created_at: string; resolved_at?: string }[]>([]);
   const [dcRoom, setDcRoom] = useState('');
@@ -65,11 +66,12 @@ export default function HousekeepingView({
   const load = useCallback(async () => {
     if (!hotelId) return;
     setLoading(true);
-    const [plans, eods, wos, roomSts] = await Promise.all([
+    const [plans, eods, wos, roomSts, scheds] = await Promise.all([
       listOps(hotelId, 'hk_sod_plan').catch(() => [] as OpRecord[]),
       listOps(hotelId, 'hk_eod_actual').catch(() => [] as OpRecord[]),
       getWorkOrders(hotelId).catch(() => []),
       getRoomStatuses(hotelId).catch(() => []),
+      getStaffSchedulesRange(hotelId, today, today).catch(() => [] as StaffSchedule[]),
     ]);
     // Latest plan saved today wins
     const todaysPlans = ((plans || []) as OpRecord[])
@@ -82,6 +84,10 @@ export default function HousekeepingView({
     setEodActual((todaysEods[0]?.details as unknown as EodActual) || null);
     setWorkOrders((wos || []) as typeof workOrders);
     setRooms((roomSts || []) as RoomStatus[]);
+    setHkShifts(((scheds || []) as StaffSchedule[]).filter(s => {
+      const d = `${s.department || ''} ${s.role || ''}`.toLowerCase();
+      return d.includes('housekeep') || d.includes('house keeper') || d.includes('hk') || d.includes('maid') || d.includes('room attendant') || d.includes('attendant');
+    }));
     setLoading(false);
   }, [hotelId, today]);
 
@@ -94,6 +100,37 @@ export default function HousekeepingView({
   const hkOnPace = hkExpected === 0 ? true : hkDoneToday >= hkExpected;
 
   useEffect(() => { load(); }, [load]);
+
+  // ── HK crew helpers (same contract as Maint crew board) ──
+  /** 12h format like Maint's crew card */
+  const fmtTime = (t?: string | null): string => {
+    if (!t) return '';
+    const [h, m] = t.split(':');
+    const H = parseInt(h, 10);
+    const ampm = H >= 12 ? 'PM' : 'AM';
+    const h12 = H % 12 === 0 ? 12 : H % 12;
+    return `${h12}:${m} ${ampm}`;
+  };
+  /** Expected shift end = scheduled start + 8h, capped at 23:59 */
+  const expectedEnd = (start?: string | null): string | null => {
+    if (!start) return null;
+    const [h, m] = start.split(':').map(Number);
+    const total = h * 60 + m + SHIFT_MIN;
+    const capped = Math.min(total, 23 * 60 + 59);
+    return `${String(Math.floor(capped / 60)).padStart(2, '0')}:${String(capped % 60).padStart(2, '0')}`;
+  };
+  const logHkShiftEnd = async (s: StaffSchedule, value: string) => {
+    if (!value) return;
+    setHkShifts(prev => prev.map(row => (row.id === s.id ? { ...row, end_time: value } : row)));
+    await updateStaffSchedule(s.id, { end_time: value });
+  };
+  const hkEndedOnTime = hkShifts.filter(s => { const exp = expectedEnd(s.start_time); return s.end_time && exp && s.end_time <= exp; }).length;
+  // Labor split: shared workload by minutes; solo maids get stayovers first (quicker), checkouts shared
+  const crewSize = Math.max(1, hkShifts.length);
+  const sharedCO = sodPlan ? sodPlan.checkouts : 0;
+  const roomsPerMaid = Math.round((sharedCO / crewSize) * 10) / 10;
+  const soPerMaid = sodPlan ? Math.round((sodPlan.stayovers / crewSize) * 10) / 10 : 0;
+  const minPerMaid = sodPlan ? Math.round(sodPlan.workload_min / crewSize) : 0;
 
   const saveSodPlan = async () => {
     if (!sodCheckouts.trim() || !sodStayovers.trim() || !sodDnd.trim()) return;
@@ -224,6 +261,67 @@ export default function HousekeepingView({
               <div className="h-2.5 rounded-full" style={{ width: `${hkPct}%`, background: hkOnPace ? TEAL : '#EA580C' }} />
             </div>
             <div className="text-[11px] text-gray-400 mt-1">{hkDoneToday} room(s) cleaned · {openWoCount} open ticket(s) · {openWoHigh} high-priority</div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Housekeeping Crew: expected vs actual + labor per maid ── */}
+      <div className={sec + ' mb-4'}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><Clock size={14} style={{ color: TEAL }} /> Housekeeping Crew — Expected vs Actual <span className="text-[11px] font-medium text-gray-400">({hkShifts.length} scheduled · 8h shifts)</span></div>
+          {hkShifts.length > 0 && (
+            <span className="text-[11px] font-bold text-gray-500">{hkEndedOnTime}/{hkShifts.length} ended on time</span>
+          )}
+        </div>
+        {sodPlan && hkShifts.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="bg-teal-50 rounded-xl p-2.5 text-center">
+              <div className="text-[16px] font-extrabold text-teal-800">{roomsPerMaid}</div>
+              <div className="text-[9px] font-bold text-teal-700">CHECKOUTS / MAID</div>
+            </div>
+            <div className="bg-teal-50 rounded-xl p-2.5 text-center">
+              <div className="text-[16px] font-extrabold text-teal-800">{soPerMaid}</div>
+              <div className="text-[9px] font-bold text-teal-700">STAYOVERS / MAID</div>
+            </div>
+            <div className="bg-teal-50 rounded-xl p-2.5 text-center">
+              <div className="text-[16px] font-extrabold text-teal-800">{minPerMaid}</div>
+              <div className="text-[9px] font-bold text-teal-700">MIN / MAID ({SHIFT_MIN}m shift)</div>
+            </div>
+          </div>
+        )}
+        {hkShifts.length === 0 ? (
+          <p className="text-[13px] text-gray-400 font-medium py-2">No housekeeping shifts scheduled today</p>
+        ) : (
+          <div className="space-y-1">
+            {hkShifts.map(s => {
+              const exp = expectedEnd(s.start_time);
+              const late = s.end_time && exp && s.end_time > exp;
+              return (
+                <div key={s.id} className="flex flex-wrap items-center gap-2 text-[13px] bg-gray-50 rounded-xl px-3 py-2">
+                  <span className="font-bold text-gray-800 w-36 truncate">{s.staff_name}</span>
+                  <span className="text-[11px] text-gray-400 font-medium w-24 truncate">{(s.role || '').trim()}</span>
+                  <span className="text-[12px] text-gray-600">In <b>{fmtTime(s.start_time) || '—'}</b></span>
+                  <span className="text-[12px] text-gray-400">Expected out <b className="text-gray-600">{fmtTime(exp) || '—'}</b></span>
+                  {s.end_time ? (
+                    <span className={`flex items-center gap-1 text-[12px] font-bold ${late ? 'text-orange-600' : 'text-teal-700'}`}>
+                      <CheckCircle2 size={12} /> Out {fmtTime(s.end_time)}{late ? ' (over)' : ''}
+                    </span>
+                  ) : isAdmin ? (
+                    <span className="flex items-center gap-1 ml-auto">
+                      <input
+                        type="time"
+                        onChange={e => logHkShiftEnd(s, e.target.value)}
+                        className="w-[92px] px-1.5 py-1 border border-gray-200 rounded-lg text-[11px] font-bold text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400"
+                        title="Log actual end time"
+                      />
+                      <span className="text-[10px] font-bold text-gray-400">LOG OUT</span>
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-bold text-amber-600 ml-auto">WORKING</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
