@@ -191,6 +191,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   // ── TODAY — what staff needs to do right now ──
   { tab: 'dailybrief',      label: 'Dashboard',          icon: BarChart3,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'orders',          label: 'Requests',            icon: Bell,            roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
+{ tab: 'service_recovery', label: 'Service Recovery', icon: LifeBuoy,      roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'todos',           label: 'To-Dos',              icon: ClipboardList,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
   { tab: 'schedules',       label: 'Sched & Forecast',    icon: CalendarDays,    roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Today' },
 
@@ -199,8 +200,7 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
   { tab: 'shuttle',         label: 'Transportation',      icon: Bus,             roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'housekeeping',     label: 'Housekeeping',        icon: Sparkles,        roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'maintenance',      label: 'Maintenance',         icon: Wrench,          roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'service_recovery', label: 'Service Recovery', icon: LifeBuoy,      roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'inspections',      label: 'Inspections',         icon: ClipboardCheck,  roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
+    { tab: 'inspections',      label: 'Inspections',         icon: ClipboardCheck,  roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
     { tab: 'culture',         label: 'Culture',             icon: Heart,           roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'knowledge',       label: 'Right Answers',       icon: BookOpen,        roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'learning_hr',     label: 'Learning Hub',        icon: GraduationCap,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },

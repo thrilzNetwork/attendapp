@@ -1,17 +1,30 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { LifeBuoy, Plus, RefreshCw, X as XIcon, AlertTriangle, Check, Send } from 'lucide-react';
+import { LifeBuoy, Plus, RefreshCw, X as XIcon, AlertTriangle, Check, Send, Star } from 'lucide-react';
 import {
   listServiceRecovery, createServiceRecovery, updateServiceRecovery,
   type OpRecord, type ServiceRecoveryCase,
 } from '@/lib/opsStore';
+import { supabase } from '@/lib/supabase';
 
 const TEAL = '#158A7C';
 
 const SEV_COLOR: Record<string, string> = { low: '#6b7280', medium: '#d97706', high: '#dc2626' };
 const SEV_BG: Record<string, string> = { low: '#f3f4f6', medium: '#fef3c7', high: '#fee2e2' };
 const SOURCE_LABEL: Record<string, string> = { in_house: 'In-House', brand: 'Brand' };
+
+interface ReviewRow { id: string; guest_name: string; room: string; stars: number; feedback: string | null; created_at: string; }
+
+function Stars({ n, size = 12 }: { n: number; size?: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(i => (
+        <Star key={i} size={size} className={i <= n ? 'text-amber-400' : 'text-gray-200'} fill={i <= n ? 'currentColor' : 'none'} />
+      ))}
+    </span>
+  );
+}
 
 function timeAgo(iso?: string): string {
   if (!iso) return '';
@@ -28,7 +41,9 @@ export default function ServiceRecoveryView({
 }: { hotelId: string; hotelName: string; staffName: string; isAdmin: boolean }) {
   const [cases, setCases] = useState<OpRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'open' | 'closed' | 'reviews'>('open');
   const [showForm, setShowForm] = useState(false);
+  const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [saving, setSaving] = useState(false);
 
   // log-complaint form
@@ -50,6 +65,8 @@ export default function ServiceRecoveryView({
     setLoading(true);
     const rows = await listServiceRecovery(hotelId);
     setCases(rows);
+    const { data: rev } = await supabase.from('reviews').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50);
+    setReviews(rev || []);
     setLoading(false);
   }, [hotelId]);
 
@@ -57,6 +74,7 @@ export default function ServiceRecoveryView({
 
   const openCases = cases.filter(c => (c.status || '') !== 'completed');
   const closedCases = cases.filter(c => (c.status || '') === 'completed');
+  const visibleCases = tab === 'reviews' ? [] : tab === 'open' ? openCases : closedCases;
   const highsOpen = openCases.filter(c => c.details?.severity === 'high').length;
 
   const logCase = async () => {
@@ -160,7 +178,17 @@ export default function ServiceRecoveryView({
           </button>
         </div>
       </div>
-      <p className="text-[12px] text-gray-500 mb-4">{hotelName} · log guest complaints for manager follow-up (in-house or brand)</p>
+      <p className="text-[12px] text-gray-500 mb-4">{hotelName} · log complaints for manager follow-up (in-house or brand) · every guest review lands here automatically</p>
+
+      <div className="flex items-center gap-2 mb-4">
+        {([['open', `Open (${openCases.length})`], ['closed', `Closed (${closedCases.length})`], ['reviews', `Reviews (${reviews.length})`]] as const).map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key as typeof tab)}
+            className="text-[13px] font-bold px-3.5 py-1.5 rounded-lg border"
+            style={tab === key ? { backgroundColor: TEAL, borderColor: TEAL, color: '#fff' } : { borderColor: '#e5e7eb', color: '#6b7280' }}>
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div className="grid grid-cols-3 gap-2 mb-4">
         <div className="bg-white border border-gray-200 rounded-xl p-3">
@@ -214,13 +242,38 @@ export default function ServiceRecoveryView({
           <div className="text-center text-[13px] text-gray-400 py-10">No complaints logged. When a guest is unhappy, log it here so nothing slips.</div>
         ) : (
           <>
-            {openCases.length > 0 && <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400 pt-1">Open — needs follow-up</div>}
-            {openCases.map(rec => <CaseCard key={rec.id} rec={rec} />)}
-            {closedCases.length > 0 && <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400 pt-2">Closed</div>}
-            {closedCases.map(rec => <CaseCard key={rec.id} rec={rec} />)}
+            {openCases.length > 0 && tab === 'open' && <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400 pt-1">Open — needs follow-up</div>}
+            {visibleCases.map(rec => <CaseCard key={rec.id} rec={rec} />)}
+            {tab === 'closed' && closedCases.length === 0 && <div className="text-center text-[13px] text-gray-400 py-10">No closed cases yet.</div>}
           </>
         )}
       </div>
+
+      {tab === 'reviews' && (
+        <div className="space-y-2.5">
+          {reviews.length === 0 ? (
+            <div className="text-center text-[13px] text-gray-400 py-10">No reviews yet. When guests rate their stay in the app, every review saves here.</div>
+          ) : reviews.map(rv => (
+            <div key={rv.id} className="bg-white border border-gray-200 rounded-xl p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[15px] font-bold text-gray-900">{rv.guest_name}</span>
+                    {rv.room && <span className="text-[12px] text-gray-500">Room {rv.room}</span>}
+                    <Stars n={rv.stars} />
+                  </div>
+                  {rv.feedback && <p className="text-[13px] text-gray-700 mt-1.5 leading-relaxed">{rv.feedback}</p>}
+                  <p className="text-[11px] text-gray-400 mt-1.5">{new Date(rv.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
+                </div>
+                <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                  style={{ color: rv.stars <= 2 ? '#dc2626' : rv.stars === 3 ? '#d97706' : '#15803d', backgroundColor: rv.stars <= 2 ? '#fee2e2' : rv.stars === 3 ? '#fef3c7' : '#dcfce7' }}>
+                  {rv.stars <= 2 ? 'Recovery pending' : rv.stars === 3 ? 'Watch' : 'Great'}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

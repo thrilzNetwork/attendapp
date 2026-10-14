@@ -27,6 +27,7 @@ import {
   type VendorEvent,
 } from '@/lib/supabase';
 import {
+  listServiceRecovery,
   listShuttleSlots,
   listKpiDefinitions,
   listKpiSubmissions,
@@ -38,6 +39,8 @@ import {
 } from '@/lib/opsStore';
 
 const TEAL = '#158A7C';
+
+interface ReviewRow { id: string; guest_name: string; room: string; stars: number; feedback: string | null; created_at: string; }
 
 const DEPARTMENTS = [
   { key: 'management',   label: 'Management',   icon: '👔' },
@@ -120,6 +123,8 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
     checklistsCompleted: number; checklistsTotal: number;
   } | null>(null);
   const [kpiSnapshot, setKpiSnapshot] = useState<{ name: string; value: number; unit: string; target: number }[]>([]);
+  const [recoveryCases, setRecoveryCases] = useState<OpRecord[]>([]);
+  const [reviewsToday, setReviewsToday] = useState<ReviewRow[]>([]);
   const [todayShuttleSlots, setTodayShuttleSlots] = useState<ShuttleSlot[]>([]);
   const [monthShuttleSlots, setMonthShuttleSlots] = useState<(OpsShuttleSlot & { id: string })[]>([]);
   const [todayShuttleRoutes, setTodayShuttleRoutes] = useState<ShuttleRoute[]>([]);
@@ -222,6 +227,13 @@ export default function DailyBriefView({ hotelId, hotelName, config, sessionName
         };
       });
       setKpiSnapshot(snapshot);
+
+      // Service Recovery + today's reviews for the dashboard card
+      const rc = await listServiceRecovery(hotelId);
+      setRecoveryCases(rc);
+      const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+      const { data: rev } = await supabase.from('reviews').select('*').eq('hotel_id', hotelId).gte('created_at', startOfDay.toISOString()).order('created_at', { ascending: false });
+      setReviewsToday(rev || []);
     })();
   }, [hotelId, todayStr]);
 

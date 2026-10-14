@@ -1319,6 +1319,29 @@ export function ReviewSheetContent({ onClose: closeSheet }: { onClose: () => voi
   const handleSubmitFeedback = async () => {
     const hotel = await getHotelConfig();
     const sesh = JSON.parse(localStorage.getItem('guestSession') || '{}');
+    const stars = Math.max(1, Math.min(5, rating || 1));
+
+    // Save every review (1-5 stars) — feedback text optional; lands in Service Recovery for all ratings.
+    try {
+      const { data: rd } = await supabase.from('reviews').insert({ hotel_id: hotel?.id, guest_name: sesh.name || 'Guest', room: sesh.room || '', stars, feedback: feedback.trim() || null }).select('id').single();
+      if (rd?.id) {
+        await supabase.from('requests').insert({
+          hotel_id: hotel?.id,
+          type: 'service_recovery',
+          guest_name: sesh.name || 'STAFF',
+          room: sesh.room || 'STAFF',
+          status: 'pending',
+          details: JSON.stringify({
+            guestName: sesh.name || 'Guest', room: sesh.room || '',
+            issue: feedback.trim() || `Guest left a ${stars}-star review with no comment.`,
+            source: 'in_house', channel: 'In-App Review', severity: stars <= 2 ? 'high' : stars === 3 ? 'medium' : 'low',
+            loggedBy: 'Guest (via review flow)', openedAt: new Date().toISOString(),
+            reviewId: rd.id, reviewStars: stars, guestFlagged: true,
+          }),
+        });
+      }
+    } catch { /* review save failed — email path still below */ }
+
     if (hotel?.notificationEmail) {
       const body = `Low guest review.\nRating: ${rating} stars\nFeedback: ${feedback.trim() || 'None'}\nGuest: ${sesh.name || 'Unknown'} Room ${sesh.room || 'N/A'}`;
       window.location.href = `mailto:${hotel.notificationEmail}?subject=Guest Complaint ${rating} Stars&body=${encodeURIComponent(body)}`;
