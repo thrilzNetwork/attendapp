@@ -3,8 +3,15 @@
 
 import {
   ServeProduct, ServeOrder, ServeSettings, ServeTenant,
+  formatMoney,
 } from './types';
 import { readMenu, readSettings, listOrders, writeOrders, nextOrderNumber, isOpenNow } from './store';
+
+/* Cash vs digital-transfer label per country: PE = Yape/Plin,
+   everywhere else (BO first) = QR / transferencia. */
+export function payLabel(tenant: ServeTenant): string {
+  return tenant.currency === 'S/' ? 'Yape/Plin' : 'QR/Transferencia';
+}
 
 export type CreateOrderInput = {
   items: { slug: string; qty: number }[];
@@ -47,7 +54,7 @@ export async function createOrderForTenant(tenant: ServeTenant, input: CreateOrd
 
   const subtotal = items.reduce((a, x) => a + x.price * x.qty, 0);
   if (settings.orderMin > 0 && subtotal < settings.orderMin) {
-    return { ok: false, code: 400, error: `Mínimo de pedido S/ ${(settings.orderMin / 100).toFixed(2)}` };
+    return { ok: false, code: 400, error: `Mínimo de pedido ${formatMoney(settings.orderMin, tenant.currency)}` };
   }
 
   // zone fee — only if the customer picked a real delivery zone (not pickup)
@@ -98,13 +105,14 @@ export async function createOrderForTenant(tenant: ServeTenant, input: CreateOrd
 }
 
 export function waText(tenant: ServeTenant, order: ServeOrder, settings: ServeSettings): string {
+  const c = tenant.currency;
   const lines: string[] = [];
   lines.push(`*NUEVO PEDIDO ${order.number}* — ${tenant.name}`);
-  for (const it of order.items) lines.push(`${it.qty}x ${it.name} — S/ ${((it.price * it.qty) / 100).toFixed(2)}`);
+  for (const it of order.items) lines.push(`${it.qty}x ${it.name} — ${formatMoney(it.price * it.qty, c)}`);
   lines.push('');
-  if (order.discount > 0) lines.push(`Descuento: -S/ ${(order.discount / 100).toFixed(2)}`);
-  if (order.zoneFee > 0) lines.push(`Delivery: S/ ${(order.zoneFee / 100).toFixed(2)}`);
-  lines.push(`*TOTAL: S/ ${(order.total / 100).toFixed(2)}*`);
+  if (order.discount > 0) lines.push(`Descuento: -${formatMoney(order.discount, c)}`);
+  if (order.zoneFee > 0) lines.push(`Delivery: ${formatMoney(order.zoneFee, c)}`);
+  lines.push(`*TOTAL: ${formatMoney(order.total, c)}*`);
   lines.push('');
   lines.push(`Cliente: ${order.customer.firstName} (${order.customer.phone})`);
   if (order.address && order.address.street) {
@@ -115,6 +123,6 @@ export function waText(tenant: ServeTenant, order: ServeOrder, settings: ServeSe
   }
   if (order.scheduledFor) lines.push(`Entrega programada: ${order.scheduledFor}`);
   if (order.notes) lines.push(`Notas: ${order.notes}`);
-  lines.push(`Pago: ${order.payment === 'CASH' ? 'Efectivo' : 'Yape/Plin'}`);
+  lines.push(`Pago: ${order.payment === 'CASH' ? 'Efectivo' : payLabel(tenant)}`);
   return lines.join('\n');
 }

@@ -1446,7 +1446,7 @@ export async function createChecklistInstance(instance: {
   return data;
 }
 
-export async function updateChecklistInstance(id: string, updates: { checked_items?: { item_id: string; checked_at: string }[]; completed?: boolean }) {
+export async function updateChecklistInstance(id: string, updates: { checked_items?: { item_id: string; checked_at: string }[]; completed?: boolean; notes?: string }) {
   const upd: Record<string, unknown> = { ...updates };
   if (updates.completed) upd.completed_at = new Date().toISOString();
   const { error } = await supabase.from('staff_checklist_instances').update(upd).eq('id', id);

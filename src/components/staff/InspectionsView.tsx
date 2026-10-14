@@ -19,7 +19,7 @@ const SAFETY_ITEMS = [
   { id: 'rs4', label: 'Emergency exits / corridors — clear of obstructions' },
   { id: 'rs5', label: 'Guest room door — self-closer + deadbolt secure' },
 ];
-const ROOM_RE = /^Room\s+([A-Za-z0-9-]+)$/i;
+const ROOM_RE = /^Room\s+([A-Za-z0-9-]+)/i;
 
 const escapeHtml = (s: string) => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch] as string));
 
@@ -36,6 +36,7 @@ interface RunItem {
   label: string;
   state: 'pending' | 'pass' | 'fail';
   severity?: string;
+  comment?: string;
 }
 
 export default function InspectionsView({ hotelId, hotelName, staffName, isAdmin, staffList = [] }: Props) {
@@ -53,6 +54,7 @@ export default function InspectionsView({ hotelId, hotelName, staffName, isAdmin
   const [woLocation, setWoLocation] = useState('');
   const [woPriority, setWoPriority] = useState('normal');
   const [roomNum, setRoomNum] = useState('');
+  const [runNotes, setRunNotes] = useState('');
   const [recentInstances, setRecentInstances] = useState<ChecklistInstance[]>([]);
 
   const load = useCallback(async () => {
@@ -92,6 +94,7 @@ export default function InspectionsView({ hotelId, hotelName, staffName, isAdmin
         instance: inst,
         items: (c.items || []).map((it: { id: string; label: string }) => ({ id: it.id, label: it.label, state: 'pending' as const })),
       });
+      setRunNotes('');
     } catch { /* silent */ }
     setBusy(false);
   };
@@ -106,7 +109,7 @@ export default function InspectionsView({ hotelId, hotelName, staffName, isAdmin
         if (it.state === 'pass') return { ...it, state: 'fail' as const, severity: 'minor' };
         if (it.severity === 'minor') return { ...it, severity: 'major' };
         if (it.severity === 'major') return { ...it, severity: 'critical' };
-        return { ...it, state: 'pending' as const, severity: undefined };
+        return { ...it, state: 'pending' as const, severity: undefined, comment: undefined };
       }),
     });
   };
@@ -116,7 +119,13 @@ export default function InspectionsView({ hotelId, hotelName, staffName, isAdmin
     setBusy(true);
     try {
       const checked = running.items.filter(it => it.state !== 'pending').map(it => ({ item_id: it.id, checked_at: new Date().toISOString() }));
-      await updateChecklistInstance(running.instance.id, { checked_items: checked, completed: true });
+      const notes = runNotes.trim();
+      // Room Safety instances carry "Room <n>" in notes from startRun — merge the
+      // general comment instead of overwriting so per-room history keeps parsing.
+      const mergedNotes = running.instance.notes && /Room\s+/i.test(running.instance.notes)
+        ? `${running.instance.notes}${notes ? ` · ${notes}` : ''}`
+        : (notes || undefined);
+      await updateChecklistInstance(running.instance.id, { checked_items: checked, completed: true, notes: mergedNotes });
       const fails = running.items.filter(it => it.state === 'fail');
       for (const f of fails) {
         await createInspectionFinding({
@@ -124,12 +133,13 @@ export default function InspectionsView({ hotelId, hotelName, staffName, isAdmin
           instance_id: running.instance.id,
           checklist_id: running.checklist.id,
           item_id: f.id,
-          item_label: f.label,
+          item_label: f.comment?.trim() ? `${f.label} — ${f.comment.trim()}` : f.label,
           severity: f.severity || 'minor',
           created_by: staffName,
         });
       }
       setRunning(null);
+      setRunNotes('');
       setRoomNum('');
       await load();
     } catch { /* silent */ }
@@ -139,6 +149,7 @@ export default function InspectionsView({ hotelId, hotelName, staffName, isAdmin
   const cancelRun = async () => {
     if (!running) return;
     setRunning(null);
+    setRunNotes('');
     await load();
   };
 
@@ -315,19 +326,40 @@ ${detail}
           <p className="text-[11px] text-gray-400">Tap: pass → fail (minor → major → critical) → reset</p>
           <div className="space-y-2">
             {running.items.map(it => (
-              <button key={it.id} onClick={() => cycleState(it.id)}
-                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left border"
-                style={{
-                  borderColor: it.state === 'fail' ? sevColor(it.severity || 'minor') : it.state === 'pass' ? TEAL : '#e5e7eb',
-                  background: it.state === 'fail' ? `${sevColor(it.severity || 'minor')}14` : it.state === 'pass' ? `${TEAL}10` : '#fff',
-                }}>
-                <span className="text-[13px] font-semibold text-gray-800">{it.label}</span>
-                <span className="text-[11px] font-bold uppercase" style={{ color: it.state === 'fail' ? sevColor(it.severity || 'minor') : it.state === 'pass' ? TEAL : '#9ca3af' }}>
-                  {it.state === 'fail' ? `FAIL ${it.severity || 'minor'}` : it.state}
-                </span>
-              </button>
+              <div key={it.id} className="rounded-xl border overflow-hidden" style={{ borderColor: it.state === 'fail' ? sevColor(it.severity || 'minor') : it.state === 'pass' ? TEAL : '#e5e7eb' }}>
+                <button onClick={() => cycleState(it.id)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left"
+                  style={{
+                    background: it.state === 'fail' ? `${sevColor(it.severity || 'minor')}14` : it.state === 'pass' ? `${TEAL}10` : '#fff',
+                  }}>
+                  <span className="text-[13px] font-semibold text-gray-800">{it.label}</span>
+                  <span className="text-[11px] font-bold uppercase" style={{ color: it.state === 'fail' ? sevColor(it.severity || 'minor') : it.state === 'pass' ? TEAL : '#9ca3af' }}>
+                    {it.state === 'fail' ? `FAIL ${it.severity || 'minor'}` : it.state}
+                  </span>
+                </button>
+                {it.state === 'fail' && (
+                  <div className="px-3 pb-2.5">
+                    <input
+                      value={it.comment || ''}
+                      onChange={e => setRunning({
+                        ...running,
+                        items: running.items.map(x => x.id === it.id ? { ...x, comment: e.target.value } : x),
+                      })}
+                      placeholder="What's wrong? (goes on the work finding)"
+                      className="w-full bg-gray-50 rounded-lg px-3 py-2 text-[12px] border border-gray-100"
+                    />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
+          <textarea
+            value={runNotes}
+            onChange={e => setRunNotes(e.target.value)}
+            rows={2}
+            placeholder="General comment for this run (optional) — saved with the record"
+            className="w-full bg-gray-50 rounded-xl px-3 py-2.5 text-[12px] border border-gray-100"
+          />
           <div className="flex gap-2">
             <button onClick={finishRun} disabled={busy} className="flex-1 text-[13px] font-bold text-white rounded-xl py-2.5 disabled:opacity-50" style={{ background: TEAL }}>
               Finish — log {running.items.filter(it => it.state === 'fail').length} finding(s)

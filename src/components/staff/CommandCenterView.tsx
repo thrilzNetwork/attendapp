@@ -80,6 +80,8 @@ export default function CommandCenterView({
   const [linenLow, setLinenLow] = useState(0);
   const [todayFc, setTodayFc] = useState<{ occupancy_pct: number; adr: number | null; arrivals: number } | null>(null);
   const [comp, setComp] = useState<{ avg: number | null; count: number; min: number | null; max: number | null }>({ avg: null, count: 0, min: null, max: null });
+  // Competitive Rates SNAPSHOT: every compset hotel incl. ours, today's latest call per hotel
+  const [compSnap, setCompSnap] = useState<{ name: string; rate: number | null; occ: number | null; ours: boolean }[]>([]);
   // Tenant-property numbers sourced from Compset (FIRST compset_hotels row = our hotel)
   const [own, setOwn] = useState<{ occ: number | null; adr: number | null; roomsSold: number | null; count: number }>({ occ: null, adr: null, roomsSold: null, count: 0 });
   const [compHotels, setCompHotels] = useState<{ id: string; name: string }[]>([]);
@@ -178,10 +180,24 @@ export default function CommandCenterView({
       const cRates = todayCompRows.map(e => e.rate).filter((r): r is number => r != null);
       setComp({
         avg: cRates.length ? Math.round(cRates.reduce((a, b) => a + b, 0) / cRates.length) : null,
-        count: compRows.length,
+        count: todayCompRows.length,
         min: cRates.length ? Math.min(...cRates) : null,
         max: cRates.length ? Math.max(...cRates) : null,
       });
+
+      // Snapshot: latest call TODAY per compset hotel, tenant row included and labeled
+      const todayRows = cRows.filter(e => e.call_date === today);
+      const byHotel = new Map<string, CompsetEntry>();
+      for (const e of todayRows) {
+        const prev = byHotel.get(e.compset_hotel_id);
+        if (!prev || (e.updated_at || e.created_at || '').localeCompare(prev.updated_at || prev.created_at || '') > 0) {
+          byHotel.set(e.compset_hotel_id, e);
+        }
+      }
+      setCompSnap(allHotels.map(h => {
+        const e = byHotel.get(h.id);
+        return { name: h.name, rate: e?.rate ?? null, occ: e?.occupancy_pct ?? null, ours: h.id === tenantId };
+      }));
 
       // Tenant ADR trend, one value per day over the last 7 days
       if (tenantId) {
@@ -435,9 +451,9 @@ export default function CommandCenterView({
                 )}
                 {revpar != null && <span className="text-[11px] text-gray-400">RevPAR {money(revpar)}</span>}
               </div>
-              {comp.avg != null && (
-                <div className={`text-[11px] font-bold mt-0.5 ${adr >= comp.avg ? 'text-teal-700' : 'text-orange-600'}`}>
-                  Comp avg {money(comp.avg)} · {adr >= comp.avg ? '+' : '−'}{money(Math.abs(adr - comp.avg))} vs comp
+              {comp.avg != null && adr != null && comp.min != null && comp.max != null && (
+                <div className={`text-[11px] font-bold mt-0.5 ${adr > comp.max ? 'text-teal-700' : adr < comp.min ? 'text-orange-600' : 'text-gray-500'}`}>
+                  Comp range {money(comp.min)}–{money(comp.max)} · {adr > comp.max ? 'above every comp' : adr < comp.min ? 'below every comp' : 'mid-range of comps'}
                 </div>
               )}
               {trendPath && (
@@ -568,20 +584,23 @@ export default function CommandCenterView({
             <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900"><BarChart3 size={14} style={{ color: TEAL }} /> Competitive Rates <span className="text-[11px] font-medium text-gray-400">({comp.count} logged)</span></div>
             <button onClick={() => onNavigate('compset')} className="flex items-center text-[11px] font-bold text-teal-700 hover:underline">Compset <ChevronRight size={12} /></button>
           </div>
-          {comp.avg != null ? (
-            <div className="flex items-center gap-5">
-              <div>
-                <div className="text-[26px] font-extrabold text-gray-900 leading-none">{money(comp.avg)}</div>
-                <div className="text-[11px] text-gray-400 mt-1">Comp average rate</div>
-              </div>
-              <div className="text-[12px] space-y-0.5">
-                <div className="text-gray-500">Low {money(comp.min ?? 0)} · High {money(comp.max ?? 0)}</div>
-                {adr != null && (
-                  <div className={`font-bold ${adr >= comp.avg ? 'text-teal-700' : 'text-orange-600'}`}>
-                    {adr >= comp.avg ? '+' : '−'}{money(Math.abs(adr - comp.avg))} vs our ADR
-                  </div>
-                )}
-              </div>
+          {compSnap.length > 0 ? (
+            <div className="space-y-1">
+              {compSnap.map(h => (
+                <div key={h.name} className={`flex items-center justify-between rounded-xl px-3 py-2 text-[13px] ${h.ours ? 'bg-teal-50 ring-1 ring-teal-200' : 'bg-gray-50'}`}>
+                  <span className={`truncate pr-2 font-bold ${h.ours ? 'text-teal-900' : 'text-gray-700'} flex items-center gap-1.5`}>
+                    {h.ours === true && <span className="text-[8px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white text-teal-700 border border-teal-200 shrink-0">Us</span>}
+                    {h.name}
+                  </span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    {h.occ != null && <span className="text-[11px] text-gray-400 font-semibold">{h.occ}%</span>}
+                    <span className={`text-[14px] font-extrabold ${h.ours ? 'text-teal-800' : 'text-gray-900'}`}>
+                      {h.rate != null ? money(h.rate) : '—'}
+                    </span>
+                  </span>
+                </div>
+              ))}
+              <div className="text-[10px] text-gray-400 pt-0.5 text-right">Today's latest call per hotel</div>
             </div>
           ) : (
             <p className="text-[13px] text-gray-400 font-medium py-2">No comp calls logged today{isAdmin ? ' — open Compset to log rates' : ''}</p>

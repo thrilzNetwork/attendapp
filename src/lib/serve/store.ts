@@ -8,6 +8,7 @@ import { getStore } from '@netlify/blobs';
 import {
   ServeProduct, ServeOrder, ServeSettings, ServeTenant, ServeOrderStatus,
   SERVE_STATUSES, SERVE_CATEGORIES, slugify, defaultSettings,
+  resolveCurrency,
 } from './types';
 
 const TENANTS_KEY = 'serve/tenants.json';
@@ -90,6 +91,7 @@ export async function createTenant(input: CreateTenantInput): Promise<ServeTenan
   const tenant: ServeTenant = {
     id, name: input.name, type: input.type, city: input.city,
     country: input.country || '',
+    currency: resolveCurrency(input.country || ''),
     phone: input.phone.replace(/[^0-9]/g, ''),
     email: input.email, logo: input.logo, status: input.status,
     tagline: `${input.type}${input.city ? ' · ' + input.city : ''} — pedidos online directo a nuestro WhatsApp`,
@@ -118,7 +120,7 @@ export async function createTenant(input: CreateTenantInput): Promise<ServeTenan
     sortOrder: i,
   }));
   await writeMenu(id, menu);
-  await writeSettings(id, deepDefaultSettings(undefined));
+  await writeSettings(id, deepDefaultSettings(defaultSettings(input.country || '')));
   return tenant;
 }
 
@@ -209,8 +211,9 @@ export function canAdvance(s: ServeOrderStatus): ServeOrderStatus | null {
 export function isOpenNow(s: ServeSettings): boolean {
   if (!s.hoursEnabled) return true;
   if (s.ordersPaused) return false;
-  const lima = new Date(Date.now() + (5 * 60 + 60 * 60) * 1000 * -1); // UTC-5
-  const hm = lima.toISOString().slice(11, 16);
+  const offset = typeof s.utcOffset === 'number' ? s.utcOffset : -5; // legacy tenants = Lima
+  const local = new Date(Date.now() + offset * 3600 * 1000);
+  const hm = local.toISOString().slice(11, 16);
   if (s.hoursOpen <= s.hoursClose) {
     return hm >= s.hoursOpen && hm < s.hoursClose;
   }

@@ -19,8 +19,9 @@ export type ServeZone = { id: string; name: string; fee: number }; // fee cents
 
 export type ServeSettings = {
   hoursEnabled: boolean;
-  hoursOpen: string; // 'HH:MM' Lima
+  hoursOpen: string; // 'HH:MM' local wall time
   hoursClose: string;
+  utcOffset: number; // hours from UTC — Lima -5, Sta Cruz BO -4. Set at tenant create.
   allowAfterHours: boolean; // accept scheduled orders while closed
   ordersPaused: boolean;
   etaMin: number; // minutes, shown in delivery bar
@@ -79,6 +80,7 @@ export type ServeTenant = {
   type: string;
   city: string;
   country: string; // ISO-2 (PE, BO, CO, EC, MX...) — LATAM-native, no default
+  currency: CurrencyCode; // money display — derived from country at create
   phone: string; // digits, no '+'
   email: string;
   logo: string | null;
@@ -105,15 +107,58 @@ export function slugify(s: string): string {
     .replace(/^-+|-+$/g, '') || 'item';
 }
 
+/* ── Money display localization ─────────────────
+   Latin-America currency map, derived from the tenant's country.
+   BO gets Bs (bolivianos); PE stays S/. Unknown country → S/ (PE base). */
+export type CurrencyCode = 'S/' | 'Bs' | 'USD' | 'COP' | 'MXN';
+
+const CURRENCY_BY_COUNTRY: Record<string, CurrencyCode> = {
+  PE: 'S/',
+  BO: 'Bs',
+  PY: 'Bs',
+  EC: 'USD',
+  CO: 'COP',
+  MX: 'MXN',
+};
+
+export function resolveCurrency(country: string): CurrencyCode {
+  return CURRENCY_BY_COUNTRY[country.toUpperCase()] ?? 'S/';
+}
+
+export function formatMoney(cents: number, currency: CurrencyCode): string {
+  switch (currency) {
+    case 'Bs': return `Bs ${(cents / 100).toFixed(2)}`;
+    case 'USD': return `$${(cents / 100).toFixed(2)}`;
+    case 'COP': return `$${Math.round(cents / 100).toLocaleString('es-CO')} COP`;
+    case 'MXN': return `$${(cents / 100).toFixed(2)} MXN`;
+    default: return `S/ ${(cents / 100).toFixed(2)}`;
+  }
+}
+
 export function formatPEN(cents: number): string {
   return `S/ ${(cents / 100).toFixed(2)}`;
 }
 
-export function defaultSettings(): ServeSettings {
+/* Country → UTC offset (hours added to UTC to get local wall time). */
+const UTC_OFFSET_BY_COUNTRY: Record<string, number> = {
+  PE: -5,
+  BO: -4,
+  PY: -4,
+  EC: -5,
+  CO: -5,
+  MX: -6,
+};
+
+export function resolveUtcOffset(country: string): number {
+  return UTC_OFFSET_BY_COUNTRY[country.toUpperCase()] ?? -5;
+}
+
+export function defaultSettings(country = ''): ServeSettings {
   return {
     hoursEnabled: true,
     hoursOpen: '18:00',
     hoursClose: '23:00',
+    utcOffset: resolveUtcOffset(country),
     allowAfterHours: false,
     ordersPaused: false,
     etaMin: 25,
