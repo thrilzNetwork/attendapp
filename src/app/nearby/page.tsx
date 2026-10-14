@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, MapPin, Phone, Clock, Star, ShoppingBag, Car, Check } from 'lucide-react';
 import { getHotelConfig, getPartners, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
 import { goBackToHotel } from '@/lib/guest-context';
+import RegisterCarCard from './register-car';
 
 function RideCard({ brandColor }: { brandColor: string }) {
   const [phone, setPhone] = useState('');
@@ -177,6 +178,11 @@ function NearbyContent() {
                     </button>
                   ))}
                 </>
+              )}
+
+              {/* Register Your Car — inside the Food tab, under the restaurant list */}
+              {(tab === 'restaurants' || tab === 'all') && (
+                <RegisterCarCard brandColor={brandColor} />
               )}
 
               {/* Transport — when tab=all or tab=attractions */}
