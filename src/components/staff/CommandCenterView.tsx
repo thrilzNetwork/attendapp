@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Users, Wrench, ClipboardList, CalendarDays, BedDouble, DollarSign, Star,
   Plus, Trash2, RefreshCw, AlertTriangle, ChevronRight, Save, TrendingUp, BarChart3,
-  X, SlidersHorizontal, Footprints, Flame, Check,
+  X, SlidersHorizontal,
 } from 'lucide-react';
 import {
   getStaffSchedulesRange, getRoomStatuses, getWorkOrders, getLinenCounts,
@@ -14,7 +14,7 @@ import {
   type CompsetEntry,
   type StaffSchedule,
 } from '@/lib/supabase';
-import { listKpiDefinitions, listKpiSubmissions, listOps, createOps, type OpRecord } from '@/lib/opsStore';
+import { listKpiDefinitions, listKpiSubmissions, type OpRecord } from '@/lib/opsStore';
 
 const TEAL = '#158A7C';
 
@@ -46,23 +46,6 @@ function money(n: number): string {
 
 interface KpiTile { name: string; value: number | null; target: number; unit: string }
 
-/** Manager Daily Walk route (meeting 09-12: "see your hotel before the screen"). */
-const WALK_STOPS = [
-  'Parking lot',
-  'Entrances (locks & lights)',
-  'Pool',
-  'Exteriors (apartment side)',
-  'Lobby',
-  'Breakfast area',
-  'Office (last)',
-];
-
-interface WalkLog {
-  walk_date: string;
-  stops_done: string[];
-  created_by: string;
-}
-
 export default function CommandCenterView({
   hotelId, hotelName, staffName, isAdmin, onNavigate,
 }: {
@@ -87,10 +70,6 @@ export default function CommandCenterView({
   const [compHotels, setCompHotels] = useState<{ id: string; name: string }[]>([]);
   // ADR 7-day trend (tenant compset entries + weekly_forecasts fallback)
   const [adrTrend, setAdrTrend] = useState<{ date: string; adr: number | null }[]>([]);
-  // Manager Daily Walk state
-  const [walkToday, setWalkToday] = useState<WalkLog | null>(null);
-  const [walkStreak, setWalkStreak] = useState(0);
-  const [walkOpen, setWalkOpen] = useState(false);
 
   // event form
   const [evTitle, setEvTitle] = useState('');
@@ -111,7 +90,7 @@ export default function CommandCenterView({
     setLoading(true);
     try {
       const weekAgo = addDaysStr(today, -6);
-      const [scheds, roomsData, wos, tk, evs, defs, logs, linen, compEntries, compHotelsData, walkLogs] = await Promise.all([
+      const [scheds, roomsData, wos, tk, evs, defs, logs, linen, compEntries, compHotelsData] = await Promise.all([
         getStaffSchedulesRange(hotelId, today, today),
         getRoomStatuses(hotelId),
         getWorkOrders(hotelId),
@@ -122,7 +101,6 @@ export default function CommandCenterView({
         getLinenCounts(hotelId, today).catch(() => []),
         getCompsetEntriesRange(hotelId, weekAgo, today).catch(() => getCompsetEntries(hotelId, today).catch(() => [])),
         getCompsetHotels(hotelId).catch(() => []),
-        listOps(hotelId, 'mgr_daily_walk').catch(() => [] as OpRecord[]),
       ]);
       setOnDuty((scheds || []).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')));
       setRooms((roomsData || []) as { room_number: string; status: string }[]);
@@ -237,32 +215,6 @@ export default function CommandCenterView({
         setTodayFc(null);
         setAdrTrend([]);
       }
-
-      // Manager Daily Walk: today's log + 21-day habit streak
-      const walks = (walkLogs || []).map(w => w.details as unknown as WalkLog)
-        .filter(w => w && w.walk_date).sort((a, b) => a.walk_date.localeCompare(b.walk_date));
-      const todays = walks.filter(w => w.walk_date === today);
-      setWalkToday(todays[todays.length - 1] || null);
-      let streak = 0;
-      for (let i = 0; i < 21; i++) {
-        const d = addDaysStr(today, -i);
-        const dayLog = walks.filter(w => w.walk_date === d);
-        const done = dayLog.length > 0 && dayLog[dayLog.length - 1].stops_done?.length >= WALK_STOPS.length;
-        if (done) streak++;
-        else if (i > 0) break; // today still pending doesn't break the streak
-        else if (!done) break; // today's walk not finished yet — streak counts only completed prior days
-      }
-      // Streak = consecutive completed days ending yesterday or today
-      streak = 0;
-      for (let i = 1; i <= 21; i++) {
-        const d = addDaysStr(today, -i);
-        const dayLog = walks.filter(w => w.walk_date === d);
-        const done = dayLog.length > 0 && dayLog[dayLog.length - 1].stops_done?.length >= WALK_STOPS.length;
-        if (done) streak++;
-        else break;
-      }
-      const todayDone = todays.length > 0 && todays[todays.length - 1].stops_done?.length >= WALK_STOPS.length;
-      setWalkStreak(todayDone ? streak + 1 : streak);
     } finally {
       setLoading(false);
     }
@@ -316,18 +268,6 @@ export default function CommandCenterView({
     load();
   };
 
-  // Daily Walk: toggle a stop; when all 7 done the log is complete for the day
-  const toggleWalkStop = async (stop: string) => {
-    if (!hotelId) return;
-    const current = walkToday?.stops_done || [];
-    const next = current.includes(stop) ? current.filter(s => s !== stop) : [...current, stop];
-    const log: WalkLog = { walk_date: today, stops_done: next, created_by: staffName || 'Manager' };
-    setWalkToday(log);
-    if (next.length >= WALK_STOPS.length) setWalkOpen(false);
-    await createOps(hotelId, 'mgr_daily_walk', log, 'active', { guest_name: staffName || 'Manager', room: 'WALK' });
-    if (next.length >= WALK_STOPS.length) load();
-  };
-
   // Editable In/End time on On Duty rows — persists via updateStaffSchedule
   const saveShiftTime = async (
     s: StaffSchedule,
@@ -358,7 +298,6 @@ export default function CommandCenterView({
 
   const sec = 'bg-white border border-gray-200 rounded-2xl p-4';
   const secH = 'flex items-center justify-between mb-3';
-  const walkDone = walkToday?.stops_done?.length || 0;
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
@@ -372,46 +311,6 @@ export default function CommandCenterView({
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
         </button>
       </div>
-
-      {/* ── Manager Daily Walk (habit strip) ── */}
-      {isAdmin && (
-        <div className={sec + ' mb-4'}>
-          <div className="flex items-center justify-between">
-            <button onClick={() => setWalkOpen(v => !v)} className="flex items-center gap-1.5 text-[13px] font-extrabold text-gray-900 flex-1 text-left">
-              <Footprints size={14} style={{ color: TEAL }} /> Manager Daily Walk
-              <span className="text-[11px] font-medium text-gray-400">— see your hotel before the screen</span>
-              <ChevronRight size={13} className={`text-gray-400 transition-transform ${walkOpen ? 'rotate-90' : ''}`} />
-            </button>
-            <div className="flex items-center gap-2 shrink-0">
-              {walkDone > 0 && walkDone < WALK_STOPS.length && (
-                <span className="text-[10px] font-extrabold rounded-lg px-2 py-1 bg-amber-50 text-amber-700">{walkDone}/{WALK_STOPS.length} stops</span>
-              )}
-              {walkDone >= WALK_STOPS.length && (
-                <span className="text-[10px] font-extrabold rounded-lg px-2 py-1 bg-teal-50 text-teal-800">WALK DONE ✓</span>
-              )}
-              <span className={`flex items-center gap-1 text-[11px] font-extrabold rounded-lg px-2 py-1 ${walkStreak > 0 ? 'bg-orange-50 text-orange-600' : 'bg-gray-50 text-gray-400'}`}>
-                <Flame size={12} /> {walkStreak}-day streak <span className="font-medium text-gray-400">/ 21</span>
-              </span>
-            </div>
-          </div>
-          {walkOpen && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-3">
-              {WALK_STOPS.map(stop => {
-                const done = walkToday?.stops_done?.includes(stop);
-                return (
-                  <button key={stop} onClick={() => toggleWalkStop(stop)}
-                    className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-bold text-left border transition-colors ${done ? 'bg-teal-50 border-teal-200 text-teal-800' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-teal-300'}`}>
-                    <span className={`flex items-center justify-center w-4 h-4 rounded-full border-2 shrink-0 ${done ? 'bg-teal-600 border-teal-600' : 'border-gray-300'}`}>
-                      {done && <Check size={10} className="text-white" />}
-                    </span>
-                    {stop}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ── Business health row ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">

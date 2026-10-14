@@ -37,6 +37,8 @@ export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
       id: tenant.id, name: tenant.name, type: tenant.type, city: tenant.city,
       phone: tenant.phone, email: tenant.email, logo: tenant.logo,
       tagline: tenant.tagline, status: tenant.status,
+      currency: tenant.currency ?? 'S/',
+      theme: tenant.theme ?? null,
     },
     menu,
     settings: {

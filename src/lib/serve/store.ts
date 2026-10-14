@@ -92,6 +92,7 @@ export async function createTenant(input: CreateTenantInput): Promise<ServeTenan
     id, name: input.name, type: input.type, city: input.city,
     country: input.country || '',
     currency: resolveCurrency(input.country || ''),
+    theme: null,
     phone: input.phone.replace(/[^0-9]/g, ''),
     email: input.email, logo: input.logo, status: input.status,
     tagline: `${input.type}${input.city ? ' · ' + input.city : ''} — pedidos online directo a nuestro WhatsApp`,

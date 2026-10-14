@@ -9,6 +9,9 @@ import { ServeProduct } from '@/lib/serve/types';
 export type TenantInfo = {
   id: string; name: string; type: string; city: string; phone: string;
   email: string; logo: string | null; tagline: string; status: 'demo' | 'official';
+  currency: string; theme: {
+    primary: string; background: string; surface: string; text: string; accent: string;
+  } | null;
 };
 
 export type PublicSettings = {

@@ -81,6 +81,7 @@ export type ServeTenant = {
   city: string;
   country: string; // ISO-2 (PE, BO, CO, EC, MX...) — LATAM-native, no default
   currency: CurrencyCode; // money display — derived from country at create
+  theme: ServeTheme | null; // per-tenant brand colors; null = default orange skin
   phone: string; // digits, no '+'
   email: string;
   logo: string | null;
@@ -112,6 +113,16 @@ export function slugify(s: string): string {
    BO gets Bs (bolivianos); PE stays S/. Unknown country → S/ (PE base). */
 export type CurrencyCode = 'S/' | 'Bs' | 'USD' | 'COP' | 'MXN';
 
+/* ── Per-tenant theme (white-label colors) ──────
+   null everywhere = default orange skin. Che Gaucho ships red/black/fuego. */
+export type ServeTheme = {
+  primary: string; // buttons, price highlights, active states
+  background: string; // header/footer/hero dark
+  surface: string; // panels/cards
+  text: string; // on dark
+  accent: string; // sparse highlights (flames, ribbons)
+};
+
 const CURRENCY_BY_COUNTRY: Record<string, CurrencyCode> = {
   PE: 'S/',
   BO: 'Bs',
@@ -136,8 +147,25 @@ export function formatMoney(cents: number, currency: CurrencyCode): string {
 }
 
 export function formatPEN(cents: number): string {
-  return `S/ ${(cents / 100).toFixed(2)}`;
+  return formatMoney(cents, 'S/');
 }
+
+/* ── Hours → "now" for the open/closed gate, per-tenant wall clock ── */
+export function tenantLocalHM(settings: ServeSettings): string {
+  const offset = typeof settings.utcOffset === 'number' ? settings.utcOffset : -5;
+  return new Date(Date.now() + offset * 3600 * 1000).toISOString().slice(11, 16);
+}
+
+/* ── Che Gaucho Express — first themed tenant ──
+   Sampled from the menu board: red price bars, near-black brown bg,
+   white script logo, ember-orange flames, cream wood cards. */
+export const CHE_GAUCHO_THEME: ServeTheme = {
+  primary: '#FE1322',
+  background: '#1A0F0E',
+  surface: '#241513',
+  text: '#FFFFFF',
+  accent: '#CC5434',
+};
 
 /* Country → UTC offset (hours added to UTC to get local wall time). */
 const UTC_OFFSET_BY_COUNTRY: Record<string, number> = {
