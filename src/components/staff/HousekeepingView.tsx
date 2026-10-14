@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check, Timer } from 'lucide-react';
 import { listOps, createOps, type OpRecord } from '@/lib/opsStore';
 import { getWorkOrders, createWorkOrder, updateWorkOrder, getRoomStatuses, type RoomStatus } from '@/lib/supabase';
-import PmRoomBoard from './PmRoomBoard';
+import PmRoomBoard from './DeepCleanBoard';
 
 const TEAL = '#158A7C';
 /** Productivity model (locked): checkout = 30 min, stayover = 15 min, 8h shifts (480 min). */
@@ -266,9 +266,6 @@ export default function HousekeepingView({
         )}
       </div>
 
-      {/* ── PM Room Breakdown (shared board with Maint) — under Station of the Day ── */}
-      <PmRoomBoard hotelId={hotelId} today={today} />
-
       {/* ── End of Day ── */}
       <div className={sec + ' mb-4'}>
         <div className="flex items-center justify-between mb-3">
@@ -340,6 +337,9 @@ export default function HousekeepingView({
           )}
         </div>
       </div>
+
+      {/* ── Deep Clean Rooms board (housekeeping's room grid, deep-cleaning tracker) ── */}
+      <PmRoomBoard hotelId={hotelId} today={today} />
     </div>
   );
 }
