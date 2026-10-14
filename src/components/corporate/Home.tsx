@@ -13,7 +13,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   ArrowRight, BedDouble, CheckCircle2, Clock,
-  MessageSquare, Navigation, Radio, ShoppingBag, Store, Truck, Users,
+  MessageSquare, Navigation, Radio, ShoppingBag, Store, Users,
 } from 'lucide-react';
 import { CorporateNav, CorporateFooter, CORP_TEAL, CORP_TEAL_BRIGHT, CORP_INK, CORP_MIST, CORP_BORDER } from '@/components/corporate/Chrome';
 import { LangProvider, useLang } from '@/lib/corp-lang';
@@ -69,11 +69,11 @@ function HospitalityInterface({ active }: { active: boolean }) {
           {[
             ['Room 412 · Guest requested extra towels', 'Housekeeping', '2m'],
             ['AC leaking · Room 208', 'Maintenance', '9m'],
-            ['Airport shuttle · 4 guests', 'Transportation', '15m'],
+            ['Nuevo pedido · Choripan x2', 'Serve', '15m'],
           ].map(([txt, who, ago], i) => (
             <div key={i} className="flex items-center justify-between rounded-lg bg-white/5 px-2.5 py-1.5">
               <div className="flex items-center gap-2 min-w-0">
-                {i === 2 ? <Navigation size={10} className="shrink-0 text-blue-300" /> : <CheckCircle2 size={10} className="shrink-0" style={{ color: CORP_TEAL_BRIGHT }} />}
+                <CheckCircle2 size={10} className="shrink-0" style={{ color: CORP_TEAL_BRIGHT }} />
                 <span className="text-[9.5px] text-gray-200 truncate">{txt}</span>
               </div>
               <span className="text-[8px] font-bold text-gray-500 shrink-0 ml-2">{who} · {ago}</span>
@@ -128,57 +128,16 @@ function ServeInterface({ active }: { active: boolean }) {
   );
 }
 
-function TransportInterface({ active }: { active: boolean }) {
-  return (
-    <div className="rounded-xl bg-gray-950/95 border border-white/10 overflow-hidden shadow-2xl" style={{ borderColor: active ? `${CORP_TEAL_BRIGHT}66` : undefined }}>
-      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/10">
-        <div className="flex items-center gap-2">
-          <Truck size={12} style={{ color: CORP_TEAL_BRIGHT }} />
-          <span className="text-[9px] font-black tracking-[0.2em] text-white">TRANSPORT · DISPATCH</span>
-        </div>
-        <span className="text-[8.5px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1" style={{ backgroundColor: `${CORP_TEAL}22`, color: CORP_TEAL_BRIGHT }}>
-          <Radio size={8} /> GPS LIVE
-        </span>
-      </div>
-      <div className="p-3.5 space-y-2.5">
-        {[
-          ['Van 3 · MIA T2 → Flagler St', 'ETA 12m', 'En route'],
-          ['Van 1 · Port → Homewood', 'ETA 26m', 'Scheduled'],
-          ['Sedan 2 · Brickell → MIA T1', 'ETA 8m', 'Arriving'],
-        ].map(([route, eta, st], i) => (
-          <div key={i} className="rounded-lg bg-white/5 px-2.5 py-1.5 flex items-center justify-between">
-            <div className="min-w-0">
-              <div className="text-[9.5px] font-bold text-gray-100 truncate">{route}</div>
-              <div className="text-[8px] font-bold mt-0.5" style={{ color: CORP_TEAL_BRIGHT }}>{eta}</div>
-            </div>
-            <span className="text-[8px] font-bold text-gray-400 shrink-0 ml-2 px-2 py-0.5 rounded-full bg-white/8">{st}</span>
-          </div>
-        ))}
-        {/* live route strip */}
-        <div className="rounded-lg border border-white/10 h-14 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0B1524 0%, #0E1E33 100%)' }}>
-          <svg className="absolute inset-0 w-full h-full" aria-hidden>
-            <path d="M8,38 C60,28 90,14 150,12 S250,20 285,10" stroke={CORP_TEAL_BRIGHT} strokeWidth="1.5" fill="none" strokeDasharray="4 6" opacity="0.75" />
-            <circle cx="150" cy="12" r="3.5" fill={CORP_TEAL_BRIGHT} />
-            <circle cx="285" cy="10" r="2.5" fill="#fff" opacity="0.8" />
-          </svg>
-          <div className="absolute bottom-1.5 left-2.5 text-[7.5px] font-black tracking-[0.2em] text-gray-500">VEHICLE LOCATION · UPDATING</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Hero composition: three interfaces + traveling data events ── */
+/* ── Hero composition: two interfaces + traveling data events ── */
 function EcosystemHeroVisual() {
   const [pulse, setPulse] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setPulse((p) => (p + 1) % 3), 3200);
+    const t = setInterval(() => setPulse((p) => (p + 1) % 2), 3200);
     return () => clearInterval(t);
   }, []);
   const events = [
-    'Guest request → Transportation',
-    'Customer order → Serve',
     'Hotel operation → Hospitality',
+    'Customer order → Serve',
   ];
   return (
     <div className="relative select-none">
@@ -193,11 +152,8 @@ function EcosystemHeroVisual() {
         ))}
       </div>
       <div className="grid gap-3 md:gap-4">
-        <div style={{ transform: pulse === 2 ? 'translateY(-3px)' : undefined, transition: 'transform 0.6s ease' }}><HospitalityInterface active={pulse === 2} /></div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-          <div style={{ transform: pulse === 1 ? 'translateY(-3px)' : undefined, transition: 'transform 0.6s ease' }}><ServeInterface active={pulse === 1} /></div>
-          <div style={{ transform: pulse === 0 ? 'translateY(-3px)' : undefined, transition: 'transform 0.6s ease' }}><TransportInterface active={pulse === 0} /></div>
-        </div>
+        <div style={{ transform: pulse === 1 ? 'translateY(-3px)' : undefined, transition: 'transform 0.6s ease' }}><HospitalityInterface active={pulse === 1} /></div>
+        <div style={{ transform: pulse === 0 ? 'translateY(-3px)' : undefined, transition: 'transform 0.6s ease' }}><ServeInterface active={pulse === 0} /></div>
       </div>
     </div>
   );
@@ -208,7 +164,6 @@ function EcosystemDiagram() {
   const { t } = useLang();
   const nodes = [
     { label: 'HOSPITALITY', icon: BedDouble, href: '/hospitality', tint: 'linear-gradient(160deg,#0F2E33,#0A1A1F)', subKey: 'home.eco.node.h.sub' },
-    { label: 'TRANSPORTATION', icon: Truck, href: '/transportation', tint: 'linear-gradient(160deg,#101B2E,#0A111E)', subKey: 'home.eco.node.t.sub' },
     { label: 'SERVE', icon: Store, href: '/serve', tint: 'linear-gradient(160deg,#172A26,#0E1A17)', subKey: 'home.eco.node.s.sub' },
   ] as const;
   return (
@@ -222,11 +177,9 @@ function EcosystemDiagram() {
       <div className="hidden md:flex justify-center mb-8">
         <div className="w-px h-10" style={{ background: `linear-gradient(180deg, ${CORP_TEAL}88, transparent)` }} />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4">
         <EcoNode {...nodes[0]} />
         <EcoLink label={t('home.eco.link1')} />
-        <EcoNode {...nodes[2]} />
-        <EcoLink label={t('home.eco.link2')} />
         <EcoNode {...nodes[1]} />
       </div>
     </div>
@@ -257,15 +210,12 @@ function EcoLink({ label }: { label: string }) {
 }
 
 const CONNECTIONS = [
-  { pairKey: 'home.eco.conn1.title', copyKey: 'home.eco.conn1.copy', chainKey: 'home.eco.conn1.chain' },
   { pairKey: 'home.eco.conn2.title', copyKey: 'home.eco.conn2.copy', chainKey: 'home.eco.conn2.chain' },
-  { pairKey: 'home.eco.conn3.title', copyKey: 'home.eco.conn3.copy', chainKey: 'home.eco.conn3.chain' },
 ] as const;
 
 const REAL_WORK = [
   { titleKey: 'home.rw.hotel', steps: ['Front desk.', 'Housekeeping.', 'Maintenance.', 'Guest request.', 'Manager.'], lineKey: 'home.rw.hotel.line' },
   { titleKey: 'home.rw.biz', steps: ['Customer.', 'Order.', 'Payment.', 'WhatsApp.', 'Staff.'], lineKey: 'home.rw.biz.line' },
-  { titleKey: 'home.rw.trans', steps: ['Passenger.', 'Dispatcher.', 'Vehicle.', 'Driver.', 'Destination.'], lineKey: 'home.rw.trans.line' },
 ] as const;
 
 export default function CorporateHomePage() {
@@ -336,7 +286,7 @@ function CorpHomeInner() {
           </Reveal>
         </div>
         {/* three large product cards — real mini interfaces */}
-        <div id="products" className="max-w-6xl mx-auto grid md:grid-cols-3 gap-5 scroll-mt-24">
+        <div id="products" className="max-w-5xl mx-auto grid md:grid-cols-2 gap-5 scroll-mt-24">
           <Reveal delay={0}><ProductCard
             href="/hospitality" label="HOSPITALITY OPERATIONS" icon={BedDouble}
             headline={t('home.card.h.head')}
@@ -349,12 +299,6 @@ function CorpHomeInner() {
             copy={t('home.card.s.copy')}
             cta={t('home.card.s.cta')} subline="No otro marketplace. Tu propio canal."
             visual={<ServeInterface active={false} />} /></Reveal>
-          <Reveal delay={180}><ProductCard
-            href="/transportation" label="TRANSPORTATION" icon={Truck}
-            headline={t('home.card.t.head')}
-            copy={t('home.card.t.copy')}
-            cta={t('home.card.t.cta')}
-            visual={<TransportInterface active={false} />} /></Reveal>
         </div>
       </section>
 
@@ -394,7 +338,7 @@ function CorpHomeInner() {
           </Reveal>
         </div>
         <Reveal><EcosystemDiagram /></Reveal>
-        <div className="max-w-4xl mx-auto mt-16 grid md:grid-cols-3 gap-4">
+        <div className="max-w-3xl mx-auto mt-16 grid md:grid-cols-2 gap-4">
           {CONNECTIONS.map((c, i) => (
             <Reveal key={c.pairKey} delay={i * 80}>
               <div className="rounded-2xl border p-6 h-full" style={{ borderColor: CORP_BORDER, backgroundColor: CORP_MIST }}>
@@ -509,11 +453,10 @@ function CorpHomeInner() {
               {t('home.latam.p')}
             </p>
           </Reveal>
-          <div className="grid md:grid-cols-3 gap-4 mt-10 text-left">
+          <div className="grid md:grid-cols-2 gap-4 mt-10 text-left">
             {[
               ['home.latam.t1', 'home.latam.t1c', BedDouble, '/hospitality'],
               ['home.latam.t2', 'home.latam.t2c', Store, '/serve'],
-              ['home.latam.t3', 'home.latam.t3c', Truck, '/transportation'],
                         ].map(([tk, ck, Icon, href], i) => (
               <Reveal key={tk as string} delay={i * 80}>
                 <Link href={href as string} className="block rounded-2xl border p-6 hover:-translate-y-0.5 transition-transform" style={{ borderColor: CORP_BORDER }}>
@@ -570,11 +513,10 @@ function CorpHomeInner() {
 
       {/* ── SECTION 10 — PRODUCTS AGAIN (primary conversion tiles) ── */}
       <section className="py-20 md:py-32 px-5 bg-white">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-5">
+        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-5">
           {[
             { t: 'HOSPITALITY', lKey: 'home.tiles.h.t', h: '/hospitality', tint: 'linear-gradient(160deg, #0F2E33 0%, #0A1A1F 100%)', icon: BedDouble },
             { t: 'SERVE', lKey: 'home.tiles.s.l', h: '/serve', tint: 'linear-gradient(160deg, #172A26 0%, #0E1A17 100%)', icon: Store },
-            { t: 'TRANSPORTATION', lKey: 'home.tiles.t.l', h: '/transportation', tint: 'linear-gradient(160deg, #101B2E 0%, #0A111E 100%)', icon: Truck },
           ].map((p, i) => {
             const Icon = p.icon;
             return (
@@ -604,11 +546,10 @@ function CorpHomeInner() {
             <h2 className="text-[36px] md:text-[56px] font-black tracking-[-0.02em] leading-[1.04] text-white">
               {t('home.cta.h')}
             </h2>
-            <div className="grid sm:grid-cols-3 gap-4 mt-12 text-left">
+            <div className="grid sm:grid-cols-2 gap-4 mt-12 text-left">
               {[
                 ['home.cta.q1', 'Attenda Hospitality', '/hospitality'],
                 ['home.cta.q2', 'Attenda Serve', '/serve'],
-                ['home.cta.q3', 'Attenda Transportation', '/transportation'],
               ].map(([qk, a, h], i) => (
                 <Reveal key={h} delay={i * 80}>
                   <Link href={h} className="block rounded-2xl border border-white/15 bg-white/5 p-6 hover:bg-white/10 transition-colors h-full">

@@ -5,7 +5,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, BedDouble, Mail, MapPin, Store, Truck } from 'lucide-react';
+import { ArrowRight, BedDouble, Mail, MapPin, Store } from 'lucide-react';
 import { CorporateNav, CorporateFooter, CORP_TEAL, CORP_TEAL_BRIGHT, CORP_INK, CORP_MIST, CORP_BORDER } from '@/components/corporate/Chrome';
 
 export default function CompanyPage() {
@@ -21,7 +21,7 @@ export default function CompanyPage() {
             WE BUILD FOR<br /><span style={{ color: CORP_TEAL_BRIGHT }}>HOW WORK ACTUALLY HAPPENS.</span>
           </h1>
           <div className="mt-10 space-y-2.5">
-            {['Attenda started in operations.', 'Not a laboratory. Not a consulting deck. Not a theoretical workflow.', 'Real teams. Real customers. Real businesses. Real transportation. Real operating pressure.'].map((l, i) => (
+            {['Attenda started in operations.', 'Not a laboratory. Not a consulting deck. Not a theoretical workflow.', 'Real teams. Real customers. Real businesses. Real operating pressure.'].map((l, i) => (
               <p key={l} className={`leading-relaxed ${i === 0 ? 'text-[19px] font-bold text-white' : 'text-[16px] text-gray-400'}`}>{l}</p>
             ))}
           </div>
@@ -46,7 +46,7 @@ export default function CompanyPage() {
               That experience led to a bigger idea: technology should be built around how people actually operate.
             </p>
             <p>
-              Today, Attenda Technologies applies that philosophy across hospitality, commerce and transportation — three products, one principle. We build systems for people doing real work, not software designed in isolation from it.
+              Today, Attenda Technologies applies that philosophy across hospitality and commerce — two products, one principle. We build systems for people doing real work, not software designed in isolation from it.
             </p>
           </div>
 
@@ -72,7 +72,7 @@ export default function CompanyPage() {
             <div className="text-[11px] font-black tracking-[0.3em] uppercase mb-3" style={{ color: CORP_TEAL_BRIGHT }}>MIAMI, FLORIDA</div>
             <h2 className="text-[30px] md:text-[42px] font-black tracking-tight leading-[1.08] text-white">Our home.</h2>
             <p className="text-[16.5px] text-gray-300 leading-relaxed mt-6">
-              Attenda Technologies is based in Miami — a city connecting the United States, Latin America, hospitality, commerce, transportation and entrepreneurship. It is the natural home for what we&apos;re building.
+              Attenda Technologies is based in Miami — a city connecting the United States, Latin America, hospitality, commerce and entrepreneurship. It is the natural home for what we&apos;re building.
             </p>
             <p className="text-[15px] text-gray-400 mt-4 flex items-center gap-2">
               <MapPin size={15} style={{ color: CORP_TEAL_BRIGHT }} /> 66 W Flagler St, Suite 900 · Miami, FL 33130
@@ -104,11 +104,10 @@ export default function CompanyPage() {
           </div>
           <div className="rounded-3xl border p-8 md:col-span-2" style={{ borderColor: CORP_BORDER, backgroundColor: CORP_MIST }}>
             <div className="text-[11px] font-black tracking-[0.26em] uppercase mb-3" style={{ color: CORP_TEAL }}>U.S. + LATAM direction</div>
-            <div className="grid sm:grid-cols-3 gap-5 mt-2">
+            <div className="grid sm:grid-cols-2 gap-5 mt-2">
               {[
                 ['Hospitality', 'Begins with U.S. operators.', BedDouble, '/hospitality'],
                 ['Serve', 'Built with Latin American businesses in mind.', Store, '/serve'],
-                ['Transportation', 'Connects physical operations wherever people and vehicles move.', Truck, '/transportation'],
               ].map(([t, c, Icon, href]) => {
                 const I = Icon as typeof BedDouble;
                 return (

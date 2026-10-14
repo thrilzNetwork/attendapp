@@ -11,7 +11,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     title: 'The agreement',
     body: (
       <>
-        <p>These Terms of Service govern the products Attenda Hospitality, Attenda Serve and Attenda Transportation, and the website attendaapp.com, all operated by Attenda Technologies LLC (&ldquo;Attenda&rdquo;, &ldquo;we&rdquo;), 66 W Flagler St, Suite 900, Miami, FL 33130, United States.</p>
+        <p>These Terms of Service govern the products Attenda Hospitality and Attenda Serve, and the website attendaapp.com, all operated by Attenda Technologies LLC (&ldquo;Attenda&rdquo;, &ldquo;we&rdquo;), 66 W Flagler St, Suite 900, Miami, FL 33130, United States.</p>
         <p>By using any Attenda product or website you agree to these terms. Product-specific terms below apply in addition to — not instead of — this framework.</p>
       </>
     ),
@@ -19,7 +19,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   {
     title: 'Attenda Technologies — the company',
     body: (
-      <p>Attenda Technologies LLC is the provider of all Attenda products. Attenda Hospitality, Attenda Serve and Attenda Transportation are products and solutions built by Attenda Technologies. Nothing in these terms creates a partnership, agency or employment relationship between Attenda and the businesses, properties or providers using the products.</p>
+      <p>Attenda Technologies LLC is the provider of all Attenda products. Attenda Hospitality and Attenda Serve are products and solutions built by Attenda Technologies. Nothing in these terms creates a partnership, agency or employment relationship between Attenda and the businesses, properties or providers using the products.</p>
     ),
   },
   {
@@ -37,15 +37,6 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
       <>
         <p>Attenda Serve is a commerce platform from Attenda Technologies that gives businesses their own digital sales channel. The business using Serve is the seller of record for its own products and is responsible for its storefront content, pricing, order fulfillment, refunds and compliance with local consumer law.</p>
         <p><strong>Payments:</strong> payments between a customer and a business are processed by local payment providers in each market. Attenda does not take a percentage of a business's sales. Subscription fees (Starter/Growth), the one-time activation fee and partner payouts are governed by the order form or plan presented at purchase. One-time payouts to partners are paid on successfully activated businesses as described in the partner program.</p>
-      </>
-    ),
-  },
-  {
-    title: 'Attenda Transportation',
-    body: (
-      <>
-        <p>Attenda Transportation is a transportation solution from Attenda Technologies for scheduling, dispatch, live vehicle visibility and operational communication.</p>
-        <p><strong>Transportation services:</strong> trips are provided by the transportation providers and operators using the platform (or by the properties coordinating them), not by Attenda. Attenda coordinates information and communication; each provider remains responsible for its vehicles, drivers, safety and compliance with applicable transportation law.</p>
       </>
     ),
   },

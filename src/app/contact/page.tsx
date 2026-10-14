@@ -49,13 +49,12 @@ export default function ContactPage() {
           {/* what are you trying to operate */}
           <div>
             <div className="text-[11px] font-black tracking-[0.26em] uppercase mb-4" style={{ color: CORP_TEAL }}>What are you trying to operate?</div>
-            <div className="space-y-3">
+            <div className="grid sm:grid-cols-2 gap-3 gap-y-3">
               {[
                 ['A hospitality property', 'Attenda Hospitality'],
                 ['A business that sells', 'Attenda Serve'],
-                ['A transportation operation', 'Attenda Transportation'],
               ].map(([q, a], i) => {
-                const p = [PRODUCTS[0], PRODUCTS[1], PRODUCTS[2]][i];
+                const p = [PRODUCTS[0], PRODUCTS[1]][i];
                 return (
                   <Link key={q} href={p.href} className="block rounded-2xl border p-5 hover:-translate-y-0.5 transition-transform" style={{ borderColor: CORP_BORDER, backgroundColor: '#fff' }}>
                     <div className="text-[13px] text-gray-500 font-semibold">{q}</div>

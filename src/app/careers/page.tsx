@@ -122,7 +122,7 @@ export default function CareersPage() {
             Únete a Attenda Technologies.
           </h1>
           <p className="mt-4 text-[15px] md:text-[17px] font-medium max-w-2xl mx-auto" style={{ color: 'rgba(243,240,230,0.78)' }}>
-            Construimos tecnología operativa para hospitality, comercio y transporte. Únete al equipo interno, gana ingresos recurrentes como afiliado, o ayúdanos a desarrollar Attenda Serve en tu mercado.
+            Construimos tecnología operativa para hospitality y comercio. Únete al equipo interno, gana ingresos recurrentes como afiliado, o ayúdanos a desarrollar Attenda Serve en tu mercado.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-2 max-w-3xl mx-auto">
             {['Engineering','Product','Design','Sales','Partners','Client Success','Operations'].map(a => (
@@ -130,7 +130,7 @@ export default function CareersPage() {
             ))}
           </div>
           <p className="mt-3 text-[12px] font-bold" style={{ color: 'rgba(243,240,230,0.6)' }}>
-            Áreas abiertas en Hospitality · Serve · Transportation
+            Áreas abiertas en Hospitality · Serve
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             {([['jobs', 'Ver oportunidades'], ['affiliate', 'Quiero ser afiliado'], ['partner', 'Quiero ser Market Partner']] as const).map(([k, l]) => (

@@ -18,7 +18,6 @@ export const CORP_BORDER = '#E2E8F0';
 export const PRODUCTS = [
   { name: 'Attenda Hospitality', href: '/hospitality', descKey: 'prod.h.desc' },
   { name: 'Attenda Serve', href: '/serve', descKey: 'prod.s.desc' },
-  { name: 'Attenda Transportation', href: '/transportation', descKey: 'prod.t.desc' },
 ] as const;
 
 export function CorporateLogo({ light = false }: { light?: boolean }) {

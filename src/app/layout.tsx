@@ -35,24 +35,21 @@ export const metadata: Metadata = {
     apple: "/brand/icon-mark.svg",
   },
   title: {
-    default: "Attenda Technologies | Operating Technology for Hospitality, Commerce & Transportation",
+    default: "Attenda Technologies | Operating Technology for Hospitality & Commerce",
     template: "%s | Attenda Technologies",
   },
   description:
-    "Attenda Technologies builds practical operating technology for hospitality, commerce and transportation. Explore Attenda Hospitality, Attenda Serve and Attenda Transportation.",
+    "Attenda Technologies builds practical operating technology for hospitality and commerce. Explore Attenda Hospitality and Attenda Serve.",
   keywords: [
     "operating technology",
     "hospitality operations software",
     "commerce platform LATAM",
-    "transportation dispatch software",
     "hotel operations platform",
     "storefront and online ordering",
-    "live vehicle tracking dispatch",
     "Miami technology company",
     "Attenda Technologies",
     "Attenda Hospitality",
     "Attenda Serve",
-    "Attenda Transportation",
   ],
   authors: [{ name: "Alejandro Soria", url: "https://attendaapp.com" }],
   creator: "Attenda",
@@ -61,9 +58,9 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     siteName: "Attenda",
-    title: "Attenda Technologies | Operating Technology for Hospitality, Commerce & Transportation",
+    title: "Attenda Technologies | Operating Technology for Hospitality & Commerce",
     description:
-      "Practical operating technology for hospitality, commerce and transportation — designed around how work actually happens.",
+      "Practical operating technology for hospitality and commerce — designed around how work actually happens.",
     url: CANONICAL,
     images: [
       {

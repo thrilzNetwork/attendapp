@@ -500,25 +500,25 @@ export default function AttendaHospitality() {
         </div>
       </section>
 
-      {/* TWO WAYS IN — HOTELS & TRANSPORTATION VENDORS */}
+      {/* HOW ATTENDA LANDS — THE HOTEL ENTRY */}
       <section className="py-16 md:py-24 px-5 bg-gray-50">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border border-gray-200 bg-white">
               <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-              <span className="text-[12px] font-bold text-gray-700 tracking-wide uppercase">Two ways in</span>
+              <span className="text-[12px] font-bold text-gray-700 tracking-wide uppercase">How it lands</span>
             </div>
             <h2 className="text-[14px] font-bold tracking-widest uppercase text-gray-500 mb-3">Feature Tool of the Month</h2>
             <h3 className="text-[34px] md:text-[48px] font-black tracking-tight text-gray-900 mb-4 leading-[1.05]">
               Sell to the hotel<br />
-              <span style={{ color: TEAL }}>or the shuttle company.</span>
+              <span style={{ color: TEAL }}>and the shuttle chaos disappears.</span>
             </h3>
             <p className="text-[16px] md:text-[18px] text-gray-600 max-w-2xl mx-auto">
-              Attenda works whether you enter through the GM or through the transportation vendor already serving the property. Same workflow, same live board, same shuttle schedule — two paths to deployment.
+              Attenda enters through the GM: one live shuttle board, one request queue for the whole team, deployed through welcome letters, lobby iPad, or text links.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="max-w-2xl mx-auto grid grid-cols-1 gap-6">
             {/* Hotel path */}
             <div className="bg-white border-2 rounded-2xl overflow-hidden shadow-md" style={{ borderColor: TEAL }}>
               <div className="px-7 py-6" style={{ backgroundColor: `${TEAL}06` }}>
@@ -535,28 +535,11 @@ export default function AttendaHospitality() {
                 </ul>
               </div>
             </div>
-
-            {/* Transportation vendor path */}
-            <div className="bg-white border-2 rounded-2xl overflow-hidden shadow-md" style={{ borderColor: '#f59e0b' }}>
-              <div className="px-7 py-6" style={{ backgroundColor: '#f59e0b06' }}>
-                <div className="text-[11px] font-bold tracking-widest uppercase mb-2" style={{ color: '#d97706' }}>Path 2</div>
-                <h4 className="text-[24px] font-black text-gray-900 mb-2">Transportation Vendor</h4>
-                <p className="text-[14px] text-gray-600">You run the shuttle for multiple hotels. You want fewer missed pickups, fewer calls, and a way to prove your reliability.</p>
-              </div>
-              <div className="px-7 py-6">
-                <ul className="space-y-3 text-[14px] text-gray-700">
-                  <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0" style={{ color: '#d97706' }} /> Bring Attenda to the hotels you already serve</li>
-                  <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0" style={{ color: '#d97706' }} /> Live demand forecast by 15/30-min intervals</li>
-                  <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0" style={{ color: '#d97706' }} /> Automated pickup confirmations sent to guests</li>
-                  <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0" style={{ color: '#d97706' }} /> Vendor pricing — bring 3+ hotels, get a fleet rate</li>
-                </ul>
-              </div>
-            </div>
           </div>
 
           <div className="text-center mt-10">
             <p className="text-[15px] text-gray-500 mb-4">
-              Already running shuttle for a hotel? Bring Attenda and connect them. Already a GM? Bring your shuttle vendor and connect them. Either way, the workflow goes live in 11 days.
+              Already a GM? Bring your shuttle vendor and connect them. The workflow goes live in 11 days.
             </p>
             <a href="#demo" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-bold text-[15px] shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: TEAL }}>
               Let&apos;s talk <ArrowRight size={18} />

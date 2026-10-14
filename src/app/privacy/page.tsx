@@ -13,7 +13,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     body: (
       <>
         <p>
-          Attenda Technologies LLC (&ldquo;Attenda&rdquo;, &ldquo;we&rdquo;), 66 W Flagler St, Suite 900, Miami, FL 33130, United States, operates the products Attenda Hospitality, Attenda Serve and Attenda Transportation, and the website attendaapp.com.
+          Attenda Technologies LLC (&ldquo;Attenda&rdquo;, &ldquo;we&rdquo;), 66 W Flagler St, Suite 900, Miami, FL 33130, United States, operates the products Attenda Hospitality and Attenda Serve, and the website attendaapp.com.
         </p>
         <p>
           This policy explains how we handle information across those products. Where a product or property operates its own policy, that policy applies to its guests and customers.
@@ -27,7 +27,6 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
       <>
         <p><strong>Attenda Hospitality (guests):</strong> information you provide during your stay — name, room number, check-out date — used to personalize your in-stay experience and route service requests to the right hotel team.</p>
         <p><strong>Attenda Serve (businesses &amp; their customers):</strong> business account information (business name, contact, country, menu/products) and customer order information (name, contact, delivery/pickup details) collected by businesses using Serve. Businesses own their customer relationships; we process order data to operate the service.</p>
-        <p><strong>Attenda Transportation:</strong> trip, scheduling, vehicle and dispatch information, plus passenger contact details needed to coordinate pickups and communicate arrival information.</p>
       </>
     ),
   },
@@ -60,7 +59,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     title: 'Third-party services &amp; partner businesses',
     body: (
       <p>
-        Food and service orders may be fulfilled by individual hotel or merchant partners. Transportation may be provided by independent providers operating on Attenda Transportation. Those partners act as controllers of their own customers&apos; data and are subject to their own policies; Attenda processes data on their behalf to deliver the service.
+        Food and service orders may be fulfilled by individual hotel or merchant partners. Those partners act as controllers of their own customers&apos; data and are subject to their own policies; Attenda processes data on their behalf to deliver the service.
       </p>
     ),
   },

@@ -4,13 +4,12 @@
    Individual products keep category content (Field Notes → Hospitality). */
 
 import Link from 'next/link';
-import { ArrowRight, BedDouble, Building2, Cpu, Globe2, Radio, Store, Truck, Users } from 'lucide-react';
+import { ArrowRight, BedDouble, Building2, Cpu, Globe2, Radio, Store, Users } from 'lucide-react';
 import { CorporateNav, CorporateFooter, CORP_TEAL, CORP_TEAL_BRIGHT, CORP_INK, CORP_MIST, CORP_BORDER } from '@/components/corporate/Chrome';
 
 const CATEGORIES = [
   { t: 'Hospitality', d: 'Hotel operations, staff workflows, guest experience. Home of Field Notes.', href: '/blog', icon: BedDouble, live: true },
   { t: 'Commerce', d: 'Selling, payments, WhatsApp workflows, customer retention across LATAM.', href: null, icon: Store, live: false },
-  { t: 'Transportation', d: 'Dispatch, scheduling, live visibility and movement operations.', href: null, icon: Truck, live: false },
   { t: 'Technology', d: 'How Attenda products are built — and why.', href: null, icon: Cpu, live: false },
   { t: 'Operations', d: 'The discipline of running real businesses, from the people who do it.', href: null, icon: Users, live: false },
   { t: 'AI', d: 'Human-centered AI: assists the work, never replaces the judgment.', href: null, icon: Radio, live: false },
