@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, MapPin, Phone, Clock, Star, ShoppingBag, Car, Check } from 'lucide-react';
-import { getHotelConfig, getPartners, Partner, supabase } from '@/lib/supabase';
+import { getHotelConfig, getPartners, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
 import { goBackToHotel } from '@/lib/guest-context';
 
 function RideCard({ brandColor }: { brandColor: string }) {
@@ -81,6 +81,8 @@ function NearbyContent() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [brandColor, setBrandColor] = useState('#6B1D3C');
+  const [menuItems, setMenuItems] = useState<PartnerMenuItem[]>([]);
+  const [menuPartner, setMenuPartner] = useState<Partner | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +92,8 @@ function NearbyContent() {
       if (hotel?.id) {
         const data = await getPartners(hotel.id);
         if (!cancelled) setPartners(data);
+        const mi = await supabase.from('partner_menu_items').select('*').eq('is_active', true).order('sort_order');
+        if (!cancelled) setMenuItems(mi.data || []);
       }
       if (hotel?.brandColor) setBrandColor(hotel.brandColor);
       if (!cancelled) setLoading(false);
@@ -156,6 +160,14 @@ function NearbyContent() {
                           <MapPin size={12} className="text-gray-400" />
                           <span className="text-[11px] text-gray-500">{r.distance}</span>
                         </div>
+                        <span
+                          role="button"
+                          onClick={e => { e.stopPropagation(); setMenuPartner(r); }}
+                          className="text-[11px] font-bold underline underline-offset-2"
+                          style={{ color: brandColor }}
+                        >
+                          View Menu
+                        </span>
                         {r.has_ordering ? (
                           <span className="text-[11px] font-bold text-emerald-600">In-Room Delivery</span>
                         ) : (
@@ -259,6 +271,36 @@ function NearbyContent() {
           )}
         </div>
       </div>
+    {menuPartner && (() => {
+      const items = menuItems.filter(m => m.partner_id === menuPartner.id);
+      return (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={() => setMenuPartner(null)}>
+          <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl max-h-[85dvh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="p-5 pb-3 border-b border-gray-100 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: brandColor }}>Menu</p>
+                <h3 className="text-[17px] font-extrabold text-gray-900">{menuPartner.name}</h3>
+              </div>
+              <button onClick={() => setMenuPartner(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-[16px] shrink-0">✕</button>
+            </div>
+            <div className="overflow-y-auto px-5 py-3">
+              {items.length === 0 && (
+                <p className="text-[13px] text-gray-400 text-center py-8">Menu coming soon</p>
+              )}
+              {items.map(m => (
+                <div key={m.id} className="flex items-start justify-between gap-3 py-3 border-b border-gray-50 last:border-0">
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-bold text-gray-900">{m.name}</p>
+                    {m.description && <p className="text-[12px] text-gray-500 leading-snug">{m.description}</p>}
+                  </div>
+                  <span className="text-[14px] font-extrabold text-gray-900 shrink-0">${Number(m.price).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    })()}
     </div>
   );
 }

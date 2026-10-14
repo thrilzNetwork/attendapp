@@ -166,6 +166,15 @@ const REQUEST_CATEGORIES = [
     color: '#6B7280',
     bg: '#F1F2F4',
   },
+  {
+    id: 'parking',
+    icon: <Car size={22} />,
+    label: 'Parking',
+    type: 'Front Desk Request',
+    details: 'Parking card registration',
+    color: '#2563EB',
+    bg: '#EFF6FF',
+  },
 ];
 
 /* ── Service detail screens (v2): tap card → panel → submit ───── */
@@ -476,8 +485,33 @@ function ScreenFrontDesk({ hotel, onBack }: ScreenProps) {
   );
 }
 
+function ScreenParking({ sending, onSubmit, onBack }: ScreenProps) {
+  return (
+    <ScreenFrame title="Parking Registration" subtitle="Register your card for parking at the front desk." onBack={onBack}>
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-[#EDF0F3] bg-white p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[13.5px] font-bold text-[#202735]">Event Card Parking</span>
+            <span className="text-[16px] font-extrabold text-[#202735]">$7</span>
+          </div>
+          <p className="text-[12.5px] text-[#6B7280] leading-relaxed mt-1">
+            Parking is $7 per day. Register your card with the front desk once, and we handle the daily charge for the rest of your stay — no stops at the desk when you come and go.
+          </p>
+        </div>
+        <SubmitButton
+          label="Register My Card"
+          disabled={sending}
+          onClick={() => onSubmit('Front Desk Request', 'Parking card registration — guest acknowledges the $7/day parking fee and wants their card registered at the front desk.', 'Parking Registration')}
+        />
+        <p className="text-[11px] text-[#9BA4B4] text-center">Front desk will confirm your card when you register.</p>
+      </div>
+    </ScreenFrame>
+  );
+}
+
 const REQUEST_SCREENS: Record<string, React.FC<ScreenProps>> = {
   towels: ScreenTowels,
+  parking: ScreenParking,
   housekeeping: ScreenHousekeeping,
   room_service: ScreenRoomService,
   amenities: ScreenAmenities,
@@ -1355,6 +1389,125 @@ export function ReviewSheetContent({ onClose: closeSheet }: { onClose: () => voi
           <button onClick={closeSheet} className="w-full py-3.5 rounded-[14px] bg-gray-100 text-[15px] font-bold text-gray-700">Close</button>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Breakfast Voucher — one per registered guest (room), enforced in the
+   database (unique active row per hotel+room). Claims return the same
+   voucher; staff redeem from the Breakfast hub.
+   ══════════════════════════════════════════════════════════════════ */
+export function VoucherSheetContent({ onClose: closeSheet }: { onClose: () => void }) {
+  const [guestName, setGuestName] = useState('');
+  const [guestRoom, setGuestRoom] = useState('');
+  const [cfg, setCfg] = useState<HotelConfig | null>(null);
+  const [voucher, setVoucher] = useState<any | null>(null);
+  const [claimed, setClaimed] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [hotelColor, setHotelColor] = useState(BURGUNDY);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('guestSession');
+    if (stored) {
+      try {
+        const s = JSON.parse(stored);
+        setGuestName(s.name || '');
+        setGuestRoom(s.room || '');
+      } catch { localStorage.removeItem('guestSession'); }
+    }
+    getHotelConfig().then(h => {
+      setCfg(h);
+      if (h?.brandColor) setHotelColor(h.brandColor);
+    });
+  }, []);
+
+  useEffect(() => {
+    // Poll-free status load: single RPC read on open
+    (async () => {
+      const hotel = cfg?.id ? cfg : await getHotelConfig();
+      if (!hotel?.id || !guestRoom || guestRoom === '?') return;
+      const { data } = await supabase.rpc('guest_voucher_status', {
+        p_hotel_id: hotel.id, p_room: guestRoom,
+      });
+      if (data && data !== null) { setVoucher(data); setClaimed(true); }
+    })();
+  }, [cfg, guestRoom]);
+
+  const claim = async () => {
+    if (claiming) return;
+    setClaiming(true);
+    try {
+      const hotel = cfg?.id ? cfg : await getHotelConfig();
+      if (!hotel?.id || !guestName || !guestRoom) { setClaiming(false); return; }
+      const { data, error } = await supabase.rpc('guest_claim_voucher', {
+        p_hotel_id: hotel.id, p_room: guestRoom, p_guest_name: guestName,
+      });
+      if (error) throw error;
+      setVoucher(data);
+      setClaimed(true);
+    } catch {
+      // unique-violation or network — refetch authoritative state
+      const hotel = cfg?.id ? cfg : await getHotelConfig();
+      const { data } = await supabase.rpc('guest_voucher_status', { p_hotel_id: hotel?.id || '', p_room: guestRoom });
+      if (data && data !== null) { setVoucher(data); setClaimed(true); }
+    }
+    setClaiming(false);
+  };
+
+  const hours = cfg?.foodContent?.intro_text?.match(/([0-9:]+ ?[AP]M)[^0-9]*?([0-9:]+ ?[AP]M)/i);
+  const breakfastHours = hours ? `${hours[1]} — ${hours[2]}` : '6:30 AM — 9:30 AM daily';
+  const hotelName = cfg?.name || 'the front desk';
+
+  if (!guestName || !guestRoom || guestRoom === '?') {
+    return (
+      <div className="p-6 text-center">
+        <Coffee size={40} strokeWidth={1.5} style={{ color: hotelColor, margin: '0 auto 14px' }} />
+        <p className="text-[16px] font-bold text-gray-800 mb-2">Breakfast Voucher</p>
+        <p className="text-[13px] text-gray-500 mb-5">Register your name and room number to claim your complimentary breakfast voucher. One voucher per registered guest.</p>
+        <button onClick={closeSheet} className="w-full py-3.5 rounded-[14px] bg-gray-100 text-[15px] font-bold text-gray-700">Close</button>
+      </div>
+    );
+  }
+
+  if (claimed && voucher) {
+    const redeemed = voucher.status === 'redeemed';
+    return (
+      <div className="p-6 text-center">
+        <div className="rounded-2xl border-2 border-dashed p-6 mb-4" style={{ borderColor: hotelColor }}>
+          <p style={{ color: hotelColor }} className="text-[11px] font-bold tracking-[0.12em] uppercase mb-1">{hotelName}</p>
+          <p className="text-[22px] font-extrabold text-gray-900 mb-1">Breakfast Voucher</p>
+          <p className="text-[13px] text-gray-600 mb-3">Complimentary breakfast · {breakfastHours}</p>
+          <div className="bg-gray-50 rounded-xl px-4 py-3 mb-3">
+            <p className="text-[11px] text-gray-400 uppercase tracking-wider">Guest</p>
+            <p className="text-[15px] font-bold text-gray-800">{voucher.guest_name} · Room {voucher.room}</p>
+          </div>
+          {redeemed ? (
+            <p className="text-[13px] font-bold text-gray-400 uppercase tracking-wider">✓ Already redeemed — thank you</p>
+          ) : (
+            <p className="text-[13px] font-semibold" style={{ color: hotelColor }}>Show this screen at the restaurant</p>
+          )}
+        </div>
+        <p className="text-[11px] text-gray-400 mb-5">One voucher per stay. Valid for the registered guest only.</p>
+        <button onClick={closeSheet} className="w-full py-3.5 rounded-[14px] bg-gray-100 text-[15px] font-bold text-gray-700">Close</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 text-center">
+      <Coffee size={40} strokeWidth={1.5} style={{ color: hotelColor, margin: '0 auto 14px' }} />
+      <p className="text-[16px] font-bold text-gray-800 mb-1">Breakfast Voucher</p>
+      <p className="text-[13px] text-gray-500 mb-1">Complimentary breakfast · {breakfastHours}</p>
+      <p className="text-[12px] text-gray-400 mb-5">Registered to {guestName} · Room {guestRoom}</p>
+      <button
+        onClick={claim}
+        disabled={claiming}
+        className="w-full py-3.5 rounded-[14px] text-white text-[15px] font-bold disabled:opacity-60"
+        style={{ backgroundColor: hotelColor }}>
+        {claiming ? 'Claiming…' : 'Claim My Voucher'}
+      </button>
+      <p className="text-[11px] text-gray-400 mt-4">One voucher per registered guest · show at the restaurant</p>
     </div>
   );
 }

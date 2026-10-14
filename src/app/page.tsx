@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { ArrowRight, Bell, Bus, Check, CheckCircle, ClipboardList, Clock, DollarSign, MapPin, Phone, ShieldCheck, User, Users, Utensils, Wifi } from 'lucide-react';
+import { ArrowRight, Bell, Bus, Check, CheckCircle, ClipboardList,
+ Coffee, Clock, DollarSign, MapPin, Phone, ShieldCheck, User, Users, Utensils, Wifi } from 'lucide-react';
 import GuestAuthModal from '@/components/GuestAuthModal';
 import {
   GuestSheet,
-  MessageSheetContent, TransportSheetContent, FacilitiesSheetContent,
+  MessageSheetContent,
+  VoucherSheetContent, TransportSheetContent, FacilitiesSheetContent,
   SafetySheetContent, WelcomeSheetContent, ReviewSheetContent,
 } from '@/components/GuestSheets';
 import { useGuest, isSessionActive, touchStoredSession } from '@/lib/guest-context';
@@ -17,7 +19,7 @@ import CorporateHomePage from '@/components/corporate/Home';
 /*  Root — detects hotel context and switches view             */
 /* ──────────────────────────────────────────────────────────── */
 
-type SheetName = 'message' | 'transport' | 'facilities' | 'safety' | 'welcome' | 'review';
+type SheetName = 'message' | 'transport' | 'facilities' | 'safety' | 'welcome' | 'review' | 'voucher';
 
 export default function Home() {
   const [isHotelView, setIsHotelView] = useState<boolean | null>(null);
@@ -214,10 +216,10 @@ function HotelGuestApp({
         </div>
       </div>
       <div className="flex gap-3 items-stretch">
-        <button onClick={() => (window.location.href = '/account')}
+        <button onClick={() => handleClick('voucher', true)}
           className="flex-1 h-12 rounded-2xl bg-white border border-gray-200 flex items-center justify-center gap-2 active:scale-[0.97] shadow-sm">
-          <ClipboardList size={18} strokeWidth={1.5} style={{ color: brandColor }} />
-          <span className="text-[12px] font-bold tracking-[0.08em] uppercase" style={{ color: brandColor }}>My Orders</span>
+          <Coffee size={18} strokeWidth={1.5} style={{ color: brandColor }} />
+          <span className="text-[12px] font-bold tracking-[0.08em] uppercase" style={{ color: brandColor }}>BREAKFAST VOUCHER</span>
         </button>
         <button onClick={() => handleClick('message', true)}
           className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.97] shadow-sm"
@@ -251,6 +253,9 @@ function HotelGuestApp({
       </GuestSheet>
       <GuestSheet open={openSheet === 'safety'} onClose={closeSheet} title="Safety">
         <SafetySheetContent />
+      </GuestSheet>
+      <GuestSheet open={openSheet === 'voucher'} onClose={closeSheet} title="Breakfast Voucher">
+        <VoucherSheetContent onClose={closeSheet} />
       </GuestSheet>
       <GuestSheet open={openSheet === 'welcome'} onClose={closeSheet} title="Welcome">
         <WelcomeSheetContent />

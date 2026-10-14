@@ -1,10 +1,12 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { getMealCovers, createMealCover, getWasteLogs, createWasteLog, getMonthlySpends, createMonthlySpend, getFnbInventory, updateFnbInventory, type MealCover, type WasteLog, type MonthlySpend, type FnbInventoryItem } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 const TEAL = '#158A7C';
 
 export default function BreakfastHubView({ hotelId, staffName }: { hotelId: string; staffName?: string }) {
-  const [tab, setTab] = useState<'covers'|'waste'|'spend'|'inventory'>('covers');
+  const [tab, setTab] = useState<'covers'|'waste'|'spend'|'inventory'|'vouchers'>('covers');
+  const [vouchers, setVouchers] = useState<any[]>([]);
   const [covers, setCovers] = useState<MealCover[]>([]);
   const [waste, setWaste] = useState<WasteLog[]>([]);
   const [spends, setSpends] = useState<MonthlySpend[]>([]);
@@ -14,11 +16,44 @@ export default function BreakfastHubView({ hotelId, staffName }: { hotelId: stri
     (async () => { setCovers(await getMealCovers(hotelId)); setWaste(await getWasteLogs(hotelId)); setSpends(await getMonthlySpends(hotelId)); setInventory(await getFnbInventory(hotelId)); })();
   }, [hotelId]);
 
+  // Breakfast vouchers — realtime primary + slow catch-up poll through ONE merge
+  const mergeVouchers = (rows: any[]) => {
+    setVouchers(prev => {
+      const byId = new Map(prev.map(v => [v.id, v]));
+      rows.forEach(r => byId.set(r.id, r));
+      return Array.from(byId.values()).sort((a, b) => (a.claimed_at < b.claimed_at ? 1 : -1));
+    });
+  };
+  useEffect(() => {
+    if (!hotelId) return;
+    let active = true;
+    (async () => {
+      const { data } = await supabase.from('breakfast_vouchers').select('*').eq('hotel_id', hotelId).order('claimed_at', { ascending: false });
+      if (active && data) setVouchers(data);
+    })();
+    const ch = supabase.channel(`vouchers-${hotelId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'breakfast_vouchers', filter: `hotel_id=eq.${hotelId}` },
+        (payload: any) => { if (payload.new) mergeVouchers([payload.new]); })
+      .subscribe();
+    const poll = setInterval(() => {
+      supabase.from('breakfast_vouchers').select('*').eq('hotel_id', hotelId).order('claimed_at', { ascending: false }).then(({ data }: any) => {
+        if (active && data) mergeVouchers(data);
+      });
+    }, 15000);
+    return () => { active = false; supabase.removeChannel(ch); clearInterval(poll); };
+  }, [hotelId]);
+
+  const redeem = async (id: string) => {
+    const { data } = await supabase.rpc('staff_redeem_voucher', { p_voucher_id: id, p_staff: staffName || 'Staff' });
+    if (data) mergeVouchers([data]);
+  };
+
   const tabs = [
     { key: 'covers', label: '🍽️ Meal Covers' },
     { key: 'waste', label: '🗑️ Waste Log' },
     { key: 'spend', label: '💰 Monthly Spend' },
     { key: 'inventory', label: '📦 Inventory' },
+    { key: 'vouchers', label: '🎟️ Vouchers' },
   ] as const;
 
   return (
@@ -32,6 +67,24 @@ export default function BreakfastHubView({ hotelId, staffName }: { hotelId: stri
       {tab === 'waste' && <WasteLogView waste={waste} hotelId={hotelId} staffName={staffName} reload={() => getWasteLogs(hotelId).then(setWaste)} />}
       {tab === 'spend' && <MonthlySpendView spends={spends} hotelId={hotelId} staffName={staffName} reload={() => getMonthlySpends(hotelId).then(setSpends)} />}
       {tab === 'inventory' && <InventoryView items={inventory} hotelId={hotelId} staffName={staffName} reload={() => getFnbInventory(hotelId).then(setInventory)} />}
+      {tab === 'vouchers' && (
+        <div className="space-y-2">
+          {vouchers.length === 0 && <p className="text-[13px] text-gray-400 py-6 text-center">No vouchers claimed yet</p>}
+          {vouchers.map(v => (
+            <div key={v.id} className="flex items-center justify-between gap-3 bg-white border border-gray-100 rounded-2xl px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-[14px] font-bold text-gray-900 truncate">{v.guest_name} · Room {v.room}</p>
+                <p className="text-[11.5px] text-gray-400">{new Date(v.claimed_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{v.redeemed_by ? ` · redeemed by ${v.redeemed_by}` : ''}</p>
+              </div>
+              {v.status === 'active' ? (
+                <button onClick={() => redeem(v.id)} className="shrink-0 px-4 py-2 rounded-full text-[12.5px] font-bold text-white" style={{ backgroundColor: TEAL }}>Redeem</button>
+              ) : (
+                <span className="shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-bold bg-gray-100 text-gray-400">Redeemed</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
