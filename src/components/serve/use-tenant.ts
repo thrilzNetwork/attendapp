@@ -21,6 +21,7 @@ export type PublicSettings = {
   zones: { id: string; name: string; fee: number }[];
   promoCode: string; promoDiscount: number;
   yapeNumber: string; yapeHolder: string;
+  utcOffset: number; // tenant wall clock — open/closed gate + admin display
 };
 
 export type TenantBundle = {

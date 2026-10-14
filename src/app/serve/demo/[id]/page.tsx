@@ -58,12 +58,31 @@ function TenantLandingInner() {
     <div className="min-h-screen" style={{ backgroundColor: T.black, fontFamily: 'Fredoka, sans-serif' }}>
       {pin && (
         <div className="mx-auto max-w-xl px-4 pt-4">
-          <div className="flex items-center justify-between rounded-2xl border px-4 py-3" style={{ borderColor: T.orange, backgroundColor: T.orange10 }}>
-            <div>
-              <div className="text-[11px] font-black uppercase tracking-[0.16em]" style={{ color: T.orange }}>PIN de tu panel</div>
-              <div className="text-sm" style={{ color: T.cream }}>Guárdalo — con esto entras a tu panel de pedidos.</div>
+          <div className="rounded-2xl border px-4 py-4" style={{ borderColor: T.orange, backgroundColor: T.orange10 }}>
+            <div className="text-[11px] font-black uppercase tracking-[0.16em]" style={{ color: T.orange }}>Tu cuenta está lista</div>
+            <div className="mt-1 text-sm" style={{ color: T.cream }}>Estos son tus 3 enlaces — guárdalos en tu teléfono.</div>
+            <div className="mt-3 space-y-2">
+              {[
+                ['Sitio web', 'La página de tu negocio', `/serve/demo/${id}`],
+                ['App de pedidos', 'Donde tus clientes ordenan', `/serve/demo/${id}/app`],
+                ['Panel de admin', 'Pedidos, menú y precios (pide tu PIN)', `/serve/demo/${id}/admin`],
+              ].map(([title, sub, href]) => (
+                <a key={href} href={href} className="flex items-center justify-between rounded-xl px-3 py-2.5" style={{ backgroundColor: T.panel, border: `1px solid ${T.line}` }}>
+                  <span>
+                    <span className="block text-sm font-bold" style={{ color: T.cream }}>{title}</span>
+                    <span className="block text-[11px]" style={{ color: T.cream60 }}>{sub}</span>
+                  </span>
+                  <span className="text-xs font-black" style={{ color: T.orange }}>ABRIR →</span>
+                </a>
+              ))}
             </div>
-            <div className="rounded-xl px-4 py-2 text-xl font-black tracking-[0.3em]" style={{ backgroundColor: T.orange, color: T.black }}>{pin}</div>
+            <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2.5" style={{ backgroundColor: T.panel, border: `1px solid ${T.line}` }}>
+              <span>
+                <span className="block text-sm font-bold" style={{ color: T.cream }}>Contraseña del panel</span>
+                <span className="block text-[11px]" style={{ color: T.cream60 }}>La usas para entrar al admin. Guárdala.</span>
+              </span>
+              <span className="rounded-lg px-3 py-1.5 text-lg font-black tracking-[0.25em]" style={{ backgroundColor: T.orange, color: T.black }}>{pin}</span>
+            </div>
           </div>
         </div>
       )}

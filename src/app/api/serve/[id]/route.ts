@@ -55,6 +55,7 @@ export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
       promoDiscount: settings.promoDiscount,
       yapeNumber: settings.yapeNumber,
       yapeHolder: settings.yapeHolder,
+      utcOffset: typeof settings.utcOffset === 'number' ? settings.utcOffset : -5,
     },
     open: isOpenNow(settings),
     serverTime: Date.now(),
@@ -159,6 +160,9 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
     if (typeof s.yapeHolder === 'string') current.yapeHolder = s.yapeHolder.slice(0, 40);
     if (typeof s.promoCode === 'string') current.promoCode = s.promoCode.trim().toUpperCase().slice(0, 24);
     if (typeof s.promoDiscount === 'number' && s.promoDiscount >= 0) current.promoDiscount = Math.round(s.promoDiscount);
+    if (typeof s.utcOffset === 'number' && s.utcOffset >= -12 && s.utcOffset <= 14) {
+      current.utcOffset = Math.round(s.utcOffset * 2) / 2; // clamp + half-hour zones
+    }
     await writeSettings(id, current);
     return j({ ok: true, settings: current, open: isOpenNow(current) });
   }
