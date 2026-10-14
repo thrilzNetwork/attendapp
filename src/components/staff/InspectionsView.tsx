@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClipboardCheck, Plus, X as XIcon, AlertTriangle, Wrench, CheckCircle2, ChevronDown, ClipboardList, Download } from 'lucide-react';
 import {
-  getChecklists, createChecklistInstance, updateChecklistInstance, getRecentChecklistInstances,
+  getChecklists, createChecklistInstance, updateChecklistInstance, getRecentChecklistInstances, getHotelRooms,
   getInspectionFindings, createInspectionFinding, resolveInspectionFinding,
   assignInspectionFinding, linkFindingToWorkOrder, createInspectionChecklist, createWorkOrder,
-  type Checklist, type ChecklistInstance, type InspectionFinding, type StaffAccount,
+  type Checklist, type ChecklistInstance, type InspectionFinding, type StaffAccount, type HotelRoom,
 } from '@/lib/supabase';
 
 const TEAL = '#14b8a6';
@@ -56,15 +56,18 @@ export default function InspectionsView({ hotelId, hotelName, staffName, isAdmin
   const [roomNum, setRoomNum] = useState('');
   const [runNotes, setRunNotes] = useState('');
   const [recentInstances, setRecentInstances] = useState<ChecklistInstance[]>([]);
+  const [rooms, setRooms] = useState<HotelRoom[]>([]);
+  const [runRoom, setRunRoom] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const [cls, fds, insts] = await Promise.all([
-        getChecklists(hotelId), getInspectionFindings(hotelId), getRecentChecklistInstances(hotelId, 300),
+      const [cls, fds, insts, rms] = await Promise.all([
+        getChecklists(hotelId), getInspectionFindings(hotelId), getRecentChecklistInstances(hotelId, 300), getHotelRooms(hotelId),
       ]);
       setChecklists(cls || []);
       setFindings(fds || []);
       setRecentInstances(insts || []);
+      setRooms(rms || []);
       // Seed the standard Room Safety checklist once per property (idempotent —
       // only when a checklist with that name doesn't exist yet).
       if (!(cls || []).some(c => c.name === SAFETY_CHECKLIST_NAME)) {
@@ -79,10 +82,10 @@ export default function InspectionsView({ hotelId, hotelName, staffName, isAdmin
 
   useEffect(() => { if (hotelId) load(); }, [hotelId, load]);
 
-  const startRun = async (c: Checklist) => {
+  const startRun = async (c: Checklist, roomOverride?: string) => {
     setBusy(true);
     try {
-      const rn = roomNum.trim();
+      const rn = (roomOverride !== undefined ? roomOverride : roomNum).trim();
       const isSafety = c.name === SAFETY_CHECKLIST_NAME;
       if (isSafety && !rn) { setBusy(false); return; }
       const inst = await createChecklistInstance({
@@ -94,6 +97,7 @@ export default function InspectionsView({ hotelId, hotelName, staffName, isAdmin
         instance: inst,
         items: (c.items || []).map((it: { id: string; label: string }) => ({ id: it.id, label: it.label, state: 'pending' as const })),
       });
+      if (isSafety) setRunRoom(rn); else setRunRoom('');
       setRunNotes('');
     } catch { /* silent */ }
     setBusy(false);
@@ -229,6 +233,35 @@ export default function InspectionsView({ hotelId, hotelName, staffName, isAdmin
     }
     return [...perRoom.values()].sort((a, b) => b.at.localeCompare(a.at));
   }, [recentInstances, findings, checklists]);
+  // Whole-property Room Safety grid (like HK/Maint): every active room, grouped by floor,
+  // with this month's life-safety status on each tile — done / open findings / due.
+  const roomGrid = useMemo(() => {
+    const hist = new Map(roomHistory.map(h => [h.room, h]));
+    const now = new Date();
+    const monthKey = `${now.getUTCFullYear()}-${now.getUTCMonth()}`;
+    const floorsMap = new Map<string, { room: string; state: 'done' | 'open' | 'due' }[]>();
+    let done = 0;
+    for (const r of rooms) {
+      const h = hist.get(r.room_number);
+      let state: 'done' | 'open' | 'due' = 'due';
+      if (h) {
+        if (h.openFails > 0) state = 'open';
+        else {
+          const d = new Date(h.at);
+          if (`${d.getUTCFullYear()}-${d.getUTCMonth()}` === monthKey) state = 'done';
+        }
+      }
+      if (state === 'done') done++;
+      const floor = r.room_number.length > 2 ? r.room_number.slice(0, -2) : '1';
+      if (!floorsMap.has(floor)) floorsMap.set(floor, []);
+      floorsMap.get(floor)!.push({ room: r.room_number, state });
+    }
+    const floors = [...floorsMap.entries()]
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([floor, list]) => ({ floor, rooms: list.sort((a, b) => a.room.localeCompare(b.room, undefined, { numeric: true })) }));
+    return { floors, done };
+  }, [rooms, roomHistory]);
+
 
   const downloadReport = () => {
     const now = new Date();
@@ -320,7 +353,7 @@ ${detail}
       {running ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-[14px] font-bold text-gray-900">{running.checklist.name}</p>
+            <p className="text-[14px] font-bold text-gray-900">{running.checklist.name}{runRoom ? ` — Room ${runRoom}` : ''}</p>
             <button onClick={cancelRun}><XIcon size={16} className="text-gray-400" /></button>
           </div>
           <p className="text-[11px] text-gray-400">Tap: pass → fail (minor → major → critical) → reset</p>
@@ -369,20 +402,52 @@ ${detail}
       ) : (
         /* Checklist picker */
         <div className="space-y-2">
-          {/* Room Safety quick-start: room number is required for a room-scoped run */}
+          {/* Room Safety — whole-property grid: engineer taps any room to run its monthly check */}
           {checklists.some(c => c.name === SAFETY_CHECKLIST_NAME) && (
             <div className="bg-white rounded-2xl border px-4 py-3.5" style={{ borderColor: `${TEAL}55` }}>
-              <p className="text-[14px] font-bold text-gray-900">Room Safety Inspection</p>
-              <p className="text-[11px] text-gray-400 mb-2">Smoke · CO · extinguisher · exits · door security — tagged to one room</p>
-              <div className="flex gap-2">
-                <input value={roomNum} onChange={e => setRoomNum(e.target.value)} inputMode="numeric" placeholder="Room #"
-                  className="w-28 bg-gray-50 rounded-xl px-3 py-2 text-[14px] font-bold border border-gray-100" />
-                <button disabled={busy || !roomNum.trim()}
-                  onClick={() => { const sc = checklists.find(c => c.name === SAFETY_CHECKLIST_NAME); if (sc) startRun(sc); }}
-                  className="flex-1 text-[13px] font-bold text-white rounded-xl px-4 py-2 disabled:opacity-40" style={{ background: TEAL }}>
-                  Start Room Inspection →
-                </button>
+              <div className="flex items-center justify-between">
+                <p className="text-[14px] font-bold text-gray-900">Room Safety Inspection</p>
+                <p className="text-[11px] font-bold" style={{ color: TEAL }}>{rooms.length > 0 ? `${roomGrid.done}/${rooms.length} done this month` : null}</p>
               </div>
+              <p className="text-[11px] text-gray-400 mb-2">Smoke · CO · extinguisher · exits · door security — tap a room to run it</p>
+              {roomGrid.floors.length > 0 ? (
+                <div className="space-y-3">
+                  {roomGrid.floors.map(g => (
+                    <div key={g.floor}>
+                      <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1.5">Floor {g.floor}</p>
+                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                        {g.rooms.map(r => {
+                          const tile = r.state === 'done' ? { borderColor: TEAL, background: `${TEAL}12` }
+                            : r.state === 'open' ? { borderColor: '#ef4444', background: '#ef444412' }
+                            : { borderColor: '#e5e7eb', background: '#fff' };
+                          const dot = r.state === 'done' ? TEAL : r.state === 'open' ? '#ef4444' : '#9ca3af';
+                          return (
+                            <button key={r.room} disabled={busy}
+                              onClick={() => { const sc = checklists.find(c => c.name === SAFETY_CHECKLIST_NAME); if (sc) startRun(sc, r.room); }}
+                              className="rounded-xl border px-1 py-2 text-center active:scale-[0.97] transition-transform disabled:opacity-50"
+                              style={tile}>
+                              <span className="block text-[13px] font-extrabold text-gray-900">{r.room}</span>
+                              <span className="block text-[8px] font-black uppercase" style={{ color: dot }}>
+                                {r.state === 'done' ? 'done' : r.state === 'open' ? 'open' : 'due'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input value={roomNum} onChange={e => setRoomNum(e.target.value)} inputMode="numeric" placeholder="Room #"
+                    className="w-28 bg-gray-50 rounded-xl px-3 py-2 text-[14px] font-bold border border-gray-100" />
+                  <button disabled={busy || !roomNum.trim()}
+                    onClick={() => { const sc = checklists.find(c => c.name === SAFETY_CHECKLIST_NAME); if (sc) startRun(sc); }}
+                    className="flex-1 text-[13px] font-bold text-white rounded-xl px-4 py-2 disabled:opacity-40" style={{ background: TEAL }}>
+                    Start Room Inspection →
+                  </button>
+                </div>
+              )}
             </div>
           )}
           {checklists.length === 0 ? (
