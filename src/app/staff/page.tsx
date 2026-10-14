@@ -202,7 +202,6 @@ const NAV: { tab: NavTab; label: string; icon: LucideIcon; roles: Role[]; sectio
     { tab: 'culture',         label: 'Culture',             icon: Heart,           roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'knowledge',       label: 'Right Answers',       icon: BookOpen,        roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'learning_hr',     label: 'Learning Hub',        icon: GraduationCap,   roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
-  { tab: 'marketplace',     label: 'Marketplace',         icon: Store,           roles: ['admin', 'supervisor', 'manager', 'superadmin'], section: 'Operations' },
   { tab: 'property_info',   label: 'Property Info',       icon: HotelIcon,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
   { tab: 'compset',         label: 'Compset',             icon: BarChart2,       roles: ['admin', 'staff', 'supervisor', 'superadmin', 'manager'], section: 'Operations' },
 
@@ -1114,9 +1113,6 @@ function DashboardInner() {
           <KpisView hotelId={config?.id || ''} isAdmin={isAdmin} userId="" userName={session?.name || 'Staff'} />
         )}
 
-        {tabPanel('marketplace', true,
-          <MarketplaceView hotelId={config?.id || ''} isAdmin={isAdmin} />
-        )}
         {tabPanel('learning_hr', true,
           <LearningHRView hotelId={config?.id || ''} />
         )}
