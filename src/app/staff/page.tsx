@@ -628,7 +628,9 @@ function DashboardInner() {
       } catch { /* network hiccup — next tick retries */ }
       inFlight = false;
     };
-    const iv = setInterval(poll, 2500);
+    /* Realtime push is the primary feed; poll is a low-rate catch-up net
+     (tabs already skip when hidden). 15s keeps REST read calls tiny. */
+    const iv = setInterval(poll, 15000);
     return () => clearInterval(iv);
   }, [session, configId, mergeRequestRows]);
 
