@@ -588,6 +588,45 @@ function DashboardInner() {
     return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
   }, [session, configId]);
 
+  /* ── Poll fallback: new requests appear within ~2.5s even if the realtime
+     broadcast is unavailable. One indexed query per tick, skipped while the
+     tab is hidden; merge-by-id so no duplicate rows and no duplicate emails. */
+  useEffect(() => {
+    if (!session || !configId) return;
+    const hotelId = configId;
+    let inFlight = false;
+    const poll = async () => {
+      if (inFlight || document.hidden) return;
+      inFlight = true;
+      try {
+        const { data } = await supabase.from('requests')
+          .select('*').eq('hotel_id', hotelId).neq('room', 'STAFF')
+          .not('type', 'in', `(${INTERNAL_REQ_TYPES})`)
+          .order('created_at', { ascending: false }).limit(15);
+        if (data && data.length) {
+          setRequests(prev => {
+            let changed = false;
+            const out = [...prev];
+            for (const row of data) {
+              const idx = out.findIndex(r => r.id === row.id);
+              if (idx === -1) { out.unshift(row); changed = true; }
+              else {
+                const ex = out[idx];
+                if (ex.status !== row.status || ex.details !== row.details) {
+                  out[idx] = { ...ex, ...row }; changed = true;
+                }
+              }
+            }
+            return changed ? out : prev;
+          });
+        }
+      } catch { /* network hiccup — next tick retries */ }
+      inFlight = false;
+    };
+    const iv = setInterval(poll, 2500);
+    return () => clearInterval(iv);
+  }, [session, configId]);
+
   /* ── Login screen ─────────────────────────────────── */
   if (!session) {
     return (
