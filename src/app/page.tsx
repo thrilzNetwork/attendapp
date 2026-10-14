@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { ArrowRight, Bell, Bus, Check, CheckCircle, ClipboardList,
+import { ArrowRight, Bell, Bus, CarFront, Check, CheckCircle, ClipboardList,
  Coffee, Clock, DollarSign, MapPin, Phone, ShieldCheck, User, Users, Utensils, Wifi } from 'lucide-react';
 import GuestAuthModal from '@/components/GuestAuthModal';
 import {
@@ -197,17 +197,17 @@ function HotelGuestApp({
         </div>
       </a>
       <div className="flex gap-3 min-h-0">
-        <button onClick={() => (window.location.href = '/nearby?tab=attractions')}
+        <button onClick={() => (window.location.href = '/nearby?tab=all')}
           className="w-[38%] h-full rounded-2xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-1 active:scale-[0.97] shadow-sm">
-          <MapPin size={24} className="" strokeWidth={1.5} style={{ color: brandColor }} />
-          <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: brandColor }}>NEARBY</span>
+          <Utensils size={24} className="" strokeWidth={1.5} style={{ color: brandColor }} />
+          <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-center leading-tight" style={{ color: brandColor }}>FOOD &<br />NEARBY</span>
         </button>
         <div className="flex-1 h-full flex flex-col gap-3">
-          <button onClick={() => (window.location.href = '/nearby?tab=restaurants')}
+          <button onClick={() => (window.location.href = '/nearby?tab=parking')}
             className="flex-1 rounded-2xl flex items-center justify-center gap-2 active:scale-[0.97] shadow-sm"
             style={{ backgroundColor: brandColor }}>
-            <Utensils size={20} className="text-white" strokeWidth={1.5} />
-            <span className="text-[11px] font-bold text-white tracking-[0.12em] uppercase">FOOD</span>
+            <CarFront size={20} className="text-white" strokeWidth={1.5} />
+            <span className="text-[11px] font-bold text-white tracking-[0.12em] uppercase">PARKING</span>
           </button>
           <button onClick={() => handleClick('review')}
             className="flex-1 rounded-2xl bg-white border border-gray-200 flex items-center justify-center active:scale-[0.97] shadow-sm">

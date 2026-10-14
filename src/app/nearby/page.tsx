@@ -112,7 +112,7 @@ function NearbyContent() {
         <button onClick={() => goBackToHotel(router)} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center active:scale-95">
           <ArrowLeft size={18} className="text-gray-600" />
         </button>
-        <h1 className="text-lg font-bold text-black">{tab === 'restaurants' ? 'Partner Restaurants' : 'Nearby'}</h1>
+        <h1 className="text-lg font-bold text-black">{tab === 'parking' ? 'Parking' : tab === 'restaurants' ? 'Partner Restaurants' : 'Nearby'}</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -180,8 +180,8 @@ function NearbyContent() {
                 </>
               )}
 
-              {/* Register Your Car — inside the Food tab, under the restaurant list */}
-              {(tab === 'restaurants' || tab === 'all') && (
+              {/* Register Your Car — Parking tab (home tile links here) */}
+              {tab === 'parking' && (
                 <RegisterCarCard brandColor={brandColor} />
               )}
 
