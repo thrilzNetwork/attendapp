@@ -2589,7 +2589,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   };
 
   return (
-    <div className="p-8 max-w-lg">
+    <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[26px] font-extrabold text-gray-900">Staff Management</h1>
         <button onClick={handleResetAll} disabled={resetAllBusy}
