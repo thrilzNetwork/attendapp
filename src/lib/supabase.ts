@@ -233,6 +233,7 @@ export async function getHotelConfig(slug?: string): Promise<HotelConfig | null>
     transportContent: data.transport_content || {},
     foodContent: data.food_content || {},
     nearbyIntro: data.nearby_intro || {},
+    parkingContent: data.parking_content || {},
     positionBudgets: data.position_budgets || [],
     features: data.features || {},
   };
@@ -281,6 +282,7 @@ export async function updateHotelConfig(config: Partial<HotelConfig>) {
       transport_content: config.transportContent || {},
       food_content: config.foodContent || {},
       nearby_intro: config.nearbyIntro || {},
+      parking_content: config.parkingContent || {},
       position_budgets: config.positionBudgets || [],
     }, { onConflict: 'slug' });
   if (error) throw new Error(error.message || JSON.stringify(error));
