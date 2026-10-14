@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Sunrise, Moon, Plus, RefreshCw } from 'lucide-react';
+import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check } from 'lucide-react';
 import { listOps, createOps, type OpRecord } from '@/lib/opsStore';
+import { getWorkOrders, createWorkOrder, updateWorkOrder } from '@/lib/supabase';
 
 const TEAL = '#158A7C';
 /** Productivity model (locked): checkout = 30 min, stayover = 15 min, 8h shifts (480 min). */
@@ -53,13 +54,19 @@ export default function HousekeepingView({
   const [eodStayovers, setEodStayovers] = useState('');
   const [eodDnd, setEodDnd] = useState('');
   const [eodSaving, setEodSaving] = useState(false);
+  // Maintenance tracker (deep cleans + service requests) — lives under End of Day
+  const [workOrders, setWorkOrders] = useState<{ id: string; location: string; issue: string; priority: string; status: string; created_by?: string; created_at: string; resolved_at?: string }[]>([]);
+  const [dcRoom, setDcRoom] = useState('');
+  const [dcTask, setDcTask] = useState('');
+  const [dcSaving, setDcSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!hotelId) return;
     setLoading(true);
-    const [plans, eods] = await Promise.all([
+    const [plans, eods, wos] = await Promise.all([
       listOps(hotelId, 'hk_sod_plan').catch(() => [] as OpRecord[]),
       listOps(hotelId, 'hk_eod_actual').catch(() => [] as OpRecord[]),
+      getWorkOrders(hotelId).catch(() => []),
     ]);
     // Latest plan saved today wins
     const todaysPlans = ((plans || []) as OpRecord[])
@@ -70,6 +77,7 @@ export default function HousekeepingView({
       .filter(p => (p.details as unknown as EodActual)?.plan_date === today)
       .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
     setEodActual((todaysEods[0]?.details as unknown as EodActual) || null);
+    setWorkOrders((wos || []) as typeof workOrders);
     setLoading(false);
   }, [hotelId, today]);
 
@@ -92,6 +100,26 @@ export default function HousekeepingView({
     if (saved) setSodPlan(plan);
     setSodCheckouts(''); setSodStayovers(''); setSodDnd('');
     setSodSaving(false);
+  };
+
+  const addDeepClean = async () => {
+    if (!dcTask.trim()) return;
+    setDcSaving(true);
+    await createWorkOrder({
+      hotel_id: hotelId,
+      location: dcRoom.trim() ? `Room ${dcRoom.trim()}` : 'General',
+      issue: dcTask.trim(),
+      priority: 'medium',
+      status: 'open',
+      created_by: staffName || 'Housekeeping',
+    });
+    setDcRoom(''); setDcTask(''); setDcSaving(false);
+    load();
+  };
+
+  const resolveDeepClean = async (id: string) => {
+    await updateWorkOrder(id, { status: 'resolved', resolved_at: new Date().toISOString() });
+    load();
   };
 
   const saveEod = async () => {
@@ -231,6 +259,40 @@ export default function HousekeepingView({
         {eodActual && !sodPlan && (
           <p className="text-[11px] text-gray-400 mt-2">Saved — deltas show when start-of-day numbers are entered.</p>
         )}
+
+        {/* ── Maintenance tracker: deep cleans + service requests ── */}
+        <div className="border-t border-gray-100 mt-4 pt-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5 text-[12px] font-extrabold text-gray-900"><Wrench size={13} style={{ color: TEAL }} /> Maint — Deep Cleans &amp; Service</div>
+            <span className="text-[10px] font-bold text-gray-400">{workOrders.filter(w => w.status !== 'resolved').length} open</span>
+          </div>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <input value={dcRoom} onChange={e => setDcRoom(e.target.value)} inputMode="numeric" placeholder="Room" className="w-20 px-3 py-1.5 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
+              <input value={dcTask} onChange={e => setDcTask(e.target.value)} placeholder="Deep clean / service needed" className="flex-1 min-w-0 px-3 py-1.5 border border-gray-200 rounded-xl text-[13px] focus:outline-none focus:ring-teal-500" />
+            </div>
+            <button onClick={addDeepClean} disabled={dcSaving || !dcTask.trim()} className="px-3 py-1.5 rounded-xl text-[12px] font-bold text-white disabled:opacity-40 shrink-0 items-center flex gap-1" style={{ background: TEAL }}><Plus size={12} /> Add</button>
+          </div>
+          {workOrders.length > 0 && (
+            <ul className="space-y-1">
+              {workOrders.slice(0, 10).map(w => (
+                <li key={w.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-bold text-gray-800 truncate">{w.location} — {w.issue}</p>
+                    <p className="text-[10px] font-medium text-gray-400">
+                      {w.created_by || '—'} · {new Date(w.created_at).toLocaleDateString()} {w.priority === 'high' && <span className="text-red-600 font-extrabold"> · HIGH</span>}
+                    </p>
+                  </div>
+                  {w.status !== 'resolved' && (
+                    <button onClick={() => resolveDeepClean(w.id)} className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-teal-50 text-teal-800"><Check size={12} /> Done</button>
+                  )}
+                  {w.status === 'resolved' && <span className="shrink-0 text-[10px] font-extrabold text-teal-700">DONE</span>}
+                </li>
+              ))}
+              {workOrders.length > 10 && <li className="text-[10px] font-bold text-gray-400 px-3">+{workOrders.length - 10} older — Maint tab holds the full list</li>}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );
