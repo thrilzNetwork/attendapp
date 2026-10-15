@@ -466,7 +466,7 @@ function DashboardInner() {
     let cfg = await getHotelConfig();
 
     // If no hotel found in localStorage (first login / cleared storage), auto-pick for admins
-    if (!cfg && (role === 'admin' || role === 'superadmin' || role === 'manager')) {
+    if (!cfg && role === 'superadmin') {
       const hotels = await getAllHotels() as { id: string; slug: string; name: string }[];
       setAllHotels(hotels);
       if (hotels.length === 1) {
@@ -520,7 +520,7 @@ function DashboardInner() {
     if (!session) return;
     reload(session.role);
     // Load hotels list for sidebar switcher
-    if (session.role === 'admin' || session.role === 'superadmin') {
+    if (session.role === 'superadmin') {
       getAllHotels().then(data => setAllHotels(data as { id: string; slug: string; name: string }[]));
     }
   }, [session, reload]);
@@ -725,7 +725,7 @@ function DashboardInner() {
               {nonSuper.map(st => (
                 <button key={st.id || st.name}
                   onClick={() => {
-                    setImpersonatingUser({ name: st.name, role: st.role === 'admin' || st.role === 'manager' ? 'admin' : 'staff' });
+                    setImpersonatingUser({ name: st.name, role: st.role === 'supervisor' ? 'supervisor' : st.role === 'manager' ? 'manager' : st.role === 'owner' ? 'owner' : st.role === 'admin' ? 'admin' : 'staff' });
                     setShowImpersonatePicker(false);
                     setTab('dailybrief');
                   }}
@@ -962,7 +962,7 @@ function DashboardInner() {
           <h2 className="text-[15px] font-bold text-gray-900 leading-tight">
             {config?.name || 'Attenda'}
           </h2>
-          {isAdmin ? (
+          {s.role === 'superadmin' && !impersonatingUser ? (
             <select
               value={config?.slug || ''}
               onChange={e => switchHotel(e.target.value)}

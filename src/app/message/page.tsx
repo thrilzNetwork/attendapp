@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { supabase, getHotelConfig } from '@/lib/supabase';
+import { supabase, supabaseAsGuest, getHotelConfig } from '@/lib/supabase';
 import { goBackToHotel } from '@/lib/guest-context';
 
 type Message = {
@@ -56,7 +56,7 @@ export default function MessagePage() {
     let cancelled = false;
     if (!hotelId) return;
     const loadReplies = async () => {
-      const { data } = await supabase
+      const { data } = await supabaseAsGuest({ guest: guestName, room: guestRoom })
         .from('messages')
         .select('*')
         .eq('hotel_id', hotelId)
@@ -157,7 +157,7 @@ export default function MessagePage() {
     const ts = Date.now();
 
     const hotel = await getHotelConfig();
-    await supabase.from('messages').insert({
+    await supabaseAsGuest({ guest: guestName, room: guestRoom }).from('messages').insert({
       hotel_id: hotel?.id,
       guest_name: guestName,
       room: guestRoom,

@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Minus, Plus, Star, Clock, MapPin, Phone, Navigation, ExternalLink, X, ChevronRight, CheckCircle, ShoppingBag, CreditCard, Lock } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { getPartnerById, getPartnerMenuItems, getHotelConfig, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
+import { supabaseAsGuest, getPartnerById, getPartnerMenuItems, getHotelConfig, Partner, PartnerMenuItem, supabase } from '@/lib/supabase';
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -271,7 +271,7 @@ function PartnerContent() {
   const onPaymentBack = async () => {
     // Guest backed out of card payment — cancel the pending order row
     if (pendingRequestId) {
-      await supabase.from('requests').update({ status: 'closed', stripe_payment_status: 'abandoned' }).eq('id', pendingRequestId);
+      await supabaseAsGuest({ requestId: pendingRequestId }).from('requests').update({ status: 'closed', stripe_payment_status: 'abandoned' }).eq('id', pendingRequestId);
     }
     setClientSecret(null);
     setPendingRequestId(null);

@@ -56,6 +56,21 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export { supabase };
 
+// ── Anon guest-context headers ────────────────────────────
+// Some RLS policies read x-anon-* request headers to scope rows to the exact
+// guest context (message threads, payment-abandon updates). Use the scoped
+// client for those queries; normal anon reads (tracking, account) don't need it.
+export function supabaseAsGuest(ctx: { guest?: string; room?: string; requestId?: string }) {
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: {
+      ...(ctx.guest ? { 'x-anon-guest': ctx.guest } : {}),
+      ...(ctx.room ? { 'x-anon-room': ctx.room } : {}),
+      ...(ctx.requestId ? { 'x-anon-id': ctx.requestId } : {}),
+    } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 // Types
 export interface ReviewLink {
   label: string;
