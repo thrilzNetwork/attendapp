@@ -2681,12 +2681,28 @@ export async function unassignStaffFromHub(staffId: string, hubId: string): Prom
 export interface RoomStatus {
   id: string; hotel_id: string; room_number: string; status: string;
   cleaned_by?: string; cleaned_at?: string; inspected_by?: string; inspected_at?: string;
+  service_flag?: string; service_flag_by?: string; service_flag_at?: string;
   notes?: string; updated_at: string;
 }
 
 export async function getRoomStatuses(hotelId: string): Promise<RoomStatus[]> {
   const { data } = await supabase.from('room_status').select('*').eq('hotel_id', hotelId).order('room_number');
   return (data || []) as unknown as RoomStatus[];
+}
+
+export async function setRoomServiceFlag(hotelId: string, roomNumber: string, flag: string | null, by: string): Promise<void> {
+  const { error } = await supabase.from('room_status').upsert({
+    hotel_id: hotelId, room_number: roomNumber,
+    service_flag: flag || null, service_flag_by: flag ? by : null,
+    service_flag_at: flag ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'hotel_id,room_number', ignoreDuplicates: false });
+  if (error) throw new Error(error.message);
+}
+
+export async function getRoomServiceFlags(hotelId: string): Promise<RoomStatus[]> {
+  const { data } = await supabase.from('room_status').select('room_number, service_flag, service_flag_by, service_flag_at').eq('hotel_id', hotelId);
+  return ((data || []) as unknown as RoomStatus[]);
 }
 
 export async function updateRoomStatus(id: string, updates: Partial<RoomStatus>): Promise<void> {

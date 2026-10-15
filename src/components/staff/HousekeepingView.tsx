@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check, Timer, Clock, CheckCircle2, Users } from 'lucide-react';
+import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check, Timer, Clock, CheckCircle2, Users, MoonStar, Sparkle, Droplets, Ban } from 'lucide-react';
 import { listOps, createOps, type OpRecord } from '@/lib/opsStore';
-import { getWorkOrders, createWorkOrder, updateWorkOrder, getRoomStatuses, getStaffSchedulesRange, updateStaffSchedule, type RoomStatus, type StaffSchedule } from '@/lib/supabase';
+import { getWorkOrders, createWorkOrder, updateWorkOrder, getRoomStatuses, getStaffSchedulesRange, updateStaffSchedule, getAllHotelRooms, setRoomServiceFlag, getRoomServiceFlags, type RoomStatus, type StaffSchedule, type HotelRoom } from '@/lib/supabase';
 import PmRoomBoard from './DeepCleanBoard';
 
 const TEAL = '#158A7C';
@@ -436,8 +436,122 @@ export default function HousekeepingView({
         </div>
       </div>
 
+      {/* ── Rooms & Service grid: the real room list — DND / Full / Light per room ── */}
+      <ServiceRoomGrid hotelId={hotelId} staffName={staffName} />
+
       {/* ── Deep Clean Rooms board (housekeeping's room grid, deep-cleaning tracker) ── */}
       <PmRoomBoard hotelId={hotelId} today={today} />
+    </div>
+  );
+}
+
+
+/* ═══════════ Room Service Grid — real room list × service flags ═══════════
+   Every room the property actually has (hotel_rooms). Tap → DND · Full
+   Service · Light Service · Clear. Flag rides on room_status so guests'   picks and staff picks land on the same board. */
+const SVC_OPTIONS = [
+  { key: 'dnd', label: 'DND', icon: MoonStar, color: '#B91C1C', bg: '#FEE2E2' },
+  { key: 'full', label: 'Full Service', icon: Sparkle, color: '#158A7C', bg: '#E6F4F3' },
+  { key: 'light', label: 'Light Service', icon: Droplets, color: '#7C3AED', bg: '#F3EEFF' },
+] as const;
+
+function ServiceRoomGrid({ hotelId, staffName }: { hotelId: string; staffName: string }) {
+  const [rooms, setRooms] = useState<HotelRoom[]>([]);
+  const [flags, setFlags] = useState<Record<string, { flag: string; by?: string; at?: string }>>({});
+  const [sel, setSel] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!hotelId) return;
+    setLoading(true);
+    const [r, f] = await Promise.all([
+      getAllHotelRooms(hotelId).catch(() => [] as HotelRoom[]),
+      getRoomServiceFlags(hotelId).catch(() => [] as RoomStatus[]),
+    ]);
+    setRooms(r.filter(x => x.is_active !== false));
+    const m: Record<string, { flag: string; by?: string; at?: string }> = {};
+    for (const row of f as RoomStatus[]) if (row.service_flag) m[row.room_number] = { flag: row.service_flag, by: row.service_flag_by, at: row.service_flag_at };
+    setFlags(m);
+    setLoading(false);
+  }, [hotelId]);
+  useEffect(() => { load(); }, [load]);
+
+  const setFlag = async (roomNumber: string, flag: string | null) => {
+    setSaving(true);
+    try { await setRoomServiceFlag(hotelId, roomNumber, flag, staffName || 'Staff'); } catch { /* stay silent, reload shows truth */ }
+    setSel(null); setSaving(false);
+    load();
+  };
+
+  const counts = SVC_OPTIONS.map(o => ({ ...o, n: Object.values(flags).filter(f => f.flag === o.key).length }));
+  const total = rooms.length;
+
+  if (loading) return <div className="h-32 flex items-center justify-center"><div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>;
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <MoonStar size={16} className="text-gray-700" />
+          <span className="text-[13px] font-extrabold text-gray-900">Rooms &amp; Service</span>
+          <span className="text-[11px] font-medium text-gray-400">({total} rooms total)</span>
+        </div>
+        <button onClick={load} className="flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-gray-800"><RefreshCw size={12} /> Refresh</button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 mt-3">
+        {counts.map(c => (
+          <div key={c.key} className="rounded-xl p-2.5 text-center" style={{ backgroundColor: c.bg }}>
+            <div className="text-[17px] font-extrabold" style={{ color: c.color }}>{c.n}</div>
+            <div className="text-[10px] font-bold" style={{ color: c.color }}>{c.label.toUpperCase()}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 mt-3">
+        {rooms.map(room => {
+          const f = flags[room.room_number];
+          const opt = f ? SVC_OPTIONS.find(o => o.key === f.flag) : null;
+          const active = sel === room.room_number;
+          return (
+            <button key={room.id} onClick={() => setSel(active ? null : room.room_number)}
+              className="rounded-lg border px-1 py-2 text-center transition active:scale-[0.97]"
+              style={opt ? { backgroundColor: opt.bg, borderColor: opt.color } : { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' }}>
+              <div className="text-[12px] font-extrabold" style={{ color: opt ? opt.color : '#374151' }}>{room.room_number}</div>
+              <div className="text-[8px] font-bold uppercase truncate" style={{ color: opt ? opt.color : '#9CA3AF' }}>{opt ? opt.label : (room.room_type || '—')}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {sel && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <p className="text-[12px] font-bold text-gray-700 mb-2">Room {sel} — set service:</p>
+          <div className="grid grid-cols-2 gap-2">
+            {SVC_OPTIONS.map(o => {
+              const cur = flags[sel]?.flag === o.key;
+              return (
+                <button key={o.key} disabled={saving} onClick={() => setFlag(sel, o.key)}
+                  className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
+                  style={{ backgroundColor: cur ? o.color : '#6B7280' }}>
+                  <o.icon size={14} /> {o.label}{cur ? ' ✓' : ''}
+                </button>
+              );
+            })}
+            <button disabled={saving} onClick={() => setFlag(sel, null)}
+              className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 border border-gray-200 text-[13px] font-bold text-gray-600 disabled:opacity-50">
+              <Ban size={14} /> {saving ? 'Saving…' : 'Clear flag'}
+            </button>
+          </div>
+          {flags[sel] && (
+            <p className="text-[10px] text-gray-400 mt-1.5 text-center">
+              Set to {SVC_OPTIONS.find(o => o.key === flags[sel]!.flag)?.label} by {flags[sel]!.by || '—'}
+              {flags[sel]!.at ? ` · ${new Date(flags[sel]!.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : ''}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

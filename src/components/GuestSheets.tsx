@@ -278,10 +278,14 @@ function ScreenHousekeeping({ onSubmit, sending, onBack }: ScreenProps) {
         <div>
           <span className={labelCls}>What do you need?</span>
           <div className="grid grid-cols-2 gap-2">
-            {['Full Room Cleaning', 'Trash Removal', 'Fresh Linens', 'Other'].map(t => (
-              <button key={t} onClick={() => setSvc(t)}
-                className={`rounded-xl border px-3 py-2.5 text-[13px] font-semibold text-left active:scale-[0.98] ${svc === t ? 'border-[#7C3AED] bg-[#F3EEFF] text-[#7C3AED]' : 'border-[#EDF0F3] bg-white text-[#202735]'}`}>
-                {t}
+            {[
+              { k: 'Full Room Cleaning', sub: 'Everything refreshed — bed, towels, bathroom' },
+              { k: 'Light Service', sub: 'Quick tidy — trash, towels, make the bed' },
+            ].map(o => (
+              <button key={o.k} onClick={() => setSvc(o.k)}
+                className={`rounded-xl border px-3 py-2.5 text-[13px] font-semibold text-left active:scale-[0.98] ${svc === o.k ? 'border-[#7C3AED] bg-[#F3EEFF] text-[#7C3AED]' : 'border-[#EDF0F3] bg-white text-[#202735]'}`}>
+                {o.k}
+                <span className="block text-[11px] font-medium opacity-70 mt-0.5">{o.sub}</span>
               </button>
             ))}
           </div>
@@ -567,6 +571,14 @@ export function MessageSheetContent() {
         status: 'pending',
       });
       if (error) throw new Error(error.message);
+      // Housekeeping pick → mark the room on the staff rooms grid (full/light)
+      if (type === 'Housekeeping' && guestRoom && /^(Full Room Cleaning|Light Service)/.test(details)) {
+        fetch('/api/guest-room-flag', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hotel_id: hotel.id, room_number: guestRoom, flag: details.startsWith('Full Room Cleaning') ? 'full' : 'light' }),
+        }).catch(() => { /* flag is additive; request itself already landed */ });
+      }
       if (hotel.notificationEmail) {
         fetch('/api/email', {
           method: 'POST',
