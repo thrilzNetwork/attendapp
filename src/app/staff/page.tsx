@@ -260,7 +260,7 @@ function DashboardInner() {
 
   // Internal ops-store types that share the `requests` table but aren't guest requests.
   // Mirrors the exclusion list in ReportsView. Used by pendingCount + realtime handler.
-  const INTERNAL_REQ_TYPES = 'kpi_submission,kpi_definition,checklist_template,checklist_completion,forecast,generated_shift,shift_submission,schedule_change_request,learning_content,hr_document,course,course_module,quiz_question,module_completion,quiz_attempt,shuttle_config,shuttle_slot,shuttle_booking,call_around_log,incident_log,kb_suggestion';
+  const INTERNAL_REQ_TYPES = 'service_recovery,kpi_submission,kpi_definition,checklist_template,checklist_completion,forecast,generated_shift,shift_submission,schedule_change_request,learning_content,hr_document,course,course_module,quiz_question,module_completion,quiz_attempt,shuttle_config,shuttle_slot,shuttle_booking,call_around_log,incident_log,kb_suggestion';
   const INTERNAL_REQ_TYPE_SET = useMemo(() => new Set(INTERNAL_REQ_TYPES.split(',')), []);
 
   // pendingCount must be computed before early returns for the alert bar effect

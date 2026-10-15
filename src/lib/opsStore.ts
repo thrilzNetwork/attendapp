@@ -53,7 +53,8 @@ export type OpRecordType =
   | 'shuttle_booking'        // guest booking
   | 'call_around_log'        // daily call-around entry
   | 'incident_log'           // bad feedback / incident
-  | 'kb_suggestion'          // AI-suggested KB entry from incident
+  | 'service_recovery'      // complaint / feedback case
+  | 'kb_suggestion'         // AI-suggested KB entry from incident
   | 'sales_goal'             // sales goal (target/unit/period)
   | 'sales_checkin'          // daily sales check-in value
   | 'schedule_snapshot'      // weekly schedule snapshot (staged → published Wednesday)
@@ -99,6 +100,7 @@ export interface ServiceRecoveryCase {
   severity: 'low' | 'medium' | 'high';
   loggedBy: string;
   openedAt: string;         // ISO
+  assignedTo?: string;      // staff member in charge of the case
   followUpBy?: string;      // manager name assigned to follow up
   followUpAt?: string;      // ISO when manager followed up
   followUpNote?: string;    // what was done / guest response
@@ -200,6 +202,12 @@ export async function updateOps(
     return false;
   }
   return true;
+}
+
+export async function listStaffPickers(hotelId: string): Promise<{ name: string; role: string }[]> {
+  const { data, error } = await supabase.from('staff_accounts').select('name, role').eq('hotel_id', hotelId).order('name');
+  if (error || !data) return [];
+  return (data as { name: string; role: string }[]).filter(s => !!s.name);
 }
 
 export async function deleteOps(id: string): Promise<boolean> {

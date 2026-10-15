@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { LifeBuoy, Plus, RefreshCw, X as XIcon, AlertTriangle, Check, Send, Star } from 'lucide-react';
+import { LifeBuoy, Plus, RefreshCw, X as XIcon, AlertTriangle, Check, Send, Star, User, Trash2 } from 'lucide-react';
 import {
   listServiceRecovery, createServiceRecovery, updateServiceRecovery,
+  deleteOps, listStaffPickers,
   type OpRecord, type ServiceRecoveryCase,
 } from '@/lib/opsStore';
 import { supabase } from '@/lib/supabase';
@@ -53,12 +54,19 @@ export default function ServiceRecoveryView({
   const [fChannel, setFChannel] = useState('Front Desk');
   const [fSev, setFSev] = useState<'low' | 'medium' | 'high'>('low');
   const [fIssue, setFIssue] = useState('');
+  const [fAssign, setFAssign] = useState('');
 
   // follow-up form (open case id -> note/offer/outcome)
   const [fuId, setFuId] = useState<string | null>(null);
   const [fuNote, setFuNote] = useState('');
   const [fuOffer, setFuOffer] = useState('');
   const [fuOutcome, setFuOutcome] = useState<'recovered' | 'not_recovered' | 'escalated'>('recovered');
+
+  // assign-to / delete-case
+  const [staffList, setStaffList] = useState<{ name: string; role: string }[]>([]);
+  const [assignId, setAssignId] = useState<string | null>(null);
+  const [assignName, setAssignName] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!hotelId) return;
@@ -71,6 +79,9 @@ export default function ServiceRecoveryView({
   }, [hotelId]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (hotelId) listStaffPickers(hotelId).then(setStaffList);
+  }, [hotelId]);
 
   const openCases = cases.filter(c => (c.status || '') !== 'completed');
   const closedCases = cases.filter(c => (c.status || '') === 'completed');
@@ -84,8 +95,9 @@ export default function ServiceRecoveryView({
       guestName: fGuest.trim() || 'Guest', room: fRoom.trim(),
       issue: fIssue.trim(), source: fSource, channel: fChannel, severity: fSev,
       loggedBy: staffName || 'Staff', openedAt: new Date().toISOString(),
+      assignedTo: fAssign || undefined,
     });
-    setFGuest(''); setFRoom(''); setFIssue(''); setFSev('low'); setFSource('in_house'); setFChannel('Front Desk');
+    setFGuest(''); setFRoom(''); setFIssue(''); setFSev('low'); setFSource('in_house'); setFChannel('Front Desk'); setFAssign('');
     setShowForm(false); setSaving(false);
     load();
   };
@@ -102,6 +114,21 @@ export default function ServiceRecoveryView({
     load();
   };
 
+  const assignTo = async (rec: OpRecord, name: string) => {
+    const d = rec.details as ServiceRecoveryCase;
+    setSaving(true);
+    await updateServiceRecovery(rec.id, { details: { ...d, assignedTo: name || undefined } });
+    setAssignId(null); setAssignName(''); setSaving(false);
+    load();
+  };
+
+  const deleteCase = async (rec: OpRecord) => {
+    setSaving(true);
+    await deleteOps(rec.id);
+    setConfirmDeleteId(null); setSaving(false);
+    load();
+  };
+
   const CaseCard = ({ rec }: { rec: OpRecord }) => {
     const d = rec.details as ServiceRecoveryCase;
     const sev = d.severity || 'low';
@@ -115,6 +142,11 @@ export default function ServiceRecoveryView({
               {d.room && <span className="text-[12px] text-gray-500">Room {d.room}</span>}
               <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ color: '#1d4ed8', backgroundColor: '#dbeafe' }}>{SOURCE_LABEL[d.source] || d.source}</span>
               <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ color: SEV_COLOR[sev], backgroundColor: SEV_BG[sev] }}>{sev}</span>
+              {d.assignedTo && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ color: TEAL, backgroundColor: '#e6f4f3' }}>
+                  <User size={10} /> {d.assignedTo}
+                </span>
+              )}
             </div>
             <p className="text-[13px] text-gray-700 mt-1.5 leading-relaxed">{d.issue}</p>
             <p className="text-[11px] text-gray-400 mt-1.5">via {d.channel} · logged by {d.loggedBy || '—'} · {timeAgo(d.openedAt || rec.created_at)}</p>
@@ -131,13 +163,47 @@ export default function ServiceRecoveryView({
             )}
           </div>
           {rec.status !== 'completed' && isAdmin && !isFu && (
-            <button onClick={() => { setFuId(rec.id); setFuNote(d.followUpNote || ''); setFuOffer(d.recoveryOffer || ''); setFuOutcome('recovered'); }}
-              className="shrink-0 text-[12px] font-bold px-3 py-1.5 rounded-lg text-white" style={{ backgroundColor: TEAL }}>Follow up</button>
+            <div className="shrink-0 flex flex-col items-end gap-1.5">
+              <button onClick={() => { setFuId(rec.id); setFuNote(d.followUpNote || ''); setFuOffer(d.recoveryOffer || ''); setFuOutcome('recovered'); }}
+                className="text-[12px] font-bold px-3 py-1.5 rounded-lg text-white" style={{ backgroundColor: TEAL }}>Follow up</button>
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => { setAssignId(assignId === rec.id ? null : rec.id); setAssignName(d.assignedTo || ''); }}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg border" style={{ borderColor: '#e5e7eb', color: '#6b7280' }}>
+                  <User size={10} /> {d.assignedTo ? 'Reassign' : 'Assign'}
+                </button>
+                {confirmDeleteId === rec.id ? (
+                  <button disabled={saving} onClick={() => deleteCase(rec)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg text-white" style={{ backgroundColor: '#dc2626' }}>
+                    <Trash2 size={10} /> {saving ? 'Deleting…' : 'Tap again'}
+                  </button>
+                ) : (
+                  <button onClick={() => setConfirmDeleteId(rec.id)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg border" style={{ borderColor: '#fecaca', color: '#dc2626' }}>
+                    <Trash2 size={10} /> Delete
+                  </button>
+                )}
+              </div>
+            </div>
           )}
           {rec.status !== 'completed' && !isAdmin && (
-            <span className="shrink-0 text-[11px] text-gray-400">Awaiting manager</span>
+            <div className="shrink-0 flex flex-col items-end gap-1">
+              <span className="text-[11px] text-gray-400">Awaiting manager</span>
+              {d.assignedTo && <span className="text-[10px] font-semibold" style={{ color: TEAL }}>In charge: {d.assignedTo}</span>}
+            </div>
           )}
         </div>
+        {assignId === rec.id && rec.status !== 'completed' && (
+          <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+            <select value={assignName} onChange={e => setAssignName(e.target.value)} className="w-full text-[13px] px-3 py-2 border border-gray-200 rounded-lg bg-white">
+              <option value="">Unassigned — nobody in charge</option>
+              {staffList.map(s => <option key={s.name} value={s.name}>{s.name}{s.role ? ` (${s.role})` : ''}</option>)}
+            </select>
+            <button disabled={saving} onClick={() => assignTo(rec, assignName)}
+              className="w-full text-[13px] font-bold px-3 py-2 rounded-lg text-white flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: TEAL }}>
+              <User size={13} /> {saving ? 'Saving…' : `Assign to ${assignName || 'nobody'}`}
+            </button>
+          </div>
+        )}
         {isFu && (
           <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
             <input value={fuNote} onChange={e => setFuNote(e.target.value)} placeholder="What did you do? Guest response?"
@@ -227,6 +293,12 @@ export default function ServiceRecoveryView({
                 style={fSev === s ? { backgroundColor: SEV_COLOR[s], borderColor: SEV_COLOR[s], color: '#fff' } : { borderColor: '#e5e7eb', color: '#6b7280' }}>{s}</button>
             ))}
           </div>
+          {staffList.length > 0 && (
+            <select value={fAssign} onChange={e => setFAssign(e.target.value)} className="text-[13px] px-3 py-2 border border-gray-200 rounded-lg bg-white w-full">
+              <option value="">In charge of case — assign later or pick someone</option>
+              {staffList.map(s => <option key={s.name} value={s.name}>{s.name}{s.role ? ` (${s.role})` : ''}</option>)}
+            </select>
+          )}
           <textarea value={fIssue} onChange={e => setFIssue(e.target.value)} rows={3} placeholder="What did the guest experience? Be specific — this is what the manager will follow up on."
             className="w-full text-[13px] px-3 py-2 border border-gray-200 rounded-lg" />
           <button disabled={saving || !fIssue.trim()} onClick={logCase} className="w-full text-[13px] font-bold px-3 py-2.5 rounded-lg text-white flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: TEAL }}>

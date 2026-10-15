@@ -3031,7 +3031,7 @@ export async function getOpenTickets(hotelId: string): Promise<{ total: number; 
   const { data, error } = await supabase.from('requests').select('type')
     .eq('hotel_id', hotelId).in('status', ['active', 'pending']);
   if (error) return { total: 0, byType: {} };
-  const OP_TYPES = new Set(['shuttle_slot', 'kpi_submission', 'kpi_definition', 'course', 'course_module', 'module_completion']);
+  const OP_TYPES = new Set(['shuttle_slot', 'service_recovery', 'kpi_submission', 'kpi_definition', 'checklist_template', 'checklist_completion', 'forecast', 'generated_shift', 'shift_submission', 'schedule_change_request', 'learning_content', 'hr_document', 'course', 'course_module', 'quiz_question', 'module_completion', 'quiz_attempt', 'shuttle_config', 'call_around_log', 'incident_log', 'kb_suggestion']);
   const byType: Record<string, number> = {};
   let total = 0;
   for (const r of (data || []) as { type: string | null }[]) {
