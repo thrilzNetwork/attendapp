@@ -11,6 +11,8 @@ const TEAL = '#158A7C';
 const MIN_CHECKOUT = 30;
 const MIN_STAYOVER = 15;
 const SHIFT_MIN = 480;
+/** A maid doesn't clean all 480 min — lunch, breaks, cart setup ≈ 1 hr. Usable cleaning time = 420 min. */
+const USABLE_MIN = SHIFT_MIN - 60;
 
 function localDateStr(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -96,7 +98,7 @@ export default function HousekeepingView({
   const liveCo = Number(sodCheckouts) || 0;
   const liveSo = Number(sodStayovers) || 0;
   const liveWork = liveCo * MIN_CHECKOUT + liveSo * MIN_STAYOVER;
-  const liveMaids = liveCo + liveSo > 0 ? Math.max(1, Math.ceil(liveWork / SHIFT_MIN)) : 0;
+  const liveMaids = liveCo + liveSo > 0 ? Math.max(1, Math.ceil(liveWork / USABLE_MIN)) : 0;
   const hkDoneToday = rooms.filter(r => (r.cleaned_at || '').slice(0, 10) === today).length;
   const openWoCount = workOrders.filter(w => w.status !== 'resolved').length;
   const openWoHigh = workOrders.filter(w => w.status !== 'resolved' && w.priority === 'high').length;
@@ -146,7 +148,7 @@ export default function HousekeepingView({
     const plan: SodPlan = {
       plan_date: today, checkouts: co, stayovers: so, dnd_start: dn,
       workload_min: workload,
-      maids_needed: Math.max(1, Math.ceil(workload / SHIFT_MIN)),
+      maids_needed: Math.max(1, Math.ceil(workload / USABLE_MIN)),
       est_end: null,
       created_by: staffName || 'Supervisor',
     };
@@ -231,7 +233,7 @@ export default function HousekeepingView({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900">Housekeeping — Daily Numbers</h1>
-          <p className="text-[13px] text-gray-500">{hotelName} · checkouts ×30 · stayovers ×15 · 8h shifts</p>
+          <p className="text-[13px] text-gray-500">{hotelName} · checkouts ×30 · stayovers ×15 · maids cover 420 clean-min each</p>
         </div>
         <button onClick={load} className="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 hover:text-gray-800 bg-gray-100 rounded-xl px-3 py-2">
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
@@ -289,7 +291,7 @@ export default function HousekeepingView({
             </div>
             <div className="bg-teal-50 rounded-xl p-2.5 text-center">
               <div className="text-[16px] font-extrabold text-teal-800">{minPerMaid}</div>
-              <div className="text-[9px] font-bold text-teal-700">MIN / MAID ({SHIFT_MIN}m shift)</div>
+              <div className="text-[9px] font-bold text-teal-700">MIN / MAID (420m cleaning time)</div>
             </div>
           </div>
         )}
@@ -347,11 +349,11 @@ export default function HousekeepingView({
         )}
         <div className="text-[11px] font-bold text-teal-700 bg-teal-50 rounded-xl px-3 py-2 mb-3">
           {liveMaids > 0 ? (
-            <>Today&apos;s plan: {liveCo} checkouts × 30 min + {liveSo} stayovers × 15 min = <b>{liveWork} min</b> of work → <b>{liveMaids} maid{liveMaids === 1 ? '' : 's'}</b> on an 8-hour day (480 min each)</>
+            <>Today&apos;s plan: {liveCo} checkouts × 30 + {liveSo} stayovers × 15 = <b>{liveWork} min</b> → <b>{liveMaids} maid{liveMaids === 1 ? '' : 's'}</b> (480-min shift − ~1 hr breaks = <b>420 min</b> cleaning per maid)</>
           ) : sodPlan ? (
-            <>Workload {sodPlan.workload_min} min → {sodPlan.maids_needed} maid{sodPlan.maids_needed === 1 ? '' : 's'} needed (÷ 480 min shift)</>
+            <>Workload {sodPlan.workload_min} min → {sodPlan.maids_needed} maid{sodPlan.maids_needed === 1 ? '' : 's'} (420 min of cleaning per maid after breaks)</>
           ) : (
-            <>Enter checkouts &amp; stayovers to see how many maids you need today — 30 min per checkout, 15 per stayover, 8-hour shifts.</>
+            <>Enter checkouts &amp; stayovers to see how many maids you need — 30 min per checkout, 15 per stayover, 420 min of cleaning per 8-hour maid.</>
           )}
         </div>
         {isAdmin && (
