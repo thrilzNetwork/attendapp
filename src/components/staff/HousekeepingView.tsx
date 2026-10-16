@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check, Timer, Clock, CheckCircle2, Users, MoonStar, Sparkle, Droplets, Ban } from 'lucide-react';
+import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check, Timer, Clock, CheckCircle2, Users, MoonStar, Sparkle, Droplets, Ban, LogIn, BedDouble } from 'lucide-react';
 import { listOps, createOps, type OpRecord } from '@/lib/opsStore';
 import { getWorkOrders, createWorkOrder, updateWorkOrder, getRoomStatuses, getStaffSchedulesRange, updateStaffSchedule, getAllHotelRooms, setRoomServiceFlag, getRoomServiceFlags, type RoomStatus, type StaffSchedule, type HotelRoom } from '@/lib/supabase';
 import PmRoomBoard from './DeepCleanBoard';
@@ -45,11 +45,9 @@ export default function HousekeepingView({
   const [loading, setLoading] = useState(true);
   const [sodPlan, setSodPlan] = useState<SodPlan | null>(null);
   const [eodActual, setEodActual] = useState<EodActual | null>(null);
-  // SOD inputs
-  const [sodCheckouts, setSodCheckouts] = useState('');
-  const [sodStayovers, setSodStayovers] = useState('');
-  const [sodDnd, setSodDnd] = useState('');
   const [sodSaving, setSodSaving] = useState(false);
+  // Marks on the room board (set by the grid below) feed the plan counts.
+  const [roomMarks, setRoomMarks] = useState<{ checkout: number; stayover: number; dnd: number }>({ checkout: 0, stayover: 0, dnd: 0 });
   // EOD inputs
   const [eodCheckouts, setEodCheckouts] = useState('');
   const [eodStayovers, setEodStayovers] = useState('');
@@ -92,6 +90,7 @@ export default function HousekeepingView({
   }, [hotelId, today]);
 
   // ── Today-card math (rooms to clean vs cleaned, mirrors Maint's PM counts card) ──
+  const roomsReady = roomMarks.checkout + roomMarks.stayover + roomMarks.dnd > 0;
   const hkExpected = sodPlan ? sodPlan.checkouts + sodPlan.stayovers : 0;
   const hkDoneToday = rooms.filter(r => (r.cleaned_at || '').slice(0, 10) === today).length;
   const openWoCount = workOrders.filter(w => w.status !== 'resolved').length;
@@ -133,10 +132,13 @@ export default function HousekeepingView({
   const minPerMaid = sodPlan ? Math.round(sodPlan.workload_min / crewSize) : 0;
 
   const saveSodPlan = async () => {
-    if (!sodCheckouts.trim() || !sodStayovers.trim() || !sodDnd.trim()) return;
-    const co = Number(sodCheckouts), so = Number(sodStayovers), dn = Number(sodDnd);
-    if (isNaN(co) || isNaN(so) || isNaN(dn)) return;
     setSodSaving(true);
+    // Count straight from the room board (service_flag marks) — no manual number entry.
+    const flagsNow = await getRoomServiceFlags(hotelId).catch(() => [] as RoomStatus[]);
+    const f = (flagsNow as RoomStatus[]) || [];
+    const co = f.filter(r => r.service_flag === 'checkout').length;
+    const so = f.filter(r => r.service_flag === 'stayover').length;
+    const dn = f.filter(r => r.service_flag === 'dnd').length;
     const workload = co * MIN_CHECKOUT + so * MIN_STAYOVER;
     const plan: SodPlan = {
       plan_date: today, checkouts: co, stayovers: so, dnd_start: dn,
@@ -147,11 +149,9 @@ export default function HousekeepingView({
     };
     const saved = await createOps(hotelId, 'hk_sod_plan', plan, 'active', { guest_name: plan.created_by, room: 'HK' });
     if (saved) setSodPlan(plan);
-    setSodCheckouts(''); setSodStayovers(''); setSodDnd('');
     setSodSaving(false);
   };
-
-  const addDeepClean = async () => {
+const addDeepClean = async () => {
     if (!dcTask.trim()) return;
     setDcSaving(true);
     await createWorkOrder({
@@ -347,18 +347,10 @@ export default function HousekeepingView({
           </div>
         )}
         {isAdmin && (
-          <div className="flex flex-wrap items-end gap-2 pt-1">
-            <label className="text-[12px] font-medium text-gray-600">Checkouts
-              <input value={sodCheckouts} onChange={e => setSodCheckouts(e.target.value)} inputMode="numeric" placeholder="0" className="block w-20 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
-            </label>
-            <label className="text-[12px] font-medium text-gray-600">Stayovers
-              <input value={sodStayovers} onChange={e => setSodStayovers(e.target.value)} inputMode="numeric" placeholder="0" className="block w-20 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
-            </label>
-            <label className="text-[12px] font-medium text-gray-600">DND
-              <input value={sodDnd} onChange={e => setSodDnd(e.target.value)} inputMode="numeric" placeholder="0" className="block w-20 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
-            </label>
-            <button onClick={saveSodPlan} disabled={sodSaving} className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50" style={{ background: TEAL }}>
-              <span className="flex items-center gap-1"><Plus size={13} /> {sodPlan ? 'Replan' : 'Save plan'}</span>
+          <div className="pt-1">
+            <p className="text-[12px] text-gray-500 font-medium mb-2">Mark each room below as <b className="text-blue-700">Checkout</b>, <b className="text-amber-700">Stayover</b>, or <b className="text-red-700">DND</b> — the plan builds from your rooms.</p>
+            <button onClick={saveSodPlan} disabled={sodSaving || !roomsReady} className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50" style={{ background: TEAL }}>
+              <span className="flex items-center gap-1"><Plus size={13} /> {sodPlan ? 'Replan from rooms' : 'Save plan from rooms'}</span>
             </button>
           </div>
         )}
@@ -437,7 +429,7 @@ export default function HousekeepingView({
       </div>
 
       {/* ── Rooms & Service grid: the real room list — DND / Full / Light per room ── */}
-      <ServiceRoomGrid hotelId={hotelId} staffName={staffName} />
+      <ServiceRoomGrid hotelId={hotelId} staffName={staffName} onMarks={setRoomMarks} onSavePlan={saveSodPlan} />
 
       {/* ── Deep Clean Rooms board (housekeeping's room grid, deep-cleaning tracker) ── */}
       <PmRoomBoard hotelId={hotelId} today={today} />
@@ -450,12 +442,14 @@ export default function HousekeepingView({
    Every room the property actually has (hotel_rooms). Tap → DND · Full
    Service · Light Service · Clear. Flag rides on room_status so guests'   picks and staff picks land on the same board. */
 const SVC_OPTIONS = [
+  { key: 'checkout', label: 'Checkout', icon: LogIn, color: '#1D4ED8', bg: '#DBEAFE' },
+  { key: 'stayover', label: 'Stayover', icon: BedDouble, color: '#B45309', bg: '#FEF3C7' },
   { key: 'dnd', label: 'DND', icon: MoonStar, color: '#B91C1C', bg: '#FEE2E2' },
   { key: 'full', label: 'Full Service', icon: Sparkle, color: '#158A7C', bg: '#E6F4F3' },
   { key: 'light', label: 'Light Service', icon: Droplets, color: '#7C3AED', bg: '#F3EEFF' },
 ] as const;
 
-function ServiceRoomGrid({ hotelId, staffName }: { hotelId: string; staffName: string }) {
+function ServiceRoomGrid({ hotelId, staffName, onMarks, onSavePlan }: { hotelId: string; staffName: string; onMarks?: (m: { checkout: number; stayover: number; dnd: number }) => void; onSavePlan?: () => void }) {
   const [rooms, setRooms] = useState<HotelRoom[]>([]);
   const [flags, setFlags] = useState<Record<string, { flag: string; by?: string; at?: string }>>({});
   const [sel, setSel] = useState<string | null>(null);
@@ -473,6 +467,11 @@ function ServiceRoomGrid({ hotelId, staffName }: { hotelId: string; staffName: s
     const m: Record<string, { flag: string; by?: string; at?: string }> = {};
     for (const row of f as RoomStatus[]) if (row.service_flag) m[row.room_number] = { flag: row.service_flag, by: row.service_flag_by, at: row.service_flag_at };
     setFlags(m);
+    onMarks?.({
+      checkout: Object.values(m).filter(x => x.flag === 'checkout').length,
+      stayover: Object.values(m).filter(x => x.flag === 'stayover').length,
+      dnd: Object.values(m).filter(x => x.flag === 'dnd').length,
+    });
     setLoading(false);
   }, [hotelId]);
   useEffect(() => { load(); }, [load]);
@@ -497,7 +496,12 @@ function ServiceRoomGrid({ hotelId, staffName }: { hotelId: string; staffName: s
           <span className="text-[13px] font-extrabold text-gray-900">Rooms &amp; Service</span>
           <span className="text-[11px] font-medium text-gray-400">({total} rooms total)</span>
         </div>
-        <button onClick={load} className="flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-gray-800"><RefreshCw size={12} /> Refresh</button>
+        <div className="flex items-center gap-2">
+          {onSavePlan && (
+            <button onClick={onSavePlan} className="rounded-xl px-3 py-1.5 text-[11px] font-bold text-white" style={{ background: TEAL }}>Replan from rooms</button>
+          )}
+          <button onClick={load} className="flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-gray-800"><RefreshCw size={12} /> Refresh</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2 mt-3">
