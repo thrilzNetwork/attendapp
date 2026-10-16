@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check, Timer, Clock, CheckCircle2, Users, MoonStar, Sparkle, Droplets, Ban, LogIn, BedDouble } from 'lucide-react';
+import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check, Timer, Clock, CheckCircle2, Users, MoonStar, Sparkle, Droplets, Ban } from 'lucide-react';
 import { listOps, createOps, type OpRecord } from '@/lib/opsStore';
 import { getWorkOrders, createWorkOrder, updateWorkOrder, getRoomStatuses, getStaffSchedulesRange, updateStaffSchedule, getAllHotelRooms, setRoomServiceFlag, getRoomServiceFlags, type RoomStatus, type StaffSchedule, type HotelRoom } from '@/lib/supabase';
 import PmRoomBoard from './DeepCleanBoard';
@@ -46,8 +46,9 @@ export default function HousekeepingView({
   const [sodPlan, setSodPlan] = useState<SodPlan | null>(null);
   const [eodActual, setEodActual] = useState<EodActual | null>(null);
   const [sodSaving, setSodSaving] = useState(false);
-  // Marks on the room board (set by the grid below) feed the plan counts.
-  const [roomMarks, setRoomMarks] = useState<{ checkout: number; stayover: number; dnd: number }>({ checkout: 0, stayover: 0, dnd: 0 });
+  const [sodCheckouts, setSodCheckouts] = useState('');
+  const [sodStayovers, setSodStayovers] = useState('');
+  const [sodDnd, setSodDnd] = useState('');
   // EOD inputs
   const [eodCheckouts, setEodCheckouts] = useState('');
   const [eodStayovers, setEodStayovers] = useState('');
@@ -90,8 +91,12 @@ export default function HousekeepingView({
   }, [hotelId, today]);
 
   // ── Today-card math (rooms to clean vs cleaned, mirrors Maint's PM counts card) ──
-  const roomsReady = roomMarks.checkout + roomMarks.stayover + roomMarks.dnd > 0;
   const hkExpected = sodPlan ? sodPlan.checkouts + sodPlan.stayovers : 0;
+  // Live maid math (8h day = 480 min · 30 min per checkout · 15 min per stayover) — updates as you type
+  const liveCo = Number(sodCheckouts) || 0;
+  const liveSo = Number(sodStayovers) || 0;
+  const liveWork = liveCo * MIN_CHECKOUT + liveSo * MIN_STAYOVER;
+  const liveMaids = liveCo + liveSo > 0 ? Math.max(1, Math.ceil(liveWork / SHIFT_MIN)) : 0;
   const hkDoneToday = rooms.filter(r => (r.cleaned_at || '').slice(0, 10) === today).length;
   const openWoCount = workOrders.filter(w => w.status !== 'resolved').length;
   const openWoHigh = workOrders.filter(w => w.status !== 'resolved' && w.priority === 'high').length;
@@ -132,13 +137,11 @@ export default function HousekeepingView({
   const minPerMaid = sodPlan ? Math.round(sodPlan.workload_min / crewSize) : 0;
 
   const saveSodPlan = async () => {
+    if (!sodCheckouts.trim() || !sodStayovers.trim() || !sodDnd.trim()) return;
+    const co = Number(sodCheckouts), so = Number(sodStayovers), dn = Number(sodDnd);
+    if (isNaN(co) || isNaN(so) || isNaN(dn)) return;
     setSodSaving(true);
-    // Count straight from the room board (service_flag marks) — no manual number entry.
-    const flagsNow = await getRoomServiceFlags(hotelId).catch(() => [] as RoomStatus[]);
-    const f = (flagsNow as RoomStatus[]) || [];
-    const co = f.filter(r => r.service_flag === 'checkout').length;
-    const so = f.filter(r => r.service_flag === 'stayover').length;
-    const dn = f.filter(r => r.service_flag === 'dnd').length;
+    // 8-hour day: 480 min per maid. Checkout = 30 min, stayover = 15 min.
     const workload = co * MIN_CHECKOUT + so * MIN_STAYOVER;
     const plan: SodPlan = {
       plan_date: today, checkouts: co, stayovers: so, dnd_start: dn,
@@ -151,7 +154,8 @@ export default function HousekeepingView({
     if (saved) setSodPlan(plan);
     setSodSaving(false);
   };
-const addDeepClean = async () => {
+
+  const addDeepClean = async () => {
     if (!dcTask.trim()) return;
     setDcSaving(true);
     await createWorkOrder({
@@ -341,16 +345,28 @@ const addDeepClean = async () => {
         ) : (
           <p className="text-[13px] text-gray-400 font-medium mb-3">No start-of-day numbers yet today{isAdmin ? ' — enter them below' : ' — waiting for the front desk'}.</p>
         )}
-        {sodPlan && (
-          <div className="text-[11px] font-bold text-teal-700 bg-teal-50 rounded-xl px-3 py-2 mb-3">
-            Workload {sodPlan.workload_min} min → {sodPlan.maids_needed} maid{sodPlan.maids_needed === 1 ? '' : 's'} needed (÷ 480 min shift)
-          </div>
-        )}
+        <div className="text-[11px] font-bold text-teal-700 bg-teal-50 rounded-xl px-3 py-2 mb-3">
+          {liveMaids > 0 ? (
+            <>Today&apos;s plan: {liveCo} checkouts × 30 min + {liveSo} stayovers × 15 min = <b>{liveWork} min</b> of work → <b>{liveMaids} maid{liveMaids === 1 ? '' : 's'}</b> on an 8-hour day (480 min each)</>
+          ) : sodPlan ? (
+            <>Workload {sodPlan.workload_min} min → {sodPlan.maids_needed} maid{sodPlan.maids_needed === 1 ? '' : 's'} needed (÷ 480 min shift)</>
+          ) : (
+            <>Enter checkouts &amp; stayovers to see how many maids you need today — 30 min per checkout, 15 per stayover, 8-hour shifts.</>
+          )}
+        </div>
         {isAdmin && (
-          <div className="pt-1">
-            <p className="text-[12px] text-gray-500 font-medium mb-2">Mark each room below as <b className="text-blue-700">Checkout</b>, <b className="text-amber-700">Stayover</b>, or <b className="text-red-700">DND</b> — the plan builds from your rooms.</p>
-            <button onClick={saveSodPlan} disabled={sodSaving || !roomsReady} className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50" style={{ background: TEAL }}>
-              <span className="flex items-center gap-1"><Plus size={13} /> {sodPlan ? 'Replan from rooms' : 'Save plan from rooms'}</span>
+          <div className="flex flex-wrap items-end gap-2 pt-1">
+            <label className="text-[12px] font-medium text-gray-600">Checkouts
+              <input value={sodCheckouts} onChange={e => setSodCheckouts(e.target.value)} inputMode="numeric" placeholder="0" className="block w-20 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
+            </label>
+            <label className="text-[12px] font-medium text-gray-600">Stayovers
+              <input value={sodStayovers} onChange={e => setSodStayovers(e.target.value)} inputMode="numeric" placeholder="0" className="block w-20 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
+            </label>
+            <label className="text-[12px] font-medium text-gray-600">DND
+              <input value={sodDnd} onChange={e => setSodDnd(e.target.value)} inputMode="numeric" placeholder="0" className="block w-20 mt-1 px-3 py-2 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
+            </label>
+            <button onClick={saveSodPlan} disabled={sodSaving} className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50" style={{ background: TEAL }}>
+              <span className="flex items-center gap-1"><Plus size={13} /> {sodPlan ? 'Replan' : 'Save plan'}</span>
             </button>
           </div>
         )}
@@ -428,134 +444,9 @@ const addDeepClean = async () => {
         </div>
       </div>
 
-      {/* ── Rooms & Service grid: the real room list — DND / Full / Light per room ── */}
-      <ServiceRoomGrid hotelId={hotelId} staffName={staffName} onMarks={setRoomMarks} onSavePlan={saveSodPlan} />
 
       {/* ── Deep Clean Rooms board (housekeeping's room grid, deep-cleaning tracker) ── */}
       <PmRoomBoard hotelId={hotelId} today={today} />
-    </div>
-  );
-}
-
-
-/* ═══════════ Room Service Grid — real room list × service flags ═══════════
-   Every room the property actually has (hotel_rooms). Tap → DND · Full
-   Service · Light Service · Clear. Flag rides on room_status so guests'   picks and staff picks land on the same board. */
-const SVC_OPTIONS = [
-  { key: 'checkout', label: 'Checkout', icon: LogIn, color: '#1D4ED8', bg: '#DBEAFE' },
-  { key: 'stayover', label: 'Stayover', icon: BedDouble, color: '#B45309', bg: '#FEF3C7' },
-  { key: 'dnd', label: 'DND', icon: MoonStar, color: '#B91C1C', bg: '#FEE2E2' },
-  { key: 'full', label: 'Full Service', icon: Sparkle, color: '#158A7C', bg: '#E6F4F3' },
-  { key: 'light', label: 'Light Service', icon: Droplets, color: '#7C3AED', bg: '#F3EEFF' },
-] as const;
-
-function ServiceRoomGrid({ hotelId, staffName, onMarks, onSavePlan }: { hotelId: string; staffName: string; onMarks?: (m: { checkout: number; stayover: number; dnd: number }) => void; onSavePlan?: () => void }) {
-  const [rooms, setRooms] = useState<HotelRoom[]>([]);
-  const [flags, setFlags] = useState<Record<string, { flag: string; by?: string; at?: string }>>({});
-  const [sel, setSel] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!hotelId) return;
-    setLoading(true);
-    const [r, f] = await Promise.all([
-      getAllHotelRooms(hotelId).catch(() => [] as HotelRoom[]),
-      getRoomServiceFlags(hotelId).catch(() => [] as RoomStatus[]),
-    ]);
-    setRooms(r.filter(x => x.is_active !== false));
-    const m: Record<string, { flag: string; by?: string; at?: string }> = {};
-    for (const row of f as RoomStatus[]) if (row.service_flag) m[row.room_number] = { flag: row.service_flag, by: row.service_flag_by, at: row.service_flag_at };
-    setFlags(m);
-    onMarks?.({
-      checkout: Object.values(m).filter(x => x.flag === 'checkout').length,
-      stayover: Object.values(m).filter(x => x.flag === 'stayover').length,
-      dnd: Object.values(m).filter(x => x.flag === 'dnd').length,
-    });
-    setLoading(false);
-  }, [hotelId]);
-  useEffect(() => { load(); }, [load]);
-
-  const setFlag = async (roomNumber: string, flag: string | null) => {
-    setSaving(true);
-    try { await setRoomServiceFlag(hotelId, roomNumber, flag, staffName || 'Staff'); } catch { /* stay silent, reload shows truth */ }
-    setSel(null); setSaving(false);
-    load();
-  };
-
-  const counts = SVC_OPTIONS.map(o => ({ ...o, n: Object.values(flags).filter(f => f.flag === o.key).length }));
-  const total = rooms.length;
-
-  if (loading) return <div className="h-32 flex items-center justify-center"><div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>;
-
-  return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <MoonStar size={16} className="text-gray-700" />
-          <span className="text-[13px] font-extrabold text-gray-900">Rooms &amp; Service</span>
-          <span className="text-[11px] font-medium text-gray-400">({total} rooms total)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {onSavePlan && (
-            <button onClick={onSavePlan} className="rounded-xl px-3 py-1.5 text-[11px] font-bold text-white" style={{ background: TEAL }}>Replan from rooms</button>
-          )}
-          <button onClick={load} className="flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-gray-800"><RefreshCw size={12} /> Refresh</button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2 mt-3">
-        {counts.map(c => (
-          <div key={c.key} className="rounded-xl p-2.5 text-center" style={{ backgroundColor: c.bg }}>
-            <div className="text-[17px] font-extrabold" style={{ color: c.color }}>{c.n}</div>
-            <div className="text-[10px] font-bold" style={{ color: c.color }}>{c.label.toUpperCase()}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 mt-3">
-        {rooms.map(room => {
-          const f = flags[room.room_number];
-          const opt = f ? SVC_OPTIONS.find(o => o.key === f.flag) : null;
-          const active = sel === room.room_number;
-          return (
-            <button key={room.id} onClick={() => setSel(active ? null : room.room_number)}
-              className="rounded-lg border px-1 py-2 text-center transition active:scale-[0.97]"
-              style={opt ? { backgroundColor: opt.bg, borderColor: opt.color } : { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' }}>
-              <div className="text-[12px] font-extrabold" style={{ color: opt ? opt.color : '#374151' }}>{room.room_number}</div>
-              <div className="text-[8px] font-bold uppercase truncate" style={{ color: opt ? opt.color : '#9CA3AF' }}>{opt ? opt.label : (room.room_type || '—')}</div>
-            </button>
-          );
-        })}
-      </div>
-
-      {sel && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <p className="text-[12px] font-bold text-gray-700 mb-2">Room {sel} — set service:</p>
-          <div className="grid grid-cols-2 gap-2">
-            {SVC_OPTIONS.map(o => {
-              const cur = flags[sel]?.flag === o.key;
-              return (
-                <button key={o.key} disabled={saving} onClick={() => setFlag(sel, o.key)}
-                  className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
-                  style={{ backgroundColor: cur ? o.color : '#6B7280' }}>
-                  <o.icon size={14} /> {o.label}{cur ? ' ✓' : ''}
-                </button>
-              );
-            })}
-            <button disabled={saving} onClick={() => setFlag(sel, null)}
-              className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 border border-gray-200 text-[13px] font-bold text-gray-600 disabled:opacity-50">
-              <Ban size={14} /> {saving ? 'Saving…' : 'Clear flag'}
-            </button>
-          </div>
-          {flags[sel] && (
-            <p className="text-[10px] text-gray-400 mt-1.5 text-center">
-              Set to {SVC_OPTIONS.find(o => o.key === flags[sel]!.flag)?.label} by {flags[sel]!.by || '—'}
-              {flags[sel]!.at ? ` · ${new Date(flags[sel]!.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : ''}
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 }
