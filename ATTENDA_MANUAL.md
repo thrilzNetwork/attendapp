@@ -1,10 +1,11 @@
 # ATTENDA HOSPITALITY PLATFORM
-## Complete Product Manual — v3.0
+## Complete Product Manual — v3.1
 
 > **Confidential · Internal Use Only**
 > Platform Documentation · Attenda SaaS · thrilznetwork@gmail.com
 >
 > **Changelog**
+> - **v3.1 (October 13, 2026)** — Housekeeping module rewritten to the locked 30/15/420 labor model (hand-entered SOD/EOD counts, live maid math: 30 min checkout, 15 min stayover, 420 clean-min per maid per 8-hr shift). Added: White-Label & Multi-Tenant chapter (§23), Service Recovery module (§11D). Corrected: guest transport URL (standalone `/transportation` page retired — shuttle features live inside the guest app), KPIs tab merged into Reports (logging via To-Dos).
 > - **v3.0 (October 2026)** — Full pre-open audit passed. Added: Housekeeping module (SOD planner, crew expected-vs-actual board, deep clean), Maintenance module (PM board, crew board), AI Agent tab, Go-Live Runbook (§21), Known Issues register (§22). Corrected guest app URL and deployment platform. Marketplace tab removed.
 > - v1.0 (June 2026) — Original release.
 
@@ -34,6 +35,7 @@
 20. [Glossary](#20-glossary)
 21. [Go-Live Runbook](#21-go-live-runbook)
 22. [Known Issues & Technical Debt](#22-known-issues--technical-debt)
+23. [White-Label & Multi-Tenant](#23-white-label--multi-tenant)
 
 ---
 
@@ -66,7 +68,7 @@ It serves four distinct audiences simultaneously:
 | Guest App (landing) | `attendaapp.com/?hotel=<slug>` | `attendaapp.com/?hotel=sands84` |
 | Guest Welcome | `attendaapp.com/welcome?hotel=<slug>` | Direct welcome screen |
 | Guest Nearby | `attendaapp.com/nearby?hotel=<slug>` | Dining & directory |
-| Guest Transport | `attendaapp.com/transportation` | Shuttle & rides |
+| Guest Shuttle | Inside the guest app (QR → Transportation tile) | Shuttle requests & rides — the standalone `/transportation` page was retired in v3.1 |
 | Guest Message | `attendaapp.com/message` | Chat with front desk |
 | Guest Review | `attendaapp.com/review?hotel=<slug>` | Post-stay review funnel |
 | Guest Order Tracking | `attendaapp.com/track/<order-id>` | Live order status page |
@@ -841,6 +843,8 @@ After check-out, guests see the review screen:
 
 # 11. MODULE DEEP-DIVES
 
+> **Tab map (v3.1):** the staff dashboard now runs 25 tabs in 4 sections — **Today** (Dashboard, Requests, Service Recovery, To-Dos, Sched & Forecast), **Operations** (Transportation, Housekeeping, Maintenance, Inspections, Culture, Knowledge, Learning & HR), **Admin** (Property Info, Compset, Revenue, Reports, Hotel, Staff Mgmt, Partners, Vendors, QR Codes, Rooms, AI Agent), **Platform** (Properties, Vendor Manifest). Role-gated: staff see the Today + Operations core; vendor Manifest/Properties are superadmin. There is no standalone KPIs tab (see §11.5) and no Marketplace tab.
+
 ## 11.1 Daily Brief (Dashboard)
 
 **Purpose:** Shift summary view — what happened, what's happening, what needs attention.
@@ -917,32 +921,14 @@ Staff can submit a request to swap shifts — appears in manager's inbox.
 **Integration with Budgets:**
 Position budget models (from Property Settings) calculate required hours per department per day from forecast occupancy. The schedule view shows a "suggested hours" indicator to help managers hit budget.
 
-## 11.5 KPIs
+## 11.5 KPIs (merged — v3.1)
 
-**Purpose:** Track any quantitative metric the hotel cares about.
+The standalone KPIs tab was removed. KPI targets and metric logging now live two places:
 
-**Metric Types:**
-- Daily (logged once per day)
-- Weekly (logged once per week)
-- Monthly (logged once per month)
+- **To-Dos** — daily metric items (occupancy, ADR, guest score…) ride shift checklists; staff log the number while closing their shift
+- **Reports** — KPI trend charts, targets, and the Team Goals tiles; managers tap a tile to log today's number
 
-**Common Hotel KPIs:**
-- RevPAR (Revenue Per Available Room)
-- ADR (Average Daily Rate)
-- Occupancy %
-- Guest Score (1–10 from internal review)
-- Response Time (minutes from request to acceptance)
-- Maintenance Calls
-- Shuttle Rides Given
-- Restaurant Orders
-
-**Creating a KPI:**
-1. Go to KPIs tab
-2. Click + Add KPI
-3. Name, unit (%, $, #, minutes), frequency, target value
-4. Save — logging screen appears
-
-**Charts:** Auto-generated bar/line charts for each KPI showing trends over time.
+Legacy KPI definitions and submissions remain in the platform data and stay visible through Reports.
 
 ## 11.6 Right Answers (Knowledge Base)
 
@@ -1880,67 +1866,67 @@ Primary table — one row per property.
 
 # 11A. HOUSEKEEPING MODULE
 
-*New in v3.0 — the full housekeeping operations loop: day planning, crew labor tracking, deep clean scheduling.*
+*Rewritten in v3.1 — reflects the live tab: hand-entered day numbers, the locked 30/15/420 labor model, maintenance tracker, deep-clean board.*
 
-## Overview
+## Overview — the daily cycle
 
-Housekeeping runs as a complete daily cycle inside the staff dashboard:
+Housekeeping runs as one daily loop inside the staff dashboard, top to bottom:
 
-1. **Start of Day (SOD)** — admin enters the day's plan (rooms to clean, crew scheduled)
-2. **Crew Expected vs Actual** — live board tracking each maid's shift against plan
-3. **Today card** — progress counters updating in real time as maids log work
-4. **Deep Clean board** — per-room deep clean tracking (separate from daily cleans)
-5. **End of Day** — everything closes together under one Station-of-the-Day tool
+1. **Today card** — rooms to clean vs rooms cleaned, live progress with an ON TRACK / BEHIND badge
+2. **Housekeeping Crew** — expected vs actual shift board plus per-maid labor chips
+3. **Station of the Day** — SOD plan saved in the morning, EOD reconciliation entered at night (always together, never separated)
+4. **Maintenance tracker** — deep cleans + service requests housekeeping files into the shared work-order queue
+5. **Deep Clean Rooms board** — deep-clean-only room grid at the tab bottom
 
-**Layout law:** Today first → Crew board → Station of the Day (SOD and EOD together, never separated) → Deep Clean grid.
+**This is an operation board, not a PMS.** No room-status grid, no auto-computed room states — every number on this tab is hand-entered by the team, which is the design.
 
-## Start of Day — Save the Plan
+## Start of Day — enter the numbers, see the crew answer instantly
 
-Before shifts start, the admin opens the **Housekeeping tab → Today** and saves the SOD plan:
+Before shifts start, admin opens **Housekeeping** and types into the SOD card:
 
-- **Checkouts** — number of departure rooms to clean today
-- **Stayovers** — number of occupied rooms to service today
-- **Crew** — which maids are scheduled, with in-times and 8-hour shifts
+- **Checkouts** — departure rooms to clean today
+- **Stayovers** — occupied rooms to service today
+- **DND** — do-not-disturb rooms (skipped from service)
 
-Saving the plan drives every counter on the tab: the Today card, the per-maid labor tiles, and the expected-vs-actual math. **No plan saved = no labor numbers** — the crew board shows "no shifts scheduled today."
+The maid count updates LIVE as you type — before anything is saved:
 
-## The Locked Productivity Model (Do Not Change Without Ales)
+> *10 checkouts × 30 min + 4 stayovers × 15 min = 360 min of work → 1 maid on a 420-minute day*
 
-These constants drive all labor math and are the standard across every property on the platform:
+Tap **Save plan** to lock the day's numbers in. Until a plan is saved and HK shifts are scheduled, labor chips stay hidden — the crew card shows "No housekeeping shifts scheduled today."
 
-| Constant | Value | Used for |
+## The Locked Productivity Model (do not change without Ales)
+
+These constants drive every labor number on the platform, all properties:
+
+| Constant | Value | Meaning |
 |---|---|---|
-| **Checkout time** | 30 min per room | Expected labor for each departure clean |
-| **Stayover time** | 15 min per room | Expected labor for each occupied-room service |
-| **Shift length** | 8 hours (480 min) | Every crew shift's expected out-time |
+| **Checkout** | 30 min per room | Labor for each departure clean |
+| **Stayover** | 15 min per room | Labor for each occupied-room service |
+| **Shift** | 8 hours (480 min) | Scheduled shift length |
+| **Clean-min per maid** | **420 min** | 480 min minus ~1 hr for lunch, breaks, cart setup — the actual cleaning capacity per maid |
 
-## Crew Expected vs Actual Board
+⚠️ **Never divide labor by the raw 480.** A maid does not clean all 480 minutes of an 8-hour shift — using 480 under-counts the crew and the numbers come back wrong. The platform computes maids = total work minutes ÷ 420, rounded up.
 
-**Purpose:** the same board Maintenance has, but for housekeeping — labor per maid, live.
+## Crew Expected vs Actual
 
-Per-maid labor tiles (appear once the SOD plan is saved and shifts exist):
+Same board as Maintenance: each scheduled maid shows in-time, expected out (in + 8h), and actual out with an **(over)** flag when the shift runs long. **WORKING** until the admin logs the out — logged straight from the crew card.
 
-- **Checkouts/maid** — the maid's even share of today's checkout rooms
-- **Stayovers/maid** — the maid's even share of stayover rooms
-- **Min/maid** — their share × the productivity constants above
+Per-maid labor chips (checkouts / stayovers / minutes per maid) render once a saved SOD plan AND scheduled HK shifts both exist — they split the day's work evenly across the scheduled crew.
 
-Per-maid shift rows:
+## End of Day — reconciliation
 
-- **In time** — logged at shift start
-- **Expected out** — in-time + 8 hours, computed automatically
-- **Actual out** — logged by the admin (or self-logout if enabled); shows **(over)** in red if later than expected
-- **WORKING** status until logged out
+At night the admin enters actual counts into the EOD card, same metrics as the morning SOD: rooms cleaned vs planned. The delta drives the ON TRACK / BEHIND badge — close the day by reconciling actuals against the saved plan.
 
-Admins log shift outs directly from the crew cards — no separate screen.
+## Maintenance tracker (under End of Day)
 
-## Deep Clean Board
+Housekeeping files deep cleans and service requests straight into the shared `work_orders` queue — Maintenance tracks and resolves them on their own tab. Housekeeping sees what they filed; Maintenance owns the fix.
 
-**Purpose:** track room deep cleans as their own workflow — separate from daily checkout/stayover cleans, but grouped with them, never on a separate tab.
+## Deep Clean Rooms board
 
-- Rooms are added with a **room number + what's needed**, right from the Housekeeping list
-- Each entry can be marked **Done** from the same list
-- The Deep Clean grid sits at the bottom of the Housekeeping tab, under End of Day
-- Deep cleans do **not** count toward checkout/stayover labor math — they're their own queue
+- Rooms added with **room number + what's needed**, right on the board
+- Entries marked **Done** from the same list
+- Sits at the **bottom** of the Housekeeping tab
+- Deep cleans are their own queue — they do **not** count into checkout/stayover labor math
 
 ---
 
@@ -1989,6 +1975,29 @@ Each property can run an AI phone agent that answers guest calls, handles common
 2. Set escalation/transfer number to the front desk
 3. Place a test call to the agent line; confirm the transcript lands in the activity feed
 4. Confirm the front desk knows how to see escalated call notes
+
+---
+
+# 11D. SERVICE RECOVERY MODULE
+
+*New in v3.1 — every complaint becomes a tracked case; manager follow-up is the workflow.*
+
+## The loop
+
+1. **A complaint enters** — staff log it from the Service Recovery tab, or it auto-arrives: a guest leaving a **2★ or lower** in-app review automatically opens a case (channel "In-App Review", high severity)
+2. **Case opens** in the **Open** tab with severity, source channel, guest + room when known
+3. **Staff follow up** — the case carries an owner tag so everyone knows who has it
+4. **Manager closes** the case when resolved; every closure keeps the guest + outcome trail
+
+Staff can delete their own logged mistakes with a two-tap admin delete; the audit keeps the platform honest without cluttering the board.
+
+## The Today dashboard card
+
+The Dashboard tab carries a Service Recovery summary card: open / high-severity / closed counts plus today's guest reviews with their star ratings — the manager sees the day's complaint posture at a glance without opening the tab.
+
+## Reviews
+
+The **Reviews** sub-tab (inside Service Recovery) lists guest reviews captured in-app. Positive ratings are handled by the standard 5-star funnel; low ratings are the ones that route here — the gap between a review score and the guest who almost left unhappy is exactly what this module closes.
 
 ---
 
@@ -2050,6 +2059,86 @@ A first-pass audit flagged 4 missing API routes (admin/orders, promos/validate, 
 ## Audit Methodology
 
 Two parallel audit passes over the staff dashboard (24 tabs, 40+ API routes) plus a manual verification sweep: every fetch path traced to its route, every route cross-checked against callers, production endpoints probed live, auth posture reviewed on all mutating routes. Guest-facing surfaces swept for dead links and stubs.
+
+---
+
+# 23. WHITE-LABEL & MULTI-TENANT
+
+*New in v3.1 — how second businesses run their own branded operation as a path on attendaapp.com.*
+
+## The law: one domain, many businesses
+
+Every tenant (a restaurant, a vendor line, any partner business) lives as a **path on attendaapp.com** — `attendaapp.com/<their-name>` — never a separate domain or site. One platform, one deploy, every business fully branded as their own.
+
+A tenant gets, at their own URL:
+
+- **Full brand landing** — hero, marquee, product grid, story sections — all their colors and words
+- **Their own menu / store** with their categories, prices, and photos
+- **Their own admin** at `attendaapp.com/<their-name>/admin` with their own password (not shared with any other tenant)
+- **Ordering + WhatsApp checkout** wired to their WhatsApp number — orders arrive where the business actually answers
+- Themed everywhere: the whole surface re-colors itself from the tenant's palette (background, accent, primary, text)
+
+## Tenant identity (what the system stores per tenant)
+
+| Field | What it is |
+|---|---|
+| `slug` | URL path — `attendaapp.com/<slug>` (reserved platform paths are blocked from collision) |
+| `name` / `tagline` | Business name + one-liner |
+| `theme` | 7-color palette that re-skins the entire site |
+| `brand` | Landing copy overrides: hero lines, marquee, stats, section titles |
+| `whatsapp` | Orders route here (digits, no +) |
+| `currency` / `timezone` | Display + scheduling (e.g. Bs, America/La_Paz) |
+| `orderPrefix` | Order numbers (`CO-` etc.) |
+| `adminPassword` | Their admin token — provision-issued, per-tenant |
+| `status` | `demo` or `active` |
+| `expiresAt` | Demo expiry — see below |
+
+## Three ways a tenant is born
+
+**1. Demo-on-apply (fastest for a prospect)** — a business applies for a demo; a REAL tenant is provisioned for them within minutes: their name, colors, WhatsApp, seeded menu. The demo IS the real product — same engine, same admin, their branding. Not a mockup.
+
+**2. Self-serve onboarding (no sales call)** — the prospect opens `attendaapp.com/onboard`, answers the wizard (business name, colors, up to 12 catalog items with prices), submits — a real tenant comes back with 3 links: landing, menu/store, admin — plus their admin password. Everything works immediately.
+
+**3. Attenda- provisioned (manual)** — for white-glove setups, the same provision API is called directly with the tenant's brand pack.
+
+## The 24-hour demo rule
+
+Web-created demos are **24-hour** demonstrations, not free hosting:
+
+- Every self-serve/apply-created tenant carries `expiresAt = +24h`
+- After expiry, the tenant's public site AND admin API stop serving and show the demo-over screen
+- The gate runs automatically — nothing to clean up, no zombie demos
+- Visitors see the expiring-demo notice with clear next-step CTAs
+
+**Promote a paying tenant:** clear the expiry + set status to `active` — the tenant becomes permanent, nothing about their store changes. Billing moves to the Attenda agreement (see §14).
+
+**Keeping a demo alive beyond 24h** (e.g. a live sales share): extend the expiry from the platform side — status stays `demo`.
+
+## What a tenant admin can do
+
+At `attendaapp.com/<slug>/admin` (their password), the tenant runs their whole operation:
+
+- **Orders** — live board, one-tap status flow (received → accepted → preparing → ready → dispatched → delivered), WhatsApp handoff to the customer
+- **Inventory** — products, prices, categories, sold-out toggles, photos
+- **Promos** — discount codes
+- **Hours** — open/close windows
+- **Settings** — brand palette, WhatsApp number, storefront copy
+- **Reports** — order history and revenue
+
+Platform rules enforced for them automatically: order-number sequencing per tenant, zone-based delivery fees if configured, sold-out items hidden from the public store.
+
+## Isolation guarantees
+
+- Tenant data lives in namespaced blob stores — one tenant's orders, menu, and settings are unreachable from another's admin
+- Slugs cannot collide with platform paths (`staff`, `superadmin`, `welcome`, etc. are reserved)
+- Demo expiry gates BOTH the public site and the admin API — an expired demo is a dead surface, not a leaky one
+- Attenda's own flagships (hospitality product, corporate pages) sit on their own reserved paths, untouched by tenant provisioning
+
+## Attenda-run brand rules inside tenants
+
+- The tenant look is the standard set by fukinvegan.com — the reference build every new tenant inherits (full landing + store, never a simplified strip)
+- Credit: tenants are "powered by Attenda" — the platform brand stays visible on tenant surfaces; standalone concept builds carry "A concept by Attenda Technologies" instead
+- Menu category order at handoff follows the flagship's convention — the tenant's own category naming always wins over defaults
 
 ---
 
