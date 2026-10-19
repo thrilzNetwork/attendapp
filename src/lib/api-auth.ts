@@ -50,7 +50,7 @@ export function validateApiKey(req: Request): boolean {
   // No key configured in env. Fail OPEN only in development so local/test work
   // without setup; in production a missing key is a misconfiguration and we must
   // NOT leave the endpoint unauthenticated.
-  if (!expectedKey) return process.env.NODE_ENV !== 'production';
+  if (!expectedKey) return false; // fail closed — misconfig must never open admin doors
   // API clients must provide the key
   if (!apiKey) return false;
   return apiKey === expectedKey;

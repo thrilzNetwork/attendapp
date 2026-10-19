@@ -60,3 +60,5 @@ scripts/*.py
 
 # Local Netlify folder
 .netlify
+
+.service_role_key

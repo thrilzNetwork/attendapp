@@ -27,6 +27,32 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    // Guard: the room must already exist on this hotel — blocks forged room rows
+    // for arbitrary room numbers and never creates rooms.
+    const { data: roomRow } = await supabase
+      .from('hotel_rooms')
+      .select('room_number')
+      .eq('hotel_id', hotel_id)
+      .eq('room_number', String(room_number).trim())
+      .limit(1);
+    if (!roomRow || roomRow.length === 0) {
+      return NextResponse.json({ error: 'Room not found' }, { status: 404 });
+    }
+
+    // Light per-IP throttle: 10 writes/min/IP (module-level memo; per-instance)
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const nowMs = Date.now();
+    const bucketKey = `grf:${ip}`;
+    const g = globalThis as unknown as { __grfHits?: Map<string, number[]> };
+    const hitsMap = g.__grfHits || new Map();
+    g.__grfHits = hitsMap;
+    const hits = (hitsMap.get(bucketKey) || []).filter((t: number) => nowMs - t < 60_000);
+    if (hits.length >= 10) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+    hits.push(nowMs);
+    hitsMap.set(bucketKey, hits);
     const { error } = await supabase.from('room_status').upsert({
       hotel_id,
       room_number,

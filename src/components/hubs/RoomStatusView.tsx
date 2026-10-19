@@ -1,27 +1,61 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getRoomStatuses, upsertRoomStatus, type RoomStatus } from '@/lib/supabase';
+import { useState, useEffect, useCallback } from 'react';
+import { authedApiHeaders, type RoomStatus } from '@/lib/supabase';
 
 const TEAL = '#158A7C';
 
 export default function RoomStatusView({ hotelId, staffName }: { hotelId: string; staffName?: string }) {
   const [rooms, setRooms] = useState<RoomStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
 
-  const load = async () => { setRooms(await getRoomStatuses(hotelId)); setLoading(false); };
-  useEffect(() => { load(); }, [hotelId]);
+  const load = useCallback(async (signal?: AbortSignal) => {
+    try {
+      setError(null);
+      const res = await fetch(`/api/room-status?hotelId=${hotelId}`, { headers: await authedApiHeaders(), signal });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load rooms');
+      setRooms(json.rooms || []);
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return;
+      setError(e instanceof Error ? e.message : 'Failed to load rooms');
+    } finally {
+      setLoading(false);
+    }
+  }, [hotelId]);
 
-  const setStatus = async (room: RoomStatus, status: string) => {
-    await upsertRoomStatus(hotelId, room.room_number, status, staffName || 'Staff');
-    load();
+  useEffect(() => {
+    setLoading(true);
+    const ctrl = new AbortController();
+    load(ctrl.signal);
+    return () => ctrl.abort();
+  }, [load]);
+
+  const post = async (roomNumber: string, status: string) => {
+    if (pending) return; // one write in flight — kills double-tap races
+    setPending(roomNumber);
+    try {
+      const res = await fetch('/api/room-status', {
+        method: 'POST',
+        headers: await authedApiHeaders(),
+        body: JSON.stringify({ room_number: roomNumber, status, staffName, hotelId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Update failed');
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Update failed');
+    } finally {
+      setPending(null);
+    }
   };
 
   const addRoom = async () => {
     const num = prompt('Room number:');
-    if (!num) return;
-    await upsertRoomStatus(hotelId, num.trim(), 'dirty', staffName || 'Staff');
-    load();
+    if (!num?.trim()) return;
+    await post(num.trim(), 'dirty');
   };
 
   const stats = {
@@ -35,6 +69,12 @@ export default function RoomStatusView({ hotelId, staffName }: { hotelId: string
 
   return (
     <div>
+      {error && (
+        <div className="mb-3 flex items-center justify-between bg-red-50 border border-red-200 text-red-700 text-[12px] px-3 py-2 rounded-xl">
+          <span>{error}</span>
+          <button onClick={() => load()} className="font-bold underline">Retry</button>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4">
         <div className="flex gap-2 flex-wrap">
           {[['clean', 'Clean', 'bg-emerald-100 text-emerald-700'], ['dirty', 'Dirty', 'bg-red-100 text-red-700'], ['inspected', 'Inspected', 'bg-blue-100 text-blue-700'], ['out_of_order', 'OOO', 'bg-gray-200 text-gray-600']].map(([key, label, color]) => (
@@ -43,7 +83,7 @@ export default function RoomStatusView({ hotelId, staffName }: { hotelId: string
             </span>
           ))}
         </div>
-        <button onClick={addRoom} className="text-white px-3 py-1.5 rounded-xl text-[12px] font-bold" style={{ backgroundColor: TEAL }}>+ Room</button>
+        <button onClick={addRoom} disabled={!!pending} className="text-white px-3 py-1.5 rounded-xl text-[12px] font-bold disabled:opacity-50" style={{ backgroundColor: TEAL }}>+ Room</button>
       </div>
 
       {rooms.length === 0 ? (
@@ -53,7 +93,7 @@ export default function RoomStatusView({ hotelId, staffName }: { hotelId: string
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
           {rooms.map(r => (
-            <div key={r.id} className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
+            <div key={r.id} className={`bg-white rounded-xl border border-gray-200 p-3 shadow-sm ${pending === r.room_number ? 'opacity-60' : ''}`}>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[15px] font-bold text-gray-800">Room {r.room_number}</span>
                 <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
@@ -65,9 +105,12 @@ export default function RoomStatusView({ hotelId, staffName }: { hotelId: string
               </div>
               {r.cleaned_by && <p className="text-[10px] text-gray-400">Cleaned by {r.cleaned_by}</p>}
               <div className="flex gap-1 mt-2">
-                <button onClick={() => setStatus(r, 'clean')} className="flex-1 text-[10px] py-1 rounded-lg bg-emerald-50 text-emerald-600 font-semibold hover:bg-emerald-100">Clean</button>
-                <button onClick={() => setStatus(r, 'dirty')} className="flex-1 text-[10px] py-1 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100">Dirty</button>
-                <button onClick={() => setStatus(r, 'inspected')} className="flex-1 text-[10px] py-1 rounded-lg bg-blue-50 text-blue-600 font-semibold hover:bg-blue-100">Inspect</button>
+                <button disabled={!!pending} onClick={() => post(r.room_number, 'clean')} className="flex-1 text-[10px] py-1 rounded-lg bg-emerald-50 text-emerald-600 font-semibold hover:bg-emerald-100 disabled:opacity-50">Clean</button>
+                <button disabled={!!pending} onClick={() => post(r.room_number, 'dirty')} className="flex-1 text-[10px] py-1 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100 disabled:opacity-50">Dirty</button>
+                <button disabled={!!pending} onClick={() => post(r.room_number, 'inspected')} className="flex-1 text-[10px] py-1 rounded-lg bg-blue-50 text-blue-600 font-semibold hover:bg-blue-100 disabled:opacity-50">Inspect</button>
+                {r.status === 'out_of_order'
+                  ? <button disabled={!!pending} onClick={() => post(r.room_number, 'dirty')} className="flex-1 text-[10px] py-1 rounded-lg bg-amber-50 text-amber-700 font-semibold hover:bg-amber-100 disabled:opacity-50">Back in Service</button>
+                  : <button disabled={!!pending} onClick={() => post(r.room_number, 'out_of_order')} className="flex-1 text-[10px] py-1 rounded-lg bg-gray-100 text-gray-600 font-semibold hover:bg-gray-200 disabled:opacity-50">OOO</button>}
               </div>
             </div>
           ))}
