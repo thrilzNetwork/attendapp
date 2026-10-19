@@ -398,7 +398,8 @@ export async function deleteRequest(id: string) {
 export async function authedApiHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '',
+    // Key removed from the browser (rotation): the logged-in session satisfies the
+    // server gate; nothing shared/secret ships in public JS anymore.
   };
   try {
     const { data } = await supabase.auth.getSession();

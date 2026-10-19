@@ -205,7 +205,7 @@ export default function SchedulesView({
       const m = staffList.find(s => s.name === addForm.staff_name.trim()) as StaffAccount | undefined;
       if (m?.email) {
         fetch('/api/email', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'schedule_posted', data: { staffEmail: m.email, staffName: addForm.staff_name.trim(), hotelName: hotelName || '', shiftDate: addForm.shift_date, startTime: addForm.start_time, endTime: addForm.end_time, role: addForm.role } }),
         }).catch(() => {});
       }
@@ -375,7 +375,7 @@ export default function SchedulesView({
         Object.values(staffShifts).filter(s => s.email).map(s =>
           fetch('/api/email', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               type: 'schedule_published',
               data: { staffEmail: s.email, staffName: s.name, hotelName: hotelName || 'Hotel', weekStart, weekEnd,

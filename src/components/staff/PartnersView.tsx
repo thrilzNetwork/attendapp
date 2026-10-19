@@ -335,7 +335,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
     try {
       const res = await fetch('/api/superadmin-db', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'create_staff',
           data: {
@@ -369,7 +369,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
     try {
       const res = await fetch('/api/partners', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'list_applications', data: { hotel_id: hotelId } }),
       });
       const json = await res.json();
@@ -384,7 +384,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
     try {
       const res = await fetch('/api/partners', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'approve_application', data: { applicationId: app.id, hotel_id: hotelId } }),
       });
       const json = await res.json();
@@ -404,7 +404,7 @@ export default function PartnersView({ hotelId }: { hotelId: string }) {
     try {
       await fetch('/api/partners', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'reject_application', data: { applicationId: app.id } }),
       });
       await loadApplications();

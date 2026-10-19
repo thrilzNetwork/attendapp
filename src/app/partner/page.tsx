@@ -49,7 +49,7 @@ function RestaurantLandingPage({ urlType: initialUrlType }: { urlType?: string }
     try {
       const res = await fetch('/api/partner-apply', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
       if (res.ok) {

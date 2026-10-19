@@ -92,7 +92,7 @@ export default function ServeDemoBuilder() {
       // lead email (non-blocking) — team contacts them at the 24h activation moment
       fetch('/api/email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'serve_seller_inquiry',
           data: {

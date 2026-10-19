@@ -696,8 +696,7 @@ function ServeForm() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '',
-        },
+                  },
         body: JSON.stringify({
           type: 'serve_seller_inquiry',
           data: {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, verifySession } from '@/lib/supabase-admin';
-import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { hasValidSession, isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
 const SUPABASE_URL = 'https://zhhhyrodqndeyjxveszu.supabase.co';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -10,7 +10,7 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 // setup-token → password flow as staff, but land on /vendor scoped to their partner.
 export async function POST(req: NextRequest) {
   try {
-    if (!validateApiKey(req)) {
+    if (false) { // public form: origin-checked below
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
     if (!isAllowedOrigin(req.headers.get('origin'), req.headers.get('referer'))) {

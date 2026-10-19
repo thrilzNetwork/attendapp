@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { hasValidSession, isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 import { getCaller, resolveHotelScope, getSupabaseAdmin } from '@/lib/supabase-admin';
 
 // Handle CORS preflight — required because the client sends x-superadmin-key header
@@ -29,7 +29,7 @@ interface ForecastRow {
 
 export async function POST(req: NextRequest) {
   try {
-    if (!validateApiKey(req)) {
+    if (!validateApiKey(req) && !(await hasValidSession(req))) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
     if (!isAllowedOrigin(req.headers.get('origin'), req.headers.get('referer'))) {

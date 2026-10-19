@@ -139,7 +139,7 @@ export default function FrontDeskView({ hotelId, isAdmin, staff, hotelName, conf
   const sendScheduleEmail = async (sched: StaffSchedule) => {
     const m = staff.find(s => s.name === sched.staff_name);
     if (!m?.email) return;
-    await fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' }, body: JSON.stringify({ type: 'schedule_posted', data: { staffEmail: m.email, staffName: sched.staff_name, hotelName, shiftDate: sched.shift_date, startTime: sched.start_time, endTime: sched.end_time, role: sched.role } }) }).catch(() => {});
+    await fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'schedule_posted', data: { staffEmail: m.email, staffName: sched.staff_name, hotelName, shiftDate: sched.shift_date, startTime: sched.start_time, endTime: sched.end_time, role: sched.role } }) }).catch(() => {});
   };
 
   const handleCreateSchedule = async () => {

@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 
 const TEAL = '#158A7C';
-const API_KEY = process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '';
 
 /* ── types ───────────────────────────────────────────────── */
 interface Hotel {
@@ -37,7 +36,7 @@ interface HotelMetrics {
 async function adminFetch(action: string, body: Record<string, unknown> = {}) {
   const res = await fetch('/api/superadmin-db', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-superadmin-key': API_KEY },
+    headers: { 'Content-Type': 'application/json',  },
     body: JSON.stringify({ action, data: body }),
   });
   const json = await res.json();
@@ -144,7 +143,7 @@ function OnboardingWizard({
         const origin = window.location.origin;
         await fetch('/api/email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-superadmin-key': API_KEY },
+          headers: { 'Content-Type': 'application/json',  },
           body: JSON.stringify({
             type: 'tenant_onboarding',
             data: {

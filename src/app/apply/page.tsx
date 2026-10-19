@@ -48,8 +48,7 @@ function ApplyContent() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '',
-        },
+                  },
         body: JSON.stringify({
           name,
           contact,

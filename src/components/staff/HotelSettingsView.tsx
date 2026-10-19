@@ -938,7 +938,7 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
     try {
       const res = await fetch('/api/superadmin-db', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'update_hotel', data: { config: form } }),
       });
       const json = await res.json();
@@ -961,7 +961,7 @@ function HotelSettingsView({ config, onSaved }: { config: HotelConfig; onSaved: 
       await updateHotelConfig(form);
       const res = await fetch('/api/places-sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hotelId: config.id, address: form.address }),
       });
       const data = await res.json();

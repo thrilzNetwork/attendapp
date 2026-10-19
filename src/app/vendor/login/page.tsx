@@ -18,7 +18,7 @@ function VendorLogin() {
     try {
       const res = await fetch('/api/vendor-auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login', email, password }),
       });
       const data = await res.json();

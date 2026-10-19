@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
-import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { hasValidSession, isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 import { assertSafePublicUrl } from '@/lib/ssrf';
 
 export async function POST(req: NextRequest) {
   try {
     // Require API key
-    if (!validateApiKey(req)) {
+    if (!validateApiKey(req) && !(await hasValidSession(req))) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 

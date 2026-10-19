@@ -131,7 +131,7 @@ export default function GuestAuthModal({ open, onClose, onSuccess, isValidationC
         if (!hotel) return;
         fetch('/api/email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: 'guest_welcome',
             data: {

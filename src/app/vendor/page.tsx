@@ -63,7 +63,7 @@ function VendorDashboard() {
       if (!token) { router.replace('/vendor/login'); return; }
       const res = await fetch('/api/vendor-auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json',  Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'whoami', token }),
       });
       const data = await res.json();
@@ -114,7 +114,7 @@ function VendorDashboard() {
     setMenuLoading(true);
     const res = await fetch('/api/partners', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'get_menu_items', partner_id: partnerId }),
     });
     const data = await res.json();
@@ -138,14 +138,14 @@ function VendorDashboard() {
       });
       const uploadRes = await fetch('/api/partners', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'upload_image', base64, filename: file.name, folder: 'menu-items' }),
       });
       const uploadData = await uploadRes.json();
       if (!uploadData.ok) throw new Error(uploadData.error || 'Upload failed');
       await fetch('/api/partners', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'update_menu_item', id: item.id, image_url: uploadData.url }),
       });
       setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, image_url: uploadData.url } : i));
@@ -158,7 +158,7 @@ function VendorDashboard() {
   const removeMenuImage = async (item: PartnerMenuItem) => {
     await fetch('/api/partners', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'update_menu_item', id: item.id, image_url: null }),
     });
     setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, image_url: undefined } : i));

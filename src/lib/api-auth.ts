@@ -55,3 +55,14 @@ export function validateApiKey(req: Request): boolean {
   if (!apiKey) return false;
   return apiKey === SERVER_KEY || (!!LEGACY_PUBLIC_KEY && apiKey === LEGACY_PUBLIC_KEY);
 }
+
+// Session-equivalent gate: a valid Supabase session satisfies the API gate even
+// without the shared key. This lets browser screens drop the embedded key entirely.
+export async function hasValidSession(req: Request): Promise<boolean> {
+  try {
+    const { getCaller } = await import('@/lib/supabase-admin');
+    return (await getCaller(req)) !== null;
+  } catch {
+    return false;
+  }
+}

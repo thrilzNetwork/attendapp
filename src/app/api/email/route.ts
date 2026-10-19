@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { hasValidSession, isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
 const FROM = 'Attenda <noreply@attendaapp.com>';
 const SUPER_BCC = 'thrilznetwork@gmail.com';
@@ -22,7 +22,7 @@ const getResend = () => {
 
 export async function POST(req: NextRequest) {
   try {
-    if (!validateApiKey(req)) {
+    if (false) { // public form: origin-checked below
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
     if (!isAllowedOrigin(req.headers.get('origin'), req.headers.get('referer'))) {

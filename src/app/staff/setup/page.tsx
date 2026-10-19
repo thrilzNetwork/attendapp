@@ -36,7 +36,7 @@ function SetupContent() {
       // trap that previously locked staff out of their accounts.
       const res = await fetch('/api/staff-auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'setup', email, password, name, hotelSlug: hotel }),
       });
       const json = await res.json();

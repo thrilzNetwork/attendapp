@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { hasValidSession, isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 import { getCaller, resolveHotelScope, getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe';
 
 // POST /api/stripe/connect — create Stripe Connect onboarding link for a vendor
 export async function POST(req: NextRequest) {
   try {
-    if (!validateApiKey(req)) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    if (!validateApiKey(req) && !(await hasValidSession(req))) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     if (!isAllowedOrigin(req.headers.get('origin'), req.headers.get('referer'))) return originBlocked();
     if (!process.env.STRIPE_SECRET_KEY) return NextResponse.json({ ok: false, reason: 'not_configured' });
 

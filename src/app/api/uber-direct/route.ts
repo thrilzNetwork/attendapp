@@ -4,6 +4,8 @@ import { getUberDelivery, toE164 } from '@/lib/uber-direct';
 import { getBestQuote, getProvider, type DeliveryProviderName } from '@/lib/delivery';
 
 export async function POST(req: NextRequest) {
+  const { isAllowedOrigin, originBlocked } = await import('@/lib/api-auth');
+  if (!isAllowedOrigin(req.headers.get('origin'), req.headers.get('referer'))) return originBlocked();
   const { action, requestId, mode } = await req.json();
   // mode: 'food' (default) | 'transport'
   const db = getSupabaseAdmin();

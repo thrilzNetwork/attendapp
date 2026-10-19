@@ -539,7 +539,7 @@ function DashboardInner() {
         if (configRef.current?.notificationEmail && r.guest_name && r.room && r.type) {
           fetch('/api/email', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               type: 'new_request',
               data: {
@@ -569,7 +569,7 @@ function DashboardInner() {
         if (configRef.current?.notificationEmail && m.guest_name && m.body) {
           fetch('/api/email', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               type: 'guest_message',
               data: {
@@ -2447,7 +2447,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://attendaapp.com';
       await fetch('/api/email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'staff_invitation',
           data: {
@@ -2473,7 +2473,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
   const adminFetch = async (action: string, body: any) => {
     const res = await fetch('/api/superadmin-db', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, data: body }),
     });
     const json = await res.json();
@@ -2506,7 +2506,7 @@ function StaffView({ hotelId, hotelName, hotelSlug, staff, onRefresh }: { hotelI
         const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://attendaapp.com';
         fetch('/api/email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: 'staff_invitation',
             data: {
@@ -3180,7 +3180,7 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
   const adminFetch = async (action: string, body: any) => {
     const res = await fetch('/api/superadmin-db', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, data: body }),
     });
     const json = await res.json();
@@ -3208,7 +3208,7 @@ function PropertiesView({ onSwitchHotel }: { onSwitchHotel: (slug: string) => vo
         const origin = window.location.origin;
         await fetch('/api/email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-superadmin-key': process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY || '' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: 'tenant_onboarding',
             data: {

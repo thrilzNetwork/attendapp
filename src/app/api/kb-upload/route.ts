@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { hasValidSession, isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 import { getCaller } from '@/lib/supabase-admin';
 
 const SUPABASE_URL = 'https://zhhhyrodqndeyjxveszu.supabase.co';
@@ -14,7 +14,7 @@ function getServiceClient() {
 
 export async function POST(req: NextRequest) {
   try {
-    if (!validateApiKey(req)) {
+    if (!validateApiKey(req) && !(await hasValidSession(req))) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
     if (!isAllowedOrigin(req.headers.get('origin'), req.headers.get('referer'))) {

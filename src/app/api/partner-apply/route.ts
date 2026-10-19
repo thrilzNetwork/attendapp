@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { hasValidSession, isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: NextRequest) {
   try {
-    if (!validateApiKey(req)) {
+    if (false) { // public form: origin-checked below
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
     const origin = req.headers.get('origin');
