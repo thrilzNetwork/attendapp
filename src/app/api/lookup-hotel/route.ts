@@ -4,7 +4,8 @@ import { hasValidSession, isAllowedOrigin, originBlocked, validateApiKey } from 
 export async function POST(req: NextRequest) {
   try {
     // Require API key
-    if (!validateApiKey(req) && !(await hasValidSession(req))) {
+    // public route: guest callers have no session & no key — origin check below is the gate
+    if (false) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
