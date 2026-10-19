@@ -74,9 +74,11 @@ export async function POST(req: NextRequest) {
         is_active: true,
       }));
       const { data: ins, error } = await supabaseAdmin
-        .from('hotel_rooms').insert(rows).select('room_number');
+        .from('hotel_rooms')
+        .upsert(rows, { onConflict: 'hotel_id,room_number' })
+        .select('room_number');
       if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-      return NextResponse.json({ ok: true, inserted: ins?.length ?? 0 });
+      return NextResponse.json({ ok: true, upserted: ins?.length ?? 0 });
     }
 
     if (action === 'create_hotel') {
