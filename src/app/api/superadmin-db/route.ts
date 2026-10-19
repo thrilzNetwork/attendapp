@@ -60,6 +60,25 @@ export async function POST(req: NextRequest) {
     }
 
 
+    if (action === 'upsert_rooms') {
+      const hotelId = String(data?.hotelId || '');
+      const roomsIn = Array.isArray(data?.rooms) ? data.rooms : [];
+      if (!hotelId || roomsIn.length === 0) {
+        return NextResponse.json({ ok: false, error: 'hotelId and rooms required' }, { status: 400 });
+      }
+      const rows = roomsIn.map((r: { room_number: string; floor?: number; room_type?: string }) => ({
+        hotel_id: hotelId,
+        room_number: String(r.room_number),
+        floor: typeof r.floor === 'number' ? r.floor : 0,
+        room_type: String(r.room_type || ''),
+        is_active: true,
+      }));
+      const { data: ins, error } = await supabaseAdmin
+        .from('hotel_rooms').insert(rows).select('room_number');
+      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, inserted: ins?.length ?? 0 });
+    }
+
     if (action === 'create_hotel') {
       const insert: Record<string, unknown> = {};
       const guestCols: Record<string, unknown> = {
