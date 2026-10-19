@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, getCaller, resolveHotelScope, callerOwnsRow } from '@/lib/supabase-admin';
-import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { hasValidSession, isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
 // Strip pin_code from staff records before sending to frontend
 function stripPin(record: Record<string, unknown> | null): Record<string, unknown> | null {
@@ -12,9 +12,9 @@ function stripPin(record: Record<string, unknown> | null): Record<string, unknow
 
 export async function POST(req: NextRequest) {
   try {
-    // Require shared API key
+    // Require shared API key OR a valid staff session (browser no longer carries the shared key).
     const hasValidKey = validateApiKey(req);
-    if (!hasValidKey) {
+    if (!hasValidKey && !(await hasValidSession(req))) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 

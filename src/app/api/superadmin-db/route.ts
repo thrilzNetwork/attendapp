@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
+import { hasValidSession, isAllowedOrigin, originBlocked, validateApiKey } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
   try {
-    // Require shared API key
+    // Require shared API key OR a valid session (browser no longer carries the shared key).
     const hasValidKey = validateApiKey(req);
-    if (!hasValidKey) {
+    if (!hasValidKey && !(await hasValidSession(req))) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
