@@ -46,12 +46,12 @@ export function originBlocked() {
  */
 export function validateApiKey(req: Request): boolean {
   const apiKey = req.headers.get('x-superadmin-key');
-  const expectedKey = process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY;
-  // No key configured in env. Fail OPEN only in development so local/test work
-  // without setup; in production a missing key is a misconfiguration and we must
-  // NOT leave the endpoint unauthenticated.
-  if (!expectedKey) return false; // fail closed — misconfig must never open admin doors
-  // API clients must provide the key
+  // Transition: accept the NEW server-only key or the legacy key being rotated out.
+  // When every client sends the server key, remove LEGACY_KEY below.
+  const LEGACY_PUBLIC_KEY = process.env.NEXT_PUBLIC_SUPERADMIN_API_KEY;
+  const SERVER_KEY = process.env.SERVER_SUPERADMIN_API_KEY;
+  const valid = SERVER_KEY || LEGACY_PUBLIC_KEY;
+  if (!valid) return false; // fail closed — misconfig must never open admin doors
   if (!apiKey) return false;
-  return apiKey === expectedKey;
+  return apiKey === SERVER_KEY || (!!LEGACY_PUBLIC_KEY && apiKey === LEGACY_PUBLIC_KEY);
 }
