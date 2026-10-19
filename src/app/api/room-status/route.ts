@@ -60,11 +60,41 @@ export async function GET(req: NextRequest) {
   if (!hotelId) return NextResponse.json({ error: 'No hotel scope' }, { status: 403 });
 
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from('room_status')
-    .select('*')
-    .eq('hotel_id', hotelId)
-    .order('room_number');
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ rooms: data || [] });
+
+  // Two fetches + merge (no FK exists between hotel_rooms and room_status for an embed).
+  const [roomsRes, statusRes] = await Promise.all([
+    supabase.from('hotel_rooms').select('id, room_number, floor').eq('hotel_id', hotelId).eq('is_active', true).order('room_number'),
+    supabase.from('room_status').select('room_number, status, cleaned_by, cleaned_at, inspected_by, inspected_at, service_flag').eq('hotel_id', hotelId),
+  ]);
+  if (roomsRes.error) return NextResponse.json({ error: roomsRes.error.message }, { status: 500 });
+  if (statusRes.error) return NextResponse.json({ error: statusRes.error.message }, { status: 500 });
+
+  const statusByRoom = new Map<string, {
+    status?: string; cleaned_by?: string | null; cleaned_at?: string | null;
+    inspected_by?: string | null; inspected_at?: string | null; service_flag?: string | null;
+  }>();
+  for (const s of (statusRes.data || []) as Array<{
+    room_number: string; status?: string; cleaned_by?: string | null; cleaned_at?: string | null;
+    inspected_by?: string | null; inspected_at?: string | null; service_flag?: string | null;
+  }>) {
+    statusByRoom.set(String(s.room_number), s);
+  }
+
+  // Every active room appears, even before its first status write —
+  // defaults to 'dirty' so a fresh tenant's board is never blank.
+  const rooms = ((roomsRes.data || []) as Array<{ id: string; room_number: string; floor: number | null }>).map((r) => {
+    const s = statusByRoom.get(String(r.room_number));
+    return {
+      id: r.id,
+      room_number: r.room_number,
+      floor: r.floor,
+      status: s?.status || 'dirty',
+      cleaned_by: s?.cleaned_by || null,
+      cleaned_at: s?.cleaned_at || null,
+      inspected_by: s?.inspected_by || null,
+      inspected_at: s?.inspected_at || null,
+      service_flag: s?.service_flag || null,
+    };
+  });
+  return NextResponse.json({ rooms });
 }
