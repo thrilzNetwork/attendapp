@@ -24,6 +24,7 @@ class ErrorBoundary extends Component<{children: React.ReactNode, fallback?: Rea
   }
 }
 import Image from 'next/image';
+import QRCode from 'qrcode';
 import AgentDashboard from '@/components/agent/AgentDashboard';
 import {
   Bell, MessageSquare, Bus, Settings, Users,
@@ -2980,6 +2981,39 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
   const [form, setForm] = useState({ label: '', location_type: 'room' });
   const [copied, setCopied] = useState<string | null>(null);
   const [wlBusy, setWlBusy] = useState(false);
+  const [qrCache, setQrCache] = useState<Record<string, string>>({}); // url → high-res PNG data URL
+
+  // High-res QR for every unique URL: canvas @ 512px margin 2 modules, error correction Q — scannable when printed large or small.
+  useEffect(() => {
+    let cancelled = false;
+    const urls = Array.from(new Set([
+      ...codes.map(c => c.url || getUrl(c.label)),
+      ...(codes.some(c => c.location_type === 'welcome_letter') ? [welcomeUrl] : []),
+    ]));
+    (async () => {
+      const next: Record<string, string> = {};
+      for (const u of urls) {
+        try { next[u] = await QRCode.toDataURL(u, { width: 512, margin: 2, errorCorrectionLevel: 'Q' }); }
+        catch { /* leave uncached */ }
+      }
+      if (!cancelled) setQrCache(prev => ({ ...prev, ...next }));
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codes, hotelSlug]);
+
+  const downloadQr = async (url: string, filename: string) => {
+    let dataUrl = qrCache[url];
+    if (!dataUrl) {
+      try { dataUrl = await QRCode.toDataURL(url, { width: 1024, margin: 2, errorCorrectionLevel: 'Q' }); }
+      catch { return alert('Could not generate the QR image. Try again.'); }
+      setQrCache(prev => ({ ...prev, [url]: dataUrl! }));
+    }
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    a.click();
+  };
 
   const loadCodes = useCallback(async () => {
     const data = await getQrCodes(hotelId);
@@ -3110,10 +3144,14 @@ function QrCodesView({ hotelId, hotelSlug }: { hotelId: string; hotelSlug: strin
             )}
           </div>
           {welcomer && (() => {
-            const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(welcomeUrl)}`;
+            const qrImgUrl = qrCache[welcomeUrl];
             return (
               <div className="text-center shrink-0">
-                <Image src={qrImgUrl} alt="Welcome Letter QR" width={120} height={120} className="rounded-xl border border-gray-100 mx-auto" unoptimized />
+                {qrImgUrl ? (
+                  <Image src={qrImgUrl} alt="Welcome Letter QR" width={140} height={140} className="rounded-xl border border-gray-100 mx-auto" unoptimized />
+                ) : (
+                  <div className="w-[140px] h-[140px] rounded-xl border border-gray-100 bg-gray-50 animate-pulse mx-auto" />
+                )}
                 <button onClick={() => handleCopy(welcomeUrl, welcomer.id)}
                   className="mt-2 flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg mx-auto"
                   style={{ backgroundColor: `${TEAL}15`, color: TEAL }}>
