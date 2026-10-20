@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check, Timer, Clock, CheckCircle2, Users, MoonStar, Sparkle, Droplets, Ban } from 'lucide-react';
 import { listOps, createOps, type OpRecord } from '@/lib/opsStore';
 import { getWorkOrders, createWorkOrder, updateWorkOrder, getRoomStatuses, getStaffSchedulesRange, updateStaffSchedule, getAllHotelRooms, setRoomServiceFlag, getRoomServiceFlags, type RoomStatus, type StaffSchedule, type HotelRoom } from '@/lib/supabase';
@@ -58,6 +58,7 @@ export default function HousekeepingView({
   const [eodDnd, setEodDnd] = useState('');
   const [eodSaving, setEodSaving] = useState(false);
   const [rooms, setRooms] = useState<RoomStatus[]>([]);
+  const officialRoomsRef = useRef<string[]>([]);
   const [hkShifts, setHkShifts] = useState<StaffSchedule[]>([]);
   // Maintenance tracker (deep cleans + service requests) — lives under End of Day
   const [workOrders, setWorkOrders] = useState<{ id: string; location: string; issue: string; priority: string; status: string; created_by?: string; created_at: string; resolved_at?: string }[]>([]);
@@ -68,12 +69,13 @@ export default function HousekeepingView({
   const load = useCallback(async () => {
     if (!hotelId) return;
     setLoading(true);
-    const [plans, eods, wos, roomSts, scheds] = await Promise.all([
+    const [plans, eods, wos, roomSts, scheds, officialRooms] = await Promise.all([
       listOps(hotelId, 'hk_sod_plan').catch(() => [] as OpRecord[]),
       listOps(hotelId, 'hk_eod_actual').catch(() => [] as OpRecord[]),
       getWorkOrders(hotelId).catch(() => []),
       getRoomStatuses(hotelId).catch(() => []),
       getStaffSchedulesRange(hotelId, today, today).catch(() => [] as StaffSchedule[]),
+      getAllHotelRooms(hotelId).catch(() => [] as HotelRoom[]),
     ]);
     // Latest plan saved today wins
     const todaysPlans = ((plans || []) as OpRecord[])
@@ -85,7 +87,17 @@ export default function HousekeepingView({
       .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
     setEodActual((todaysEods[0]?.details as unknown as EodActual) || null);
     setWorkOrders((wos || []) as typeof workOrders);
-    setRooms((roomSts || []) as RoomStatus[]);
+    // Official room list drives all grids; log rows only add HK status stamps (phantom rows 122-154 ignored)
+    const offList = (officialRooms || []).map(r => r.room_number);
+    const offSet = new Set(offList);
+    const merged = offList.length > 0
+      ? offList.map(rn => {
+          const st = ((roomSts || []) as RoomStatus[]).find(s => s.room_number === rn);
+          return (st || { hotel_id: hotelId, room_number: rn, status: null as unknown as RoomStatus['status'], cleaned_at: null as unknown as string });
+        })
+      : ((roomSts || []) as RoomStatus[]);
+    setRooms(merged as RoomStatus[]);
+    officialRoomsRef.current = offList;
     setHkShifts(((scheds || []) as StaffSchedule[]).filter(s => {
       const d = `${s.department || ''} ${s.role || ''}`.toLowerCase();
       return d.includes('housekeep') || d.includes('house keeper') || d.includes('hk') || d.includes('maid') || d.includes('room attendant') || d.includes('attendant');

@@ -748,7 +748,7 @@ export default function PositionTodosView({ hotelId, isAdmin, canManage, staffNa
         card_total: 0, room_charges: 0,
         discrepancies: f.discrepancies?.trim() || '',
         notes: `Bills: ${billsBreakdown} | Paid Out: $${f.paid_out || '0'} | Petty Cash: $${f.petty_cash || '0'}${f.notes ? ' | Notes: ' + f.notes : ''}`,
-      });
+      }, hotelId);
       await upsertResponse({ instance_id: instId, item_id: itemId, checked: true, text_value: `Cash $${total.toFixed(2)}` });
       const updated = await getInstanceResponses(instId);
       setResponsesByInstance(prev => ({ ...prev, [instId]: updated }));

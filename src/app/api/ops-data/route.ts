@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     const { action, hotelId, weekStart, from, to, forecast } = body;
 
     // Fallback: some actions (create_schedule) send hotel_id inside the payload object
-    const resolvedHotelId = hotelId || body.schedule?.hotel_id || body.forecast?.hotel_id || null;
+    const resolvedHotelId = hotelId || body.schedule?.hotel_id || body.forecast?.hotel_id || body.bankCount?.hotel_id || null;
 
     // Effective hotel: staff are pinned to their own; superadmins use the requested one.
     const scopedHotelId = resolveHotelScope(caller, resolvedHotelId);

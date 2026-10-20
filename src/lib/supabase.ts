@@ -1864,11 +1864,11 @@ export async function getBankCounts(hotelId: string, date?: string): Promise<Ban
   return (data || []) as BankCount[];
 }
 
-export async function createBankCount(bc: Omit<BankCount, 'id' | 'created_at'>): Promise<void> {
+export async function createBankCount(bc: Omit<BankCount, 'id' | 'created_at'>, hotelId?: string): Promise<void> {
   const res = await fetch('/api/ops-data', {
     method: 'POST',
     headers: await authedApiHeaders(),
-    body: JSON.stringify({ action: 'create_bank_count', bankCount: bc }),
+    body: JSON.stringify({ action: 'create_bank_count', hotelId, bankCount: bc }),
   });
   const json = await res.json();
   if (!json.ok) throw new Error(json.error || 'Failed to save bank count');
