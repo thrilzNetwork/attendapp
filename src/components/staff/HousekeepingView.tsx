@@ -5,6 +5,7 @@ import { Sunrise, Moon, Plus, RefreshCw, Sparkles, Wrench, Check, Timer, Clock, 
 import { listOps, createOps, type OpRecord } from '@/lib/opsStore';
 import { getWorkOrders, createWorkOrder, updateWorkOrder, getRoomStatuses, getStaffSchedulesRange, updateStaffSchedule, getAllHotelRooms, setRoomServiceFlag, getRoomServiceFlags, type RoomStatus, type StaffSchedule, type HotelRoom } from '@/lib/supabase';
 import PmRoomBoard from './DeepCleanBoard';
+import RoomGridFloors from './RoomGridFloors';
 
 const TEAL = '#158A7C';
 /** Productivity model (locked): checkout = 30 min, stayover = 15 min, 8h shifts (480 min). */
@@ -417,11 +418,23 @@ export default function HousekeepingView({
             <div className="flex items-center gap-1.5 text-[12px] font-extrabold text-gray-900"><Wrench size={13} style={{ color: TEAL }} /> Maint — Deep Cleans &amp; Service</div>
             <span className="text-[10px] font-bold text-gray-400">{workOrders.filter(w => w.status !== 'resolved').length} open</span>
           </div>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
-              <input value={dcRoom} onChange={e => setDcRoom(e.target.value)} inputMode="numeric" placeholder="Room" className="w-20 px-3 py-1.5 border border-gray-200 rounded-xl text-[13px] font-bold focus:outline-none focus:ring-teal-500" />
-              <input value={dcTask} onChange={e => setDcTask(e.target.value)} placeholder="Deep clean / service needed" className="flex-1 min-w-0 px-3 py-1.5 border border-gray-200 rounded-xl text-[13px] focus:outline-none focus:ring-teal-500" />
+          <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+            <div className="flex items-center gap-2 w-full">
+              <input value={dcTask} onChange={e => setDcTask(e.target.value)} placeholder={`Deep clean / service needed${dcRoom ? ` — Room ${dcRoom}` : ' (tap a room below)'}`} className="flex-1 min-w-0 px-3 py-1.5 border border-gray-200 rounded-xl text-[13px] focus:outline-none focus:ring-teal-500" />
             </div>
+            {dcRoom && (
+              <button onClick={() => setDcRoom('')} className="text-[11px] font-bold text-gray-500 hover:text-gray-800 bg-gray-100 rounded-lg px-2 py-1">Room {dcRoom} ✕</button>
+            )}
+          </div>
+          {/* Official floor-grouped room grid — tap to pick the room for the deep clean/service entry */}
+          <div className="mb-2 -mx-1">
+            <RoomGridFloors
+              rooms={rooms.length > 0 ? rooms.map(r => ({ room_number: r.room_number })) : []}
+              onPick={rm => setDcRoom(rm)}
+              tileStates={Object.fromEntries(rooms.map(r => [r.room_number, { state: dcRoom === r.room_number ? ('done' as const) : (r.status === 'out_of_order' ? ('open' as const) : undefined), title: r.status === 'out_of_order' ? `Room ${r.room_number} — out of order` : `Room ${r.room_number}` }]))}
+            />
+          </div>
+          <div className="flex justify-end">
             <button onClick={addDeepClean} disabled={dcSaving || !dcTask.trim()} className="px-3 py-1.5 rounded-xl text-[12px] font-bold text-white disabled:opacity-40 shrink-0 items-center flex gap-1" style={{ background: TEAL }}><Plus size={12} /> Add</button>
           </div>
           {workOrders.length > 0 && (

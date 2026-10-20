@@ -8,6 +8,7 @@ import {
   getStaffSchedulesRange, updateStaffSchedule, getRoomStatuses,
   type StaffSchedule, type RoomStatus,
 } from '@/lib/supabase';
+import RoomGridFloors from './RoomGridFloors';
 
 const TEAL = '#158A7C';
 
@@ -159,6 +160,23 @@ export default function MaintenanceView({
   const roomDue = (room: string) => roomPms(room).filter(p => { const ds = daysSince(p.last_completed_date); return ds === null || ds >= p.frequency_days; });
   const selRoomData = selRoom ? sortedRooms.find(r => r.room_number === selRoom) : null;
 
+  // Shared floor-grouped grid state (same component as Room Safety / Housekeeping):
+  // orange = PM due, teal = PM done today, gray = OK; badge = open work orders; dot = serviced today.
+  const maintTiles: Record<string, { state?: 'done' | 'due' | 'open' | 'idle'; label?: string; badge?: number; dot?: boolean; title?: string }> = {};
+  for (const r of sortedRooms) {
+    const due = roomDue(r.room_number).length;
+    const wo = roomWos(r.room_number).filter(w => w.status !== 'resolved').length;
+    const doneToday = roomPms(r.room_number).some(p => (p.last_completed_date || '') === today);
+    const stamp = (r.cleaned_at || '').slice(0, 10) === today;
+    maintTiles[r.room_number] = {
+      state: due > 0 ? 'due' : doneToday ? 'done' : 'idle',
+      label: due > 0 ? `${due} PM due` : doneToday ? 'PM done' : 'OK',
+      badge: wo,
+      dot: stamp && due === 0,
+      title: `Room ${r.room_number} — ${due} PM due · ${wo} open ticket(s)${stamp ? ' · serviced today' : ''}`,
+    };
+  }
+
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-4">
@@ -301,26 +319,7 @@ export default function MaintenanceView({
         {sortedRooms.length === 0 ? (
           <p className="text-[13px] text-gray-400 font-medium py-2">No rooms on the board yet — rooms appear as housekeeping logs them.</p>
         ) : (
-          <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
-            {sortedRooms.map(r => {
-              const due = roomDue(r.room_number).length;
-              const wo = roomWos(r.room_number).filter(w => w.status !== 'resolved').length;
-              const doneToday = roomPms(r.room_number).some(p => (p.last_completed_date || '') === today);
-              const stamp = (r.cleaned_at || '').slice(0, 10) === today;
-              return (
-                <button key={r.id} onClick={() => setSelRoom(r.room_number)}
-                  title={`Room ${r.room_number} — ${due} PM due · ${wo} open ticket(s)${stamp ? ' · serviced today' : ''}`}
-                  className={`relative rounded-xl border px-1 py-2 text-center transition-colors ${due > 0 ? 'bg-orange-50 border-orange-200 text-orange-700' : doneToday ? 'bg-teal-50 border-teal-200 text-teal-800' : 'bg-gray-50 border-gray-200 text-gray-600'} hover:ring-2 hover:ring-teal-300`}>
-                  <div className="text-[13px] font-extrabold">{r.room_number}</div>
-                  <div className="text-[8px] font-bold uppercase tracking-wide">
-                    {due > 0 ? `${due} PM DUE` : doneToday ? 'PM DONE' : 'OK'}
-                  </div>
-                  {wo > 0 && <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-extrabold flex items-center justify-center">{wo}</div>}
-                  {stamp && due === 0 && <div className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full bg-teal-500" />}
-                </button>
-              );
-            })}
-          </div>
+          <RoomGridFloors rooms={sortedRooms} onPick={rm => setSelRoom(rm)} tileStates={maintTiles} />
         )}
         <div className="text-[11px] text-gray-400 mt-2">
           Orange = PM due · teal = PM completed today · red dot = open ticket(s) · teal corner = serviced today. Tap any room for its PM history &amp; snapshot.

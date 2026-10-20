@@ -8,6 +8,7 @@ import {
   assignInspectionFinding, linkFindingToWorkOrder, createInspectionChecklist, createWorkOrder,
   type Checklist, type ChecklistInstance, type InspectionFinding, type StaffAccount, type HotelRoom,
 } from '@/lib/supabase';
+import RoomGridFloors from './RoomGridFloors';
 
 const TEAL = '#14b8a6';
 
@@ -411,32 +412,14 @@ ${detail}
               </div>
               <p className="text-[11px] text-gray-400 mb-2">Smoke · CO · extinguisher · exits · door security — tap a room to run it</p>
               {roomGrid.floors.length > 0 ? (
-                <div className="space-y-3">
-                  {roomGrid.floors.map(g => (
-                    <div key={g.floor}>
-                      <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1.5">Floor {g.floor}</p>
-                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
-                        {g.rooms.map(r => {
-                          const tile = r.state === 'done' ? { borderColor: TEAL, background: `${TEAL}12` }
-                            : r.state === 'open' ? { borderColor: '#ef4444', background: '#ef444412' }
-                            : { borderColor: '#e5e7eb', background: '#fff' };
-                          const dot = r.state === 'done' ? TEAL : r.state === 'open' ? '#ef4444' : '#9ca3af';
-                          return (
-                            <button key={r.room} disabled={busy}
-                              onClick={() => { const sc = checklists.find(c => c.name === SAFETY_CHECKLIST_NAME); if (sc) startRun(sc, r.room); }}
-                              className="rounded-xl border px-1 py-2 text-center active:scale-[0.97] transition-transform disabled:opacity-50"
-                              style={tile}>
-                              <span className="block text-[13px] font-extrabold text-gray-900">{r.room}</span>
-                              <span className="block text-[8px] font-black uppercase" style={{ color: dot }}>
-                                {r.state === 'done' ? 'done' : r.state === 'open' ? 'open' : 'due'}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                (() => {
+                  // Official shared grid (same component as Maint + HK) fed from the Room Safety memo
+                  const safetyTiles: Record<string, { state?: 'done' | 'due' | 'open' | 'idle'; label?: string; title?: string }> = {};
+                  for (const g of roomGrid.floors) for (const r of g.rooms) {
+                    safetyTiles[r.room] = { state: r.state === 'open' ? 'open' : r.state === 'done' ? 'done' : 'due', label: r.state, title: `Room ${r.room} — ${r.state === 'done' ? 'done this month' : r.state === 'open' ? 'open findings' : 'due this month'}` };
+                  }
+                  return <RoomGridFloors rooms={rooms} onPick={rm => { const sc = checklists.find(c => c.name === SAFETY_CHECKLIST_NAME); if (sc) startRun(sc, rm); }} disabled={busy} tileStates={safetyTiles} />;
+                })()
               ) : (
                 <div className="flex gap-2">
                   <input value={roomNum} onChange={e => setRoomNum(e.target.value)} inputMode="numeric" placeholder="Room #"

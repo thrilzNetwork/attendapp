@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Sparkles, X as XIcon, Check } from 'lucide-react';
 import { getRoomStatuses, getWorkOrders, updateWorkOrder, type RoomStatus, type WorkOrder } from '@/lib/supabase';
+import RoomGridFloors from './RoomGridFloors';
 
 const TEAL = '#158A7C';
 
@@ -68,22 +69,25 @@ export default function DeepCleanBoard({ hotelId, today }: { hotelId: string; to
       {sortedRooms.length === 0 ? (
         <p className="text-[13px] text-gray-400 font-medium py-2">No rooms on the board yet — rooms appear as housekeeping logs them.</p>
       ) : (
-        <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 mt-2">
-          {sortedRooms.map(room => {
+        (() => {
+          // Shared floor-grouped grid (same as Room Safety + Maint): orange = deep clean logged, teal = done today, badge = open deep cleans.
+          const dcTiles: Record<string, { state?: 'done' | 'due' | 'open' | 'idle'; label?: string; badge?: number; dot?: boolean; title?: string }> = {};
+          for (const room of sortedRooms) {
             const open = roomWos(room).filter(w => w.status !== 'resolved').length;
             const dcToday = roomWos(room).some(w => w.status === 'resolved' && (w.resolved_at || '').slice(0, 10) === today);
-            return (
-              <button key={room} onClick={() => setSelRoom(room)}
-                title={`Room ${room} — ${open} deep clean(s) logged${dcToday ? ' · deep cleaned today' : ''}`}
-                className={`relative rounded-xl border px-1 py-2 text-center transition-colors ${open > 0 ? 'bg-orange-50 border-orange-200 text-orange-700' : dcToday ? 'bg-teal-50 border-teal-200 text-teal-800' : 'bg-gray-50 border-gray-200 text-gray-600'} hover:ring-2 hover:ring-teal-300`}>
-                <div className="text-[13px] font-extrabold">{room}</div>
-                <div className="text-[8px] font-bold uppercase tracking-wide">{open > 0 ? 'DEEP CLEAN' : dcToday ? 'DC DONE' : 'OK'}</div>
-                {open > 0 && <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-extrabold flex items-center justify-center">{open}</div>}
-                {dcToday && open === 0 && <div className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full bg-teal-500" />}
-              </button>
-            );
-          })}
-        </div>
+            dcTiles[room] = {
+              state: open > 0 ? 'due' : dcToday ? 'done' : 'idle',
+              label: open > 0 ? 'DC logged' : dcToday ? 'DC done' : 'OK',
+              badge: open,
+              dot: dcToday && open === 0,
+              title: `Room ${room} — ${open} deep clean(s) logged${dcToday ? ' · deep cleaned today' : ''}`,
+            };
+          }
+          const baseRooms = rooms.length > 0
+            ? rooms.map(r => ({ room_number: r.room_number }))
+            : sortedRooms.map(room => ({ room_number: room }));
+          return <div className="mt-2"><RoomGridFloors rooms={baseRooms} onPick={room => setSelRoom(room)} tileStates={dcTiles} /></div>;
+        })()
       )}
       <div className="text-[11px] text-gray-400 mt-2">
         Orange = deep clean logged · teal = deep cleaned today · tap any room for its log. Log a deep clean in End of Day below.
