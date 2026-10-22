@@ -22,15 +22,14 @@ export const PRODUCTS = [
 
 export function CorporateLogo({ light = false }: { light?: boolean }) {
   return (
-    <Link href="/" className="flex items-center gap-2 group">
-      <div className="leading-none">
-        <div className={`text-[17px] font-black tracking-tight transition-colors ${light ? 'text-white' : 'text-gray-900'}`}>
-          ATTENDA
-        </div>
-        <div className="text-[9px] font-bold tracking-[0.32em] mt-0.5 transition-colors" style={{ color: CORP_TEAL_BRIGHT }}>
-          TECHNOLOGIES
-        </div>
-      </div>
+    <Link href="/" className="flex items-center gap-2 group shrink-0">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/logo-primary.svg"
+        alt="Attenda"
+        className="h-7 w-auto transition-opacity group-hover:opacity-80 md:h-8"
+        style={light ? { filter: 'brightness(0) invert(1)' } : undefined}
+      />
     </Link>
   );
 }

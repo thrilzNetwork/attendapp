@@ -1,20 +1,16 @@
 'use client';
 
-/* Attenda Technologies — corporate homepage.
-   Root identity: ONE TECHNOLOGY COMPANY. MULTIPLE OPERATING ENVIRONMENTS.
+/* Attenda Technologies — corporate homepage (company page).
+   What Attenda is, who built it, what it makes, why it works.
    Guest QR sessions still hit / and keep working (handled in page.tsx gate).
 
-   Design language: dark editorial hero with three REAL product interfaces
-   (no fake skeleton bars), scroll-reveal on every section, oversized
-   statements, real screens as the visuals. */
+   Structure: dark identity hero → founder → three layers (the mark) →
+   principles → founder-direct contact. No product mockups on this page. */
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import {
-  ArrowRight, BedDouble, CheckCircle2, Clock,
-  MessageSquare, Navigation, Radio, ShoppingBag, Store, Users,
-} from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { CorporateNav, CorporateFooter, CORP_TEAL, CORP_TEAL_BRIGHT, CORP_INK, CORP_MIST, CORP_BORDER } from '@/components/corporate/Chrome';
 import { LangProvider, useLang } from '@/lib/corp-lang';
 
@@ -40,182 +36,16 @@ function Reveal({ children, className = '', delay = 0 }: { children: React.React
   );
 }
 
-/* ═══════════════ REAL PRODUCT INTERFACES (hero) ═══════════════ */
-
-function HospitalityInterface({ active }: { active: boolean }) {
-  return (
-    <div className="rounded-xl bg-gray-950/95 border border-white/10 overflow-hidden shadow-2xl" style={{ borderColor: active ? `${CORP_TEAL_BRIGHT}66` : undefined }}>
-      {/* window bar */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/10">
-        <div className="flex items-center gap-2">
-          <BedDouble size={12} style={{ color: CORP_TEAL_BRIGHT }} />
-          <span className="text-[9px] font-black tracking-[0.2em] text-white">HOSPITALITY · OPS</span>
-        </div>
-        <span className="text-[8.5px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${CORP_TEAL}22`, color: CORP_TEAL_BRIGHT }}>LIVE</span>
-      </div>
-      <div className="p-3.5 space-y-2.5">
-        {/* rooms strip */}
-        <div className="grid grid-cols-6 gap-1.5">
-          {['OCC', 'CLN', 'RDY', 'OCC', 'INS', 'OOC'].map((s, i) => (
-            <div key={i} className="rounded-md py-1.5 text-center text-[7.5px] font-black tracking-wide"
-              style={{
-                backgroundColor: s === 'OCC' ? 'rgba(21,183,158,0.14)' : s === 'CLN' ? 'rgba(255,255,255,0.07)' : s === 'RDY' ? 'rgba(59,130,246,0.16)' : 'rgba(255,255,255,0.05)',
-                color: s === 'RDY' ? '#7dd3fc' : s === 'OCC' ? CORP_TEAL_BRIGHT : 'rgba(255,255,255,0.45)',
-              }}>{s}</div>
-          ))}
-        </div>
-        {/* task queue */}
-        <div className="space-y-1.5">
-          {[
-            ['Room 412 · Guest requested extra towels', 'Housekeeping', '2m'],
-            ['AC leaking · Room 208', 'Maintenance', '9m'],
-            ['Nuevo pedido · Choripan x2', 'Serve', '15m'],
-          ].map(([txt, who, ago], i) => (
-            <div key={i} className="flex items-center justify-between rounded-lg bg-white/5 px-2.5 py-1.5">
-              <div className="flex items-center gap-2 min-w-0">
-                <CheckCircle2 size={10} className="shrink-0" style={{ color: CORP_TEAL_BRIGHT }} />
-                <span className="text-[9.5px] text-gray-200 truncate">{txt}</span>
-              </div>
-              <span className="text-[8px] font-bold text-gray-500 shrink-0 ml-2">{who} · {ago}</span>
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-between pt-1">
-          <span className="text-[8.5px] font-bold tracking-widest text-gray-500">STAFF ON SHIFT · 9</span>
-          <span className="text-[8.5px] font-bold" style={{ color: CORP_TEAL_BRIGHT }}>ALL REQUESTS ROUTED ✓</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ServeInterface({ active }: { active: boolean }) {
-  return (
-    <div className="rounded-xl bg-gray-950/95 border border-white/10 overflow-hidden shadow-2xl" style={{ borderColor: active ? `${CORP_TEAL_BRIGHT}66` : undefined }}>
-      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/10">
-        <div className="flex items-center gap-2">
-          <Store size={12} style={{ color: CORP_TEAL_BRIGHT }} />
-          <span className="text-[9px] font-black tracking-[0.2em] text-white">SERVE · MERCHANT</span>
-        </div>
-        <span className="text-[8.5px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${CORP_TEAL}22`, color: CORP_TEAL_BRIGHT }}>+3 TODAY</span>
-      </div>
-      <div className="p-3.5 space-y-2.5">
-        {/* live orders */}
-        {[
-          ['#1042 · Lomo saltaro ×2', 'S/ 42.00', 'WhatsApp · Paid'],
-          ['#1041 · Menu ejecutivo ×3', 'S/ 36.00', 'Delivery · Paid'],
-          ['#1040 · Combo familiar', 'S/ 58.90', 'Pickup 19:30'],
-        ].map(([item, amt, meta], i) => (
-          <div key={i} className="rounded-lg bg-white/5 px-2.5 py-2 flex items-center justify-between">
-            <div className="min-w-0">
-              <div className="text-[9.5px] font-bold text-gray-100 truncate">{item}</div>
-              <div className="text-[8px] text-gray-500 mt-0.5">{meta}</div>
-            </div>
-            <span className="text-[10px] font-black shrink-0 ml-2" style={{ color: CORP_TEAL_BRIGHT }}>{amt}</span>
-          </div>
-        ))}
-        {/* day stats */}
-        <div className="grid grid-cols-3 gap-1.5 pt-1">
-          {[['Orders', '27'], ['Ticket', 'S/ 38'], ['Repeat', '41%']].map(([k, v]) => (
-            <div key={k} className="rounded-lg bg-white/5 px-2 py-1.5 text-center">
-              <div className="text-[8px] text-gray-500 font-bold">{k}</div>
-              <div className="text-[10.5px] font-black text-white">{v}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Hero composition: two interfaces + traveling data events ── */
-function EcosystemHeroVisual() {
-  const [pulse, setPulse] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setPulse((p) => (p + 1) % 2), 3200);
-    return () => clearInterval(t);
-  }, []);
-  const events = [
-    'Hotel operation → Hospitality',
-    'Customer order → Serve',
-  ];
-  return (
-    <div className="relative select-none">
-      {/* event pulses */}
-      <div className="absolute -top-5 left-0 right-0 flex justify-center pointer-events-none">
-        {events.map((ev, i) => (
-          <div key={ev}
-            className={`absolute text-[10.5px] font-bold tracking-wide px-3 py-1.5 rounded-full border transition-all duration-700 ${pulse === i ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
-            style={{ color: CORP_TEAL_BRIGHT, borderColor: `${CORP_TEAL_BRIGHT}44`, backgroundColor: 'rgba(10,16,28,0.92)' }}>
-            {ev}
-          </div>
-        ))}
-      </div>
-      <div className="grid gap-3 md:gap-4">
-        <div style={{ transform: pulse === 1 ? 'translateY(-3px)' : undefined, transition: 'transform 0.6s ease' }}><HospitalityInterface active={pulse === 1} /></div>
-        <div style={{ transform: pulse === 0 ? 'translateY(-3px)' : undefined, transition: 'transform 0.6s ease' }}><ServeInterface active={pulse === 0} /></div>
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════ DIAGRAM ═══════════════ */
-function EcosystemDiagram() {
-  const { t } = useLang();
-  const nodes = [
-    { label: 'HOSPITALITY', icon: BedDouble, href: '/hospitality', tint: 'linear-gradient(160deg,#0F2E33,#0A1A1F)', subKey: 'home.eco.node.h.sub' },
-    { label: 'SERVE', icon: Store, href: '/serve', tint: 'linear-gradient(160deg,#172A26,#0E1A17)', subKey: 'home.eco.node.s.sub' },
-  ] as const;
-  return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex justify-center mb-8">
-        <div className="rounded-2xl border-2 px-8 py-4 text-center" style={{ borderColor: CORP_TEAL, backgroundColor: 'rgba(21,138,124,0.08)' }}>
-          <div className="text-[16px] font-black tracking-tight" style={{ color: CORP_TEAL }}>ATTENDA TECHNOLOGIES</div>
-          <div className="text-[10px] font-bold tracking-[0.24em] mt-1 text-gray-500">{t('home.eco.above')}</div>
-        </div>
-      </div>
-      <div className="hidden md:flex justify-center mb-8">
-        <div className="w-px h-10" style={{ background: `linear-gradient(180deg, ${CORP_TEAL}88, transparent)` }} />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4">
-        <EcoNode {...nodes[0]} />
-        <EcoLink label={t('home.eco.link1')} />
-        <EcoNode {...nodes[1]} />
-      </div>
-    </div>
-  );
-}
-
-function EcoNode({ label, subKey, icon: Icon, href, tint }: { label: string; subKey: string; icon: typeof BedDouble; href: string; tint: string }) {
-  const { t } = useLang();
-  return (
-    <Link href={href} className="block rounded-2xl border p-5 text-center transition-transform hover:-translate-y-0.5"
-      style={{ borderColor: `${CORP_TEAL}44`, background: tint }}>
-      <div className="w-10 h-10 rounded-xl mx-auto mb-3 flex items-center justify-center" style={{ backgroundColor: `${CORP_TEAL}22` }}>
-        <Icon size={19} style={{ color: CORP_TEAL_BRIGHT }} />
-      </div>
-      <div className="text-[13px] font-black tracking-[0.14em] text-white">{label}</div>
-      <div className="text-[10.5px] text-gray-400 mt-1">{t(subKey)}</div>
-    </Link>
-  );
-}
-
-function EcoLink({ label }: { label: string }) {
-  return (
-    <div className="hidden md:flex flex-col items-center justify-center px-1">
-      <div className="text-teal-300 text-[17px] font-black tracking-tighter">⇄</div>
-      <div className="text-[9.5px] text-gray-500 font-bold text-center leading-tight mt-1 max-w-[120px]">{label}</div>
-    </div>
-  );
-}
-
-const CONNECTIONS = [
-  { pairKey: 'home.eco.conn2.title', copyKey: 'home.eco.conn2.copy', chainKey: 'home.eco.conn2.chain' },
+const BANDS = [
+  { n: '03', hKey: 'home2.b3.h', pKey: 'home2.b3.p', badgeKey: 'home2.b3.badge', href: '/serve' },
+  { n: '02', hKey: 'home2.b2.h', pKey: 'home2.b2.p', badgeKey: 'home2.b2.badge', href: '/hospitality' },
+  { n: '01', hKey: 'home2.b1.h', pKey: 'home2.b1.p', badgeKey: 'home2.b1.badge', href: '/hospitality' },
 ] as const;
 
-const REAL_WORK = [
-  { titleKey: 'home.rw.hotel', steps: ['Front desk.', 'Housekeeping.', 'Maintenance.', 'Guest request.', 'Manager.'], lineKey: 'home.rw.hotel.line' },
-  { titleKey: 'home.rw.biz', steps: ['Customer.', 'Order.', 'Payment.', 'WhatsApp.', 'Staff.'], lineKey: 'home.rw.biz.line' },
+const WHYS = [
+  { hKey: 'home2.w1.h', pKey: 'home2.w1.p' },
+  { hKey: 'home2.w2.h', pKey: 'home2.w2.p' },
+  { hKey: 'home2.w3.h', pKey: 'home2.w3.p' },
 ] as const;
 
 export default function CorporateHomePage() {
@@ -228,372 +58,183 @@ export default function CorporateHomePage() {
 
 function CorpHomeInner() {
   const { t } = useLang();
+  const facts = [
+    { b: t('home2.hero.f1b'), s: t('home2.hero.f1s') },
+    { b: t('home2.hero.f2b'), s: t('home2.hero.f2s') },
+    { b: t('home2.hero.f3b'), s: t('home2.hero.f3s') },
+  ];
+  const chips = [
+    t('home2.chip.1'), t('home2.chip.2'), t('home2.chip.3'), t('home2.chip.4'),
+  ];
+
   return (
     <div className="min-h-screen bg-white">
       <CorporateNav />
 
-      {/* ── HERO ── */}
+      {/* ── HERO — identity, dark ── */}
       <section className="relative overflow-hidden" style={{ backgroundColor: CORP_INK }}>
-        {/* subtle grid backdrop */}
-        <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)', backgroundSize: '56px 56px' }} />
-        <div className="absolute -top-32 -right-32 w-[480px] h-[480px] rounded-full pointer-events-none" style={{ background: `radial-gradient(circle, ${CORP_TEAL}18 0%, transparent 65%)` }} />
-        <div className="relative max-w-7xl mx-auto px-5 pt-32 pb-14 md:pt-40 md:pb-20 grid lg:grid-cols-[1fr_1.05fr] gap-12 items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-7 border border-white/15 bg-white/5">
-              <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: CORP_TEAL_BRIGHT }} />
-              <span className="text-[11px] font-bold text-white/80 tracking-[0.2em] uppercase">{t('home.hero.badge')}</span>
+        <div className="relative max-w-6xl mx-auto px-5 pt-32 pb-16 md:pt-40 md:pb-24">
+          <Reveal>
+            <div className="inline-flex items-center gap-2.5 mb-7">
+              <span className="w-7 h-[3px] rounded-full" style={{ backgroundColor: CORP_TEAL_BRIGHT }} />
+              <span className="text-[11px] font-black tracking-[0.24em] uppercase" style={{ color: CORP_TEAL_BRIGHT }}>
+                {t('home2.hero.eyebrow')}
+              </span>
             </div>
-            <h1 className="text-[40px] md:text-[58px] lg:text-[66px] leading-[1.01] font-black tracking-[-0.02em] text-white">
-              {t('home.hero.l1')}<br />
-              <span style={{ color: CORP_TEAL_BRIGHT }}>{t('home.hero.l2')}</span>
+            <h1 className="text-[40px] md:text-[56px] lg:text-[62px] leading-[1.03] font-black tracking-[-0.02em] text-white max-w-4xl">
+              {t('home2.hero.l1')}<br />
+              <span style={{ color: CORP_TEAL_BRIGHT }}>{t('home2.hero.l2')}</span>
             </h1>
-            <p className="text-[17px] md:text-[19px] text-gray-300 leading-relaxed mt-6 max-w-xl">
-              {t('home.hero.sub')}
+            <p className="text-[17px] md:text-[19px] text-gray-300 leading-relaxed mt-7 max-w-2xl">
+              {t('home2.hero.sub')}
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 mt-9">
-              <a href="#products"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-[15px] transition-all hover:-translate-y-0.5"
-                style={{ backgroundColor: CORP_TEAL_BRIGHT, color: CORP_INK }}>
-                Explore our products <ArrowRight size={17} />
-              </a>
-              <Link href="/company" className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold text-[15px] border border-white/20 text-white/90 hover:text-white hover:border-white/40 transition-all">
-                {t('nav.discover')} <ArrowRight size={16} />
-              </Link>
-            </div>
-            <div className="mt-9 flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CORP_TEAL_BRIGHT }} />
-              <p className="text-[13px] text-white/60 font-medium">{t('home.hero.built')}</p>
-            </div>
-          </div>
-          <EcosystemHeroVisual />
-        </div>
-      </section>
-
-      {/* ── SECTION 2 — WHAT WE BUILD ── */}
-      <section className="py-20 md:py-32 px-5 bg-white">
-        <div className="max-w-3xl mx-auto text-center mb-16">
-          <Reveal>
-            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>{t('home.wwb.eyebrow')}</div>
-            <h2 className="text-[34px] md:text-[50px] font-black tracking-[-0.02em] leading-[1.06] text-gray-900">
-              {t('home.wwb.h1')}<br />{t('home.wwb.h2')}
-            </h2>
-            <p className="text-[17px] md:text-[18px] text-gray-600 leading-relaxed mt-6">
-              {t('home.wwb.p1')}
-            </p>
-            <p className="text-[17px] md:text-[18px] text-gray-800 font-semibold mt-4">
-              {t('home.wwb.p2')}
-            </p>
-          </Reveal>
-        </div>
-        {/* three large product cards — real mini interfaces */}
-        <div id="products" className="max-w-5xl mx-auto grid md:grid-cols-2 gap-5 scroll-mt-24">
-          <Reveal delay={0}><ProductCard
-            href="/hospitality" label="HOSPITALITY OPERATIONS" icon={BedDouble}
-            headline={t('home.card.h.head')}
-            copy={t('home.card.h.copy')}
-            cta={t('home.card.h.cta')}
-            visual={<HospitalityInterface active={false} />} /></Reveal>
-          <Reveal delay={90}><ProductCard
-            href="/serve" label="COMMERCE" icon={Store}
-            headline={<>TU NEGOCIO.<br />TU CANAL.<br />TUS CLIENTES.</>}
-            copy={t('home.card.s.copy')}
-            cta={t('home.card.s.cta')} subline="No otro marketplace. Tu propio canal."
-            visual={<ServeInterface active={false} />} /></Reveal>
-        </div>
-      </section>
-
-      {/* ── SECTION 3 — THE ATTENDA IDEA ── */}
-      <section className="py-20 md:py-32 px-5" style={{ backgroundColor: CORP_MIST }}>
-        <div className="max-w-3xl mx-auto">
-          <Reveal>
-            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>{t('home.idea.eyebrow')}</div>
-            <h2 className="text-[32px] md:text-[48px] font-black tracking-[-0.02em] leading-[1.08] text-gray-900">
-              {t('home.idea.h1')}<br />
-              <span className="text-gray-500">{t('home.idea.h2')}</span>
-            </h2>
-            <p className="text-[17px] text-gray-600 leading-relaxed mt-7">
-              {t('home.idea.p1')}
-            </p>
-            <p className="text-[19px] md:text-[22px] text-gray-900 font-black mt-6">
-              {t('home.idea.p2')}
-            </p>
-            <p className="text-[17px] text-gray-600 mt-4">
-              {t('home.idea.p3')}
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── SECTION 4 — THE ECOSYSTEM ── */}
-      <section className="py-20 md:py-32 px-5 bg-white">
-        <div className="max-w-3xl mx-auto text-center mb-14">
-          <Reveal>
-            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>{t('home.eco.eyebrow')}</div>
-            <h2 className="text-[34px] md:text-[50px] font-black tracking-[-0.02em] leading-[1.06] text-gray-900">
-              {t('home.eco.h1')}<br />{t('home.eco.h2')}
-            </h2>
-            <p className="text-[17px] text-gray-600 leading-relaxed mt-6">
-              {t('home.eco.p1')}
-            </p>
-          </Reveal>
-        </div>
-        <Reveal><EcosystemDiagram /></Reveal>
-        <div className="max-w-3xl mx-auto mt-16 grid md:grid-cols-2 gap-4">
-          {CONNECTIONS.map((c, i) => (
-            <Reveal key={c.pairKey} delay={i * 80}>
-              <div className="rounded-2xl border p-6 h-full" style={{ borderColor: CORP_BORDER, backgroundColor: CORP_MIST }}>
-                <div className="text-[10.5px] font-black tracking-[0.16em] mb-3" style={{ color: CORP_TEAL }}>{t(c.pairKey)}</div>
-                <p className="text-[14px] text-gray-600 leading-relaxed">{t(c.copyKey)}</p>
-                <div className="text-[12px] font-bold text-gray-800 mt-4 font-mono">{t(c.chainKey)}</div>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-        <p className="text-center text-[13px] text-gray-500 mt-8 max-w-2xl mx-auto">
-          {t('home.eco.note')}
-        </p>
-      </section>
-
-      {/* ── SECTION 5 — ONE PRINCIPLE (dark, oversized) ── */}
-      <section className="py-28 md:py-40 px-5 relative overflow-hidden" style={{ backgroundColor: CORP_INK }}>
-        <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
-        <div className="relative max-w-4xl mx-auto text-center">
-          <Reveal>
-            <h2 className="text-[32px] md:text-[52px] font-black tracking-[-0.02em] leading-[1.06] text-white">
-              {t('home.prin.h1')}<br />{t('home.prin.h2')}
-            </h2>
-            <h3 className="text-[26px] md:text-[40px] font-black tracking-[-0.02em] leading-[1.1] mt-10" style={{ color: CORP_TEAL_BRIGHT }}>
-              {t('home.prin.h3')}<br />{t('home.prin.h4')}
-            </h3>
-            <p className="text-[16px] md:text-[17px] text-gray-400 leading-relaxed mt-10 max-w-2xl mx-auto">
-              {t('home.prin.p')}
-            </p>
-            <p className="text-[18px] md:text-[21px] font-black text-white mt-10">
-              {t('home.prin.p2')}
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── SECTION 6 — BUILT AROUND REAL WORK ── */}
-      <section className="py-20 md:py-32 px-5 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <Reveal>
-            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>{t('home.rw.eyebrow')}</div>
-            <h2 className="text-[34px] md:text-[48px] font-black tracking-[-0.02em] text-gray-900 mb-14 leading-[1.06]">{t('home.rw.h')}</h2>
-          </Reveal>
-          <div className="space-y-6">
-            {REAL_WORK.map((r, i) => (
-              <Reveal key={r.titleKey} delay={i * 80}>
-                <div className="rounded-2xl border p-7 md:p-9" style={{ borderColor: CORP_BORDER, backgroundColor: CORP_MIST }}>
-                  <div className="text-[12px] font-black tracking-[0.2em] mb-5" style={{ color: CORP_TEAL }}>{t(r.titleKey)}</div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                    {r.steps.map((s, j) => (
-                      <span key={s} className="flex items-center gap-2.5">
-                        <span className="text-[15px] font-bold text-gray-800">{s}</span>
-                        {j < r.steps.length - 1 && <ArrowRight size={14} className="text-gray-400" />}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="text-[15px] font-black text-gray-900 mt-5">{t(r.lineKey)}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-12 border-t border-white/15 pt-8 max-w-2xl">
+              {facts.map((f, i) => (
+                <div key={i}>
+                  <div className="text-[19px] font-black tracking-tight text-white">{f.b}</div>
+                  <div className="text-[12.5px] font-semibold text-gray-400 mt-1">{f.s}</div>
                 </div>
-              </Reveal>
-            ))}
-          </div>
-          <Reveal>
-            <p className="text-center text-[26px] md:text-[36px] font-black tracking-[-0.02em] text-gray-900 mt-16">
-              {t('home.rw.final')} <span style={{ color: CORP_TEAL }}>{t('home.rw.final2')}</span>
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── SECTION 7 — COMPANY + MIAMI ── */}
-      <section className="py-20 md:py-32 px-5" style={{ backgroundColor: CORP_MIST }}>
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
-          <Reveal>
-            <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>{t('home.company.eyebrow')}</div>
-            <h2 className="text-[34px] md:text-[48px] font-black tracking-[-0.02em] leading-[1.08] text-gray-900">
-              {t('home.company.h1')}<br />{t('home.company.h2')}
-            </h2>
-            <p className="text-[17px] text-gray-600 leading-relaxed mt-6">
-              {t('home.company.p1a')}<strong className="text-gray-900">{t('home.company.p1b')}</strong>
-            </p>
-            <p className="text-[16px] text-gray-600 leading-relaxed mt-4">
-              {t('home.company.p2')}
-            </p>
-            <Link href="/company" className="inline-flex items-center gap-2 mt-7 text-[15px] font-bold" style={{ color: CORP_TEAL }}>
-              {t('home.company.story')} <ArrowRight size={16} />
-            </Link>
-          </Reveal>
-          <Reveal delay={120}>
-            <div className="relative rounded-3xl overflow-hidden border shadow-xl" style={{ borderColor: CORP_BORDER, minHeight: 380 }}>
-              <Image src="https://images.unsplash.com/photo-1534482421-64566f976cfa?w=1400&q=80" alt="Miami — Attenda Technologies' home" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(8,15,20,0.08) 30%, rgba(8,15,20,0.88) 100%)' }} />
-              <div className="absolute bottom-0 left-0 right-0 p-8">
-                <div className="text-[11px] font-black tracking-[0.3em] text-white/80">{t('home.company.miami.badge')}</div>
-                <div className="text-[28px] font-black text-white mt-1">{t('home.company.miami.h')}</div>
-                <p className="text-[13.5px] text-gray-200 leading-relaxed mt-2 max-w-md">
-                  {t('home.company.miami.p')}
-                </p>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── SECTION 8 — GLOBAL / LATAM ── */}
-      <section className="py-20 md:py-32 px-5 bg-white">
-        <div className="max-w-3xl mx-auto text-center">
-          <Reveal>
-            <h2 className="text-[34px] md:text-[50px] font-black tracking-[-0.02em] leading-[1.06] text-gray-900">
-              {t('home.latam.h1')}<br /><span style={{ color: CORP_TEAL }}>{t('home.latam.h2')}</span>
-            </h2>
-            <p className="text-[17px] text-gray-600 leading-relaxed mt-6">
-              {t('home.latam.p')}
-            </p>
-          </Reveal>
-          <div className="grid md:grid-cols-2 gap-4 mt-10 text-left">
-            {[
-              ['home.latam.t1', 'home.latam.t1c', BedDouble, '/hospitality'],
-              ['home.latam.t2', 'home.latam.t2c', Store, '/serve'],
-                        ].map(([tk, ck, Icon, href], i) => (
-              <Reveal key={tk as string} delay={i * 80}>
-                <Link href={href as string} className="block rounded-2xl border p-6 hover:-translate-y-0.5 transition-transform" style={{ borderColor: CORP_BORDER }}>
-                  <div className="text-[12px] font-black tracking-[0.18em] uppercase" style={{ color: CORP_TEAL }}>{t(tk as string)}</div>
-                  <p className="text-[14.5px] text-gray-600 mt-2.5 leading-relaxed">{t(ck as string)}</p>
-                </Link>
-              </Reveal>
-            ))}
-          </div>
-          <Reveal>
-            <p className="text-[22px] md:text-[30px] font-black tracking-[-0.02em] text-gray-900 mt-14">
-              {t('home.latam.final')}<br /><span style={{ color: CORP_TEAL }}>{t('home.latam.final2')}</span>
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── SECTION 9 — TECHNOLOGY / HOW WE BUILD ── */}
-      <section className="py-20 md:py-32 px-5" style={{ backgroundColor: CORP_MIST }}>
-        <div className="max-w-5xl mx-auto">
-          <div className="max-w-3xl mb-14">
-            <Reveal>
-              <div className="text-[12px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: CORP_TEAL }}>{t('home.how.eyebrow')}</div>
-              <h2 className="text-[34px] md:text-[50px] font-black tracking-[-0.02em] leading-[1.06] text-gray-900">
-                {t('home.how.h1')}<br />{t('home.how.h2')}
-              </h2>
-              <p className="text-[17px] text-gray-600 leading-relaxed mt-6">
-                {t('home.how.p')}
-              </p>
-            </Reveal>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              ['home.how.1t', 'home.how.1c', Radio],
-              ['home.how.2t', 'home.how.2c', Users],
-              ['home.how.3t', 'home.how.3c', Clock],
-              ['home.how.4t', 'home.how.4c', MessageSquare],
-              ['home.how.5t', 'home.how.5c', ShoppingBag],
-              ['home.how.6t', 'home.how.6c', Navigation],
-            ].map(([tk, ck, Icon], i) => (
-              <Reveal key={tk as string} delay={(i % 3) * 70}>
-                <div className="rounded-2xl bg-white border p-6 h-full" style={{ borderColor: CORP_BORDER }}>
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: `${CORP_TEAL}14` }}>
-                    <Icon size={17} style={{ color: CORP_TEAL }} />
-                  </div>
-                  <div className="text-[15px] font-black text-gray-900">{t(tk as string)}</div>
-                  <p className="text-[14px] text-gray-600 mt-1.5 leading-relaxed">{t(ck as string)}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── SECTION 10 — PRODUCTS AGAIN (primary conversion tiles) ── */}
-      <section className="py-20 md:py-32 px-5 bg-white">
-        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-5">
-          {[
-            { t: 'HOSPITALITY', lKey: 'home.tiles.h.t', h: '/hospitality', tint: 'linear-gradient(160deg, #0F2E33 0%, #0A1A1F 100%)', icon: BedDouble },
-            { t: 'SERVE', lKey: 'home.tiles.s.l', h: '/serve', tint: 'linear-gradient(160deg, #172A26 0%, #0E1A17 100%)', icon: Store },
-          ].map((p, i) => {
-            const Icon = p.icon;
-            return (
-              <Reveal key={p.t} delay={i * 90}>
-                <Link href={p.h} className="group rounded-3xl border p-8 md:p-10 transition-transform hover:-translate-y-1 h-full flex flex-col"
-                  style={{ borderColor: `${CORP_TEAL}33`, background: p.tint }}>
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-6" style={{ backgroundColor: `${CORP_TEAL}22` }}>
-                    <Icon size={21} style={{ color: CORP_TEAL_BRIGHT }} />
-                  </div>
-                  <div className="text-[13px] font-black tracking-[0.22em] text-white">{p.t}</div>
-                  <div className="text-[21px] font-black text-gray-100 mt-2">{t(p.lKey)}</div>
-                  <div className="mt-auto inline-flex items-center gap-2 pt-8 text-[14px] font-bold transition-transform group-hover:translate-x-1" style={{ color: CORP_TEAL_BRIGHT }}>
-                    {t('home.tiles.explore')} {p.t.charAt(0) + p.t.slice(1).toLowerCase()} <ArrowRight size={15} />
-                  </div>
-                </Link>
-              </Reveal>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ── SECTION 11 — COMPANY CTA ── */}
-      <section className="py-28 md:py-36 px-5 relative overflow-hidden" style={{ backgroundColor: CORP_INK }}>
-        <div className="absolute -bottom-40 left-1/2 -translate-x-1/2 w-[700px] h-[420px] rounded-full pointer-events-none" style={{ background: `radial-gradient(circle, ${CORP_TEAL}20 0%, transparent 65%)` }} />
-        <div className="relative max-w-4xl mx-auto text-center">
-          <Reveal>
-            <h2 className="text-[36px] md:text-[56px] font-black tracking-[-0.02em] leading-[1.04] text-white">
-              {t('home.cta.h')}
-            </h2>
-            <div className="grid sm:grid-cols-2 gap-4 mt-12 text-left">
-              {[
-                ['home.cta.q1', 'Attenda Hospitality', '/hospitality'],
-                ['home.cta.q2', 'Attenda Serve', '/serve'],
-              ].map(([qk, a, h], i) => (
-                <Reveal key={h} delay={i * 80}>
-                  <Link href={h} className="block rounded-2xl border border-white/15 bg-white/5 p-6 hover:bg-white/10 transition-colors h-full">
-                    <div className="text-[13px] text-gray-400 font-semibold">{t(qk)}</div>
-                    <div className="text-[17px] font-black text-white mt-1.5">{a}</div>
-                    <div className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-bold" style={{ color: CORP_TEAL_BRIGHT }}>
-                      {t('home.tiles.explore')} <ArrowRight size={14} />
-                    </div>
-                  </Link>
-                </Reveal>
               ))}
             </div>
-            <Link href="/contact" className="inline-flex items-center gap-2 mt-12 px-8 py-4 rounded-xl font-semibold text-[15px] border border-white/25 text-white hover:border-white/50 transition-all">
-              {t('home.cta.talk')} <ArrowRight size={16} />
-            </Link>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── FOUNDER ── */}
+      <section className="py-20 md:py-28 px-5" style={{ backgroundColor: CORP_MIST }}>
+        <div className="max-w-6xl mx-auto grid md:grid-cols-[320px_1fr] gap-10 md:gap-16 items-start">
+          <Reveal>
+            <div className="relative rounded-3xl overflow-hidden border shadow-lg" style={{ borderColor: CORP_BORDER, aspectRatio: '4/5' }}>
+              <Image
+                src="/founder-headshot.jpg"
+                alt={t('home2.founder.photoAlt')}
+                fill
+                sizes="(max-width: 768px) 100vw, 320px"
+                className="object-cover"
+                style={{ objectPosition: '50% 18%' }}
+              />
+            </div>
+          </Reveal>
+          <Reveal delay={90}>
+            <h2 className="text-[32px] md:text-[40px] font-black tracking-[-0.02em] leading-[1.06] text-gray-900">
+              {t('home2.founder.h')}
+            </h2>
+            <div className="text-[15px] font-bold mt-2.5" style={{ color: CORP_TEAL }}>
+              {t('home2.founder.role')}
+            </div>
+            <p className="text-[16.5px] text-gray-600 leading-relaxed mt-7 max-w-2xl">
+              {t('home2.founder.p1a')}<strong className="text-gray-900">{t('home2.founder.p1b')}</strong>{t('home2.founder.p1c')}
+            </p>
+            <p className="text-[16.5px] text-gray-600 leading-relaxed mt-4 max-w-2xl">
+              {t('home2.founder.p2a')}<strong className="text-gray-900">{t('home2.founder.p2b')}</strong>{t('home2.founder.p2c')}
+            </p>
+            <p className="text-[16.5px] text-gray-600 leading-relaxed mt-4 max-w-2xl">
+              {t('home2.founder.p3a')}<strong className="text-gray-900">{t('home2.founder.p3b')}</strong>{t('home2.founder.p3c')}
+            </p>
+            <div className="flex flex-wrap gap-2.5 mt-8">
+              {chips.map((c) => (
+                <span key={c} className="text-[12px] font-bold rounded-full px-4 py-2 border bg-white" style={{ color: CORP_TEAL, borderColor: CORP_BORDER }}>
+                  {c}
+                </span>
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── WHAT WE BUILD — three layers (the mark) ── */}
+      <section className="py-20 md:py-28 px-5 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <Reveal>
+            <div className="max-w-2xl">
+              <h2 className="text-[32px] md:text-[44px] font-black tracking-[-0.02em] leading-[1.06] text-gray-900">
+                {t('home2.build.h')}
+              </h2>
+              <p className="text-[16.5px] text-gray-600 leading-relaxed mt-4">
+                {t('home2.build.sub')}
+              </p>
+            </div>
+          </Reveal>
+          <div className="mt-12 space-y-4">
+            {BANDS.map((b, i) => (
+              <Reveal key={b.n} delay={i * 80}>
+                <div className="rounded-2xl border bg-white p-6 md:p-8 grid md:grid-cols-[52px_1fr_auto] gap-5 md:gap-8 items-center hover:shadow-lg transition-shadow" style={{ borderColor: CORP_BORDER }}>
+                  <div className="text-[26px] font-black tracking-tight" style={{ color: CORP_TEAL }}>{b.n}</div>
+                  <div>
+                    <h3 className="text-[18px] md:text-[20px] font-black tracking-[-0.01em] text-gray-900">{t(b.hKey)}</h3>
+                    <p className="text-[14.5px] text-gray-600 leading-relaxed mt-1.5 max-w-2xl">{t(b.pKey)}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="inline-flex items-center text-[11.5px] font-bold whitespace-nowrap rounded-full px-3.5 py-1.5 border" style={{ color: '#159A52', backgroundColor: '#F0FAF4', borderColor: '#CBEED9' }}>
+                      {t(b.badgeKey)}
+                    </span>
+                    <Link href={b.href} aria-label={t('home2.build.hint')}
+                      className="w-9 h-9 rounded-full border flex items-center justify-center hover:translate-x-0.5 transition-transform"
+                      style={{ borderColor: CORP_BORDER, color: CORP_TEAL }}>
+                      <ArrowRight size={15} />
+                    </Link>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal>
+            <div className="flex items-center gap-3 mt-9 text-[14px] font-bold" style={{ color: CORP_TEAL }}>
+              <span className="text-gray-500 font-semibold">{t('home2.build.hint')}:</span>
+              <Link href="/hospitality" className="inline-flex items-center gap-1.5 hover:gap-2.5 transition-all">{t('home2.build.hint2')} <ArrowRight size={14} /></Link>
+              <span className="text-gray-300">·</span>
+              <Link href="/serve" className="inline-flex items-center gap-1.5 hover:gap-2.5 transition-all">{t('home2.build.hint3')} <ArrowRight size={14} /></Link>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── WHY IT WORKS — principles, dark ── */}
+      <section className="py-24 md:py-32 px-5" style={{ backgroundColor: CORP_INK }}>
+        <div className="max-w-6xl mx-auto">
+          <Reveal>
+            <div className="text-[11px] font-black tracking-[0.24em] uppercase mb-5" style={{ color: CORP_TEAL_BRIGHT }}>{t('home2.whye.eyebrow')}</div>
+            <h2 className="text-[32px] md:text-[46px] font-black tracking-[-0.02em] leading-[1.08] text-white">
+              {t('home2.whye.h1')}<br />
+              <span style={{ color: CORP_TEAL_BRIGHT }}>{t('home2.whye.h2')}</span>
+            </h2>
+          </Reveal>
+          <div className="grid md:grid-cols-3 gap-8 md:gap-10 mt-14">
+            {WHYS.map((w, i) => (
+              <Reveal key={w.hKey} delay={i * 90}>
+                <div>
+                  <span className="text-[20px] font-black" style={{ color: '#22C55E' }}>✓</span>
+                  <h4 className="text-[16.5px] font-black text-white mt-3">{t(w.hKey)}</h4>
+                  <p className="text-[14px] text-gray-400 leading-relaxed mt-2.5">{t(w.pKey)}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CONTACT — founder-direct ── */}
+      <section className="py-24 md:py-32 px-5" style={{ backgroundColor: CORP_MIST }}>
+        <div className="max-w-6xl mx-auto grid md:grid-cols-[1fr_auto] gap-10 items-center">
+          <Reveal>
+            <h2 className="text-[32px] md:text-[44px] font-black tracking-[-0.02em] leading-[1.06] text-gray-900">
+              {t('home2.cta.h')}
+            </h2>
+            <p className="text-[16px] text-gray-600 leading-relaxed mt-4 max-w-xl">
+              {t('home2.cta.p')}
+            </p>
+          </Reveal>
+          <Reveal delay={100}>
+            <a href="mailto:thrilznetwork@gmail.com"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-[15px] text-white transition-all hover:-translate-y-0.5"
+              style={{ backgroundColor: CORP_TEAL }}>
+              {t('home2.cta.btn')}
+            </a>
           </Reveal>
         </div>
       </section>
 
       <CorporateFooter />
-    </div>
-  );
-}
-
-/* ── Product card with real interface visual ── */
-function ProductCard({ href, label, icon: Icon, headline, copy, cta, subline, visual }: {
-  href: string; label: string; icon: typeof BedDouble; headline: React.ReactNode; copy: string;
-  cta: string; subline?: string; visual: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-3xl border p-7 md:p-8 flex flex-col" style={{ borderColor: CORP_BORDER, backgroundColor: '#fff', boxShadow: '0 1px 2px rgba(15,23,42,0.04)' }}>
-      <div className="flex items-center gap-2.5 mb-5">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${CORP_TEAL}14` }}>
-          <Icon size={17} style={{ color: CORP_TEAL }} />
-        </div>
-        <span className="text-[10.5px] font-black tracking-[0.22em] text-gray-500 uppercase">{label}</span>
-      </div>
-      <h3 className="text-[23px] md:text-[26px] font-black tracking-[-0.01em] leading-[1.1] text-gray-900">{headline}</h3>
-      <p className="text-[14.5px] text-gray-600 leading-relaxed mt-4">{copy}</p>
-      {subline && <p className="text-[13px] font-bold mt-3" style={{ color: CORP_TEAL }}>{subline}</p>}
-      <div className="mt-6">{visual}</div>
-      <Link href={href} className="mt-auto pt-7 inline-flex items-center gap-2 text-[15px] font-bold group w-fit" style={{ color: CORP_TEAL }}>
-        {cta} <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-      </Link>
     </div>
   );
 }
