@@ -122,6 +122,12 @@ function CorpHomeInner() {
             <div className="text-[15px] font-bold mt-2.5" style={{ color: CORP_TEAL }}>
               {t('home2.founder.role')}
             </div>
+            <a href="https://somehowimanage.netlify.app" target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-[13.5px] font-bold mt-3 hover:gap-3 transition-all"
+              style={{ color: CORP_TEAL }}>
+              <span aria-hidden>📖</span>{t('home2.founder.book')}
+              <ArrowRight size={13} />
+            </a>
             <p className="text-[16.5px] text-gray-600 leading-relaxed mt-7 max-w-2xl">
               {t('home2.founder.p1a')}<strong className="text-gray-900">{t('home2.founder.p1b')}</strong>{t('home2.founder.p1c')}
             </p>

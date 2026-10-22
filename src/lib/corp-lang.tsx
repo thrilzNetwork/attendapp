@@ -152,6 +152,7 @@ const DICT: Record<string, { en: string; es: string }> = {
 
   'home2.founder.h': { en: 'Alejandro Soria', es: 'Alejandro Soria' },
   'home2.founder.role': { en: 'Founder | Hotel Executive & Operations Technology Leader', es: 'Fundador | Ejecutivo Hotelero y Líder en Tecnología de Operaciones' },
+  'home2.founder.book': { en: 'Free book: Somehow I Manage — Hospitality Edition', es: 'Libro gratis: Somehow I Manage — Hospitality Edition' },
   'home2.founder.p1a': { en: 'With over 15 years in hospitality, Alejandro Soria has built his career from ', es: 'Con más de 15 años en hospitalidad, Alejandro Soria ha construido su carrera desde ' },
   'home2.founder.p1b': { en: 'houseman to executive leadership', es: 'houseman hasta liderazgo ejecutivo' },
   'home2.founder.p1c': { en: ', gaining firsthand experience across nearly every level of hotel operations.', es: ', ganando experiencia directa en casi todos los niveles de las operaciones hoteleras.' },
