@@ -203,17 +203,17 @@ const DICT: Record<string, { en: string; es: string }> = {
 };
 
 const LangCtx = createContext<{ lang: Lang; setLang: (l: Lang) => void; t: (k: string) => string }>({
-  lang: 'es',
+  lang: 'en',
   setLang: () => {},
-  t: (k) => DICT[k]?.es ?? k,
+  t: (k) => DICT[k]?.en ?? k,
 });
 
 export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>('es');
+  const [lang, setLangState] = useState<Lang>('en');
   useEffect(() => {
     try {
-      const saved = (localStorage.getItem('attenda_lang') as Lang | null) ?? 'es';
-      if (saved !== lang) setLangState(saved);
+      const saved = (localStorage.getItem('attenda_lang') as Lang | null);
+      if (saved && saved !== lang) setLangState(saved); // EN default; only a visitor's saved choice overrides
     } catch { /* private mode */ }
   }, []);
   const setLang = (l: Lang) => {
